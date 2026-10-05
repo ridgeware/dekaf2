@@ -52,8 +52,26 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/system/os/ksystem.h>
-#ifndef DEKAF2_IS_WINDOWS
-#include <sys/statvfs.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <vector>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <dekaf2/core/strings/kutf.h>
+	#include <windows.h>
+	#include <iphlpapi.h>
+	#include <tlhelp32.h>
+	#include <psapi.h>
+#else
+	#include <sys/statvfs.h>
+	#include <cstdlib>
+	#ifdef DEKAF2_IS_OSX
+		#include <cstring>
+		#include <sys/sysctl.h>
+		#include <mach/mach.h>
+	#endif
+	#ifdef DEKAF2_HAS_LIBPROC
+		#include <libproc.h>
+		#include <array>
+	#endif
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -85,6 +103,641 @@ int64_t NeverNegative (int64_t iN)
 	}
 
 } // NeverNegative
+
+namespace {
+
+//-----------------------------------------------------------------------------
+/// a process of the system, from the process list of the system, or from ps
+struct ProcessInfo
+//-----------------------------------------------------------------------------
+{
+	KString sPID;
+	KString sPPID;
+	KString sShortCmd; ///< the name of the program
+	KString sFullCmd;  ///< its command line - on Windows the path of its program file
+};
+
+#ifdef DEKAF2_IS_WINDOWS
+
+//-----------------------------------------------------------------------------
+/// returns a FILETIME as a count of 100 nanosecond ticks
+uint64_t Ticks(const FILETIME& Time)
+//-----------------------------------------------------------------------------
+{
+	return (static_cast<uint64_t>(Time.dwHighDateTime) << 32) | Time.dwLowDateTime;
+
+} // Ticks
+
+//-----------------------------------------------------------------------------
+/// returns the version of Windows, like 10.0.26100 - GetVersionEx() reports an
+/// older version to a program without a manifest that declares a newer one
+KString WindowsVersion()
+//-----------------------------------------------------------------------------
+{
+	using RtlGetVersionFunc = LONG (WINAPI*)(OSVERSIONINFOW*);
+
+	static RtlGetVersionFunc pRtlGetVersion = []() -> RtlGetVersionFunc
+	{
+		HMODULE hNtDll = ::GetModuleHandleW(L"ntdll.dll");
+		return hNtDll ? reinterpret_cast<RtlGetVersionFunc>(::GetProcAddress(hNtDll, "RtlGetVersion")) : nullptr;
+	}();
+
+	OSVERSIONINFOW Info {};
+	Info.dwOSVersionInfoSize = sizeof(Info);
+
+	if (!pRtlGetVersion || pRtlGetVersion(&Info) != 0)
+	{
+		return {};
+	}
+
+	return kFormat("{}.{}.{}", Info.dwMajorVersion, Info.dwMinorVersion, Info.dwBuildNumber);
+
+} // WindowsVersion
+
+// the description of the first processor in the registry
+constexpr wchar_t s_sProcessorKey[] = L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0";
+
+//-----------------------------------------------------------------------------
+/// returns a string of the description of the first processor, or an empty string
+KString ProcessorString(const wchar_t* sName)
+//-----------------------------------------------------------------------------
+{
+	wchar_t sValue[256];
+	DWORD   iSize = sizeof(sValue);
+
+	if (::RegGetValueW(HKEY_LOCAL_MACHINE, s_sProcessorKey, sName, RRF_RT_REG_SZ, nullptr, sValue, &iSize) != ERROR_SUCCESS)
+	{
+		return {};
+	}
+
+	auto sResult = kutf::Convert<KString>(std::wstring(sValue));
+	sResult.Trim();
+
+	return sResult;
+
+} // ProcessorString
+
+//-----------------------------------------------------------------------------
+/// returns a number of the description of the first processor, or 0
+DWORD ProcessorNumber(const wchar_t* sName)
+//-----------------------------------------------------------------------------
+{
+	DWORD iValue { 0 };
+	DWORD iSize = sizeof(iValue);
+
+	if (::RegGetValueW(HKEY_LOCAL_MACHINE, s_sProcessorKey, sName, RRF_RT_REG_DWORD, nullptr, &iValue, &iSize) != ERROR_SUCCESS)
+	{
+		return 0;
+	}
+
+	return iValue;
+
+} // ProcessorNumber
+
+//-----------------------------------------------------------------------------
+/// returns the path of the program file of a process, or an empty string without
+/// the access to it
+KString ProcessImagePath(DWORD iPID)
+//-----------------------------------------------------------------------------
+{
+	HANDLE hProcess = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, iPID);
+
+	if (!hProcess)
+	{
+		return {};
+	}
+
+	wchar_t sPath[MAX_PATH * 4];
+	DWORD   iSize = MAX_PATH * 4;
+
+	bool bHasPath = ::QueryFullProcessImageNameW(hProcess, 0, sPath, &iSize) != FALSE;
+
+	::CloseHandle(hProcess);
+
+	return bHasPath ? kutf::Convert<KString>(std::wstring(sPath, iSize)) : KString();
+
+} // ProcessImagePath
+
+//-----------------------------------------------------------------------------
+/// counts the TCP connections of an address family by their state, under the
+/// names of netstat on Linux
+void CountTcpConnections(ULONG iFamily, KProps<KString, KSystemStats::int_t>& Netstat)
+//-----------------------------------------------------------------------------
+{
+	std::vector<char> Table;
+	DWORD             iSize { 0 };
+	DWORD             iResult;
+
+	// the table may grow between two calls
+	do
+	{
+		Table.resize(iSize);
+		iResult = ::GetExtendedTcpTable(Table.empty() ? nullptr : Table.data(), &iSize, FALSE, iFamily, TCP_TABLE_OWNER_PID_ALL, 0);
+	}
+	while (iResult == ERROR_INSUFFICIENT_BUFFER);
+
+	if (iResult != NO_ERROR)
+	{
+		kDebug(2, "cannot get the TCP connections: {}", iResult);
+		return;
+	}
+
+	auto Count = [&Netstat](DWORD iState)
+	{
+		KStringView sState;
+
+		switch (iState)
+		{
+			case MIB_TCP_STATE_SYN_SENT:   sState = "syn_sent";    break;
+			case MIB_TCP_STATE_SYN_RCVD:   sState = "syn_recv";    break;
+			case MIB_TCP_STATE_ESTAB:      sState = "established"; break;
+			case MIB_TCP_STATE_FIN_WAIT1:  sState = "fin_wait1";   break;
+			case MIB_TCP_STATE_FIN_WAIT2:  sState = "fin_wait2";   break;
+			case MIB_TCP_STATE_CLOSE_WAIT: sState = "close_wait";  break;
+			case MIB_TCP_STATE_CLOSING:    sState = "closing";     break;
+			case MIB_TCP_STATE_LAST_ACK:   sState = "last_ack";    break;
+			case MIB_TCP_STATE_TIME_WAIT:  sState = "time_wait";   break;
+			// as netstat -n, without listening and closed sockets
+			default:                       return;
+		}
+
+		++Netstat[kFormat("netstat_tcp_{}", sState)];
+	};
+
+	if (iFamily == AF_INET)
+	{
+		auto* pTable = reinterpret_cast<const MIB_TCPTABLE_OWNER_PID*>(Table.data());
+
+		for (DWORD i = 0; i < pTable->dwNumEntries; ++i)
+		{
+			Count(pTable->table[i].dwState);
+		}
+	}
+	else
+	{
+		auto* pTable = reinterpret_cast<const MIB_TCP6TABLE_OWNER_PID*>(Table.data());
+
+		for (DWORD i = 0; i < pTable->dwNumEntries; ++i)
+		{
+			Count(pTable->table[i].dwState);
+		}
+	}
+
+} // CountTcpConnections
+
+//-----------------------------------------------------------------------------
+/// returns the processes of the system
+std::vector<ProcessInfo> ListProcesses()
+//-----------------------------------------------------------------------------
+{
+	std::vector<ProcessInfo> Processes;
+
+	HANDLE hSnapshot = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+	if (hSnapshot == INVALID_HANDLE_VALUE)
+	{
+		kDebug(1, "cannot list the processes: {}", ::GetLastError());
+		return Processes;
+	}
+
+	PROCESSENTRY32W Entry {};
+	Entry.dwSize = sizeof(Entry);
+
+	for (BOOL bHasEntry = ::Process32FirstW(hSnapshot, &Entry); bHasEntry; bHasEntry = ::Process32NextW(hSnapshot, &Entry))
+	{
+		auto sName = kutf::Convert<KString>(std::wstring(Entry.szExeFile));
+		auto sPath = ProcessImagePath(Entry.th32ProcessID);
+
+		Processes.push_back({ KString::to_string(Entry.th32ProcessID),
+		                      KString::to_string(Entry.th32ParentProcessID),
+		                      sName,
+		                      sPath.empty() ? sName : sPath });
+	}
+
+	::CloseHandle(hSnapshot);
+
+	return Processes;
+
+} // ListProcesses
+
+#else // DEKAF2_IS_WINDOWS
+
+#ifdef DEKAF2_IS_OSX
+
+//-----------------------------------------------------------------------------
+/// returns a string value of the kernel, or an empty string
+KString SysctlString(const char* sName)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iSize { 0 };
+
+	if (::sysctlbyname(sName, nullptr, &iSize, nullptr, 0) != 0 || iSize == 0)
+	{
+		return {};
+	}
+
+	std::vector<char> Value(iSize);
+
+	if (::sysctlbyname(sName, Value.data(), &iSize, nullptr, 0) != 0)
+	{
+		return {};
+	}
+
+	// the value ends with a NUL
+	KString sValue(Value.data(), ::strnlen(Value.data(), iSize));
+	sValue.Trim();
+
+	return sValue;
+
+} // SysctlString
+
+//-----------------------------------------------------------------------------
+/// returns a number of the kernel, or 0
+template<typename T>
+T SysctlNumber(const char* sName)
+//-----------------------------------------------------------------------------
+{
+	T           iValue { 0 };
+	std::size_t iSize = sizeof(iValue);
+
+	if (::sysctlbyname(sName, &iValue, &iSize, nullptr, 0) != 0 || iSize != sizeof(iValue))
+	{
+		return 0;
+	}
+
+	return iValue;
+
+} // SysctlNumber
+
+#endif // DEKAF2_IS_OSX
+
+//-----------------------------------------------------------------------------
+/// reads a process from the /proc tables of Linux, returns false if there is no
+/// such process
+bool ReadProcProcess(KStringView sPID, ProcessInfo& Process)
+//-----------------------------------------------------------------------------
+{
+	// % cat /proc/3002/stat
+	// 3002 (crond) S 1 3002 3002 0 -1 4202816 92890 ...
+	//
+	// The name in the parentheses can have spaces and parentheses itself, therefore
+	// the fields after it start after the last closing parenthesis: the state, and
+	// then the parent process ID.
+	KString sStat;
+
+	if (!kReadTextFile(kFormat("/proc/{}/stat", sPID), sStat, false))
+	{
+		return false;
+	}
+
+	auto iOpen  = sStat.find('(');
+	auto iClose = sStat.rfind(')');
+
+	if (iOpen == KString::npos || iClose == KString::npos || iClose < iOpen)
+	{
+		return false;
+	}
+
+	auto Fields = KStringView(sStat).substr(iClose + 1).Split(' ');
+
+	if (Fields.size() < 2)
+	{
+		return false;
+	}
+
+	Process.sPID      = sPID;
+	Process.sPPID     = Fields[1];
+	Process.sShortCmd = KStringView(sStat).substr(iOpen + 1, iClose - iOpen - 1);
+
+	// The arguments are separated by NUL bytes. Kernel threads and zombies have no
+	// arguments, and ps shows their name in brackets then.
+	Process.sFullCmd.clear();
+	kReadBinaryFile(kFormat("/proc/{}/cmdline", sPID), Process.sFullCmd);
+	Process.sFullCmd.TrimRight('\0');
+	Process.sFullCmd.Replace('\0', ' ');
+
+	if (Process.sFullCmd.empty())
+	{
+		Process.sFullCmd = kFormat("[{}]", Process.sShortCmd);
+	}
+
+	return true;
+
+} // ReadProcProcess
+
+//-----------------------------------------------------------------------------
+/// returns the processes of the system, from the /proc tables of Linux
+std::vector<ProcessInfo> ListProcessesFromProc()
+//-----------------------------------------------------------------------------
+{
+	std::vector<ProcessInfo> Processes;
+
+	KDirectory Dir("/proc", KFileType::DIRECTORY);
+
+	ProcessInfo Process;
+
+	for (const auto& Entry : Dir)
+	{
+		auto sPID = Entry.Filename();
+
+		// a process can end between the listing and the reading of its tables
+		if (kIsInteger(sPID, false) && ReadProcProcess(sPID, Process))
+		{
+			Processes.push_back(std::move(Process));
+		}
+	}
+
+	return Processes;
+
+} // ListProcessesFromProc
+
+#ifdef DEKAF2_HAS_LIBPROC
+
+//-----------------------------------------------------------------------------
+/// returns the command line of a process, or an empty string - the system tells
+/// it only for the processes of the own user (or for all to root)
+KString ProcessArguments(pid_t iPID)
+//-----------------------------------------------------------------------------
+{
+	// the buffer holds the count of the arguments, the path of the program, NUL
+	// bytes up to an aligned position, the arguments with a NUL byte after each,
+	// and then the environment
+	int Mib[3] { CTL_KERN, KERN_PROCARGS2, iPID };
+	std::size_t iSize { 0 };
+
+	if (sysctl(Mib, 3, nullptr, &iSize, nullptr, 0) != 0 || iSize <= sizeof(int))
+	{
+		return {};
+	}
+
+	KString sBuffer(iSize, '\0');
+
+	if (sysctl(Mib, 3, sBuffer.data(), &iSize, nullptr, 0) != 0 || iSize <= sizeof(int))
+	{
+		return {};
+	}
+
+	int iArgs { 0 };
+	std::memcpy(&iArgs, sBuffer.data(), sizeof(int));
+
+	KStringView sRest(sBuffer.data() + sizeof(int), iSize - sizeof(int));
+
+	// skip the path of the program and the NUL bytes after it
+	auto iPos = sRest.find('\0');
+
+	if (iPos != KStringView::npos)
+	{
+		iPos = sRest.find_first_not_of('\0', iPos);
+	}
+
+	if (iPos == KStringView::npos)
+	{
+		return {};
+	}
+
+	sRest.remove_prefix(iPos);
+
+	KString sArgs;
+
+	for (; iArgs > 0 && !sRest.empty(); --iArgs)
+	{
+		auto iEnd = sRest.find('\0');
+
+		if (!sArgs.empty())
+		{
+			sArgs += ' ';
+		}
+
+		sArgs += sRest.substr(0, iEnd);
+
+		if (iEnd == KStringView::npos)
+		{
+			break;
+		}
+
+		sRest.remove_prefix(iEnd + 1);
+	}
+
+	return sArgs;
+
+} // ProcessArguments
+
+//-----------------------------------------------------------------------------
+/// returns the processes of the system, from libproc of macOS
+std::vector<ProcessInfo> ListProcessesFromLibproc()
+//-----------------------------------------------------------------------------
+{
+	std::vector<ProcessInfo> Processes;
+
+	// the count can grow until the second call - leave room for new processes
+	auto iCount = proc_listallpids(nullptr, 0);
+
+	if (iCount <= 0)
+	{
+		return Processes;
+	}
+
+	std::vector<pid_t> PIDs(static_cast<std::size_t>(iCount) + 64);
+
+	iCount = proc_listallpids(PIDs.data(), static_cast<int>(PIDs.size() * sizeof(pid_t)));
+
+	if (iCount <= 0)
+	{
+		return Processes;
+	}
+
+	PIDs.resize(std::min(static_cast<std::size_t>(iCount), PIDs.size()));
+	Processes.reserve(PIDs.size());
+
+	for (auto iPID : PIDs)
+	{
+		// the short info is the one that the system gives also for the processes of
+		// other users
+		proc_bsdshortinfo Info;
+
+		if (proc_pidinfo(iPID, PROC_PIDT_SHORTBSDINFO, 0, &Info, sizeof(Info)) != sizeof(Info))
+		{
+			continue;
+		}
+
+		ProcessInfo Process;
+
+		Process.sPID  = KString::to_string(iPID);
+		Process.sPPID = KString::to_string(Info.pbsi_ppid);
+
+		// like ps on macOS: the path of the program as the short command
+		std::array<char, PROC_PIDPATHINFO_MAXSIZE> aPath;
+		auto iLen = proc_pidpath(iPID, aPath.data(), aPath.size());
+
+		if (iLen > 0)
+		{
+			Process.sShortCmd.assign(aPath.data(), static_cast<std::size_t>(iLen));
+		}
+		else
+		{
+			Process.sShortCmd.assign(Info.pbsi_comm, strnlen(Info.pbsi_comm, sizeof(Info.pbsi_comm)));
+		}
+
+		// without the arguments of a process of another user, ps shows its program
+		Process.sFullCmd = ProcessArguments(iPID);
+
+		if (Process.sFullCmd.empty())
+		{
+			Process.sFullCmd = Process.sShortCmd;
+		}
+
+		Processes.push_back(std::move(Process));
+	}
+
+	return Processes;
+
+} // ListProcessesFromLibproc
+
+#else // DEKAF2_HAS_LIBPROC
+
+//-----------------------------------------------------------------------------
+/// runs ps for all processes with the given columns, and calls Row with the parts
+/// of each line - the last column is the rest of the line, with its spaces
+template<typename Callback>
+void ReadProcessTable(KStringView sColumns, std::size_t iColumns, Callback Row)
+//-----------------------------------------------------------------------------
+{
+	KInShell pipe;
+	pipe.SetReaderRightTrim("\r\n\t ");
+
+	if (!pipe.Open (kFormat("ps -e -o {}", sColumns)))
+	{
+		return;
+	}
+
+	KString sLine;
+
+	while (pipe.ReadLine (sLine))
+	{
+		auto Parts = sLine.Split(' ');
+
+		if (Parts.size() < iColumns)
+		{
+			kDebug (3, "SKIPPED Parsed Line = '{}'", sLine);
+			continue;
+		}
+
+		// the parts are views into the line
+		auto iLastStart = static_cast<std::size_t>(Parts[iColumns - 1].data() - sLine.data());
+		Parts.resize(iColumns);
+		Parts.back() = KStringView(sLine).substr(iLastStart);
+
+		Row(Parts);
+	}
+
+} // ReadProcessTable
+
+//-----------------------------------------------------------------------------
+/// returns the processes of the system, from ps
+std::vector<ProcessInfo> ListProcessesFromPS()
+//-----------------------------------------------------------------------------
+{
+	std::vector<ProcessInfo> Processes;
+
+	kDebug (4, "running ps ...");
+
+	// both the short and the full command can have spaces (on macOS, the short command
+	// is the path of the executable), therefore ps runs twice, with each of them as the
+	// last column:
+	//   324 cqueue/1
+	//  2742 /usr/sbin/automount
+	KUnorderedMap<KString, KString> ShortCmds;
+
+	ReadProcessTable("pid=,comm=", 2, [&ShortCmds](const std::vector<KStringView>& Parts)
+	{
+		ShortCmds.emplace(Parts[0], Parts[1]);
+	});
+
+	//   324   151 [cqueue/1]
+	//  2742     1 automount --pid-file /var/run/autofs.pid
+	ReadProcessTable("pid=,ppid=,command=", 3, [&](const std::vector<KStringView>& Parts)
+	{
+		// a process that started between the two runs of ps is left out
+		auto it = ShortCmds.find(Parts[0]);
+
+		if (it != ShortCmds.end())
+		{
+			Processes.push_back({ Parts[0], Parts[1], it->second, Parts[2] });
+		}
+	});
+
+	return Processes;
+
+} // ListProcessesFromPS
+
+#endif // DEKAF2_HAS_LIBPROC
+
+//-----------------------------------------------------------------------------
+/// returns the processes of the system
+std::vector<ProcessInfo> ListProcesses()
+//-----------------------------------------------------------------------------
+{
+	if (kDirExists("/proc"))
+	{
+		return ListProcessesFromProc();
+	}
+
+#ifdef DEKAF2_HAS_LIBPROC
+	return ListProcessesFromLibproc();
+#else
+	return ListProcessesFromPS();
+#endif
+
+} // ListProcesses
+
+#endif // DEKAF2_IS_WINDOWS
+
+#if defined(DEKAF2_IS_WINDOWS) || defined(DEKAF2_IS_OSX)
+//-----------------------------------------------------------------------------
+/// returns the time of the start of the system - on Linux, /proc/stat tells it
+KUnixTime BootTime()
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_WINDOWS
+
+	return KUnixTime::now() - chrono::milliseconds(::GetTickCount64());
+
+#else
+
+	struct timeval Boot {};
+	std::size_t    iSize = sizeof(Boot);
+
+	if (::sysctlbyname("kern.boottime", &Boot, &iSize, nullptr, 0) != 0)
+	{
+		return KUnixTime(std::time_t(0));
+	}
+
+	return KUnixTime(std::time_t(Boot.tv_sec));
+
+#endif
+
+} // BootTime
+#endif
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+void KSystemStats::AddBootTime (std::time_t tBootTime)
+//-----------------------------------------------------------------------------
+{
+	if (tBootTime <= 0)
+	{
+		return;
+	}
+
+	KUnixTime tBoot = KUnixTime(tBootTime);
+	KDuration tAgo  = KUnixTime::now() - tBoot;
+
+	Add("boot_time_unix", static_cast<int_t>(tBoot.to_time_t()), StatType::INTEGER);
+	Add("boot_time_dtm",  kFormTimestamp(tBoot), StatType::STRING);
+	Add("boot_time_ago",  static_cast<int_t>(tAgo.seconds().count()), StatType::INTEGER);
+
+} // AddBootTime
 
 //-----------------------------------------------------------------------------
 bool KSystemStats::GatherAll ()
@@ -244,6 +897,41 @@ bool KSystemStats::GatherProcInfo ()
 {
 	kDebug (4, "...");
 
+#ifdef DEKAF2_IS_WINDOWS
+
+	// Windows has no load average
+	auto iUptime = static_cast<int_t>(::GetTickCount64() / 1000);
+
+	Add ("uptime_seconds", iUptime, StatType::INTEGER);
+
+	FILETIME Idle, Kernel, User;
+
+	if (::GetSystemTimes(&Idle, &Kernel, &User) && iUptime > 0)
+	{
+		// the idle time of all processors, as in /proc/uptime of Linux
+		auto iIdle = static_cast<int_t>(Ticks(Idle) / 10000000);
+
+		Add ("uptime_idle_seconds", iIdle,                   StatType::INTEGER);
+		Add ("uptime_idle_percent", (iIdle * 100) / iUptime, StatType::INTEGER);
+	}
+
+	PERFORMANCE_INFORMATION Performance {};
+
+	if (::GetPerformanceInfo(&Performance, sizeof(Performance)))
+	{
+		Add ("threads_total",   static_cast<int_t>(Performance.ThreadCount),  StatType::INTEGER);
+		Add ("processes_total", static_cast<int_t>(Performance.ProcessCount), StatType::INTEGER);
+	}
+
+	auto sWindowsVersion = WindowsVersion();
+
+	if (!sWindowsVersion.empty())
+	{
+		Add ("windows_version", sWindowsVersion, StatType::STRING);
+	}
+
+#else
+
 	KString sVersion;
 	KString sLoadAvg;
 	KString sUptime;
@@ -319,25 +1007,47 @@ bool KSystemStats::GatherProcInfo ()
 	}
 	else
 	{
-		kDebug (3, "no /proc tables, so running uptime...");
+		// without the /proc tables, like on macOS: the load average from the kernel
+		double LoadAverage[3];
 
-		KString sScratch;
-		kSystem ("uptime", sScratch);
-		sScratch.Trim();
+		if (::getloadavg(LoadAverage, 3) == 3)
+		{
+			Add ("load_average_1min",  LoadAverage[0], StatType::FLOAT);
+			Add ("load_average_5min",  LoadAverage[1], StatType::FLOAT);
+			Add ("load_average_15min", LoadAverage[2], StatType::FLOAT);
+		}
 
-		// CentOS:
-		//  19:03:25 up 121 days,  4:21,  2 users,  load average: 0.01, 0.04, 0.08
-		// MacOS:
-		// 19:03  up  1:14, 2 users, load averages: 1.24 1.60 1.77
+#ifdef DEKAF2_IS_OSX
+		auto tBoot = BootTime();
 
-		auto Parts = sScratch.Split(' ');
-		Add ("load_average_1min",  Parts.at(Parts.size()-3), StatType::FLOAT);
-		Add ("load_average_5min",  Parts.at(Parts.size()-2), StatType::FLOAT);
-		Add ("load_average_15min", Parts.at(Parts.size()-1), StatType::FLOAT);
+		if (tBoot.to_time_t() > 0)
+		{
+			Add ("uptime_seconds", static_cast<int_t>((KUnixTime::now() - tBoot).seconds().count()), StatType::INTEGER);
+		}
+
+		// the version of the kernel, as /proc/version of Linux, and the one of macOS
+		sVersion = SysctlString("kern.version");
+
+		if (!sVersion.empty())
+		{
+			Add ("unix_version", sVersion, StatType::STRING);
+		}
+
+		auto sMacOSVersion = SysctlString("kern.osproductversion");
+
+		if (!sMacOSVersion.empty())
+		{
+			Add ("macos_version", sMacOSVersion, StatType::STRING);
+		}
+#endif
 	}
-	
+
+#endif // DEKAF2_IS_WINDOWS
+
 	kDebug (3, "sizing {} ...", KLog::getInstance().GetDebugLog());
 	Add ("bytes_klog",             NeverNegative (kFileSize (KLog::getInstance().GetDebugLog())),StatType::INTEGER);
+
+#ifndef DEKAF2_IS_WINDOWS
 	kDebug (3, "sizing a bunch of files in /var/log ...");
 	Add ("bytes_var_log_cron",     NeverNegative (kFileSize ("/var/log/cron")),     StatType::INTEGER);
 	Add ("bytes_var_log_dmesg",    NeverNegative (kFileSize ("/var/log/dmesg")),    StatType::INTEGER);
@@ -348,6 +1058,7 @@ bool KSystemStats::GatherProcInfo ()
 	Add ("bytes_var_log_rpmpkgs",  NeverNegative (kFileSize ("/var/log/rpmpkgs")),  StatType::INTEGER);
 	Add ("bytes_var_log_secure",   NeverNegative (kFileSize ("/var/log/secure")),   StatType::INTEGER);
 	Add ("bytes_var_log_wtmp",     NeverNegative (kFileSize ("/var/log/wtmp")),     StatType::INTEGER);
+#endif
 
 	return (true);
 
@@ -609,9 +1320,31 @@ bool KSystemStats::GatherDiskUsage ()
 {
 	kDebug (4, "...");
 
+	uint64_t iTotalBytes { 0 };
+	uint64_t iFreeBytes  { 0 }; // the free space for an unprivileged user
+
 #ifdef DEKAF2_IS_WINDOWS
-	return true;
+
+	// the system drive, in place of the root of Unix
+	wchar_t      sDrive[MAX_PATH];
+	auto         iLength = ::GetEnvironmentVariableW(L"SystemDrive", sDrive, MAX_PATH);
+	std::wstring wsRoot  = (iLength > 0 && iLength < MAX_PATH) ? std::wstring(sDrive, iLength) : std::wstring(L"C:");
+
+	wsRoot += L'\\';
+
+	ULARGE_INTEGER Available, Total, Free;
+
+	if (!::GetDiskFreeSpaceExW(wsRoot.c_str(), &Available, &Total, &Free))
+	{
+		kDebug(2, "GetDiskFreeSpaceEx() failed: {}", ::GetLastError());
+		return false;
+	}
+
+	iTotalBytes = Total.QuadPart;
+	iFreeBytes  = Available.QuadPart;
+
 #else
+
 	struct statvfs vfs {};
 
 	if (0 != statvfs("/", &vfs))
@@ -620,30 +1353,33 @@ bool KSystemStats::GatherDiskUsage ()
 		return false;
 	}
 
-	const uint64_t iBlockSize   = static_cast<uint64_t>(vfs.f_frsize ? vfs.f_frsize : vfs.f_bsize);
-	const uint64_t iTotalBlocks = static_cast<uint64_t>(vfs.f_blocks);
-	const uint64_t iFreeBlocks  = static_cast<uint64_t>(vfs.f_bavail);
-	const uint64_t iUsedBlocks  = (iTotalBlocks >= iFreeBlocks) ? (iTotalBlocks - iFreeBlocks) : 0;
+	const uint64_t iBlockSize = static_cast<uint64_t>(vfs.f_frsize ? vfs.f_frsize : vfs.f_bsize);
 
-	const uint64_t iTotalKB     = (iTotalBlocks * iBlockSize) / 1024;
-	const uint64_t iFreeKB      = (iFreeBlocks  * iBlockSize) / 1024;
-	const uint64_t iUsedKB      = (iUsedBlocks  * iBlockSize) / 1024;
+	iTotalBytes = static_cast<uint64_t>(vfs.f_blocks) * iBlockSize;
+	iFreeBytes  = static_cast<uint64_t>(vfs.f_bavail) * iBlockSize;
+
+#endif
+
+	const uint64_t iUsedBytes = (iTotalBytes >= iFreeBytes) ? (iTotalBytes - iFreeBytes) : 0;
 
 	double nUsedPct = 0.0;
 	double nFreePct = 0.0;
 
-	if (iTotalBlocks > 0)
+	if (iTotalBytes > 0)
 	{
-		nUsedPct = (static_cast<double>(iUsedBlocks) * 100.0) / static_cast<double>(iTotalBlocks);
-		nFreePct = (static_cast<double>(iFreeBlocks) * 100.0) / static_cast<double>(iTotalBlocks);
+		nUsedPct = (static_cast<double>(iUsedBytes) * 100.0) / static_cast<double>(iTotalBytes);
+		nFreePct = (static_cast<double>(iFreeBytes) * 100.0) / static_cast<double>(iTotalBytes);
 	}
 
-	Add("disk_root_total_kb",      static_cast<int64_t>(iTotalKB), StatType::INTEGER);
-	Add("disk_root_used_kb",       static_cast<int64_t>(iUsedKB),  StatType::INTEGER);
-	Add("disk_root_free_kb",       static_cast<int64_t>(iFreeKB),  StatType::INTEGER);
-	Add("disk_root_used_percent",  nUsedPct,                       StatType::FLOAT);
-	Add("disk_root_free_percent",  nFreePct,                       StatType::FLOAT);
+	Add("disk_root_total_kb",      static_cast<int64_t>(iTotalBytes / 1024), StatType::INTEGER);
+	Add("disk_root_used_kb",       static_cast<int64_t>(iUsedBytes  / 1024), StatType::INTEGER);
+	Add("disk_root_free_kb",       static_cast<int64_t>(iFreeBytes  / 1024), StatType::INTEGER);
+	Add("disk_root_used_percent",  nUsedPct,                                 StatType::FLOAT);
+	Add("disk_root_free_percent",  nFreePct,                                 StatType::FLOAT);
 
+#ifndef DEKAF2_IS_WINDOWS
+
+	// NTFS has no inodes
 	const uint64_t iTotalInodes = static_cast<uint64_t>(vfs.f_files);
 	const uint64_t iFreeInodes  = static_cast<uint64_t>(vfs.f_favail);
 	const uint64_t iUsedInodes  = (iTotalInodes >= iFreeInodes) ? (iTotalInodes - iFreeInodes) : 0;
@@ -663,8 +1399,9 @@ bool KSystemStats::GatherDiskUsage ()
 	Add("inode_root_used_percent", nUsedInodePct,                       StatType::FLOAT);
 	Add("inode_root_free_percent", nFreeInodePct,                       StatType::FLOAT);
 
-	return true;
 #endif
+
+	return true;
 
 } // GatherDiskUsage
 
@@ -673,6 +1410,93 @@ bool KSystemStats::GatherCpuInfo ()
 //-----------------------------------------------------------------------------
 {
 	kDebug (4, "...");
+
+#if defined(DEKAF2_IS_WINDOWS)
+
+	Add (CPUINFO_NUM_CORES, static_cast<int_t>(kGetCPUCount()), StatType::INTEGER);
+
+	auto sModelName = ProcessorString(L"ProcessorNameString");
+
+	if (!sModelName.empty())
+	{
+		Add ("cpuinfo_model_name", sModelName, StatType::STRING);
+	}
+
+	auto sVendor = ProcessorString(L"VendorIdentifier");
+
+	if (!sVendor.empty())
+	{
+		Add ("cpuinfo_vendor_id", sVendor, StatType::STRING);
+	}
+
+	auto iMHz = ProcessorNumber(L"~MHz");
+
+	if (iMHz)
+	{
+		Add ("cpuinfo_cpu_mhz", static_cast<int_t>(iMHz), StatType::INTEGER);
+	}
+
+	FILETIME Idle, Kernel, User;
+
+	if (::GetSystemTimes(&Idle, &Kernel, &User))
+	{
+		// the times of all processors in 1/100 seconds, as the jiffies of Linux - the
+		// kernel time includes the idle time
+		Add ("procs_user_mode",   static_cast<int_t>(Ticks(User) / 100000),                 StatType::INTEGER);
+		Add ("procs_kernel_mode", static_cast<int_t>((Ticks(Kernel) - Ticks(Idle)) / 100000), StatType::INTEGER);
+		Add ("procs_idle",        static_cast<int_t>(Ticks(Idle) / 100000),                 StatType::INTEGER);
+	}
+
+	AddBootTime(BootTime().to_time_t());
+
+	return true;
+
+#elif defined(DEKAF2_IS_OSX)
+
+	Add (CPUINFO_NUM_CORES, static_cast<int_t>(kGetCPUCount()), StatType::INTEGER);
+
+	auto sModelName = SysctlString("machdep.cpu.brand_string");
+
+	if (!sModelName.empty())
+	{
+		Add ("cpuinfo_model_name", sModelName, StatType::STRING);
+	}
+
+	// the vendor and the frequency exist for Intel processors only
+	auto sVendor = SysctlString("machdep.cpu.vendor");
+
+	if (!sVendor.empty())
+	{
+		Add ("cpuinfo_vendor_id", sVendor, StatType::STRING);
+	}
+
+	auto iFrequency = SysctlNumber<uint64_t>("hw.cpufrequency");
+
+	if (iFrequency)
+	{
+		Add ("cpuinfo_cpu_mhz", static_cast<int_t>(iFrequency / 1000000), StatType::INTEGER);
+	}
+
+	// the times of all processors in ticks of 1/100 seconds, as the jiffies of Linux
+	host_cpu_load_info_data_t Load;
+	mach_msg_type_number_t    iCount = HOST_CPU_LOAD_INFO_COUNT;
+	mach_port_t               Host   = ::mach_host_self();
+
+	if (::host_statistics(Host, HOST_CPU_LOAD_INFO, reinterpret_cast<host_info_t>(&Load), &iCount) == KERN_SUCCESS)
+	{
+		Add ("procs_user_mode",   static_cast<int_t>(Load.cpu_ticks[CPU_STATE_USER]),   StatType::INTEGER);
+		Add ("procs_user_niced",  static_cast<int_t>(Load.cpu_ticks[CPU_STATE_NICE]),   StatType::INTEGER);
+		Add ("procs_kernel_mode", static_cast<int_t>(Load.cpu_ticks[CPU_STATE_SYSTEM]), StatType::INTEGER);
+		Add ("procs_idle",        static_cast<int_t>(Load.cpu_ticks[CPU_STATE_IDLE]),   StatType::INTEGER);
+	}
+
+	::mach_port_deallocate(::mach_task_self(), Host);
+
+	AddBootTime(BootTime().to_time_t());
+
+	return true;
+
+#else
 
 /*
 // RHEL5 PROC_CPUINFO file looks like this
@@ -819,8 +1643,6 @@ bool KSystemStats::GatherCpuInfo ()
 	kDebug (3, "reading {} ...", PROC_STAT);
 	file.open (PROC_STAT);
 
-	KUnixTime tNow  = KUnixTime::now();
-
 	while (file.ReadLine(sLine))
 	{
 		if (sLine.empty())
@@ -865,26 +1687,13 @@ bool KSystemStats::GatherCpuInfo ()
 		}
 		else if (Parts.at(0) == "btime")
 		{
-			KUnixTime tBoot = KUnixTime(std::time_t(Parts.at(1).Int64()));
-			KDuration tAgo  = tNow - tBoot;
-
-			Add("boot_time_unix", static_cast<int_t>(tBoot.to_time_t()), StatType::INTEGER);
-			Add("boot_time_dtm",  kFormTimestamp(tBoot), StatType::STRING);
-			Add("boot_time_ago",  static_cast<int_t>(tAgo.seconds().count()), StatType::INTEGER);
+			AddBootTime(std::time_t(Parts.at(1).Int64()));
 		}
 	}
 
-	#ifdef DEKAF2_IS_OSX
-	if (!m_Stats[CPUINFO_NUM_CORES].sValue.Int32())
-	{
-		KString sScratch;
-		kSystem ("sysctl -n hw.logicalcpu", sScratch);
-		sScratch.Trim();
-		Add (CPUINFO_NUM_CORES, sScratch, StatType::INTEGER);
-	}
-	#endif
-
 	return (true);
+
+#endif
 
 } // GatherCpuInfo
 
@@ -893,6 +1702,82 @@ bool KSystemStats::GatherMemInfo ()
 //-----------------------------------------------------------------------------
 {
 	kDebug (4, "...");
+
+#if defined(DEKAF2_IS_WINDOWS)
+
+	MEMORYSTATUSEX Status {};
+	Status.dwLength = sizeof(Status);
+
+	if (::GlobalMemoryStatusEx(&Status))
+	{
+		Add ("meminfo_memtotal_kb",     static_cast<int_t>(Status.ullTotalPhys / 1024), StatType::INTEGER);
+		// the available memory of Windows includes the file cache (the standby list) -
+		// the free memory is the same, and there is no cache that AddCalculations() adds
+		Add ("meminfo_memfree_kb",      static_cast<int_t>(Status.ullAvailPhys / 1024), StatType::INTEGER);
+		Add ("meminfo_memavailable_kb", static_cast<int_t>(Status.ullAvailPhys / 1024), StatType::INTEGER);
+	}
+
+	PERFORMANCE_INFORMATION Performance {};
+
+	if (::GetPerformanceInfo(&Performance, sizeof(Performance)))
+	{
+		// the committed memory and its limit (memory and paging files), as Committed_AS
+		// and CommitLimit of Linux
+		auto iPageSize = static_cast<uint64_t>(Performance.PageSize);
+
+		Add ("meminfo_committed_as_kb", static_cast<int_t>(Performance.CommitTotal * iPageSize / 1024), StatType::INTEGER);
+		Add ("meminfo_commitlimit_kb",  static_cast<int_t>(Performance.CommitLimit * iPageSize / 1024), StatType::INTEGER);
+	}
+
+	return true;
+
+#elif defined(DEKAF2_IS_OSX)
+
+	auto iTotal = SysctlNumber<uint64_t>("hw.memsize");
+
+	if (iTotal)
+	{
+		Add ("meminfo_memtotal_kb", static_cast<int_t>(iTotal / 1024), StatType::INTEGER);
+	}
+
+	vm_statistics64_data_t VM;
+	mach_msg_type_number_t iCount    = HOST_VM_INFO64_COUNT;
+	mach_port_t            Host      = ::mach_host_self();
+	vm_size_t              iPageSize { 0 };
+
+	if (::host_page_size(Host, &iPageSize) == KERN_SUCCESS
+	 && ::host_statistics64(Host, HOST_VM_INFO64, reinterpret_cast<host_info64_t>(&VM), &iCount) == KERN_SUCCESS)
+	{
+		auto KB = [iPageSize](uint64_t iPages)
+		{
+			return static_cast<int_t>(iPages * iPageSize / 1024);
+		};
+
+		// as on Linux, the free memory does not include the cache - the inactive pages,
+		// which macOS frees first, count as the cache
+		Add ("meminfo_memfree_kb",      KB(VM.free_count + VM.speculative_count),                     StatType::INTEGER);
+		Add ("meminfo_cached_kb",       KB(VM.inactive_count),                                        StatType::INTEGER);
+		Add ("meminfo_memavailable_kb", KB(VM.free_count + VM.speculative_count + VM.inactive_count), StatType::INTEGER);
+		Add ("meminfo_active_kb",       KB(VM.active_count),                                          StatType::INTEGER);
+		Add ("meminfo_inactive_kb",     KB(VM.inactive_count),                                        StatType::INTEGER);
+		Add ("meminfo_wired_kb",        KB(VM.wire_count),                                            StatType::INTEGER);
+		Add ("meminfo_compressed_kb",   KB(VM.compressor_page_count),                                 StatType::INTEGER);
+	}
+
+	::mach_port_deallocate(::mach_task_self(), Host);
+
+	xsw_usage   Swap {};
+	std::size_t iSize = sizeof(Swap);
+
+	if (::sysctlbyname("vm.swapusage", &Swap, &iSize, nullptr, 0) == 0)
+	{
+		Add ("meminfo_swaptotal_kb", static_cast<int_t>(Swap.xsu_total / 1024), StatType::INTEGER);
+		Add ("meminfo_swapfree_kb",  static_cast<int_t>(Swap.xsu_avail / 1024), StatType::INTEGER);
+	}
+
+	return true;
+
+#else
 
 /*
 // PROC_MEMINFO file contents look like this
@@ -949,6 +1834,12 @@ bool KSystemStats::GatherMemInfo ()
 
 		auto Parts = sLine.Split(":");
 
+		if (Parts.size() != 2)
+		{
+			kDebug (2, "Got unexpected line from {}", PROC_MEMINFO);
+			continue;
+		}
+
 		KString sName  (Parts.at(0).ToLower());
 		KStringView sValue (Parts.at(1));
 
@@ -975,14 +1866,17 @@ bool KSystemStats::GatherMemInfo ()
 
 	return (true);
 
+#endif
+
 } // GatherMemInfo
 
 //-----------------------------------------------------------------------------
 bool KSystemStats::GatherNetstat ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (4, "running netstat ...");
+	kDebug (4, "counting the connections ...");
 
+#ifndef DEKAF2_IS_WINDOWS
 	KInShell pipe;
 	pipe.SetReaderRightTrim("\r\n\t ");
 
@@ -991,6 +1885,7 @@ bool KSystemStats::GatherNetstat ()
 		m_sLastError = "command failed: netstat";
 		return (false);
 	}
+#endif
 
 	// iniitialize all possible values coming back from netstat so that missing ones have zeros instead of nulls:
 	KProps<KString, int_t> Netstat;
@@ -1006,6 +1901,14 @@ bool KSystemStats::GatherNetstat ()
 	Netstat.Add ("netstat_unix_dgram",      0);
 	Netstat.Add ("netstat_unix_stream",     0);
 	Netstat.Add ("netstat_unix_unknown",    0);
+
+#ifdef DEKAF2_IS_WINDOWS
+
+	// the TCP connections from the system - Windows cannot list unix domain sockets
+	CountTcpConnections(AF_INET,  Netstat);
+	CountTcpConnections(AF_INET6, Netstat);
+
+#else
 
 	// now run "netstat" command and increment any occurances of these:
 	KString sLine;
@@ -1029,29 +1932,62 @@ bool KSystemStats::GatherNetstat ()
 		// unix  2      [ ]         DGRAM                    1739   @/org/kernel/udev/udevd
 		// unix  3      [ ]         STREAM     CONNECTED     27941272
 
+		// macOS:
+		// tcp4       0      0  192.168.1.5.50124      17.57.146.23.5223      ESTABLISHED
+		// Address          Type   Recv-Q Send-Q    Inode     Conn     Refs  Nextref Addr
+		// a2b4c46e1d08ad03 stream      0      0        0 a2b4c46e...        0        0
+
 		auto Parts = sLine.Split(' ');
 
 		KString sName("netstat_");
 
-		if (kStrIn (Parts.at(0), "tcp,tcp6"))
+		if (kStrIn (Parts.at(0), "tcp,tcp4,tcp6,tcp46"))
 		{
+			KString sState = Parts.at (Parts.size() - 1).ToLower();
+
+			// the states that BSD (macOS) names differently than Linux
+			if (sState == "fin_wait_1")
+			{
+				sState = "fin_wait1";
+			}
+			else if (sState == "fin_wait_2")
+			{
+				sState = "fin_wait2";
+			}
+			else if (sState == "syn_received")
+			{
+				sState = "syn_recv";
+			}
+
 			sName += "tcp_";
-			sName += Parts.at (Parts.size() - 1).ToLower();
+			sName += sState;
 			Netstat[sName]++;
 		}
-		else if (Parts.at(0) == "unix")
+		else if (Parts.at(0) == "unix" && Parts.size() >= 5)
 		{
 			sName += "unix_";
 			sName += Parts.at (5 - 1).ToLower();
 			Netstat[sName]++;
 		}
+#ifdef DEKAF2_IS_OSX
+		else if (Parts.size() >= 2 && kStrIn (Parts.at(1), "stream,dgram"))
+		{
+			// a unix domain socket of macOS, with its address and its type
+			sName += "unix_";
+			sName += Parts.at(1);
+			Netstat[sName]++;
+		}
+#endif
 	}
+
+#endif // DEKAF2_IS_WINDOWS
 
 	for (const auto& stat : Netstat)
 	{
 		Add(stat.first, stat.second, StatType::INTEGER);
 	}
 
+#ifndef DEKAF2_IS_WINDOWS
 	// two random parms we care about from experience:
 	AddIntStatIfFileExists ("ipv4_tcp_timestamps",       "/proc/sys/net/ipv4/tcp_timestamps");
 	AddIntStatIfFileExists ("ipv4_tcp_window_scaling",   "/proc/sys/net/ipv4/tcp_window_scaling");
@@ -1075,6 +2011,7 @@ bool KSystemStats::GatherNetstat ()
 		Add ("ipv4_ip_local_port_min", NeverNegative (Parts.at(0).Int32()), StatType::INTEGER);
 		Add ("ipv4_ip_local_port_max", NeverNegative (Parts.at(1).Int32()), StatType::INTEGER);
 	}
+#endif
 
 	return (true);
 
@@ -1084,13 +2021,15 @@ bool KSystemStats::GatherNetstat ()
 bool KSystemStats::AddCalculations ()
 //-----------------------------------------------------------------------------
 {
-	// add a few hand-picked calculations (if we have the stats that compose them):
+	// add a few hand-picked calculations (if we have the stats that compose them) - the
+	// values are read with Get(), as operator[] would add the missing ones (like the
+	// load average on Windows) with empty values:
 
 	kDebug (4, "computing a few parms ...");
-	if (m_Stats.contains ("cpuinfo_num_cores"))
+	if (m_Stats.contains ("cpuinfo_num_cores") && m_Stats.contains ("load_average_1min"))
 	{
-		auto   nLoad    = m_Stats["load_average_1min"].sValue.Double();
-		auto   nCores   = m_Stats["cpuinfo_num_cores"].sValue.Double();
+		auto   nLoad    = m_Stats.Get("load_average_1min").sValue.Double();
+		auto   nCores   = m_Stats.Get("cpuinfo_num_cores").sValue.Double();
 		double nLPC     = (nCores > 0.0) ? (nLoad / nCores) : 0.0;
 
 		Add ("load_per_core", nLPC, StatType::FLOAT);
@@ -1098,10 +2037,10 @@ bool KSystemStats::AddCalculations ()
 
 	if (m_Stats.contains ("meminfo_memfree_kb") && m_Stats.contains ("meminfo_memtotal_kb"))
 	{
-		int_t  iTotal     = m_Stats["meminfo_memtotal_kb"].sValue.Int64();
-		int_t  iFree      = m_Stats["meminfo_memfree_kb"].sValue.Int64();
-		int_t  iBuffers   = m_Stats["meminfo_buffers_kb"].sValue.Int64();
-		int_t  iCached    = m_Stats["meminfo_cached_kb"].sValue.Int64();
+		int_t  iTotal     = m_Stats.Get("meminfo_memtotal_kb").sValue.Int64();
+		int_t  iFree      = m_Stats.Get("meminfo_memfree_kb").sValue.Int64();
+		int_t  iBuffers   = m_Stats.Get("meminfo_buffers_kb").sValue.Int64();
+		int_t  iCached    = m_Stats.Get("meminfo_cached_kb").sValue.Int64();
 		int_t  iTotalFree = iFree + iBuffers + iCached;
 
 		if (iTotal > 0)
@@ -1123,11 +2062,11 @@ bool KSystemStats::AddCalculations ()
 	if (m_Stats.contains ("meminfo_swapfree_kb") && m_Stats.contains ("meminfo_swaptotal_kb"))
 	{
 #ifdef DEKAF2_HAS_INT128
-		int_t  iTotal   = m_Stats["meminfo_swaptotal_kb"].sValue.Int128();
-		int_t  iFree    = m_Stats["meminfo_swapfree_kb"].sValue.Int128();
+		int_t  iTotal   = m_Stats.Get("meminfo_swaptotal_kb").sValue.Int128();
+		int_t  iFree    = m_Stats.Get("meminfo_swapfree_kb").sValue.Int128();
 #else
-		int_t  iTotal   = m_Stats["meminfo_swaptotal_kb"].sValue.Int64();
-		int_t  iFree    = m_Stats["meminfo_swapfree_kb"].sValue.Int64();
+		int_t  iTotal   = m_Stats.Get("meminfo_swaptotal_kb").sValue.Int64();
+		int_t  iFree    = m_Stats.Get("meminfo_swapfree_kb").sValue.Int64();
 #endif
 		if (iTotal > 0)
 		{
@@ -1156,94 +2095,50 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 	m_Procs.clear();
 
 	KRegex kregex(sCommandRegex);
-	KInShell pipe;
 	KString sWhat;
 
-	KStringView sPID;
-	KStringView sPPID;
-	KStringView sShortCmd;
-	KStringView sFullCmd;
-	KString sLine;
+	auto Processes = ListProcesses();
 
-	kDebug (4, "running ps ...");
+	pid_t iMyPID  = kGetPid();
+	pid_t iMyPPID = kGetPpid();
 
-	if (pipe.Open ("ps -e -o pid,ppid,comm,command 2>&1"))
-	{
-		enum { MAX = 5000 };
-		enum { TIMEOUT_SEC = 10 };
-
-		sLine.clear();
-
-		pid_t iMyPID  = getpid();
 #ifdef DEKAF2_IS_WINDOWS
-		pid_t iMyPPID = 0;
-#else
-		pid_t iMyPPID = getppid();
-#endif
-		while (pipe.ReadLine (sLine))
+	// Windows tells the parent only in the process list
+	for (const auto& Process : Processes)
+	{
+		if (Process.sPID.Int32() == iMyPID)
 		{
-			//   PID  PPID COMMAND         COMMAND
-			//   324   151 cqueue/1        [cqueue/1]
-			//  2742     1 automount       automount --pid-file /var/run/autofs.pid
-			// 22463 13273 httpd           /usr/local/packages/onelink/apache.redhat64/bin/http
-
-			auto Parts = sLine.Split(' ');
-
-			// Did we get the correct number of parts?
-			if (4 != Parts.size())
-			{
-				kDebug (2, "ERROR: Unexpected number of parsed results. Expected four (4) elements got '{}' element(s)", Parts.size());
-
-				if (Parts.size() > 4)
-				{
-					// 4th part has spaces.
-					kDebug ( 3, "Parsed Line = '{}'", sLine);
-					// Here I need the 4th part merged with all the rest after
-					KStringView sTemp = Parts.at(3);
-					Parts.at(3) = sLine;
-					Parts.at(3).ClipAtReverse(sTemp);
-				}
-				else
-				{
-					// move on to the next line of input
-					kDebug ( 3, "SKIPPED Parsed Line = '{}'", sLine)
-					continue;
-				}
-			}
-
-			sPID = Parts.at(0);
-			sPPID = Parts.at(1);
-			sShortCmd = Parts.at(2);
-			sFullCmd = Parts.at(3);
-
-			// convert PID to an integer
-			pid_t iPID = sPID.Int32();
-
-			if (sShortCmd.compare("COMMAND") == 0)
-			{
-				sWhat = "PARSED AS";
-			}
-			else if (bDoNoShowMyself && (iPID == iMyPID))
-			{
-				sWhat.Format ("me:{}/{}", iMyPID, iMyPPID);
-			}
-			else if (sCommandRegex.empty())
-			{
-				m_Procs.Add(sPID, ProcValueType(sFullCmd, sPPID, sShortCmd, StatType::STRING));
-				sWhat = "show all procs";
-			}
-			else if (kregex.Matches (sShortCmd))
-			{
-				m_Procs.Add(sPID, ProcValueType(sFullCmd, sPPID, sShortCmd, StatType::STRING));
-				sWhat = "MATCHES";
-			}
-			else
-			{
-				sWhat = "does not match";
-			}
-
-			kDebug (3, "{:<15} | {:<6} | {:<6} | {:<15} | {}", sWhat, sPID, sPPID, sShortCmd, sFullCmd);
+			iMyPPID = Process.sPPID.Int32();
+			break;
 		}
+	}
+#endif
+
+	for (const auto& Process : Processes)
+	{
+		// convert PID to an integer
+		pid_t iPID = Process.sPID.Int32();
+
+		if (bDoNoShowMyself && (iPID == iMyPID))
+		{
+			sWhat.Format ("me:{}/{}", iMyPID, iMyPPID);
+		}
+		else if (sCommandRegex.empty())
+		{
+			m_Procs.Add(Process.sPID, ProcValueType(Process.sFullCmd, Process.sPPID, Process.sShortCmd, StatType::STRING));
+			sWhat = "show all procs";
+		}
+		else if (kregex.Matches (Process.sShortCmd))
+		{
+			m_Procs.Add(Process.sPID, ProcValueType(Process.sFullCmd, Process.sPPID, Process.sShortCmd, StatType::STRING));
+			sWhat = "MATCHES";
+		}
+		else
+		{
+			sWhat = "does not match";
+		}
+
+		kDebug (3, "{:<15} | {:<6} | {:<6} | {:<15} | {}", sWhat, Process.sPID, Process.sPPID, Process.sShortCmd, Process.sFullCmd);
 	}
 
 	return (m_Procs.size());
@@ -1519,46 +2414,53 @@ KString KSystemStats::Backtrace (pid_t iPID)
 {
 	kDebug (4, "...");
 
+	// A process ID can belong to a later process, which can make the chain a
+	// circle - it ends at a process that is in the chain already.
 	KString sChain;
+	KUnorderedSet<pid_t> Seen;
 
-	do
+#ifndef DEKAF2_IS_WINDOWS
+	if (kDirExists ("/proc"))
 	{
-		KString sPath;
-		sPath.Format ("/proc/{}/cmdline", iPID);
+		// the /proc tables tell each process of the chain on its own
+		ProcessInfo Process;
 
-		KString sCMD;
-		kReadTextFile (sPath, sCMD, true);
-
-		KString sAdd;
-		sAdd.Format ("{}{}:{}", sChain.empty() ? "" : " <- ", iPID, sCMD);
-		sChain += sAdd;
-
-		// recurse to parent pid:
-
-		// % cat /proc/3002/stat
-		//                v
-		// 3002 (crond) S 1 3002 3002 0 -1 4202816 92890 ...
-		//                ^
-		//                +---- ppid is the 4th word
-
-		pid_t iPPID = 0;
-		KString sLine;
-		sPath.Format ("/proc/{}/stat", iPID);
-		if (kReadTextFile (sPath, sLine, true))
+		while (iPID != 0 && Seen.insert(iPID).second && ReadProcProcess(KString::to_string(iPID), Process))
 		{
-			auto Words = sLine.Split(' ');
-			iPPID = Words.at(4-1).UInt32();
-			if (!iPPID) 
-			{
-				break; // do..while
-			}
+			sChain += kFormat("{}{}:{}", sChain.empty() ? "" : " <- ", iPID, Process.sFullCmd);
+
+			iPID = Process.sPPID.Int32();
 		}
 
-		iPID = iPPID;
+		return sChain;
 	}
-	while (iPID != 0);
+#endif
 
-	return (sChain);
+	// otherwise the parents come from the process list
+	auto Processes = ListProcesses();
+
+	KUnorderedMap<pid_t, const ProcessInfo*> ByPID;
+
+	for (const auto& Process : Processes)
+	{
+		ByPID.emplace(Process.sPID.Int32(), &Process);
+	}
+
+	while (iPID != 0 && Seen.insert(iPID).second)
+	{
+		auto it = ByPID.find(iPID);
+
+		if (it == ByPID.end())
+		{
+			break;
+		}
+
+		sChain += kFormat("{}{}:{}", sChain.empty() ? "" : " <- ", iPID, it->second->sFullCmd);
+
+		iPID = it->second->sPPID.Int32();
+	}
+
+	return sChain;
 
 } // Backtrace
 

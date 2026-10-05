@@ -49,6 +49,7 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/containers/associative/kprops.h>
 #include <dekaf2/web/url/kmime.h>
+#include <ctime>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -56,6 +57,9 @@ DEKAF2_NAMESPACE_BEGIN
 /// @{
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Collects system statistics, on Linux from the /proc tables. On macOS and Windows,
+/// the interfaces of the system provide a part of them, under the names of Linux
+/// where they mean the same.
 class DEKAF2_PUBLIC KSystemStats
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -233,6 +237,8 @@ private:
 	void DumpPidTree (KOutStream& stream, uint64_t iPPID, uint64_t iLevel);
 	DEKAF2_PRIVATE
 	void AddIntStatIfFileExists (KStringViewZ sStatName, KStringViewZ  sStatFilePath);
+	DEKAF2_PRIVATE
+	void AddBootTime (std::time_t tBootTime);
 
 }; // KSystemStats
 

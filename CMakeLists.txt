@@ -2481,9 +2481,10 @@ endif()
 if (IS_WINDOWS)
 	# we need the dbghelp library for the data segment detection on Windows,
 	# iphlpapi for network interface code, advapi32 for the Service Control
-	# Manager APIs used by KService and the logon of KPTY, and userenv for the
-	# profile and environment of the user that KPTY logs on
-	set (WINDOWS_LIBRARIES "dbghelp" "iphlpapi" "advapi32" "userenv")
+	# Manager APIs used by KService and the logon of KPTY, userenv for the
+	# profile and environment of the user that KPTY logs on, and psapi for the
+	# performance information of KSystemStats
+	set (WINDOWS_LIBRARIES "dbghelp" "iphlpapi" "advapi32" "userenv" "psapi")
 endif()
 
 set(DEKAF2_SOURCE_FILES

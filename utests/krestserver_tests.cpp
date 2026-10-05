@@ -451,7 +451,7 @@ x-klog: -level 1
 
 	SECTION("CGI response head: parsed vs NPH")
 	{
-		// NPH (xapis installs as nph-xapis.cgi): the web server passes the response
+		// NPH (a script installed as nph-abcxyz.cgi): the web server passes the response
 		// through unparsed, so it carries the HTTP status line and the Connection
 		// header. Parsed headers (RFC 3875 6.3.3): a Status: field, no status line,
 		// no connection fields. Both on the regular and on the error path

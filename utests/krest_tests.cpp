@@ -547,9 +547,9 @@ TEST_CASE("KREST")
 
 	SECTION("CGI simulation from file keeps HTTP framing")
 	{
-		// "xapis -cgi <file>" runs a request file through the CGI input path. Its
-		// output contract is an HTTP framed response (the smoketest baselines
-		// start with the status line), not the Status: header of a real CGI
+		// A simulated CGI request from a file runs through the CGI input path. Its
+		// output contract is an HTTP framed response (test baselines start with
+		// the status line), not the Status: header of a real CGI
 		KTempDir TempDir;
 		auto sFile = kFormat("{}/request.in", TempDir.Name());
 		REQUIRE ( kWriteFile(sFile,
@@ -582,7 +582,7 @@ TEST_CASE("KREST")
 	{
 		// Apache runs a CGI as NPH when the configured script path has a basename
 		// starting with "nph-" - the path as configured, so a symlink named
-		// nph-xapis.cgi to the plain xapis binary counts. SCRIPT_NAME is the fallback
+		// nph-abcxyz.cgi to the plain abcxyz binary counts. SCRIPT_NAME is the fallback
 		kSetEnv(KCGIInStream::SCRIPT_FILENAME, "/usr/local/bin/nph-abcxyz.cgi");
 		CHECK ( KREST::IsNPHScript() );
 

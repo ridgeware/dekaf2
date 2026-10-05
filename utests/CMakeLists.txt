@@ -197,6 +197,7 @@ set (USOURCES
 	kwebpush_tests.cpp
 	kwebserverpermissions_tests.cpp
 	kwebsocket_tests.cpp
+	kwebsocketserver_stress_tests.cpp
 	kwords_tests.cpp
 	kwriter_tests.cpp
 	kxml_tests.cpp

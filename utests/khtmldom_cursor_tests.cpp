@@ -231,7 +231,7 @@ TEST_CASE("KHTML POD cursor")
 	}
 
 	// ------------------------------------------------------------------
-	// Recursive collector: equivalent to xapis/html.cpp::TraverseHTML on
+	// Recursive collector: the same traversal an application would run on
 	// the heap DOM, but operating purely on POD cursors.
 	// ------------------------------------------------------------------
 	SECTION("Recursive traversal collects text + lang attributes (heap-free)")

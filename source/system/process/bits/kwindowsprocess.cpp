@@ -52,10 +52,15 @@
 #include <system_error>
 #include <vector>
 #include <windows.h>
+#include <userenv.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
 namespace {
+
+// PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE - the Windows headers declare it only for
+// Windows 10 1809 and later, and dekaf2 builds for older versions
+constexpr DWORD_PTR ProcThreadAttributePseudoConsole = 0x00020016;
 
 // Serializes the time in which the handles for a child are inheritable: a child
 // started meanwhile by another thread could otherwise inherit them, and keep the
@@ -146,7 +151,7 @@ bool IsConsolePseudoHandle(HANDLE hHandle)
 //-----------------------------------------------------------------------------
 /// Returns the command interpreter from %COMSPEC%, else cmd.exe from the system
 /// directory - not from the search path, which starts with the current directory
-std::wstring CommandInterpreter()
+std::wstring CommandInterpreterW()
 //-----------------------------------------------------------------------------
 {
 	std::wstring wsComSpec;
@@ -179,7 +184,7 @@ std::wstring CommandInterpreter()
 
 	return wsComSpec;
 
-} // CommandInterpreter
+} // CommandInterpreterW
 
 //-----------------------------------------------------------------------------
 /// Returns the name of an entry of an environment block. The name ends at the
@@ -193,20 +198,30 @@ std::wstring NameOf(const std::wstring& wsEntry)
 } // NameOf
 
 //-----------------------------------------------------------------------------
-/// Returns the environment block for the child: the environment of this process,
-/// with the variables of Environment added or replaced - or removed for an empty value
-std::wstring EnvironmentBlock(const std::vector<std::pair<KString, KString>>& Environment)
+/// Returns the environment block for the child: the environment of this process, or
+/// pBaseBlock, with the variables of Environment added or replaced - or removed for an
+/// empty value
+std::wstring EnvironmentBlock(const std::vector<std::pair<KString, KString>>& Environment,
+                              const wchar_t* pBaseBlock = nullptr)
 //-----------------------------------------------------------------------------
 {
 	std::vector<std::wstring> Entries;
 
-	if (auto* pEnvironment = ::GetEnvironmentStringsW())
+	auto AddEntries = [&Entries](const wchar_t* pBlock)
 	{
-		for (auto* pEntry = pEnvironment; *pEntry; pEntry += std::wcslen(pEntry) + 1)
+		for (auto* pEntry = pBlock; *pEntry; pEntry += std::wcslen(pEntry) + 1)
 		{
 			Entries.emplace_back(pEntry);
 		}
+	};
 
+	if (pBaseBlock)
+	{
+		AddEntries(pBaseBlock);
+	}
+	else if (auto* pEnvironment = ::GetEnvironmentStringsW())
+	{
+		AddEntries(pEnvironment);
 		::FreeEnvironmentStringsW(pEnvironment);
 	}
 
@@ -509,15 +524,133 @@ uint32_t KWindowsProcess::Start(KStringView  sCommandLine,
 		return iError;
 	}
 
+	// a detached child runs already, outside of a job
+	Adopt(Process.hProcess, Process.hThread, !bDetached);
+
+	return 0;
+
+} // Start
+
+//-----------------------------------------------------------------------------
+uint32_t KWindowsProcess::StartInPseudoConsole(KStringView  sCommandLine,
+                                               void*        hPseudoConsole,
+                                               const std::vector<std::pair<KString, KString>>& Environment,
+                                               KStringViewZ sWorkingDirectory,
+                                               void*        hUserToken)
+//-----------------------------------------------------------------------------
+{
+	m_iExitCode = 0;
+
+	auto wsCommandLine = kutf::Convert<std::wstring>(sCommandLine);
+
+	std::wstring wsEnvironment;
+
+	if (hUserToken)
+	{
+		// the environment of the user, not the one of this process
+		void* pUserBlock { nullptr };
+
+		if (!::CreateEnvironmentBlock(&pUserBlock, hUserToken, FALSE))
+		{
+			return ::GetLastError();
+		}
+
+		wsEnvironment = EnvironmentBlock(Environment, static_cast<const wchar_t*>(pUserBlock));
+
+		::DestroyEnvironmentBlock(pUserBlock);
+	}
+	else if (!Environment.empty())
+	{
+		wsEnvironment = EnvironmentBlock(Environment);
+	}
+
+	std::wstring wsWorkingDirectory;
+
+	if (!sWorkingDirectory.empty())
+	{
+		wsWorkingDirectory = kutf::Convert<std::wstring>(sWorkingDirectory);
+	}
+
+	kDebug(3, "starting in a pseudo console: {}", sCommandLine);
+
+	SIZE_T iAttributeSize { 0 };
+	::InitializeProcThreadAttributeList(nullptr, 1, 0, &iAttributeSize);
+	std::vector<char> AttributeBuffer(iAttributeSize);
+	auto* pAttributes = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(AttributeBuffer.data());
+
+	if (!::InitializeProcThreadAttributeList(pAttributes, 1, 0, &iAttributeSize))
+	{
+		return ::GetLastError();
+	}
+
+	if (!::UpdateProcThreadAttribute(pAttributes, 0, ProcThreadAttributePseudoConsole,
+	                                 hPseudoConsole, sizeof(hPseudoConsole), nullptr, nullptr))
+	{
+		auto iError = ::GetLastError();
+		::DeleteProcThreadAttributeList(pAttributes);
+		return iError;
+	}
+
+	STARTUPINFOEXW StartupInfo {};
+	StartupInfo.StartupInfo.cb      = sizeof(STARTUPINFOEXW);
+	StartupInfo.lpAttributeList     = pAttributes;
+	// invalid standard handles: the child gets those of the pseudo console. Without
+	// STARTF_USESTDHANDLES it would get the redirected standard handles of this
+	// process, if there are any, and write there instead of to the pseudo console.
+	StartupInfo.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
+	StartupInfo.StartupInfo.hStdInput  = INVALID_HANDLE_VALUE;
+	StartupInfo.StartupInfo.hStdOutput = INVALID_HANDLE_VALUE;
+	StartupInfo.StartupInfo.hStdError  = INVALID_HANDLE_VALUE;
+
+	// suspended until the child is in its job
+	DWORD iFlags = EXTENDED_STARTUPINFO_PRESENT | CREATE_SUSPENDED;
+
+	if (!wsEnvironment.empty())
+	{
+		iFlags |= CREATE_UNICODE_ENVIRONMENT;
+	}
+
+	PROCESS_INFORMATION Process {};
+
+	auto* pEnvironment       = wsEnvironment.empty()      ? nullptr : &wsEnvironment[0];
+	auto* pWorkingDirectory  = wsWorkingDirectory.empty() ? nullptr : wsWorkingDirectory.c_str();
+
+	// the child inherits no handles - the pseudo console gives it its own
+	bool bStarted = hUserToken
+	              ? ::CreateProcessAsUserW(hUserToken, nullptr, &wsCommandLine[0], nullptr, nullptr, FALSE, iFlags,
+	                                       pEnvironment, pWorkingDirectory, &StartupInfo.StartupInfo, &Process) != FALSE
+	              : ::CreateProcessW(nullptr, &wsCommandLine[0], nullptr, nullptr, FALSE, iFlags,
+	                                 pEnvironment, pWorkingDirectory, &StartupInfo.StartupInfo, &Process) != FALSE;
+
+	DWORD iError = bStarted ? 0 : ::GetLastError();
+
+	::DeleteProcThreadAttributeList(pAttributes);
+
+	if (!bStarted)
+	{
+		kDebug(1, "CreateProcessW() failed for '{}': {}", sCommandLine, ErrorText(iError));
+		return iError;
+	}
+
+	Adopt(Process.hProcess, Process.hThread, true);
+
+	return 0;
+
+} // StartInPseudoConsole
+
+//-----------------------------------------------------------------------------
+void KWindowsProcess::Adopt(void* hProcess, void* hThread, bool bInJob)
+//-----------------------------------------------------------------------------
+{
 	HANDLE hJob { nullptr };
 
-	if (!bDetached)
+	if (bInJob)
 	{
 		// a job holds the child and all processes it starts: cmd.exe runs the actual
 		// command as its own child, and Terminate() ends all of them
 		hJob = ::CreateJobObjectW(nullptr, nullptr);
 
-		if (hJob && !::AssignProcessToJobObject(hJob, Process.hProcess))
+		if (hJob && !::AssignProcessToJobObject(hJob, hProcess))
 		{
 			// fails before Windows 8 if this process runs in a job already
 			kDebug(2, "cannot assign the child to a job: {}", ErrorText(::GetLastError()));
@@ -525,17 +658,17 @@ uint32_t KWindowsProcess::Start(KStringView  sCommandLine,
 			hJob = nullptr;
 		}
 
-		::ResumeThread(Process.hThread);
+		// the child was started suspended, so that it could not start processes
+		// outside of the job
+		::ResumeThread(hThread);
 	}
 
-	::CloseHandle(Process.hThread);
+	::CloseHandle(hThread);
 
-	m_hProcess = Process.hProcess;
+	m_hProcess = hProcess;
 	m_hJob     = hJob;
 
-	return 0;
-
-} // Start
+} // Adopt
 
 //-----------------------------------------------------------------------------
 bool KWindowsProcess::Wait(KDuration Timeout)
@@ -638,6 +771,14 @@ KString KWindowsProcess::CommandLine(const std::vector<KString>& Args)
 } // CommandLine
 
 //-----------------------------------------------------------------------------
+KString KWindowsProcess::CommandInterpreter()
+//-----------------------------------------------------------------------------
+{
+	return kutf::Convert<KString>(CommandInterpreterW());
+
+} // CommandInterpreter
+
+//-----------------------------------------------------------------------------
 KString KWindowsProcess::ShellCommandLine(KStringView sCommand)
 //-----------------------------------------------------------------------------
 {
@@ -646,7 +787,7 @@ KString KWindowsProcess::ShellCommandLine(KStringView sCommand)
 	KString sCommandLine;
 
 	sCommandLine += '"';
-	sCommandLine += kutf::Convert<KString>(CommandInterpreter());
+	sCommandLine += CommandInterpreter();
 	sCommandLine += "\" /d /s /c \"";
 	sCommandLine += sCommand;
 	sCommandLine += '"';

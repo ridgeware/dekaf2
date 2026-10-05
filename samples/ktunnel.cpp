@@ -2554,14 +2554,17 @@ void OutletHost::RunShell(KTunnel::Connection& Connection)
 		sInput.clear();
 	}
 
-	// either the remote closed the channel or the shell exited - tear both down
+	// either the remote closed the channel or the shell exited - tear both down.
+	// The reader ends with its next read timeout, and is joined before Close(): it
+	// calls IsRunning(), which must not run concurrently with Close()
 	bDone.store(true);
-	Shell.Close();
 
 	if (Reader.joinable())
 	{
 		Reader.join();
 	}
+
+	Shell.Close();
 
 } // RunShell
 

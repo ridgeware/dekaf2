@@ -105,6 +105,26 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Starts a child in a pseudo console (ConPTY), which provides its standard
+	/// handles. A child started before must have been released.
+	/// @param sCommandLine the command line, see CommandLine()
+	/// @param hPseudoConsole the HPCON of the pseudo console
+	/// @param Environment pairs of names and values that will be added to the environment
+	/// of the child, an empty value removes a variable
+	/// @param sWorkingDirectory the working directory of the child, empty for the one of
+	/// this process
+	/// @param hUserToken the token of another user, for whom the child runs, with the
+	/// environment of that user - nullptr for the user of this process. Needs the
+	/// privilege to assign primary tokens, which a service under LocalSystem has.
+	/// @return 0, or the Win32 error code
+	uint32_t StartInPseudoConsole(KStringView  sCommandLine,
+	                              void*        hPseudoConsole,
+	                              const std::vector<std::pair<KString, KString>>& Environment = {},
+	                              KStringViewZ sWorkingDirectory = KStringViewZ{},
+	                              void*        hUserToken = nullptr);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Returns true from Start() until Wait() finds the child ended, or Release()
 	bool IsStarted() const
 	//-----------------------------------------------------------------------------
@@ -153,6 +173,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Returns the command interpreter: %COMSPEC%, else cmd.exe from the system directory
+	static KString CommandInterpreter();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Returns the command line that executes sCommand with the command interpreter
 	/// (%COMSPEC%, else cmd.exe from the system directory)
 	static KString ShellCommandLine(KStringView sCommand);
@@ -166,6 +191,11 @@ public:
 //------
 private:
 //------
+
+	//-----------------------------------------------------------------------------
+	/// takes over a started child, puts it in a job if bInJob, and resumes it then
+	void Adopt(void* hProcess, void* hThread, bool bInJob);
+	//-----------------------------------------------------------------------------
 
 	void* m_hProcess  { nullptr }; // HANDLE of the child process
 	void* m_hJob      { nullptr }; // HANDLE of the job with the child and the processes it starts

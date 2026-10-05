@@ -388,13 +388,16 @@ if (IS_WINDOWS)
 	endif()
 	unset (DEKAF2_TRIPLET_DEFAULTED)
 else ()
-	# on Unixes, enable unix sockets and pseudo-terminals
+	# on Unixes, enable unix sockets
 	set(DEKAF2_HAS_UNIX_SOCKETS ON)
-	set(DEKAF2_HAS_PTY ON)
 endif()
 
 # pipes to child processes exist on all platforms
 set(DEKAF2_HAS_PIPES ON)
+
+# pseudo-terminals exist on all platforms - on Windows as pseudo consoles since
+# Windows 10 1809, which KPTY checks at runtime
+set(DEKAF2_HAS_PTY ON)
 
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
 	if (DEKAF2_USE_JEMALLOC)
@@ -2477,9 +2480,10 @@ endif()
 
 if (IS_WINDOWS)
 	# we need the dbghelp library for the data segment detection on Windows,
-	# iphlpapi for network interface code, and advapi32 for the Service
-	# Control Manager APIs used by KService
-	set (WINDOWS_LIBRARIES "dbghelp" "iphlpapi" "advapi32")
+	# iphlpapi for network interface code, advapi32 for the Service Control
+	# Manager APIs used by KService and the logon of KPTY, and userenv for the
+	# profile and environment of the user that KPTY logs on
+	set (WINDOWS_LIBRARIES "dbghelp" "iphlpapi" "advapi32" "userenv")
 endif()
 
 set(DEKAF2_SOURCE_FILES

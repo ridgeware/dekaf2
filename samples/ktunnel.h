@@ -833,9 +833,9 @@ private:
 	/// the `shell` command after a correct password. Spawns a login shell
 	/// on a pseudo-terminal and pumps bytes between it and the Connection
 	/// until either side closes. Only reachable when a shell password hash
-	/// is configured (see ExtendedConfig::sShellPasswordHash). The
-	/// pseudo-terminal (KPTY) exists on POSIX systems only, so Windows has
-	/// no shell command.
+	/// is configured (see ExtendedConfig::sShellPasswordHash). On Windows
+	/// the shell is the command interpreter in a pseudo console, which
+	/// needs Windows 10 1809 or later.
 	void RunShell (KTunnel::Connection& Connection);
 #endif
 

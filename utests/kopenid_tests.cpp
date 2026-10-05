@@ -561,6 +561,80 @@ TEST_CASE("KJWT Check")
 		CHECK ( Keys.Error().empty() );
 	}
 
+	SECTION("an unknown key ID asks the provider at once, but at most once an hour")
+	{
+		// a provider whose requests fail at once: nothing listens on this port
+		KOpenIDProvider Provider(KURL("https://127.0.0.1:1"));
+		CHECK_FALSE ( Provider.IsValid() );
+
+		auto tStart = KUnixTime::now();
+
+		// the request of the constructor does not count, the first such token asks at once ..
+		CHECK       ( Provider.RefreshForUnknownKey(tStart) );
+		// .. and the next ones only an hour later
+		CHECK_FALSE ( Provider.RefreshForUnknownKey(tStart + chrono::minutes(1)) );
+		CHECK_FALSE ( Provider.RefreshForUnknownKey(tStart + chrono::minutes(59)) );
+		CHECK       ( Provider.RefreshForUnknownKey(tStart + chrono::minutes(61)) );
+		CHECK_FALSE ( Provider.RefreshForUnknownKey(tStart + chrono::minutes(62)) );
+
+		// the regular requests of Refresh() in between do not hold it back
+		Provider.Refresh(tStart + chrono::minutes(100));
+		Provider.Refresh(tStart + chrono::minutes(115));
+		CHECK       ( Provider.RefreshForUnknownKey(tStart + chrono::minutes(121)) );
+
+		// a provider with fixed keys has nobody to ask
+		auto Fixed = Issuer.Provider();
+		CHECK_FALSE ( Fixed.RefreshForUnknownKey(tStart + chrono::hours(48)) );
+
+		// and a token with an unknown key is rejected as before
+		KOpenIDProviderList Providers;
+		Providers.push_back(Issuer.Provider());
+		KJWT JWT;
+		CHECK_FALSE ( JWT.Check(Issuer.Token("alice", tNow - 10, tNow + 600, "key-new"), Providers) );
+		CHECK ( JWT.Error().contains("no matching key") );
+	}
+
+	SECTION("a provider without keys asks for them, at most once in three minutes")
+	{
+		// a provider whose requests fail at once: nothing listens on this port
+		KOpenIDProvider Provider(KURL("https://127.0.0.1:1"));
+		REQUIRE ( Provider.Get().Keys.empty() );
+
+		auto tStart = KUnixTime::now();
+
+		// the constructor asked just now
+		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart) );
+		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart + chrono::minutes(2)) );
+		CHECK       ( Provider.RefreshForMissingKeys(tStart + chrono::minutes(4)) );
+		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart + chrono::minutes(5)) );
+
+		// a request of Refresh() counts as well
+		Provider.Refresh(tStart + chrono::minutes(8));
+		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart + chrono::minutes(9)) );
+		CHECK       ( Provider.RefreshForMissingKeys(tStart + chrono::minutes(12)) );
+
+		// a provider with fixed keys has nobody to ask
+		auto Fixed = Issuer.Provider();
+		CHECK_FALSE ( Fixed.RefreshForMissingKeys(tStart + chrono::hours(48)) );
+
+		// a token tries the provider without keys and then the next one
+		KOpenIDProviderList Providers;
+		Providers.push_back(KOpenIDProvider(KURL("https://127.0.0.1:1")));
+		KJWT JWT;
+		CHECK_FALSE ( JWT.Check(sGood, Providers) );
+		CHECK ( JWT.Error().contains("provider has no keys") );
+
+		Providers.push_back(Issuer.Provider());
+		CHECK ( JWT.Check(sGood, Providers) );
+	}
+
+	SECTION("key sets compare as their provider published them")
+	{
+		CHECK ( KOpenIDKeys(Issuer.JWKS) == KOpenIDKeys(Issuer.JWKS) );
+		CHECK ( KOpenIDKeys(Issuer.JWKS) != KOpenIDKeys(Other.JWKS) );
+		CHECK ( KOpenIDKeys()            != KOpenIDKeys(Issuer.JWKS) );
+	}
+
 	SECTION("a provider with fixed keys")
 	{
 		CHECK_FALSE ( KOpenIDProvider(KOpenIDKeys(), "https://sso.example").IsValid() );

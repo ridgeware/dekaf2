@@ -52,6 +52,9 @@ DEKAF2_NAMESPACE_BEGIN
 
 static constexpr KStringViewZ OpenID_Configuration = "/.well-known/openid-configuration";
 static constexpr KDuration DefaultOpenIDTCPTimeout = chrono::seconds(30);
+// the shortest time between two requests for keys - and between two key changes,
+// which the lockless reading of the keys in KOpenIDProvider::Get() relies on
+static constexpr KDuration MinOpenIDRefreshInterval = chrono::hours(1);
 
 const KRSAKey KOpenIDKeys::s_EmptyKey;
 
@@ -134,6 +137,8 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 
 			if (Validate(Keys))
 			{
+				m_sPublished = Keys["keys"].dump();
+
 				for (auto& it : Keys["keys"])
 				{
 					auto& sKeyType = kjson::GetStringRef(it, "kty");
@@ -183,6 +188,8 @@ KOpenIDKeys::KOpenIDKeys (const KJSON& jwks)
 	{
 		return;
 	}
+
+	m_sPublished = jwks["keys"].dump();
 
 	for (auto& it : jwks["keys"])
 	{
@@ -362,119 +369,212 @@ bool KOpenIDProvider::Validate(const KJSON& Configuration, const KURL& URL, KStr
 } // Validate
 
 //-----------------------------------------------------------------------------
+void KOpenIDProvider::Load(KUnixTime Now) const
+//-----------------------------------------------------------------------------
+{
+	// with m_Request->Mutex held
+
+	m_Request->tLastRequest.store(Now.to_time_t(), std::memory_order_relaxed);
+
+	if (m_URL.Protocol != url::KProtocol::HTTPS)
+	{
+		SetError(kFormat("provider URL does not use HTTPS, but has to: {}", m_URL.Serialize()));
+		return;
+	}
+
+	DEKAF2_TRY
+	{
+		kDebug(2, "polling OpenID provider {} for keys", m_URL);
+		KJsonRestClient Provider(m_URL, true); // we have to verify the CERT!
+		Provider.SetTimeout(DefaultOpenIDTCPTimeout);
+		auto Configuration = Provider.Get(OpenID_Configuration).Request();
+
+		// verify accuracy of information
+		if (Validate(Configuration, m_URL, m_sScope))
+		{
+			// only query keys if valid data
+			auto Keys = KOpenIDKeys(KURL(kjson::GetStringRef(Configuration, "jwks_uri")));
+
+			if (!Keys.empty())
+			{
+				// recovered - a prior failure's error must not linger, or IsValid() stays false
+				// (the error state of KErrorBase is cleared like it is set, from a const method)
+				SetError(KErrorBase{});
+
+				auto& sIssuer = kjson::GetStringRef(Configuration, "issuer");
+
+				if (Keys == m_Keys->Keys && sIssuer == m_Keys->sIssuer)
+				{
+					// unchanged - the keys in memory stay, and with them their age
+					kDebug(2, "keys of provider {} are unchanged", m_URL);
+				}
+				else if (Now < KUnixTime::from_time_t(m_Request->tLastChange.load(std::memory_order_relaxed)) + MinOpenIDRefreshInterval)
+				{
+					// a reader of Get() may still use the keys before the current ones
+					kDebug(1, "keys of provider {} changed again within an hour, taking them at a later request", m_URL);
+				}
+				else
+				{
+					// the previous keys stay in memory until the next change, at least an
+					// hour later - a reader of Get() may still use them
+					m_DecayingKeys = std::move(m_Keys);
+					m_Keys         = std::make_unique<KeysAndIssuer>(KeysAndIssuer { std::move(Keys), sIssuer } );
+					// atomically switch to the new keys - release makes them visible to a
+					// thread that loads the pointer with acquire in Get()
+					m_CurrentKeys->store(m_Keys.get(), std::memory_order_release);
+					m_Request->tLastChange.store(Now.to_time_t(), std::memory_order_relaxed);
+					kDebug(2, "got {} valid keys from provider {}", m_Keys->Keys.size(), m_URL);
+				}
+			}
+			else if (m_Keys->Keys.empty())
+			{
+				SetError(kFormat("got no keys when polling provider {}", m_URL));
+			}
+			else
+			{
+				kDebug(1, "got no keys when polling provider {}", m_URL);
+			}
+		}
+	}
+	DEKAF2_CATCH (const KHTTPError& exc)
+	{
+		if (!m_Keys->Keys.empty())
+		{
+			// there was an issue with the http connection to the SSO provider,
+			// but as we have valid keys from a former connection just keep these
+			kDebug(1, "cannot refresh SSO keys for {}, will continue to use old keys: {}", m_URL.Serialize(), exc.message());
+			return;
+		}
+
+		SetError(kFormat("{}: {}", m_URL.Serialize(), exc.message()));
+	}
+	DEKAF2_CATCH (const KJSON::exception& exc)
+	{
+		// we protect Validate() with this catch
+		if (!m_Keys->Keys.empty())
+		{
+			// there was an issue with the json response from the SSO provider,
+			// but as we have valid keys from a former connection just keep these
+			kDebug(1, "cannot refresh SSO keys for {}, will continue to use old keys: {}", m_URL.Serialize(), exc.what());
+			return;
+		}
+
+		SetError(kFormat("OpenID provider '{}' returned invalid JSON: {}", m_URL.Serialize(), exc.what()));
+	}
+
+} // Load
+
+//-----------------------------------------------------------------------------
 void KOpenIDProvider::Refresh(KUnixTime Now)
 //-----------------------------------------------------------------------------
 {
-	// While we have no usable key set yet (e.g. the IdP was unreachable at
-	// startup) retry far more often than the normal refresh interval, so we
-	// recover within minutes instead of after a full day. Once we hold valid
-	// keys we use the long interval, which also preserves the lockless
-	// decaying-keys invariant (refreshes spaced >= one interval apart, and
-	// there are never live keys to decay while we are in the short-retry state).
-	if (m_URL.empty())
+	if (!m_Request || m_URL.empty())
 	{
 		// a provider with a fixed set of keys, or a default constructed one
 		return;
 	}
 
-	const auto*     pCurrent  = m_CurrentKeys ? m_CurrentKeys->load(std::memory_order_relaxed) : nullptr;
-	const bool      bHaveKeys = pCurrent && !pCurrent->Keys.empty();
-	const KDuration Interval  = bHaveKeys ? m_RefreshInterval : m_RetryInterval;
+	// another thread asks the provider right now - it brings the new keys
+	std::unique_lock<std::mutex> Lock(m_Request->Mutex, std::try_to_lock);
 
-	if (Now < m_LastRefresh + Interval)
+	if (!Lock.owns_lock())
 	{
 		return;
 	}
 
-	m_LastRefresh = Now;
+	// While we have no usable key set yet (e.g. the IdP was unreachable at
+	// startup) retry far more often than the normal refresh interval, so we
+	// recover within minutes instead of after a full day. Once we hold valid
+	// keys we use the long interval, which also preserves the lockless
+	// decaying-keys invariant (Load() spaces key changes >= one hour apart, and
+	// there are never live keys to decay while we are in the short-retry state).
+	const KDuration Interval = m_Keys->Keys.empty() ? m_RetryInterval : m_RefreshInterval;
 
-	if (m_URL.Protocol != url::KProtocol::HTTPS)
+	if (Now < KUnixTime::from_time_t(m_Request->tLastRequest.load(std::memory_order_relaxed)) + Interval)
 	{
-		SetError(kFormat("provider URL does not use HTTPS, but has to: {}", m_URL.Serialize()));
-		m_RefreshInterval = KDuration::zero();
-	}
-	else
-	{
-		DEKAF2_TRY
-		{
-			kDebug(2, "polling OpenID provider {} for keys", m_URL);
-			KJsonRestClient Provider(m_URL, true); // we have to verify the CERT!
-			Provider.SetTimeout(DefaultOpenIDTCPTimeout);
-			auto Configuration = Provider.Get(OpenID_Configuration).Request();
-
-			// verify accuracy of information
-			if (Validate(Configuration, m_URL, m_sScope))
-			{
-				// only query keys if valid data
-				auto Keys = KOpenIDKeys(KURL(kjson::GetStringRef(Configuration, "jwks_uri")));
-
-				if (!Keys.empty())
-				{
-					m_DecayingKeys = std::move(m_Keys);
-					auto& sIssuer  = kjson::GetStringRef(Configuration, "issuer");
-					m_Keys         = std::make_unique<KeysAndIssuer>(KeysAndIssuer { std::move(Keys), sIssuer } );
-					ClearError(); // recovered - a prior failure's error must not linger, or IsValid() stays false
-					kDebug(2, "got {} valid keys from provider {}", m_Keys->Keys.size(), m_URL);
-				}
-				else
-				{
-					if (!m_Keys || m_Keys->Keys.empty())
-					{
-						SetError(kFormat("got no keys when polling provider {}", m_URL));
-					}
-					else
-					{
-						kDebug(1, "got no keys when polling provider {}", m_URL);
-					}
-				}
-			}
-		}
-		DEKAF2_CATCH (const KHTTPError& exc)
-		{
-			if (m_CurrentKeys && IsValid())
-			{
-				// there was an issue with the http connection to the SSO provider,
-				// but as we have valid keys from a former connection just keep these
-				kDebug(1, "cannot refresh SSO keys for {}, will continue to use old keys: {}", m_URL.Serialize(), exc.message());
-				return;
-			}
-
-			SetError(kFormat("{}: {}", m_URL.Serialize(), exc.message()));
-			// continue to create invalid empty keys
-		}
-		DEKAF2_CATCH (const KJSON::exception& exc)
-		{
-			// we protect Validate() with this catch
-			if (m_CurrentKeys && IsValid())
-			{
-				// there was an issue with the json response from the SSO provider,
-				// but as we have valid keys from a former connection just keep these
-				kDebug(1, "cannot refresh SSO keys for {}, will continue to use old keys: {}", m_URL.Serialize(), exc.what());
-				return;
-			}
-
-			SetError(kFormat("OpenID provider '{}' returned invalid JSON: {}", m_URL.Serialize(), exc.what()));
-			// continue to create invalid empty keys
-		}
+		return;
 	}
 
-	if (!m_Keys)
-	{
-		m_Keys = std::make_unique<KeysAndIssuer>();
-	}
-
-	if (!m_CurrentKeys)
-	{
-		m_CurrentKeys = std::make_unique<std::atomic<KeysAndIssuer*>>(m_Keys.get());
-	}
-	else
-	{
-		// atomically switch to new keys - release makes the keys visible to a thread
-		// that loads the pointer with acquire in Get()
-		m_CurrentKeys->store(m_Keys.get(), std::memory_order_release);
-	}
+	Load(Now);
 
 } // Refresh
+
+//-----------------------------------------------------------------------------
+bool KOpenIDProvider::LoadOnDemand(KUnixTime Now, bool bForUnknownKey) const
+//-----------------------------------------------------------------------------
+{
+	if (!m_Request || m_URL.empty())
+	{
+		// a provider with a fixed set of keys, or a default constructed one
+		return false;
+	}
+
+	auto WithinOf = [Now](const std::atomic<std::time_t>& tWhen, KDuration Interval)
+	{
+		return Now < KUnixTime::from_time_t(tWhen.load(std::memory_order_relaxed)) + Interval;
+	};
+
+	auto TooEarly = [&]()
+	{
+		if (bForUnknownKey)
+		{
+			// Once an hour for such tokens, however many arrive, and only if the keys in
+			// memory are at least an hour old - the readers of Get() rely on the previous
+			// keys staying for an hour. The regular requests of Refresh() do not count
+			return WithinOf(m_Request->tLastUnknownKey, MinOpenIDRefreshInterval) ||
+			       WithinOf(m_Request->tLastChange,     MinOpenIDRefreshInterval);
+		}
+
+		// without keys every request is an attempt to get them - no more often than
+		// Refresh() retries, and only while there are none
+		return WithinOf(m_Request->tLastRequest, m_RetryInterval) || !Get().Keys.empty();
+	};
+
+	// the test without the lock keeps a flood of such tokens off the mutex
+	if (TooEarly())
+	{
+		return false;
+	}
+
+	// another thread asks the provider right now - it brings the new keys, if any
+	std::unique_lock<std::mutex> Lock(m_Request->Mutex, std::try_to_lock);
+
+	if (!Lock.owns_lock() || TooEarly())
+	{
+		return false;
+	}
+
+	if (bForUnknownKey)
+	{
+		kDebug(1, "a token names a key that {} did not publish before, asking for new keys", m_URL);
+		m_Request->tLastUnknownKey.store(Now.to_time_t(), std::memory_order_relaxed);
+	}
+	else
+	{
+		kDebug(1, "a token arrived, but there are no keys from {} yet, asking for them", m_URL);
+	}
+
+	Load(Now);
+
+	return true;
+
+} // LoadOnDemand
+
+//-----------------------------------------------------------------------------
+bool KOpenIDProvider::RefreshForUnknownKey(KUnixTime Now) const
+//-----------------------------------------------------------------------------
+{
+	return LoadOnDemand(Now, true);
+
+} // RefreshForUnknownKey
+
+//-----------------------------------------------------------------------------
+bool KOpenIDProvider::RefreshForMissingKeys(KUnixTime Now) const
+//-----------------------------------------------------------------------------
+{
+	return LoadOnDemand(Now, false);
+
+} // RefreshForMissingKeys
 
 //-----------------------------------------------------------------------------
 KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope, KDuration RefreshInterval, bool bMustSupportScope/*=true*/)
@@ -487,15 +587,20 @@ KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope, KDuration Refres
 	m_URL.Query.clear();
 	m_URL.Fragment.clear();
 
-	if (m_RefreshInterval < std::chrono::hours(1))
+	if (m_RefreshInterval < MinOpenIDRefreshInterval)
 	{
 		// we need a refresh interval of at least an hour to make sure all users have finished
 		// evaluating against an old set of Keys, as we do lockless access on the Keys and only
 		// move them out to a single decaying stage (which means that after one refresh interval,
 		// access on them is UB)
 		kDebug(1, "refresh interval lower than one hour, changing to hourly, daily is recommended");
-		m_RefreshInterval = std::chrono::hours(1);
+		m_RefreshInterval = MinOpenIDRefreshInterval;
 	}
+
+	// an empty set until the provider answers
+	m_Keys        = std::make_unique<KeysAndIssuer>();
+	m_CurrentKeys = std::make_unique<std::atomic<KeysAndIssuer*>>(m_Keys.get());
+	m_Request     = std::make_unique<RequestState>();
 
 	Refresh();
 
@@ -745,24 +850,52 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 		// Header and Payload, and sAlgorithm, sKeyID and sKeyDigest point into Header
 		KString sReason;
 
+		auto Verify = [&](const KOpenIDProvider::KeysAndIssuer& KeysAndIssuer)
+		{
+			return KeysAndIssuer.Keys.VerifySignature(sKeyID, sAlgorithm, sKeyDigest,
+			                                          sSignedData, sSignature, "sig", &sReason);
+		};
+
 		for (auto& Provider : Providers)
 		{
 			// the published keys - not the error state of the provider, which a
 			// Refresh() on another thread may change at this moment
-			auto& KeysAndIssuer = Provider.Get();
+			auto* pKeysAndIssuer = &Provider.Get();
 
-			if (KeysAndIssuer.Keys.empty())
+			if (pKeysAndIssuer->Keys.empty())
 			{
-				sReason = "provider has no keys";
-				// try the next provider ..
-				continue;
+				// no keys yet, e.g. the provider was unreachable at the start: ask it, no
+				// more often than its retry interval, and take what another thread got
+				Provider.RefreshForMissingKeys();
+				pKeysAndIssuer = &Provider.Get();
+
+				if (pKeysAndIssuer->Keys.empty())
+				{
+					sReason = "provider has no keys";
+					// try the next provider ..
+					continue;
+				}
 			}
 
-			if (!KeysAndIssuer.Keys.VerifySignature(sKeyID, sAlgorithm, sKeyDigest,
-			                                        sSignedData, sSignature, "sig", &sReason))
+			if (!Verify(*pKeysAndIssuer))
 			{
-				// try the next provider ..
-				continue;
+				// a token of this issuer with a key it did not publish before - the issuer
+				// may have changed its key: ask it (at most once an hour) and verify again
+				if (pKeysAndIssuer->Keys.contains(sKeyID)                                 ||
+				    kjson::GetStringRef(Payload, "iss") != pKeysAndIssuer->sIssuer        ||
+				    !Provider.RefreshForUnknownKey())
+				{
+					// try the next provider ..
+					continue;
+				}
+
+				pKeysAndIssuer = &Provider.Get();
+
+				if (!Verify(*pKeysAndIssuer))
+				{
+					// try the next provider ..
+					continue;
+				}
 			}
 
 			// mark that the token itself is from the right issuer (so that we could
@@ -770,7 +903,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			m_bSignatureIsValid = true;
 
 			// exit here if we cannot validate
-			return Validate(KeysAndIssuer.sIssuer, sScope, sExpectedAudience, sExpectedTokenUse, tClockLeeway);
+			return Validate(pKeysAndIssuer->sIssuer, sScope, sExpectedAudience, sExpectedTokenUse, tClockLeeway);
 		}
 
 		return SetError(sReason);

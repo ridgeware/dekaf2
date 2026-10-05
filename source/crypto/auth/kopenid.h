@@ -56,6 +56,8 @@
 #include <unordered_map>
 #include <vector>
 #include <atomic>
+#include <mutex>
+#include <ctime>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -100,7 +102,13 @@ public:
 	bool IsValid() const { return !HasError(); }
 
 	bool empty() const { return WebKeys.empty(); }
+	/// is there a key with this key ID?
+	bool contains(KStringView sKeyID) const { return WebKeys.find(sKeyID) != WebKeys.end(); }
 	std::size_t size() const { return WebKeys.size(); }
+
+	/// the same keys as another set, as the provider published them?
+	bool operator==(const KOpenIDKeys& other) const { return m_sPublished == other.m_sPublished; }
+	bool operator!=(const KOpenIDKeys& other) const { return !operator==(other); }
 
 //----------
 private:
@@ -123,6 +131,8 @@ private:
 	};
 
 	std::unordered_map<KString, WebKey> WebKeys;
+	/// the keys as the provider published them, for the comparison
+	KString                             m_sPublished;
 
 	DEKAF2_PRIVATE
 	bool Validate(const KJSON& Keys) const;
@@ -164,8 +174,8 @@ public:
 	};
 
 	/// the current keys and issuer - safe to call while another thread runs Refresh().
-	/// After a key change the previous set stays valid for one refresh interval, at
-	/// least an hour, so use the reference right away and do not keep it. Without
+	/// After a key change the previous set stays valid until the next change, at least
+	/// an hour later, so use the reference right away and do not keep it. Without
 	/// keys, e.g. for a default constructed provider, the set is empty
 	const KeysAndIssuer& Get() const
 	{
@@ -174,9 +184,25 @@ public:
 		return m_CurrentKeys ? *m_CurrentKeys->load(std::memory_order_acquire) : s_EmptyKeys;
 	}
 
-	/// load the keys again once the refresh interval has passed - call it from one
-	/// thread at a time, the readers of Get() need no lock
+	/// load the keys again once the refresh interval has passed - call it regularly,
+	/// e.g. from a timer. Safe to call from any thread, the readers of Get() need no lock
 	void Refresh(KUnixTime Now = KUnixTime::now());
+
+	/// load the keys right now, for a token of this issuer with a key ID that is not
+	/// among them - the issuer may have changed its key. Only once an hour for such
+	/// tokens, only if the keys in memory are at least an hour old, and not while
+	/// another thread asks the provider. Blocks for the duration of the request.
+	/// KJWT::Check() calls it and verifies the token again. Safe to call from any thread
+	/// @return true if it asked the provider
+	bool RefreshForUnknownKey(KUnixTime Now = KUnixTime::now()) const;
+
+	/// load the keys right now if there are none yet, e.g. because the provider was
+	/// unreachable at the start. No more often than the retry interval of three minutes,
+	/// counting the requests of Refresh() as well, and not while another thread asks the
+	/// provider. Blocks for the duration of the request. KJWT::Check() calls it for a
+	/// token. Safe to call from any thread
+	/// @return true if it asked the provider
+	bool RefreshForMissingKeys(KUnixTime Now = KUnixTime::now()) const;
 
 //----------
 private:
@@ -185,11 +211,36 @@ private:
 	DEKAF2_PRIVATE
 	bool Validate(const KJSON& Configuration, const KURL& URL, KStringView sScope) const;
 
+	/// ask the provider for its keys and publish new ones - with m_Request->Mutex held
+	DEKAF2_PRIVATE
+	void Load(KUnixTime Now) const;
+	/// Load() on behalf of a token, if it is not too early
+	DEKAF2_PRIVATE
+	bool LoadOnDemand(KUnixTime Now, bool bForUnknownKey) const;
+
 	static const KeysAndIssuer s_EmptyKeys;
 
-	std::unique_ptr<KeysAndIssuer>               m_Keys;
-	std::unique_ptr<KeysAndIssuer>               m_DecayingKeys;
+	/// the lock for the requests to the provider, and when what happened - on the heap
+	/// like m_CurrentKeys, which keeps the class movable. The times are seconds since
+	/// the epoch, written with the lock held, read also without it
+	struct RequestState
+	{
+		std::mutex               Mutex;
+		/// the last request to the provider
+		std::atomic<std::time_t> tLastRequest    { 0 };
+		/// the last request for a token with an unknown key ID
+		std::atomic<std::time_t> tLastUnknownKey { 0 };
+		/// the last change of the keys - the previous ones stay in memory until the
+		/// next change, which therefore comes an hour later at the earliest
+		std::atomic<std::time_t> tLastChange     { 0 };
+	};
+
+	// the key cache - Load() changes it from the const RefreshForUnknownKey() as well,
+	// with m_Request->Mutex held, while the readers of Get() need no lock
+	mutable std::unique_ptr<KeysAndIssuer>       m_Keys;
+	mutable std::unique_ptr<KeysAndIssuer>       m_DecayingKeys;
 	std::unique_ptr<std::atomic<KeysAndIssuer*>> m_CurrentKeys;
+	std::unique_ptr<RequestState>                m_Request;
 
 	KString           m_sScope;
 	bool              m_bMustSupportScope {true};
@@ -199,7 +250,6 @@ private:
 	/// unreachable at startup), so we recover within minutes instead of waiting
 	/// for the full refresh interval
 	KDuration         m_RetryInterval { chrono::minutes(3) };
-	KUnixTime         m_LastRefresh;
 
 }; // KOpenIDProvider
 
@@ -239,6 +289,9 @@ public:
 	/// server require "access" and thereby reject an OIDC id_token (token_use=="id")
 	/// presented as a bearer access token, without breaking third-party access
 	/// tokens that omit token_use. Empty (the default) imposes no constraint.
+	/// A token whose issuer matches a provider that does not know its key ID asks that
+	/// provider for new keys and is verified again, see KOpenIDProvider::RefreshForUnknownKey().
+	/// A provider without keys asks for them, see KOpenIDProvider::RefreshForMissingKeys().
 	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KStringView sExpectedAudience = KStringView{}, KStringView sExpectedTokenUse = KStringView{}, KDuration tClockLeeway = chrono::seconds(5));
 
 	/// is all info valid?

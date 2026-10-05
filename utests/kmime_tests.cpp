@@ -25,6 +25,43 @@ void testMime(const KMIME& mime)
 {
 }
 
+// a ZIP archive with entries that are stored without compression - enough for the
+// detection of the formats that are ZIP archives
+KString ZipArchive(const std::vector<std::pair<KStringView, KStringView>>& Entries)
+{
+	KString sArchive;
+
+	auto Append16 = [&sArchive](uint16_t i)
+	{
+		sArchive += static_cast<char>(i & 0xFF);
+		sArchive += static_cast<char>(i >> 8);
+	};
+
+	auto Append32 = [&](uint32_t i)
+	{
+		Append16(static_cast<uint16_t>(i & 0xFFFF));
+		Append16(static_cast<uint16_t>(i >> 16));
+	};
+
+	for (const auto& Entry : Entries)
+	{
+		sArchive += "PK\x03\x04"_ksv;
+		Append16(10);                                           // version
+		Append16(0);                                            // flags
+		Append16(0);                                            // stored
+		Append32(0);                                            // time and date
+		Append32(0);                                            // CRC, not checked
+		Append32(static_cast<uint32_t>(Entry.second.size()));   // compressed size
+		Append32(static_cast<uint32_t>(Entry.second.size()));   // size
+		Append16(static_cast<uint16_t>(Entry.first.size()));    // name length
+		Append16(0);                                            // extra length
+		sArchive += Entry.first;
+		sArchive += Entry.second;
+	}
+
+	return sArchive;
+}
+
 } // end of anonymous namespace
 
 TEST_CASE("KMIME")
@@ -107,6 +144,134 @@ TEST_CASE("KMIME")
 			CHECK ( m.IsCompressible() == false );
 		}
 	}
+
+	SECTION("kGetMIMETypeOfData")
+	{
+		KString sTar(512, '\0');
+		sTar.replace(257, 5, "ustar");
+
+		std::vector<std::pair<KString, KStringView>> Samples
+		{
+			{ "%PDF-1.7\n%\xE2\xE3\xCF\xD3\n"_ksv,                                  KMIME::PDF        },
+			{ "\x89PNG\r\n\x1A\n\0\0\0\x0DIHDR"_ksv,                               KMIME::PNG        },
+			{ "\xFF\xD8\xFF\xE0\0\x10JFIF\0"_ksv,                                  KMIME::JPEG       },
+			{ "GIF89a\x01\0\x01\0"_ksv,                                            KMIME::GIF        },
+			{ "II*\0\x08\0\0\0"_ksv,                                               KMIME::TIFF       },
+			{ "\0\0\0\x0CjP  \r\n\x87\n"_ksv,                                      KMIME::JPEG2000   },
+			{ "BM\x3A\0\0\0\0\0\0\0\x36\0\0\0\x28\0\0\0"_ksv,                      KMIME::BMP        },
+			{ "\0\0\1\0\1\0\x10\x10\0\0\1\0\x20\0\x68\x04\0\0\x16\0\0\0\0"_ksv,    KMIME::ICON       },
+			{ "RIFF\x24\0\0\0WEBPVP8 "_ksv,                                        KMIME::WEBP       },
+			{ "RIFF\x24\0\0\0WAVEfmt "_ksv,                                        KMIME::WAV        },
+			{ "RIFF\x24\0\0\0AVI LIST"_ksv,                                        KMIME::AVI        },
+			{ "OggS\0\x02\0\0\0\0\0\0\0\0\x01\0\0\0\0\0\0\0\0\0\0\0\x01\x1E\x01vorbis"_ksv, KMIME::OGA },
+			{ "ID3\x04\0\0\0\0\0\0"_ksv,                                           KMIME::MP3        },
+			{ "\xFF\xFB\x90\x64"_ksv,                                              KMIME::MP3        },
+			{ "\xFF\xF1\x50\x80"_ksv,                                              KMIME::AAC        },
+			{ "\0\0\0\030ftypmp42\0\0\0\0"_ksv,                                    KMIME::MP4        },
+			{ "\x1A\x45\xDF\xA3\x9F\x42\x86\x81\x01\x42\xF7\x81\x01\x42\x82\x84webm"_ksv, KMIME::WEBM },
+			{ "MThd\0\0\0\x06"_ksv,                                                KMIME::MIDI       },
+			{ ZipArchive({{ "hello.txt", "hello" }}),                              KMIME::ZIP        },
+			{ ZipArchive({{ "mimetype", KMIME::ODT }, { "content.xml", "<x/>" }}), KMIME::ODT        },
+			{ ZipArchive({{ "mimetype", KMIME::EPUB }}),                           KMIME::EPUB       },
+			{ ZipArchive({{ "[Content_Types].xml", "<x/>" }, { "word/document.xml", "<x/>" }}), KMIME::DOCX },
+			{ ZipArchive({{ "[Content_Types].xml", "<x/>" }, { "xl/workbook.xml", "<x/>" }}),   KMIME::XLSX },
+			{ ZipArchive({{ "META-INF/MANIFEST.MF", "Manifest-Version: 1.0" }}),   KMIME::JAR        },
+			{ "\x1F\x8B\x08\0"_ksv,                                                KMIME::GZIP       },
+			{ "BZh91AY&SY"_ksv,                                                    KMIME::BZ2        },
+			{ "\xFD\x37zXZ\0\0\x04"_ksv,                                           KMIME::XZ         },
+			{ "\x28\xB5\x2F\xFD\x04\0"_ksv,                                        KMIME::ZSTD       },
+			{ "7z\xBC\xAF\x27\x1C\0\x04"_ksv,                                      KMIME::SEVENZIP   },
+			{ "Rar!\x1A\x07\x01\0"_ksv,                                            KMIME::RAR        },
+			{ sTar,                                                                KMIME::TAR        },
+			{ "\0asm\x01\0\0\0"_ksv,                                               KMIME::WASM       },
+			{ "wOFF\0\1\0\0"_ksv,                                                  KMIME::WOFF       },
+			{ "wOF2\0\1\0\0"_ksv,                                                  KMIME::WOFF2      },
+			{ "OTTO\0\x0A"_ksv,                                                    KMIME::OTF        },
+			{ "\0\1\0\0\0\x0A\0\x80"_ksv,                                          KMIME::TTF        },
+			{ "FWS\x0A"_ksv,                                                       KMIME::SWF        },
+			{ "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\0\0W\0o\0r\0d\0D\0o\0c\0u\0m\0e\0n\0t\0"_ksv, KMIME::DOC },
+			{ "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\0\0"_ksv,                          "application/x-ole-storage" },
+			{ "{\\rtf1\\ansi"_ksv,                                                 KMIME::RTF        },
+			{ "Hello, world.\n"_ksv,                                               KMIME::TEXT_UTF8  },
+			{ "Gr\xC3\xBC\xC3\x9F" "e\n"_ksv,                                      KMIME::TEXT_UTF8  },
+			{ "\xEF\xBB\xBFwith a byte order mark"_ksv,                            KMIME::TEXT_UTF8  },
+			// the read part of a file may end within a character
+			{ "cut at the end \xC3"_ksv,                                           KMIME::TEXT_UTF8  },
+			{ "\xFF\xFEh\0i\0"_ksv,                                                KMIME::TEXT_PLAIN },
+			{ "<!DOCTYPE html>\n<html><body></body></html>"_ksv,                  KMIME::HTML_UTF8  },
+			{ "  <html><body></body></html>"_ksv,                                  KMIME::HTML_UTF8  },
+			{ "<?xml version=\"1.0\"?>\n<root/>"_ksv,                              KMIME::XML        },
+			{ "<?xml version=\"1.0\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\"/>"_ksv, KMIME::SVG },
+			{ "<svg xmlns=\"http://www.w3.org/2000/svg\"/>"_ksv,                   KMIME::SVG        },
+			{ "{\"name\":\"test\"}"_ksv,                                           KMIME::JSON       },
+			{ "[ 1, 2, 3 ]"_ksv,                                                   KMIME::JSON       },
+			// an INI section is no JSON
+			{ "[section]\nkey=value\n"_ksv,                                        KMIME::TEXT_UTF8  },
+			{ "#!/bin/sh\necho\n"_ksv,                                             KMIME::SH         },
+			{ "#!/bin/bash\necho\n"_ksv,                                           KMIME::SH         },
+			{ "#! /usr/bin/env -S zsh -f\necho\n"_ksv,                             KMIME::SH         },
+			{ "#!/bin/tcsh\necho\n"_ksv,                                           KMIME::CSH        },
+			{ "#!/usr/bin/env python3\nprint()\n"_ksv,                             KMIME::PYTHON     },
+			{ "#!/usr/bin/env PYTHONPATH=lib python3.12\nprint()\n"_ksv,          KMIME::PYTHON     },
+			{ "#!/usr/bin/env node\nconsole.log()\n"_ksv,                         KMIME::JAVASCRIPT },
+			// no shell, though the names contain sh
+			{ "#!/usr/bin/fish\necho\n"_ksv,                                       KMIME::TEXT_UTF8  },
+			{ "#!/opt/shared/bin/perl\nprint\n"_ksv,                               KMIME::TEXT_UTF8  },
+		};
+
+		for (const auto& Sample : Samples)
+		{
+			INFO ( Sample.second );
+			CHECK ( kGetMIMETypeOfData(Sample.first) == Sample.second );
+		}
+
+		// binary data without a known signature, an image in the ISO media format, and nothing
+		for (KStringView sData : { "\x01\x02\x03\x04\x05"_ksv, "\0\0\0\030ftypheic\0\0\0\0"_ksv, ""_ksv })
+		{
+			CHECK ( kGetMIMETypeOfData(sData) == KMIME::NONE );
+		}
+	}
+
+	SECTION("kGetMIMETypeOfFile")
+	{
+		KTempDir Dir;
+		auto sName = kFormat("{}/test.json", Dir.Name());
+		REQUIRE ( kWriteFile(sName, "{ \"name\": \"test\" }") );
+
+		CHECK ( kGetMIMETypeOfFile(sName) == KMIME::JSON );
+		CHECK ( kGetMIMETypeOfFile(kFormat("{}/missing.json", Dir.Name())) == KMIME::NONE );
+	}
+
+	SECTION("by inspection, remembered for the extension")
+	{
+		// with the file command, or by the signature
+		KTempDir Dir;
+		auto sName = kFormat("{}/test.dekaf2pdf", Dir.Name());
+		REQUIRE ( kWriteFile(sName, "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n1 0 obj\n<< >>\nendobj\n") );
+
+		KMIME mime;
+		CHECK ( mime.ByExtension("other.dekaf2pdf") == false );
+		CHECK ( mime.ByInspection(sName) );
+		CHECK ( mime == KMIME::PDF );
+		CHECK ( mime.ByExtension("other.dekaf2pdf") );
+		CHECK ( mime == KMIME::PDF );
+	}
+
+#ifdef DEKAF2_IS_WINDOWS
+	SECTION("by extension from the registry")
+	{
+		// Windows registers image/bmp for .bmp, which the own table does not know
+		KMIME mime;
+		CHECK ( mime.ByExtension("image.bmp") );
+		CHECK ( mime == KMIME::BMP );
+
+		// no type is registered - also when the remembered lookup answers
+		CHECK ( mime.ByExtension("file.dekaf2noext", KMIME::BINARY) == false );
+		CHECK ( mime == KMIME::BINARY );
+		CHECK ( mime.ByExtension("file.dekaf2noext", KMIME::BINARY) == false );
+		CHECK ( mime == KMIME::BINARY );
+	}
+#endif
 
 #ifndef DEKAF2_IS_WINDOWS
 	SECTION("by inspection")

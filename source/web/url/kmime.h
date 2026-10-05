@@ -49,11 +49,9 @@
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/data/template/kreplacer.h>
 #include <dekaf2/core/errors/kerror.h>
-#ifndef DEKAF2_IS_WINDOWS
-	#include <dekaf2/threading/primitives/kthreadsafe.h>
-	#include <dekaf2/containers/associative/kassociative.h>
-	#include <atomic>
-#endif
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <atomic>
 
 #ifndef __cpp_lib_incomplete_container_elements
 	#include <boost/container/vector.hpp>
@@ -103,7 +101,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set MIME type according to the extension of sFilename. Use Default if no
-	/// association found.
+	/// association found. On Windows also by the content type that installed
+	/// programs registered for the extension.
 	bool ByExtension(KStringView sFilename, KStringView Default = NONE);
 	//-----------------------------------------------------------------------------
 
@@ -115,8 +114,10 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set MIME type according to inspection of sFilename. Use Default if no
-	/// association found.
+	/// Set MIME type according to inspection of sFilename - on Unix with the file
+	/// command, else, and on Windows, with kGetMIMETypeOfFile(). Use Default if no
+	/// association found. The result is remembered for the extension of sFilename,
+	/// for ByExtension().
 	bool ByInspection(KStringViewZ sFilename, KStringView Default = NONE);
 	//-----------------------------------------------------------------------------
 
@@ -132,6 +133,7 @@ public:
 	DEKAF2_NODISCARD
 	static KMIME CreateByInspection(KStringViewZ sFilename, KStringView Default = NONE);
 	//-----------------------------------------------------------------------------
+
 
 	//-----------------------------------------------------------------------------
 	/// return the const KString& version of the MIME type
@@ -306,14 +308,34 @@ private:
 
 	static KString GetExtension(KStringView sFilename);
 
-#ifndef DEKAF2_IS_WINDOWS
+	// remembers sMIME for the extension - an empty sMIME notes that the registry of
+	// Windows knows no type for it, and a later inspection replaces it
+	static void RememberExtension(const KString& sExtension, KStringView sMIME);
+
+	// the MIME types that inspections, and on Windows the registry, found for extensions
 	static KThreadSafe<KUnorderedMap<KString, KString>> s_ExtMap;
 	static std::atomic<bool> s_bHasExtensions;
-#endif
 
 	KString m_mime { NONE };
 
 }; // KMIME
+
+//-----------------------------------------------------------------------------
+/// Returns the MIME type of data by the signature at its start, as the file command
+/// does - the first kilobytes of a file are enough. Knows the binary formats of the
+/// MIME types of KMIME, and text in UTF-8, like HTML, XML, SVG, JSON and scripts.
+/// @return the MIME type, or KMIME::NONE if it is unknown
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KMIME kGetMIMETypeOfData(KStringView sData);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Returns the MIME type of a file by the signature at its start, as `file --mime-type`
+/// does, see kGetMIMETypeOfData()
+/// @return the MIME type, or KMIME::NONE if it is unknown, or the file cannot be read
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KMIME kGetMIMETypeOfFile(KStringViewZ sFilename);
+//-----------------------------------------------------------------------------
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

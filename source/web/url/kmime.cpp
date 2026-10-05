@@ -52,14 +52,589 @@
 #include <dekaf2/io/streams/kinstringstream.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/util/id/kuuid.h>
+#include <dekaf2/core/strings/kutf.h>
+#include <dekaf2/core/types/kbit.h>
+#include <cstring>
 #include <utility>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <cwchar>
+	#include <windows.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
-#ifndef DEKAF2_IS_WINDOWS
 KThreadSafe<KUnorderedMap<KString, KString>> KMIME::s_ExtMap;
 std::atomic<bool> KMIME::s_bHasExtensions { false };
+
+namespace {
+
+//-----------------------------------------------------------------------------
+/// returns the byte at iPos of sData as an unsigned value, or 0 past its end
+uint8_t Byte(KStringView sData, std::size_t iPos)
+//-----------------------------------------------------------------------------
+{
+	return (iPos < sData.size()) ? static_cast<uint8_t>(sData[iPos]) : 0;
+
+} // Byte
+
+//-----------------------------------------------------------------------------
+/// returns the little endian value at iPos of sData, or 0 past its end
+template<typename T>
+T LittleEndian(KStringView sData, std::size_t iPos)
+//-----------------------------------------------------------------------------
+{
+	T iValue { 0 };
+
+	if (iPos + sizeof(T) <= sData.size())
+	{
+		// the position needs no alignment
+		std::memcpy(&iValue, sData.data() + iPos, sizeof(T));
+		kFromLittleEndian(iValue);
+	}
+
+	return iValue;
+
+} // LittleEndian
+
+//-----------------------------------------------------------------------------
+/// returns the type of a ZIP archive - the formats that are ZIP archives tell
+/// themselves apart by their first entries
+KString SniffZip(KStringView sData)
+//-----------------------------------------------------------------------------
+{
+	// ODF and EPUB: the first entry is "mimetype", stored without compression, with
+	// the MIME type as its content
+	auto iNameLength  = LittleEndian<uint16_t>(sData, 26);
+	auto iExtraLength = LittleEndian<uint16_t>(sData, 28);
+
+	if (LittleEndian<uint16_t>(sData, 8) == 0 && iNameLength == 8 && sData.substr(30).starts_with("mimetype"))
+	{
+		std::size_t iStart = 30 + iNameLength + iExtraLength;
+		std::size_t iSize  = LittleEndian<uint32_t>(sData, 18);
+
+		if (iSize > 0 && iSize < 100 && iStart + iSize <= sData.size())
+		{
+			KStringView sMIME = sData.substr(iStart, iSize);
+
+			if (sMIME.contains('/') && sMIME.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789.+-/") == KStringView::npos)
+			{
+				return sMIME;
+			}
+		}
+	}
+
+	// the names of the entries in the local headers in the read part of the archive
+	for (auto iPos = sData.find("PK\x03\x04"_ksv); iPos != KStringView::npos; iPos = sData.find("PK\x03\x04"_ksv, iPos + 4))
+	{
+		std::size_t iLength = LittleEndian<uint16_t>(sData, iPos + 26);
+
+		if (iPos + 30 + iLength > sData.size())
+		{
+			break;
+		}
+
+		auto sName = sData.substr(iPos + 30, iLength);
+
+		if (sName.starts_with("word/"))      return KMIME::DOCX;
+		if (sName.starts_with("xl/"))        return KMIME::XLSX;
+		if (sName.starts_with("ppt/"))       return KMIME::PPTX;
+		if (sName == "META-INF/MANIFEST.MF") return KMIME::JAR;
+	}
+
+	return KMIME::ZIP;
+
+} // SniffZip
+
+//-----------------------------------------------------------------------------
+/// returns the type of a file in the compound file format of the old Office
+/// formats - by the UTF-16 names of their streams, in the directory of the file,
+/// if it is in the read part
+KString SniffCompoundFile(KStringView sData)
+//-----------------------------------------------------------------------------
+{
+	if (sData.contains("W\0o\0r\0d\0D\0o\0c\0u\0m\0e\0n\0t\0"_ksv))       return KMIME::DOC;
+	if (sData.contains("W\0o\0r\0k\0b\0o\0o\0k\0"_ksv))                   return KMIME::XLS;
+	if (sData.contains("P\0o\0w\0e\0r\0P\0o\0i\0n\0t\0 \0D\0o\0c\0"_ksv)) return KMIME::PPT;
+
+	return "application/x-ole-storage";
+
+} // SniffCompoundFile
+
+//-----------------------------------------------------------------------------
+/// returns sText without the last UTF-8 character, if the reading of the start of
+/// a file has cut it
+KStringView WithoutCutCharacter(KStringView sText)
+//-----------------------------------------------------------------------------
+{
+	// the lead byte of the last character is at most 4 bytes before the end
+	for (std::size_t iBack = 1; iBack <= 4 && iBack <= sText.size(); ++iBack)
+	{
+		auto ch = Byte(sText, sText.size() - iBack);
+
+		if ((ch & 0xC0) == 0x80)
+		{
+			// a continuation byte
+			continue;
+		}
+
+		std::size_t iLength = ((ch & 0xE0) == 0xC0) ? 2
+		                    : ((ch & 0xF0) == 0xE0) ? 3
+		                    : ((ch & 0xF8) == 0xF0) ? 4
+		                    :                         1;
+
+		if (iLength > iBack)
+		{
+			sText.remove_suffix(iBack);
+		}
+
+		break;
+	}
+
+	return sText;
+
+} // WithoutCutCharacter
+
+//-----------------------------------------------------------------------------
+/// returns the type of text in UTF-8, or an empty string for binary data
+KString SniffText(KStringView sData)
+//-----------------------------------------------------------------------------
+{
+	if (sData.empty())
+	{
+		return {};
+	}
+
+	KStringView sText = WithoutCutCharacter(sData);
+
+	sText.remove_prefix("\xEF\xBB\xBF"_ksv);
+
+	if (sText.contains('\0') || !kutf::Valid(sText))
+	{
+		return {};
+	}
+
+	for (auto ch : sText)
+	{
+		// control characters other than whitespace and escape (in colored logs) are binary
+		if (static_cast<uint8_t>(ch) < 0x20 && KStringView("\t\n\r\f\v\x1B").find(ch) == KStringView::npos)
+		{
+			return {};
+		}
+	}
+
+	sText.TrimLeft();
+
+	auto sStart = kToLower(sText.substr(0, 1024));
+
+	if (sStart.starts_with("<?xml"))
+	{
+		if (sStart.contains("<svg"))
+		{
+			return KMIME::SVG;
+		}
+
+		if (sStart.contains("<!doctype html") || sStart.contains("<html"))
+		{
+			return KMIME::XHTML;
+		}
+
+		return KMIME::XML;
+	}
+
+	if (sStart.starts_with("<!doctype html") || sStart.starts_with("<html"))
+	{
+		return KMIME::HTML_UTF8;
+	}
+
+	if (sStart.starts_with("<svg"))
+	{
+		return KMIME::SVG;
+	}
+
+	// JSON: an object starts with a string or ends right away, an array with a value -
+	// unlike an INI section like [name]
+	if (sStart.starts_with('{') || sStart.starts_with('['))
+	{
+		KStringView sNext = KStringView(sStart).substr(1);
+		sNext.TrimLeft();
+
+		if (sNext.empty()
+		 || (sStart.front() == '{' && (sNext.front() == '"' || sNext.front() == '}'))
+		 || (sStart.front() == '[' && KStringView("{[\"-0123456789]tfn").contains(sNext.front())))
+		{
+			return KMIME::JSON;
+		}
+	}
+
+	if (sStart.starts_with("#!"))
+	{
+		static constexpr std::pair<KStringView, KStringViewZ> s_Interpreters[]
+		{
+			{ "sh"    , KMIME::SH         },
+			{ "bash"  , KMIME::SH         },
+			{ "zsh"   , KMIME::SH         },
+			{ "ksh"   , KMIME::SH         },
+			{ "mksh"  , KMIME::SH         },
+			{ "dash"  , KMIME::SH         },
+			{ "ash"   , KMIME::SH         },
+			{ "csh"   , KMIME::CSH        },
+			{ "tcsh"  , KMIME::CSH        },
+			{ "python", KMIME::PYTHON     },
+			{ "ruby"  , KMIME::RUBY       },
+			{ "php"   , KMIME::PHP        },
+			{ "node"  , KMIME::JAVASCRIPT },
+			{ "nodejs", KMIME::JAVASCRIPT },
+		};
+
+		// the interpreter of a script: the first word of the line, or the one after
+		// env with its options and variables, without the path and without a version
+		// like the 3.12 of python3.12
+		KStringView sLine = KStringView(sStart).substr(2);
+		sLine = sLine.substr(0, sLine.find('\n'));
+
+		KStringView sInterpreter;
+
+		while (!sLine.empty())
+		{
+			sLine.TrimLeft();
+
+			auto sWord = sLine.substr(0, sLine.find_first_of(" \t"));
+			sLine.remove_prefix(sWord.size());
+
+			auto sName = kBasename(sWord);
+
+			if (sName != "env" && !sName.starts_with('-') && !sName.contains('='))
+			{
+				sInterpreter = sName.substr(0, sName.find_first_of("0123456789."));
+				break;
+			}
+		}
+
+		for (const auto& Interpreter : s_Interpreters)
+		{
+			if (sInterpreter == Interpreter.first)
+			{
+				return Interpreter.second;
+			}
+		}
+	}
+
+	return KMIME::TEXT_UTF8;
+
+} // SniffText
+
+//-----------------------------------------------------------------------------
+/// returns the type of data by the signature at its start, or an empty string
+KString SniffSignature(KStringView sData)
+//-----------------------------------------------------------------------------
+{
+	if (sData.starts_with("%PDF-"))
+	{
+		return KMIME::PDF;
+	}
+
+	if (sData.starts_with("\x89PNG\r\n\x1A\n"_ksv))
+	{
+		return KMIME::PNG;
+	}
+
+	if (sData.starts_with("\xFF\xD8\xFF"_ksv))
+	{
+		return KMIME::JPEG;
+	}
+
+	if (sData.starts_with("GIF87a") || sData.starts_with("GIF89a"))
+	{
+		return KMIME::GIF;
+	}
+
+	if (sData.starts_with("II*\0"_ksv) || sData.starts_with("MM\0*"_ksv))
+	{
+		return KMIME::TIFF;
+	}
+
+	if (sData.starts_with("\0\0\0\x0CjP  \r\n\x87\n"_ksv))
+	{
+		return KMIME::JPEG2000;
+	}
+
+	// BMP: the two reserved fields of the header are 0
+	if (sData.starts_with("BM") && sData.size() > 14 && LittleEndian<uint32_t>(sData, 6) == 0)
+	{
+		return KMIME::BMP;
+	}
+
+	// ICO: type 1, at least one image, and the reserved byte of its entry is 0
+	if (sData.starts_with("\0\0\1\0"_ksv) && LittleEndian<uint16_t>(sData, 4) > 0 && sData.size() > 22 && Byte(sData, 9) == 0)
+	{
+		return KMIME::ICON;
+	}
+
+	if (sData.starts_with("RIFF"))
+	{
+		if (sData.substr(8).starts_with("WEBP"))
+		{
+			return KMIME::WEBP;
+		}
+
+		if (sData.substr(8).starts_with("WAVE"))
+		{
+			return KMIME::WAV;
+		}
+
+		if (sData.substr(8).starts_with("AVI "))
+		{
+			return KMIME::AVI;
+		}
+	}
+
+	if (sData.starts_with("OggS"))
+	{
+		// the codec, in the first page
+		auto sFirstPage = sData.substr(0, 128);
+
+		if (sFirstPage.contains("\x80theora"_ksv))
+		{
+			return KMIME::OGV;
+		}
+
+		if (sFirstPage.contains("\x01vorbis"_ksv) || sFirstPage.contains("OpusHead") || sFirstPage.contains("\x7F\x46LAC"_ksv))
+		{
+			return KMIME::OGA;
+		}
+
+		return KMIME::OGX;
+	}
+
+	if (sData.starts_with("ID3"))
+	{
+		return KMIME::MP3;
+	}
+
+	// UTF-16 with a byte order mark - before MPEG audio, whose frames can start alike
+	if (sData.starts_with("\xFF\xFE"_ksv) || sData.starts_with("\xFE\xFF"_ksv))
+	{
+		return KMIME::TEXT_PLAIN;
+	}
+
+	// a frame of MPEG audio: AAC in ADTS has the layer 0, MP3 one of the others
+	if (Byte(sData, 0) == 0xFF && (Byte(sData, 1) & 0xE0) == 0xE0)
+	{
+		if ((Byte(sData, 1) & 0xF6) == 0xF0)
+		{
+			return KMIME::AAC;
+		}
+
+		if ((Byte(sData, 1) & 0x06) != 0)
+		{
+			return KMIME::MP3;
+		}
+	}
+
+	if (sData.substr(4).starts_with("ftyp"))
+	{
+		// the ISO media file format holds also images - HEIF and AVIF are no videos
+		auto sBrand = sData.substr(8, 4);
+
+		for (KStringView sImage : { "heic", "heix", "heim", "heis", "mif1", "msf1", "avif", "avis" })
+		{
+			if (sBrand == sImage)
+			{
+				return {};
+			}
+		}
+
+		return KMIME::MP4;
+	}
+
+	// Matroska, of which WebM is a profile
+	if (sData.starts_with("\x1A\x45\xDF\xA3"_ksv))
+	{
+		return sData.substr(0, 64).contains("webm") ? KString(KMIME::WEBM) : KString();
+	}
+
+	if (sData.starts_with("MThd"))
+	{
+		return KMIME::MIDI;
+	}
+
+	if (sData.starts_with("PK\x03\x04"_ksv))
+	{
+		return SniffZip(sData);
+	}
+
+	if (sData.starts_with("PK\x05\x06"_ksv))
+	{
+		return KMIME::ZIP;
+	}
+
+	if (sData.starts_with("\x1F\x8B"_ksv))
+	{
+		return KMIME::GZIP;
+	}
+
+	if (sData.starts_with("BZh") && Byte(sData, 3) >= '1' && Byte(sData, 3) <= '9')
+	{
+		return KMIME::BZ2;
+	}
+
+	if (sData.starts_with("\xFD\x37zXZ\0"_ksv))
+	{
+		return KMIME::XZ;
+	}
+
+	if (sData.starts_with("\x28\xB5\x2F\xFD"_ksv))
+	{
+		return KMIME::ZSTD;
+	}
+
+	if (sData.starts_with("7z\xBC\xAF\x27\x1C"_ksv))
+	{
+		return KMIME::SEVENZIP;
+	}
+
+	if (sData.starts_with("Rar!\x1A\x07"_ksv))
+	{
+		return KMIME::RAR;
+	}
+
+	if (sData.substr(257).starts_with("ustar"))
+	{
+		return KMIME::TAR;
+	}
+
+	if (sData.starts_with("\0asm"_ksv))
+	{
+		return KMIME::WASM;
+	}
+
+	if (sData.starts_with("wOFF"))
+	{
+		return KMIME::WOFF;
+	}
+
+	if (sData.starts_with("wOF2"))
+	{
+		return KMIME::WOFF2;
+	}
+
+	if (sData.starts_with("OTTO"))
+	{
+		return KMIME::OTF;
+	}
+
+	if (sData.starts_with("ttcf"))
+	{
+		return KMIME::TTC;
+	}
+
+	// TrueType: the version 1.0, and a plausible count of tables (big endian)
+	if (sData.starts_with("\0\1\0\0"_ksv) && Byte(sData, 4) == 0 && Byte(sData, 5) > 0 && Byte(sData, 5) < 64)
+	{
+		return KMIME::TTF;
+	}
+
+	if (sData.starts_with("FWS") || sData.starts_with("CWS") || sData.starts_with("ZWS"))
+	{
+		return KMIME::SWF;
+	}
+
+	if (sData.starts_with("\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"_ksv))
+	{
+		return SniffCompoundFile(sData);
+	}
+
+	if (sData.starts_with("{\\rtf"))
+	{
+		return KMIME::RTF;
+	}
+
+	return SniffText(sData);
+
+} // SniffSignature
+
+#ifdef DEKAF2_IS_WINDOWS
+//-----------------------------------------------------------------------------
+/// returns the content type that installed programs registered for an extension,
+/// or an empty string
+KString RegisteredContentType(KStringView sExtension)
+//-----------------------------------------------------------------------------
+{
+	if (sExtension.empty() || sExtension.find_first_of("\\/") != KStringView::npos)
+	{
+		return {};
+	}
+
+	auto  wsKey = L"." + kutf::Convert<std::wstring>(sExtension);
+	DWORD iSize { 0 };
+
+	if (::RegGetValueW(HKEY_CLASSES_ROOT, wsKey.c_str(), L"Content Type", RRF_RT_REG_SZ, nullptr, nullptr, &iSize) != ERROR_SUCCESS
+	 || iSize < sizeof(wchar_t))
+	{
+		return {};
+	}
+
+	std::wstring wsType(iSize / sizeof(wchar_t), L'\0');
+
+	if (::RegGetValueW(HKEY_CLASSES_ROOT, wsKey.c_str(), L"Content Type", RRF_RT_REG_SZ, nullptr, &wsType[0], &iSize) != ERROR_SUCCESS)
+	{
+		return {};
+	}
+
+	wsType.resize(std::wcslen(wsType.c_str()));
+
+	auto sType = kutf::Convert<KString>(wsType);
+
+	// only a type like text/plain
+	if (!sType.contains('/') || sType.find_first_of("\r\n\t ") != KString::npos)
+	{
+		return {};
+	}
+
+	return sType;
+
+} // RegisteredContentType
 #endif
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+KMIME kGetMIMETypeOfData(KStringView sData)
+//-----------------------------------------------------------------------------
+{
+	return KMIME(SniffSignature(sData));
+
+} // kGetMIMETypeOfData
+
+//-----------------------------------------------------------------------------
+KMIME kGetMIMETypeOfFile(KStringViewZ sFilename)
+//-----------------------------------------------------------------------------
+{
+	// the signatures are at the start, and the text detection needs no more
+	return kGetMIMETypeOfData(kReadAll(sFilename, 16 * 1024));
+
+} // kGetMIMETypeOfFile
+
+//-----------------------------------------------------------------------------
+void KMIME::RememberExtension(const KString& sExtension, KStringView sMIME)
+//-----------------------------------------------------------------------------
+{
+	auto ExtMap = s_ExtMap.unique();
+
+	auto it = ExtMap->find(sExtension);
+
+	if (it == ExtMap->end())
+	{
+		ExtMap->insert({ sExtension, KString(sMIME) });
+	}
+	else if (it->second.empty())
+	{
+		it->second = sMIME;
+	}
+
+	s_bHasExtensions = true;
+
+} // RememberExtension
 
 //-----------------------------------------------------------------------------
 KString KMIME::GetExtension(KStringView sFilename)
@@ -213,7 +788,6 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		}
 	}
 
-#ifndef DEKAF2_IS_WINDOWS
 	if (s_bHasExtensions)
 	{
 		auto DynMap = s_ExtMap.shared();
@@ -222,9 +796,29 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 
 		if (it != DynMap->end())
 		{
+			if (it->second.empty())
+			{
+				// the registry of Windows knows no type for this extension
+				m_mime = Default;
+				return false;
+			}
+
 			m_mime = it->second;
 			return true;
 		}
+	}
+
+#ifdef DEKAF2_IS_WINDOWS
+	// the content type that installed programs registered for the extension - also
+	// none is remembered, which spares the next lookup
+	auto sRegistered = RegisteredContentType(sExtension);
+
+	RememberExtension(sExtension, sRegistered);
+
+	if (!sRegistered.empty())
+	{
+		m_mime = std::move(sRegistered);
+		return true;
 	}
 #endif
 
@@ -247,26 +841,18 @@ KMIME KMIME::CreateByExtension(KStringView sFilename, KStringView Default)
 bool KMIME::ByInspection(KStringViewZ sFilename, KStringView Default)
 //-----------------------------------------------------------------------------
 {
+	if (!kNonEmptyFileExists(sFilename))
+	{
+		m_mime = Default;
+		return false;
+	}
+
 #ifndef DEKAF2_IS_WINDOWS
 	// check once if the 'file' command is available
 	static KString s_sFileCommand = kWhich("file");
 
-	if (s_sFileCommand.empty())
-	{
-		kDebug(1, "the 'file' command is not installed - MIME detection by content inspection is not available");
-		m_mime = Default;
-		return false;
-	}
-
 	// the output is one line per file - a line break in the name breaks its parsing
-	if (sFilename.find_first_of("\r\n") != KStringView::npos)
-	{
-		kDebug(2, "file name not suitable for content inspection: {}", sFilename);
-		m_mime = Default;
-		return false;
-	}
-
-	if (kNonEmptyFileExists(sFilename))
+	if (!s_sFileCommand.empty() && sFilename.find_first_of("\r\n") == KStringView::npos)
 	{
 		// the argument vector goes to the file command as is - whitespace and quotes
 		// in the name are no issue. The -- keeps a name starting with a dash from
@@ -287,13 +873,22 @@ bool KMIME::ByInspection(KStringViewZ sFilename, KStringView Default)
 
 			if (m_mime != NONE)
 			{
-				s_ExtMap.unique()->insert({ GetExtension(sFilename), m_mime });
-				s_bHasExtensions = true;
+				RememberExtension(GetExtension(sFilename), m_mime);
 				return true;
 			}
 		}
 	}
 #endif
+
+	// the signature at the start of the file - on Windows, and without the file command
+	auto MIME = kGetMIMETypeOfFile(sFilename);
+
+	if (MIME != NONE)
+	{
+		m_mime = MIME.Serialize();
+		RememberExtension(GetExtension(sFilename), m_mime);
+		return true;
+	}
 
 	m_mime = Default;
 

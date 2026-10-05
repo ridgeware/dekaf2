@@ -215,10 +215,15 @@ TEST_CASE("KThreadPool")
 		auto pCaptured = std::make_shared<int>(42);
 		std::weak_ptr<int> wCaptured = pCaptured;
 
-		auto Future = Pool.push([pCaptured]() {});
-		pCaptured.reset();
+		{
+			auto Future = Pool.push([pCaptured]() {});
+			pCaptured.reset();
 
-		CHECK ( Future.wait_for(std::chrono::seconds(2)) == std::future_status::ready );
+			CHECK ( Future.wait_for(std::chrono::seconds(2)) == std::future_status::ready );
+
+			// libstdc++ keeps the callable in the state the task shares with the future -
+			// the captured objects can only go once the future is gone, too
+		}
 
 		// the future becomes ready inside the task call - the worker drops the task just after
 		for (int iWait = 0; iWait < 100 && !wCaptured.expired(); ++iWait)

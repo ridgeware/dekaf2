@@ -56,10 +56,6 @@
 	#include <exception>
 	#include <mutex>
 	#include <vector>
-
-	#ifndef DEKAF2_IS_WINDOWS
-		#define DEKAF2_HAS_SYSLOG
-	#endif
 #else
 	#include <iostream>
 #endif
@@ -149,9 +145,8 @@ public:
 
 	static constexpr KStringViewZ STDOUT = "stdout";
 	static constexpr KStringViewZ STDERR = "stderr";
-#ifdef DEKAF2_HAS_SYSLOG
+	/// the system log: syslog on Unix, the Application log of the Event Log on Windows
 	static constexpr KStringViewZ SYSLOG = "syslog";
-#endif
 
 	enum LOGMODE { CLI, SERVER };
 
@@ -354,9 +349,7 @@ public:
 		STDOUT,
 		STDERR,
 		FILE,
-#ifdef DEKAF2_HAS_SYSLOG
 		SYSLOG,
-#endif
 #ifdef DEKAF2_KLOG_WITH_TCP
 		TCP,
 		HTTP
@@ -366,9 +359,7 @@ public:
 	enum class Serializer
 	{
 		TTY,
-#ifdef DEKAF2_HAS_SYSLOG
 		SYSLOG,
-#endif
 #ifdef DEKAF2_KLOG_WITH_TCP
 		JSON,
 #endif

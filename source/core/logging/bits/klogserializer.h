@@ -58,10 +58,6 @@
 	#include <dekaf2/data/json/kjson.h>
 #endif
 
-#ifndef DEKAF2_IS_WINDOWS
-	#define DEKAF2_HAS_SYSLOG
-#endif
-
 DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -158,8 +154,6 @@ protected:
 
 }; // KLogTTYSerializer
 
-#ifdef DEKAF2_HAS_SYSLOG
-
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Specialization of the serializer for the Syslog: creates simple text lines
 /// of output, but without the prefix like timestamp and warning level
@@ -174,8 +168,6 @@ protected:
 	virtual void Serialize(bool bHiRes) override;
 
 }; // KLogSyslogSerializer
-
-#endif // of DEKAF2_HAS_SYSLOG
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 

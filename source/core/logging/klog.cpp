@@ -58,7 +58,7 @@
 #include <mutex>
 #include <iostream>
 
-#ifdef DEKAF2_HAS_SYSLOG
+#ifndef DEKAF2_IS_WINDOWS
 	#include <syslog.h>
 #endif
 
@@ -496,10 +496,8 @@ std::unique_ptr<KLogWriter> KLog::CreateWriter(Writer writer, KStringViewZ sLogn
 			return std::make_unique<KLogStdWriter>(std::cerr);
 		case Writer::FILE:
 			return std::make_unique<KLogFileWriter>(sLogname);
-#ifdef DEKAF2_HAS_SYSLOG
 		case Writer::SYSLOG:
 			return std::make_unique<KLogSyslogWriter>();
-#endif
 #ifdef DEKAF2_KLOG_WITH_TCP
 		case Writer::TCP:
 			return std::make_unique<KLogTCPWriter>(sLogname);
@@ -519,10 +517,8 @@ std::unique_ptr<KLogSerializer> KLog::CreateSerializer(Serializer serializer)
 		default:
 		case Serializer::TTY:
 			return std::make_unique<KLogTTYSerializer>();
-#ifdef DEKAF2_HAS_SYSLOG
 		case Serializer::SYSLOG:
 			return std::make_unique<KLogSyslogSerializer>();
-#endif
 #ifdef DEKAF2_KLOG_WITH_TCP
 		case Serializer::JSON:
 			return std::make_unique<KLogJSONSerializer>();
@@ -552,14 +548,12 @@ bool KLog::IntOpenLog()
 	}
 	else
 #endif
-#ifdef DEKAF2_HAS_SYSLOG
 	if (m_sLogName == SYSLOG)
 	{
 		SetWriter(CreateWriter(Writer::SYSLOG));
 		SetSerializer(CreateSerializer(Serializer::SYSLOG));
 	}
 	else
-#endif
 	{
 		// this is a file
 		if (m_sLogName == STDOUT)
@@ -1043,8 +1037,6 @@ DEKAF2_NAMESPACE_END
 DEKAF2_NAMESPACE_BEGIN
 constexpr KStringViewZ KLog::STDOUT;
 constexpr KStringViewZ KLog::STDERR;
-#ifdef DEKAF2_HAS_SYSLOG
 constexpr KStringViewZ KLog::SYSLOG;
-#endif
 DEKAF2_NAMESPACE_END
 #endif

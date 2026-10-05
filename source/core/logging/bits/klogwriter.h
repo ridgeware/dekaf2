@@ -53,10 +53,6 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <memory>
 
-#ifndef DEKAF2_IS_WINDOWS
-	#define DEKAF2_HAS_SYSLOG
-#endif
-
 #ifdef DEKAF2_KLOG_WITH_TCP
 	#include <dekaf2/data/json/kjson.h>
 #endif
@@ -203,10 +199,9 @@ private:
 
 #endif // DEKAF2_KLOG_WITH_TCP
 
-#ifdef DEKAF2_HAS_SYSLOG
-
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter for the syslog
+/// Logwriter for the syslog. On Windows it writes to the Application log of the
+/// Event Log, with the name of the program as the event source.
 class DEKAF2_PUBLIC KLogSyslogWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -215,14 +210,52 @@ class DEKAF2_PUBLIC KLogSyslogWriter : public KLogWriter
 public:
 //----------
 
+#ifdef DEKAF2_IS_WINDOWS
+
+	KLogSyslogWriter();
+	virtual ~KLogSyslogWriter();
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
+	virtual bool Good() const override { return m_hEventLog != nullptr; }
+
+	//---------------------------------------------------------------------------
+	/// Returns the event source of a program: the name of its executable, without
+	/// the path and the .exe
+	/// @param sProgram the path or the name of the executable - empty for this program
+	static KString SourceName(KStringView sProgram = {});
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Registers an event source in the Application log, with a message file that
+	/// shows the text of every event as it is - else Event Viewer adds a note about
+	/// a missing description. Needs administrative rights: KService::Install()
+	/// registers the source of the service, and a service under LocalSystem
+	/// registers its own source at the start of the logging.
+	/// @return true if the source is registered
+	static bool RegisterSource(KStringView sSource);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Removes the registration of an event source - KService::Uninstall() calls it
+	/// @return true if the source is not registered anymore
+	static bool UnregisterSource(KStringView sSource);
+	//---------------------------------------------------------------------------
+
+//----------
+private:
+//----------
+
+	void* m_hEventLog { nullptr }; // HANDLE of the event source
+
+#else
+
 	KLogSyslogWriter() {}
 	virtual ~KLogSyslogWriter() {}
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return true; }
 
-}; // KLogSyslogWriter
+#endif
 
-#endif // of DEKAF2_HAS_SYSLOG
+}; // KLogSyslogWriter
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 

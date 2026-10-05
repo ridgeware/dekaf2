@@ -454,8 +454,6 @@ void KLogJSONArraySerializer::Serialize(bool bHiRes)
 
 #endif // of DEKAF2_KLOG_WITH_TCP
 
-#ifdef DEKAF2_HAS_SYSLOG
-
 //---------------------------------------------------------------------------
 void KLogSyslogSerializer::Serialize(bool bHiRes)
 //---------------------------------------------------------------------------
@@ -475,8 +473,6 @@ void KLogSyslogSerializer::Serialize(bool bHiRes)
 	}
 
 } // Serialize
-
-#endif // of DEKAF2_HAS_SYSLOG
 
 DEKAF2_NAMESPACE_END
 

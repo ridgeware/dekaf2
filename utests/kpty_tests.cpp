@@ -268,8 +268,9 @@ TEST_CASE("KPTY Windows")
 		CHECK ( sOutput.contains("dekaf2_no_such_user") );
 		CHECK ( sOutput.contains("dekaf2_wrong_password") == false );
 
-		// asks again
-		CHECK ( OutputContains(pty, "login: ") );
+		// asks again - the prompt may have arrived together with the message
+		KString sAfterMessage = sOutput.substr(sOutput.find("Login incorrect"));
+		CHECK ( (sAfterMessage.contains("login: ") || OutputContains(pty, "login: ")) );
 		CHECK ( pty.IsRunning() );
 
 		// Close() ends a running login, which then starts no shell

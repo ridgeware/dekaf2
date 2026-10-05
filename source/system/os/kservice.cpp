@@ -48,6 +48,9 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/system/os/ksignals.h>
 #include <dekaf2/core/init/dekaf2.h>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <dekaf2/core/logging/bits/klogwriter.h> // the event source of the service
+#endif
 #include <atomic>
 #include <csignal>
 #include <cstdlib>
@@ -423,6 +426,45 @@ bool OpenServiceByName(KStringView sServiceName, DWORD dwAccess,
 	return true;
 
 } // OpenServiceByName
+
+//-----------------------------------------------------------------------------
+/// Returns the path of the executable of a service, from its command line in the
+/// configuration - or an empty string
+KString ServiceBinary(SC_HANDLE svc)
+//-----------------------------------------------------------------------------
+{
+	DWORD dwNeeded { 0 };
+	::QueryServiceConfigW(svc, nullptr, 0, &dwNeeded);
+
+	if (!dwNeeded)
+	{
+		return {};
+	}
+
+	std::vector<char> Buffer(dwNeeded);
+	auto* pConfig = reinterpret_cast<QUERY_SERVICE_CONFIGW*>(Buffer.data());
+
+	if (!::QueryServiceConfigW(svc, pConfig, dwNeeded, &dwNeeded) || !pConfig->lpBinaryPathName)
+	{
+		return {};
+	}
+
+	KString     sCommandLine = kutf::Convert<KString>(std::wstring(pConfig->lpBinaryPathName));
+	KStringView sBinary      = sCommandLine;
+
+	// Install() quotes a path with blanks, and appends the arguments after a blank
+	if (sBinary.remove_prefix('"'))
+	{
+		sBinary = sBinary.substr(0, sBinary.find('"'));
+	}
+	else
+	{
+		sBinary = sBinary.substr(0, sBinary.find(' '));
+	}
+
+	return sBinary;
+
+} // ServiceBinary
 
 #endif // DEKAF2_IS_WINDOWS
 
@@ -1270,6 +1312,17 @@ bool KService::Install(KStringView sServiceName, const InstallOptions& Opts)
 	::CloseServiceHandle(svc);
 	::CloseServiceHandle(scm);
 
+#ifdef DEKAF2_WITH_KLOG
+	// the event source for the logging of the service into the Event Log - a service
+	// under another account than LocalSystem cannot register it itself
+	auto sEventSource = KLogSyslogWriter::SourceName(sBinary);
+
+	if (!KLogSyslogWriter::RegisterSource(sEventSource))
+	{
+		kDebug(1, "cannot register the event source '{}'", sEventSource);
+	}
+#endif
+
 	return true;
 
 #elif defined(DEKAF2_IS_LINUX)
@@ -1492,11 +1545,14 @@ bool KService::Uninstall(KStringView sServiceName)
 	SC_HANDLE scm = nullptr;
 	SC_HANDLE svc = nullptr;
 
-	if (!OpenServiceByName(sServiceName, SERVICE_STOP | DELETE | SERVICE_QUERY_STATUS, scm, svc))
+	if (!OpenServiceByName(sServiceName, SERVICE_STOP | DELETE | SERVICE_QUERY_STATUS | SERVICE_QUERY_CONFIG, scm, svc))
 	{
 		kWarning("OpenService '{}' failed: {}", sServiceName, WinErrorText(::GetLastError()));
 		return false;
 	}
+
+	// for the removal of its event source after the deletion
+	auto sBinary = ServiceBinary(svc);
 
 	// Step 1: if the service is running, request a stop and wait for it
 	// to actually terminate. A service that is already stopped or in
@@ -1552,6 +1608,13 @@ bool KService::Uninstall(KStringView sServiceName)
 		kWarning("DeleteService '{}' failed: {}", sServiceName, WinErrorText(iDelErr));
 		return false;
 	}
+
+#ifdef DEKAF2_WITH_KLOG
+	if (!sBinary.empty())
+	{
+		KLogSyslogWriter::UnregisterSource(KLogSyslogWriter::SourceName(sBinary));
+	}
+#endif
 
 	// Step 3: block until the record is actually gone. Each iteration opens
 	// a fresh SCM / service handle so we are not pinning the record open

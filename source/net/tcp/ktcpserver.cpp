@@ -290,11 +290,6 @@ void KTCPServer::RunSession(std::unique_ptr<KIOStreamSocket>& stream)
 		          m_iPort);
 	}
 
-	// the thread pool keeps the object alive until it is
-	// overwritten in round-robin, therefore we have to call
-	// Disconnect explicitly now to shut down the connection
-	stream->Disconnect();
-
 } // RunSession
 
 //-----------------------------------------------------------------------------

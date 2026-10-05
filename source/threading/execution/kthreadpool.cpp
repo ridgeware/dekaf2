@@ -600,6 +600,13 @@ bool KThreadPool::run_thread(std::size_t i)
 					kUnknownException();
 				}
 
+				// A packaged_task keeps its callable after the call - drop it now, and with it
+				// all that the task captured: kept until this worker runs its next task, which
+				// on a quiet pool may be hours away, a captured connection would keep its
+				// socket open that long. Outside of the mutex, the destructors of the captured
+				// objects may touch this pool again (e.g. push).
+				_f = std::packaged_task<void()>();
+
 				lock.lock();
 
 				// account for the finished task - this may free a per-tag concurrency slot

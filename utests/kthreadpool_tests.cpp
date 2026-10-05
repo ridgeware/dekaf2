@@ -3,6 +3,7 @@
 #include <dekaf2/threading/execution/kthreadpool.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <vector>
+#include <memory>
 #include <mutex>
 #include <atomic>
 #include <future>
@@ -201,6 +202,31 @@ TEST_CASE("KThreadPool")
 				CHECK ( iCounter == 1 ); // drained stop must have run the task
 			}
 		}
+	}
+
+	SECTION("a finished task releases its captured objects")
+	{
+		// The worker that ran a task must drop the task - and all it captured - right away,
+		// not keep it until it runs its next task: on a quiet pool that may be hours later, and
+		// a captured object can be a network connection with its open socket (seen in
+		// production as a websocket in CLOSE_WAIT until the next request came in)
+		KThreadPool Pool(1);
+
+		auto pCaptured = std::make_shared<int>(42);
+		std::weak_ptr<int> wCaptured = pCaptured;
+
+		auto Future = Pool.push([pCaptured]() {});
+		pCaptured.reset();
+
+		CHECK ( Future.wait_for(std::chrono::seconds(2)) == std::future_status::ready );
+
+		// the future becomes ready inside the task call - the worker drops the task just after
+		for (int iWait = 0; iWait < 100 && !wCaptured.expired(); ++iWait)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
+
+		CHECK ( wCaptured.expired() );
 	}
 
 	SECTION("resize shrink does not lose idle threads")

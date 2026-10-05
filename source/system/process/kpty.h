@@ -297,7 +297,8 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Closes the PTY and waits for the child process to terminate.
 	/// @param Timeout waits for the given duration, then kills child process.
-	///        Default is KDuration::max(), which will wait until child terminates.
+	///        Default is KDuration::max(), which will wait until child terminates -
+	///        on Windows at most 10 seconds: the shell ends with its pseudo console.
 	/// @return the exit code received from the child
 	int Close(KDuration Timeout = KDuration::max());
 	//-----------------------------------------------------------------------------

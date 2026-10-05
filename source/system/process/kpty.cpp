@@ -1061,7 +1061,10 @@ int KPTY::Close(KDuration Timeout)
 		m_hPseudoConsole = nullptr;
 	}
 
-	WaitOrKill(Timeout);
+	// Windows terminates a process that does not react to the close of its console
+	// after 5 seconds. A shell that still runs after 10 seconds is not attached to
+	// the pseudo console, and would run on without it.
+	WaitOrKill(std::min(Timeout, KDuration(chrono::seconds(10))));
 
 	// the profile of a logged in user stays loaded until the shell has ended
 	ReleaseUser();

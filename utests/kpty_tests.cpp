@@ -150,13 +150,16 @@ bool OutputContains(KPTY& pty, KStringView sText, KString* pOutput = nullptr, bo
 	return Contains();
 }
 
+// Write() and Flush() bypass the stream state: a read that ends with the timeout sets
+// the eofbit, with which operator<< would write nothing anymore
+
 // one failed login: waits for the prompt, and sends a user without a password
 void FailLogin(KPTY& pty, KString* pOutput = nullptr)
 {
 	CHECK ( OutputContains(pty, "login: ", pOutput) );
-	pty << "dekaf2_no_such_user\r" << std::flush;
+	pty.Write("dekaf2_no_such_user\r").Flush();
 	CHECK ( OutputContains(pty, "Password: ", pOutput) );
-	pty << "dekaf2_wrong_password\r" << std::flush;
+	pty.Write("dekaf2_wrong_password\r").Flush();
 }
 
 } // end of anonymous namespace
@@ -174,10 +177,10 @@ TEST_CASE("KPTY Windows")
 
 		// Enter is a carriage return, as from a terminal - the typed command does
 		// not contain the value, only its output does
-		pty << "echo %DEKAF2_PTY_TEST%\r" << std::flush;
+		pty.Write("echo %DEKAF2_PTY_TEST%\r").Flush();
 		CHECK ( OutputContains(pty, "value_from_the_environment") );
 
-		pty << "exit\r" << std::flush;
+		pty.Write("exit\r").Flush();
 		CHECK ( pty.Wait(chrono::seconds(5)) );
 		CHECK ( pty.Close(chrono::seconds(5)) == 0 );
 		CHECK_FALSE ( pty.IsRunning() );
@@ -198,10 +201,10 @@ TEST_CASE("KPTY Windows")
 		CHECK   ( pty.SetWindowSize(40, 120) );
 
 		// the command interpreter sees the new count of columns
-		pty << "mode con\r" << std::flush;
+		pty.Write("mode con\r").Flush();
 		CHECK ( OutputContains(pty, "120") );
 
-		pty << "exit\r" << std::flush;
+		pty.Write("exit\r").Flush();
 		pty.Close(chrono::seconds(5));
 	}
 
@@ -218,9 +221,13 @@ TEST_CASE("KPTY Windows")
 		KPTY pty(KPTY::NoLogin, {}, chrono::milliseconds(500));
 		REQUIRE ( pty.IsRunning() );
 
-		// like a hangup on Unix - not only after the timeout, with the termination
+		// the prompt shows that the command interpreter is attached to the pseudo console
+		CHECK ( OutputContains(pty, ">") );
+
+		// like a hangup on Unix: the command interpreter ends with its console, and
+		// not only after the timeout, terminated with the exit code -1
 		KStopTime Timer;
-		pty.Close(chrono::seconds(10));
+		CHECK ( pty.Close(chrono::seconds(10)) != -1 );
 		CHECK_FALSE ( pty.IsRunning() );
 		CHECK ( Timer.elapsed().milliseconds().count() < 9000 );
 	}
@@ -240,7 +247,7 @@ TEST_CASE("KPTY Windows")
 		CHECK ( pty.Read(Buffer.data(), Buffer.size()) == 0 );
 		CHECK ( Timer.elapsed().milliseconds().count() >= 150 );
 
-		pty << "exit\r" << std::flush;
+		pty.Write("exit\r").Flush();
 		pty.Close(chrono::seconds(5));
 	}
 
@@ -301,7 +308,7 @@ TEST_CASE("KPTY Windows")
 	{
 		KPTY pty(KPTY::Login, {}, chrono::milliseconds(500));
 		CHECK ( OutputContains(pty, "login: ") );
-		pty << "\x04" << std::flush;
+		pty.Write("\x04").Flush();
 		CHECK ( pty.Wait(chrono::seconds(2)) );
 		CHECK ( pty.GetExitCode() == 1 );
 	}
@@ -317,9 +324,9 @@ TEST_CASE("KPTY Windows")
 		{
 			KPTY pty(KPTY::Login, {}, chrono::milliseconds(500));
 			CHECK ( OutputContains(pty, "login: ") );
-			pty << sUser << "\r" << std::flush;
+			pty.Write(sUser).Write("\r").Flush();
 			CHECK ( OutputContains(pty, "Password: ") );
-			pty << sPassword << "\r" << std::flush;
+			pty.Write(sPassword).Write("\r").Flush();
 
 			// the shell runs as the user - %USERNAME% is the name without a domain
 			auto iSeparator = sUser.find('\\');
@@ -327,11 +334,11 @@ TEST_CASE("KPTY Windows")
 			sName           = sName.substr(0, sName.find('@'));
 
 			// names of accounts are case insensitive - the output has the stored case
-			pty << "echo [%USERNAME%]\r" << std::flush;
+			pty.Write("echo [%USERNAME%]\r").Flush();
 			CHECK ( OutputContains(pty, kFormat("[{}]", sName), nullptr, true) );
 			CHECK ( pty.GetProcessID() > 0 );
 
-			pty << "exit\r" << std::flush;
+			pty.Write("exit\r").Flush();
 			CHECK ( pty.Wait(chrono::seconds(5)) );
 			CHECK ( pty.Close() == 0 );
 		}

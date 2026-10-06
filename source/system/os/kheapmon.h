@@ -92,13 +92,18 @@ bool    Stop();
 /// dump profile result to file
 /// @param sDumpFile the  path name for the output file
 /// @param Format the output format, raw or one of the analyzed formats
-/// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
+/// @param sAdditionalOptions further report options for jeprof, separated by whitespace, like
+/// "--alloc_space --lines", ignored for RAW, default none. Accepted are only options that shape the report:
+/// --inuse_space, --inuse_objects, --alloc_space, --alloc_objects, --show_bytes, --drop_negative,
+/// --functions, --lines, --addresses, --files, --cum, --nodecount=, --maxdegree=, --scale=, --thread=,
+/// --nodefraction=, --edgefraction=, --focus=, --ignore=, --retain= and --exclude=. Any other option
+/// makes the dump fail with EINVAL.
 /// @return true on success
 DEKAF2_PUBLIC
 bool    Dump(KStringViewZ sDumpFile, ReportFormat Format, KStringView sAdditionalOptions = KStringView{});
 /// dump profile result to string
 /// @param Format the output format, raw or one of the analyzed formats
-/// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
+/// @param sAdditionalOptions further report options for jeprof, see the file variant of Dump()
 /// @return a string with the dump output
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString Dump(ReportFormat Format, KStringView sAdditionalOptions = KStringView{});

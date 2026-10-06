@@ -46,9 +46,15 @@
 #if defined(DEKAF2_HAS_JEMALLOC) && !defined(DEKAF2_IS_MACOS)
 
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/pipes/kinpipe.h>
 #include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <algorithm>
+#include <cerrno>
+#include <vector>
 #include <dekaf2/core/init/kcompatibility.h>
 #include <jemalloc/jemalloc.h>
 
@@ -201,6 +207,134 @@ bool Stop()
 	return IsAvailable() && jemalloc::ctlReadWrite("prof.active", bWasActive, false);
 }
 
+namespace {
+
+//---------------------------------------------------------------------------
+/// a jeprof option that callers may pass to Dump()
+struct ReportOption
+//---------------------------------------------------------------------------
+{
+	/// the value an option takes
+	enum ValueType
+	{
+		Flag,     ///< no value, like --lines
+		Integer,  ///< an unsigned integer, like --nodecount=80
+		Fraction, ///< a decimal number, like --nodefraction=0.005
+		Pattern   ///< a regular expression, like --focus=KString
+	};
+
+	KStringView sName;
+	ValueType   Type;
+};
+
+// Only options that shape the report are accepted. jeprof options that start other
+// programs (--tools, --gv, --evince, --web, --list, --disasm), read further files
+// (--base, --add_lib, --lib_prefix) or change the output format are not.
+constexpr ReportOption s_ReportOptions[]
+{
+	{ "inuse_space"   , ReportOption::Flag     },
+	{ "inuse_objects" , ReportOption::Flag     },
+	{ "alloc_space"   , ReportOption::Flag     },
+	{ "alloc_objects" , ReportOption::Flag     },
+	{ "show_bytes"    , ReportOption::Flag     },
+	{ "drop_negative" , ReportOption::Flag     },
+	{ "functions"     , ReportOption::Flag     },
+	{ "lines"         , ReportOption::Flag     },
+	{ "addresses"     , ReportOption::Flag     },
+	{ "files"         , ReportOption::Flag     },
+	{ "cum"           , ReportOption::Flag     },
+	{ "nodecount"     , ReportOption::Integer  },
+	{ "maxdegree"     , ReportOption::Integer  },
+	{ "scale"         , ReportOption::Integer  },
+	{ "thread"        , ReportOption::Integer  },
+	{ "nodefraction"  , ReportOption::Fraction },
+	{ "edgefraction"  , ReportOption::Fraction },
+	{ "focus"         , ReportOption::Pattern  },
+	{ "ignore"        , ReportOption::Pattern  },
+	{ "retain"        , ReportOption::Pattern  },
+	{ "exclude"       , ReportOption::Pattern  }
+};
+
+//---------------------------------------------------------------------------
+/// appends the whitespace separated options of sOptions to Args, returns false
+/// if one of them is not a report option of s_ReportOptions or has an invalid value
+bool AddReportOptions(std::vector<KString>& Args, KStringView sOptions)
+//---------------------------------------------------------------------------
+{
+	for (auto sOption : sOptions.Split(" \t\r\n", " \t\r\n", '\0', /*bCombineDelimiters=*/true, /*bRespectQuotes=*/false))
+	{
+		if (sOption.empty())
+		{
+			continue;
+		}
+
+		KStringView sName = sOption;
+
+		if (!sName.remove_prefix("--"))
+		{
+			kDebug(1, "not an option: {}", sOption);
+			return false;
+		}
+
+		KStringView sValue;
+		bool bHasValue { false };
+
+		auto iEquals = sName.find('=');
+
+		if (iEquals != KStringView::npos)
+		{
+			sValue    = sName.substr(iEquals + 1);
+			sName     = sName.substr(0, iEquals);
+			bHasValue = true;
+		}
+
+		auto it = std::find_if(std::begin(s_ReportOptions), std::end(s_ReportOptions),
+		                       [sName](const ReportOption& Option)
+		{
+			return Option.sName == sName;
+		});
+
+		if (it == std::end(s_ReportOptions))
+		{
+			kDebug(1, "option not permitted: {}", sOption);
+			return false;
+		}
+
+		bool bValid { false };
+
+		switch (it->Type)
+		{
+			case ReportOption::Flag:
+				bValid = !bHasValue;
+				break;
+
+			case ReportOption::Integer:
+				bValid = bHasValue && kIsUnsigned(sValue);
+				break;
+
+			case ReportOption::Fraction:
+				bValid = bHasValue && (kIsUnsigned(sValue) || kIsFloat(sValue));
+				break;
+
+			case ReportOption::Pattern:
+				bValid = bHasValue && !sValue.empty();
+				break;
+		}
+
+		if (!bValid)
+		{
+			kDebug(1, "invalid value for option: {}", sOption);
+			return false;
+		}
+
+		Args.emplace_back(sOption);
+	}
+
+	return true;
+}
+
+} // end of anonymous namespace
+
 //---------------------------------------------------------------------------
 bool Dump(KStringViewZ sDumpFile, ReportFormat Format, KStringView sAdditionalOptions)
 //---------------------------------------------------------------------------
@@ -210,42 +344,86 @@ bool Dump(KStringViewZ sDumpFile, ReportFormat Format, KStringView sAdditionalOp
 		return false;
 	}
 
-	if (!jemalloc::ctlWrite("prof.dump", sDumpFile.c_str()))
-	{
-		return false;
-	}
-
 	KStringView sFormat;
 
 	switch (Format)
 	{
 		case ReportFormat::RAW:
-			// we're done
-			return true;
+			break;
 
 		case ReportFormat::TEXT:
-			sFormat = "text";
+			sFormat = "--text";
 			break;
 
 		case ReportFormat::SVG:
-			sFormat = "svg";
+			sFormat = "--svg";
 			break;
 
 		case ReportFormat::PDF:
-			sFormat = "pdf";
+			sFormat = "--pdf";
 			break;
+	}
+
+	// jeprof runs without a shell, so every argument reaches it unchanged. The
+	// options are checked before the dump is written, so a rejected call has no
+	// side effects.
+	std::vector<KString> Args;
+
+	if (!sFormat.empty())
+	{
+		Args.emplace_back("jeprof");
+		Args.emplace_back(sFormat);
+
+		if (!AddReportOptions(Args, sAdditionalOptions))
+		{
+			jemalloc::detail::iLastError = EINVAL;
+			return false;
+		}
+
+		Args.emplace_back(kGetOwnPathname());
+		Args.emplace_back(sDumpFile);
+	}
+
+	if (!jemalloc::ctlWrite("prof.dump", sDumpFile.c_str()))
+	{
+		return false;
+	}
+
+	if (Args.empty())
+	{
+		// the raw dump is all we need
+		return true;
 	}
 
 	KString sOutName { sDumpFile };
 	sOutName += ".tmp";
 
-	int iError = kSystem(kFormat("\"{}\" \"--{}\" {} {} \"{}\" > \"{}\"",
-								 "jeprof",
-								 sFormat,
-								 sAdditionalOptions,
-								 kGetOwnPathname(),
-								 sDumpFile,
-								 sOutName));
+	int iError { 0 };
+
+	{
+		KOutFile OutFile(sOutName);
+		KInPipe  Pipe;
+
+		if (!OutFile.is_open())
+		{
+			iError = errno ? errno : EIO;
+		}
+		else if (!Pipe.Open(std::move(Args)))
+		{
+			iError = Pipe.GetErrno() ? Pipe.GetErrno() : ECHILD;
+		}
+		else
+		{
+			OutFile.Write(Pipe);
+
+			iError = Pipe.Close();
+
+			if (!iError && !OutFile.good())
+			{
+				iError = EIO;
+			}
+		}
+	}
 
 	if (iError)
 	{

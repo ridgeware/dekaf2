@@ -852,7 +852,7 @@ bool KMIME::ByInspection(KStringViewZ sFilename, KStringView Default)
 	static KString s_sFileCommand = kWhich("file");
 
 	// the output is one line per file - a line break in the name breaks its parsing
-	if (!s_sFileCommand.empty() && sFilename.find_first_of("\r\n") == KStringView::npos)
+	if (!s_sFileCommand.empty() && sFilename.find_first_of(detail::kLineBreaksSet) == KStringView::npos)
 	{
 		// the argument vector goes to the file command as is - whitespace and quotes
 		// in the name are no issue. The -- keeps a name starting with a dash from

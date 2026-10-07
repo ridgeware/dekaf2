@@ -688,8 +688,9 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, 
 
 namespace detail {
 
-static constexpr KFindSetOfChars kASCIISpacesSet(kASCIISpaces);
-static constexpr KFindSetOfChars kCommaSet(",");
+DEKAF2_INLINE_VARIABLE constexpr KFindSetOfChars kASCIISpacesSet(kASCIISpaces);
+DEKAF2_INLINE_VARIABLE constexpr KFindSetOfChars kCommaSet(",");
+DEKAF2_INLINE_VARIABLE constexpr KFindSetOfChars kLineBreaksSet("\r\n");
 
 } // end of namespace detail
 

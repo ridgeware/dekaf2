@@ -316,6 +316,15 @@
 	#define DEKAF2_REPEAT_CONSTEXPR_VARIABLE 1
 #endif
 
+// a namespace scope variable that is defined in a header exists once per
+// translation unit when it is static, but only once per program when it is
+// inline (C++17) - compilers without inline variables fall back to static
+#if (__cpp_inline_variables)
+	#define DEKAF2_INLINE_VARIABLE inline
+#else
+	#define DEKAF2_INLINE_VARIABLE static
+#endif
+
 #if (__cpp_if_constexpr)
 	#define DEKAF2_CONSTEXPR_IF constexpr
 	#define DEKAF2_HAS_CONSTEXPR_IF 1

@@ -740,6 +740,14 @@ Stream::ID Session::NewRequest (std::unique_ptr<Stream> Stream)
 		sAuthority = Stream->GetAuthority();
 	}
 
+	// header values with a line break are invalid (RFC 9114 4.2), and a request
+	// without one of its headers would be a different request - fail instead
+	if (DEKAF2_UNLIKELY(KHTTPHeaders::HasLineBreak(sAuthority)))
+	{
+		SetError(kFormat("header '{}' contains CR or LF", KHTTPHeader::HOST));
+		return -1;
+	}
+
 	if (m_sAuthority.empty())
 	{
 		m_sAuthority = sAuthority;
@@ -776,6 +784,12 @@ Stream::ID Session::NewRequest (std::unique_ptr<Stream> Stream)
 		}
 		else if (Header.first != KHTTPHeader::HOST)
 		{
+			if (DEKAF2_UNLIKELY(KHTTPHeaders::HasLineBreak(Header.second)))
+			{
+				SetError(kFormat("header '{}' contains CR or LF", Header.first));
+				return -1;
+			}
+
 			Headers.push_back(http3header(Header.first.Serialize(), Header.second));
 		}
 	}

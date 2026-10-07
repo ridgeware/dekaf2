@@ -147,7 +147,7 @@ bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
 	// a text (it may have been built from request data) is replaced by the canonical one
 	KStringView sStatus = sStatusString;
 
-	if (DEKAF2_UNLIKELY(sStatus.find('\n') != KStringView::npos || sStatus.find('\r') != KStringView::npos))
+	if (DEKAF2_UNLIKELY(HasLineBreak(sStatus)))
 	{
 		kDebug(1, "status text contains CR or LF - replaced by the default text for status {}", iStatusCode);
 		sStatus = KHTTPError::GetStatusString(iStatusCode);

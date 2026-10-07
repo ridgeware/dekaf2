@@ -4,6 +4,7 @@
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/core/strings/kjoin.h>
 #include <algorithm>
+#include <cerrno>
 #include <vector>
 
 using namespace dekaf2;
@@ -157,6 +158,29 @@ TEST_CASE("KHTTPHeader")
 		CHECK ( sOut.contains("connection: close") );
 		CHECK_FALSE ( sOut.contains("location") );
 		CHECK_FALSE ( sOut.contains("injected") );
+	}
+
+	SECTION("Serialize fails on headers with CR or LF when asked to")
+	{
+		KHTTPHeaders Headers;
+		Headers.Headers.Add(KHTTPHeader::CONTENT_TYPE, "text/plain");
+		Headers.Headers.Add(KHTTPHeader::AUTHORIZATION, "Bearer token\n");
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+		CHECK_FALSE ( Headers.Serialize(oss, KHTTPHeaders::ReturnError) );
+		CHECK ( Headers.GetLastErrorCode() == EINVAL );
+		CHECK ( Headers.Error().contains("authorization") );
+		CHECK_FALSE ( sOut.contains("Bearer") );
+	}
+
+	SECTION("HasLineBreak")
+	{
+		CHECK_FALSE ( KHTTPHeaders::HasLineBreak("") );
+		CHECK_FALSE ( KHTTPHeaders::HasLineBreak("text/plain; charset=utf-8") );
+		CHECK       ( KHTTPHeaders::HasLineBreak("value\n") );
+		CHECK       ( KHTTPHeaders::HasLineBreak("value\r") );
+		CHECK       ( KHTTPHeaders::HasLineBreak("a\r\nb: c") );
 	}
 
 	SECTION("Format")

@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/http/client/khttpclient.h>
+#include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/bits/kfindsetofchars.h>
@@ -129,6 +130,27 @@ TEST_CASE("KHTTPClient") {
 			CHECK( server.m_rx[4] == "user-agent: dekaf/" DEKAF_VERSION );
 			CHECK( server.m_rx[5] == "");
 		}
+
+		server.Stop();
+	}
+
+	SECTION("request header with a line break fails the request")
+	{
+		KTinyHTTPServer server(7654, false, 3);
+		server.Start(chrono::seconds(2), false);
+		server.clear();
+
+		KURL URL("http://127.0.0.1:7654/path");
+		auto cx = KIOStreamSocket::Create(URL);
+		CHECK( cx->Good() == true );
+		KHTTPClient cHTTP(std::move(cx));
+		cHTTP.Resource(URL);
+		// a token read with its trailing newline
+		cHTTP.AddHeader(KHTTPHeader::AUTHORIZATION, "Bearer PIUHuuhisdfuUYI78329YRDtfuyighUGYyt\n");
+		CHECK( cHTTP.SendRequest() == false );
+		CHECK( cHTTP.Error().contains("authorization") );
+		// no network error, so no retry
+		CHECK( cHTTP.GetStatusCode() != KHTTPError::H5xx_READTIMEOUT );
 
 		server.Stop();
 	}

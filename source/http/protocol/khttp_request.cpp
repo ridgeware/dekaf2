@@ -440,8 +440,10 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream) const
 bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
+	// a request without one of its headers would be a different request,
+	// therefore a header with a line break fails the request
 	return SerializeRequestLine(Stream) &&
-		KHTTPHeaders::Serialize(Stream);
+		KHTTPHeaders::Serialize(Stream, KHTTPHeaders::ReturnError);
 
 } // Serialize
 

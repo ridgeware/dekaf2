@@ -47,6 +47,7 @@
 #include <dekaf2/core/strings/kcaseless.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/crypto/random/krandom.h>
+#include <cerrno>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -1036,7 +1037,7 @@ bool KHTTPClient::SetupAutomaticHeaders(KStringView* svPostData, KInStream* Post
 	// and make sure we always have a user agent set
 	if (Request.Headers.Get(KHTTPHeader::USER_AGENT).empty())
 	{
-		Request.Headers.Set(KHTTPHeader::USER_AGENT, "dekaf/" DEKAF_VERSION );
+		AddHeader(KHTTPHeader::USER_AGENT, "dekaf/" DEKAF_VERSION);
 	}
 
 	return true;
@@ -1181,6 +1182,15 @@ bool KHTTPClient::Serialize()
 {
 	if (!Request.Serialize())
 	{
+		if (Request.GetLastErrorCode() == EINVAL)
+		{
+			// a header value contains a line break: no network error, and a retry would
+			// fail again - but the start of the request may already sit in the output
+			// buffer, so the connection must not be reused
+			m_bKeepAlive = false;
+			return SetError(Request.Error());
+		}
+
 		return SetNetworkError(false, Request.Error());
 	}
 

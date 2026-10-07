@@ -979,10 +979,29 @@ public:
 	bool Parse(KInStream& Stream, bool bRejectSpaceBeforeColon = false);
 	//-----------------------------------------------------------------------------
 
+	/// what Serialize() does with a header whose value contains a CR or LF
+	enum LineBreakAction
+	{
+		DropHeader,  ///< the header is not written, all others are
+		ReturnError  ///< Serialize() fails with EINVAL, and Error() names the header
+	};
+
 	//-----------------------------------------------------------------------------
 	/// serializes from headers into Stream
-	bool Serialize(KOutStream& Stream) const;
+	/// @param Stream the output stream
+	/// @param OnLineBreak what to do with a header whose value contains a CR or LF, default DropHeader
+	bool Serialize(KOutStream& Stream, LineBreakAction OnLineBreak = DropHeader) const;
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns true if sValue contains a CR or LF - written into a header line, it would end
+	/// the line early and let the remainder pass as further headers
+	DEKAF2_NODISCARD
+	static bool HasLineBreak(KStringView sValue)
+	//-----------------------------------------------------------------------------
+	{
+		return sValue.find_first_of(detail::kLineBreaksSet) != KStringView::npos;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// clear all headers

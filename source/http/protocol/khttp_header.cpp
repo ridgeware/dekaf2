@@ -52,6 +52,7 @@
 #if !DEKAF2_HTTP_HEADER_VIEW_PIPELINE
 	#include <boost/foreach.hpp>
 #endif
+#include <cerrno>
 #include <limits>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -370,7 +371,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream, bool bRejectSpaceBeforeColon)
 
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeaders::Serialize(KOutStream& Stream) const
+bool KHTTPHeaders::Serialize(KOutStream& Stream, LineBreakAction OnLineBreak) const
 //-----------------------------------------------------------------------------
 {
 	for (const auto& iter : Headers)
@@ -378,14 +379,20 @@ bool KHTTPHeaders::Serialize(KOutStream& Stream) const
 		KStringViewZ sName = iter.first.Serialize();
 
 		// a LF in the value ends the header line early and lets the remainder
-		// pass as further headers (response splitting), a bare CR does the same
-		// with older recipients - such a header is not sent. Names are not
-		// checked, they come from code.
-		if (DEKAF2_UNLIKELY(iter.second.find('\n') != KString::npos
-		                 || iter.second.find('\r') != KString::npos))
+		// pass as further headers (request or response splitting), a bare CR does
+		// the same with older recipients - such a header is never sent. Names are
+		// not checked, they come from code.
+		if (DEKAF2_UNLIKELY(HasLineBreak(iter.second)))
 		{
-			kDebug (1, "dropping header '{}' - value contains CR or LF", sName);
-			continue;
+			switch (OnLineBreak)
+			{
+				case DropHeader:
+					kDebug (1, "dropping header '{}' - value contains CR or LF", sName);
+					continue;
+
+				case ReturnError:
+					return SetError(kFormat("header '{}' contains CR or LF", sName), EINVAL);
+			}
 		}
 
 		kDebug (2, "{}: {}", sName, iter.second);

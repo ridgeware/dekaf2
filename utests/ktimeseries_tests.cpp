@@ -100,7 +100,9 @@ TEST_CASE("KTimeSeries")
 
 		KTimeSeries<uint64_t, std::chrono::minutes> TS3;
 
-		auto tp = std::chrono::system_clock::now();
+		// start at a full minute - with an arbitrary time point, the offsets
+		// below could reach into the next minute and thus into another bucket
+		std::chrono::system_clock::time_point tp = std::chrono::time_point_cast<std::chrono::minutes>(std::chrono::system_clock::now());
 
 		TS3.Add(tp,  2874732);
 		TS3.Add(tp, 42623456);

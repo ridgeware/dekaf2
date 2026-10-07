@@ -2,6 +2,8 @@
 
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/readwrite/kreader.h>
 
 using namespace dekaf2;
 
@@ -11,6 +13,68 @@ int neverBeCalled()
 	return iCallCount++;
 }
 
+
+TEST_CASE("KLog credential redaction") {
+
+	// The log writer strips bearer credentials before anything is written. This
+	// exists because per-site discipline demonstrably fails: one sweep of a single
+	// application found SIX places logging a live credential, including two that
+	// wrote the CONFIGURED token on a failed auth -- so a deliberately wrong guess
+	// made the server log the right answer. These tests drive the REAL logging
+	// path rather than the helper directly, because what matters is that the text
+	// is redacted by the time it reaches a file, not that a function works alone.
+
+	KTempDir TmpDir;
+	auto sLogFile = kFormat("{}/klog-redact.log", TmpDir.Name());
+
+	auto Restore = KLog::getInstance().GetLevel();
+	KLog::getInstance().SetDebugLog(sLogFile);
+	KLog::getInstance().SetLevel(1);
+
+	auto LoggedText = [&sLogFile](KStringView sWhat) -> KString
+	{
+		kDebug(1, "{}", sWhat);
+		KString sOut;
+		kReadAll(sLogFile, sOut);
+		return sOut;
+	};
+
+	SECTION("a JWT is redacted")
+	{
+		// a real-shaped JWT: three base64url runs, dot separated
+		auto sOut = LoggedText("got token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk");
+		CHECK ( sOut.contains("eyJ...[redacted]") );
+		CHECK ( !sOut.contains("dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk") );
+		CHECK ( sOut.contains("got token:") );   // the surrounding prose survives
+	}
+
+	SECTION("a Bearer value is redacted but the scheme is kept")
+	{
+		auto sOut = LoggedText("sent header Authorization: Bearer sk-live-abcdef1234567890 to upstream");
+		CHECK ( !sOut.contains("sk-live-abcdef1234567890") );
+		CHECK ( sOut.contains("Bearer [redacted]") );   // "which auth did it try" still answerable
+		CHECK ( sOut.contains("to upstream") );
+	}
+
+	SECTION("prose mentioning eyJ is NOT mangled")
+	{
+		// the shape test matters: a line that merely says "eyJ" must survive, or
+		// the net starts eating ordinary debugging output
+		auto sOut = LoggedText("token should start with eyJ and it did not");
+		CHECK ( sOut.contains("token should start with eyJ and it did not") );
+		CHECK ( !sOut.contains("[redacted]") );
+	}
+
+	SECTION("an ordinary line is untouched")
+	{
+		auto sOut = LoggedText("content 1234-5678 moved to FINAL_EYE in 240ms");
+		CHECK ( sOut.contains("content 1234-5678 moved to FINAL_EYE in 240ms") );
+		CHECK ( !sOut.contains("[redacted]") );
+	}
+
+	KLog::getInstance().SetLevel(Restore);
+	KLog::getInstance().SetDebugLog("");
+}
 
 TEST_CASE("KLog") {
 

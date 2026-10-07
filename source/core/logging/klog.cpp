@@ -813,6 +813,147 @@ KLog& KLog::LogWithGrepExpression(bool bEGrep, bool bInverted, KStringView sGrep
 } // LogWithGrepExpression
 
 //---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+/// Is this a character that can appear inside a base64url token body?
+//---------------------------------------------------------------------------
+static inline bool kIsTokenChar(char ch)
+//---------------------------------------------------------------------------
+{
+	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
+	    || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' || ch == '=';
+}
+
+//---------------------------------------------------------------------------
+/// Redact bearer credentials from a log message before it is written anywhere.
+///
+/// WHY THIS LIVES IN THE LOG WRITER rather than at each call site: in one sweep
+/// of a single application (xapis, 2026-10-07) SIX separate places were found
+/// logging a live credential -- a full IDP access token, a full JWT on every
+/// authenticated call, an OAuth token response, a Slack token into a WARNING log,
+/// and, worst, two sites that logged the CONFIGURED token on a failed auth, so a
+/// deliberately wrong guess made the server write the right answer into the log.
+/// Those were all fixed, but the seventh will be written next month. Per-site
+/// discipline has already been tried and has already failed; this is the net.
+///
+/// It redacts three shapes:
+///   eyJ....  a JWT -- three base64url runs separated by dots. The "eyJ" prefix
+///            is '{"' base64url-encoded, so every JWT begins with it.
+///   Bearer <tok>          the value only, the scheme is kept
+///   Authorization: <val>  the value only, the header name is kept
+///
+/// THE GUARD MATTERS MORE THAN THE REDACTION. This runs on every log line at
+/// every level, so the common path must be three substring scans that all miss.
+/// Only a line that already looks like it carries a credential pays for the copy.
+///
+/// It is a safety net and not a guarantee: a token logged under a name this does
+/// not recognise, or in a shape that is not a JWT, still gets through. Do not
+/// treat it as permission to log credentials.
+//---------------------------------------------------------------------------
+static KStringView kRedactCredentials(KStringView sMessage, KString& sBuffer)
+//---------------------------------------------------------------------------
+{
+	// the fast path: no copy, no allocation, no scan beyond these three
+	if (DEKAF2_LIKELY(sMessage.find("eyJ")           == KStringView::npos
+	                && sMessage.find("earer ")       == KStringView::npos
+	                && sMessage.find("uthorization") == KStringView::npos))
+	{
+		return sMessage;
+	}
+
+	sBuffer = sMessage;
+
+	// - - - JWTs - - -
+	// A JWT is header.payload.signature, all base64url. We only replace when the
+	// shape really is three dotted runs, so a log line that merely mentions "eyJ"
+	// in prose survives intact.
+	for (KString::size_type iPos = 0; (iPos = sBuffer.find("eyJ", iPos)) != KString::npos; )
+	{
+		auto iRun = iPos;
+		int  iDots { 0 };
+
+		while (iRun < sBuffer.size() && (kIsTokenChar(sBuffer[iRun]) || sBuffer[iRun] == '.'))
+		{
+			if (sBuffer[iRun] == '.')
+			{
+				++iDots;
+			}
+			++iRun;
+		}
+
+		if (iDots >= 2 && (iRun - iPos) > 20)
+		{
+			sBuffer.replace(iPos, iRun - iPos, "eyJ...[redacted]");
+			iPos += 16;  // length of the replacement, so we do not rescan it
+		}
+		else
+		{
+			iPos += 3;
+		}
+	}
+
+	// - - - "Authorization: [scheme] <value>" and a bare "Bearer <token>" - - -
+	// The header name AND the scheme are kept: "which auth did it try?" is a real
+	// debugging question and answering it costs nothing.
+	//
+	// ORDER AND SCHEME-SKIPPING BOTH MATTER, and a test caught this. Handling
+	// "Bearer " first turned "Authorization: Bearer sk-live-..." into
+	// "Authorization: Bearer [redacted]", and then the "Authorization: " pass took
+	// the word *Bearer* as its value and ate it too. So Authorization goes first and
+	// steps over a recognised scheme word before redacting what follows; the later
+	// Bearer pass then finds an already-redacted value and leaves it alone.
+	static constexpr KStringView Prefixes[] = { "Authorization: ", "authorization: ", "Bearer ", "bearer " };
+	static constexpr KStringView Schemes[]  = { "Bearer ", "bearer ", "Basic ", "basic ", "Digest ", "Token ", "token " };
+
+	for (auto sPrefix : Prefixes)
+	{
+		for (KString::size_type iPos = 0; (iPos = sBuffer.find(sPrefix, iPos)) != KString::npos; )
+		{
+			auto iValue = iPos + sPrefix.size();
+
+			// step over "Bearer" / "Basic" / ... so the scheme survives the redaction
+			for (auto sScheme : Schemes)
+			{
+				if (sBuffer.compare(iValue, sScheme.size(), sScheme.data(), sScheme.size()) == 0)
+				{
+					iValue += sScheme.size();
+					break;
+				}
+			}
+
+			// never redact a redaction -- the passes overlap by design
+			if (sBuffer.compare(iValue, 10, "[redacted]", 10) == 0)
+			{
+				iPos = iValue + 10;
+				continue;
+			}
+
+			auto iEnd = iValue;
+
+			// the value runs to whitespace, a quote, or the end of the line
+			while (iEnd < sBuffer.size()
+			    && sBuffer[iEnd] != ' '  && sBuffer[iEnd] != '\t'
+			    && sBuffer[iEnd] != '\n' && sBuffer[iEnd] != '\r'
+			    && sBuffer[iEnd] != '"'  && sBuffer[iEnd] != '\'')
+			{
+				++iEnd;
+			}
+
+			if (iEnd > iValue)
+			{
+				sBuffer.replace(iValue, iEnd - iValue, "[redacted]");
+				iPos = iValue + 10;  // length of "[redacted]"
+			}
+			else
+			{
+				iPos = iValue;
+			}
+		}
+	}
+
+	return sBuffer;
+
+} // kRedactCredentials
+
 bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
@@ -850,6 +991,13 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 	{
 		return false;
 	}
+
+	// Strip bearer credentials before ANY serializer sees the message. Done here,
+	// after the level and recursion guards, so a line that will not be logged
+	// never pays for it -- and done once, so the main logger, the mirror and the
+	// per-thread log all get the redacted text rather than three chances to differ.
+	KString sRedactBuffer;
+	sMessage = kRedactCredentials(sMessage, sRedactBuffer);
 
 	// We need a lock if we run in multithreading, as the serializers
 	// have data members. We use a recursive mutex because we want to

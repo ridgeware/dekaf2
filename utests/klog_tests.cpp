@@ -43,7 +43,7 @@ TEST_CASE("KLog credential redaction") {
 	{
 		// a real-shaped JWT: three base64url runs, dot separated
 		auto sOut = LoggedText("got token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk");
-		CHECK ( sOut.contains("eyJ...[redacted]") );
+		CHECK ( sOut.contains("got token: [redacted]") );
 		CHECK ( !sOut.contains("dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk") );
 		CHECK ( sOut.contains("got token:") );   // the surrounding prose survives
 	}
@@ -56,12 +56,102 @@ TEST_CASE("KLog credential redaction") {
 		CHECK ( sOut.contains("to upstream") );
 	}
 
+	SECTION("a JWT as a Bearer value is redacted, the scheme is kept")
+	{
+		// the JWT pass runs first, then the Authorization pass finds its value
+		auto sOut = LoggedText("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.c2lnbmF0dXJlc2lnbmF0dXJl");
+		CHECK ( sOut.contains("Authorization: Bearer [redacted]") );
+		CHECK ( !sOut.contains("c2lnbmF0dXJlc2lnbmF0dXJl") );
+	}
+
 	SECTION("prose mentioning eyJ is NOT mangled")
 	{
 		// the shape test matters: a line that merely says "eyJ" must survive, or
 		// the net starts eating ordinary debugging output
 		auto sOut = LoggedText("token should start with eyJ and it did not");
 		CHECK ( sOut.contains("token should start with eyJ and it did not") );
+		CHECK ( !sOut.contains("[redacted]") );
+	}
+
+	SECTION("a JWT is only redacted at the start of a word")
+	{
+		// a dotted name that holds "eyJ" inside a word is not a JWT
+		auto sOut = LoggedText("loading keyJar.settings.production.eu");
+		CHECK ( sOut.contains("loading keyJar.settings.production.eu") );
+		CHECK ( !sOut.contains("[redacted]") );
+
+		// after a separator it is, and the text around it stays
+		sOut = LoggedText("callback id_token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.c2lnbmF0dXJlc2lnbmF0dXJl&state=xyz");
+		CHECK ( sOut.contains("id_token=[redacted]&state=xyz") );
+		CHECK ( !sOut.contains("c2lnbmF0dXJlc2lnbmF0dXJl") );
+	}
+
+	SECTION("Authorization and Bearer are recognised in any case")
+	{
+		auto sOut = LoggedText("AuTHoRiZaTiOn: BaSiC dXNlcjpzZWNyZXQ=");
+		CHECK ( sOut.contains("AuTHoRiZaTiOn: BaSiC [redacted]") );
+		CHECK ( !sOut.contains("dXNlcjpzZWNyZXQ=") );
+
+		sOut = LoggedText("calling with BEARER sk-live-abcdef1234567890");
+		CHECK ( sOut.contains("BEARER [redacted]") );
+		CHECK ( !sOut.contains("sk-live-abcdef1234567890") );
+
+		// the colon of the header may be followed by no white space at all
+		sOut = LoggedText("proxy-authorization:Bearer sk-live-0987654321fedcba");
+		CHECK ( sOut.contains("proxy-authorization:Bearer [redacted]") );
+		CHECK ( !sOut.contains("sk-live-0987654321fedcba") );
+	}
+
+	SECTION("the word authorization without the colon of a header is untouched")
+	{
+		auto sOut = LoggedText("Authorization failed for user bob");
+		CHECK ( sOut.contains("Authorization failed for user bob") );
+		CHECK ( !sOut.contains("[redacted]") );
+	}
+
+	SECTION("a parameter with the name of a credential is redacted, its name is kept")
+	{
+		auto sOut = LoggedText("GET /login?user=bob&Password=hunter2&next=/home");
+		CHECK ( sOut.contains("/login?user=bob&Password=[redacted]&next=/home") );
+		CHECK ( !sOut.contains("hunter2") );
+
+		sOut = LoggedText("connecting with db_password=s3cr3t host=db1");
+		CHECK ( sOut.contains("db_password=[redacted] host=db1") );
+		CHECK ( !sOut.contains("s3cr3t") );
+
+		// short names count only in a URL
+		sOut = LoggedText("GET /callback?code=4/0AY0e-g7&state=xyz");
+		CHECK ( sOut.contains("/callback?code=[redacted]&state=xyz") );
+		CHECK ( !sOut.contains("0AY0e-g7") );
+
+		// a JWT as the value is redacted by the JWT pass
+		sOut = LoggedText("redirect to /app#access_token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.c2lnbmF0dXJlc2lnbmF0dXJl");
+		CHECK ( sOut.contains("access_token=[redacted]") );
+	}
+
+	SECTION("short parameter names outside of a URL are untouched")
+	{
+		auto sOut = LoggedText("tests: pass=12 fail=0 key=customer_17");
+		CHECK ( sOut.contains("tests: pass=12 fail=0 key=customer_17") );
+		CHECK ( !sOut.contains("[redacted]") );
+	}
+
+	SECTION("the password in the userinfo of a URL is redacted")
+	{
+		auto sOut = LoggedText("fetching https://bob:hunter2@example.com/path");
+		CHECK ( sOut.contains("https://bob:[redacted]@example.com/path") );
+		CHECK ( !sOut.contains("hunter2") );
+
+		// also without a scheme
+		sOut = LoggedText("mysql bob:s3cr3t@db1:3306/app");
+		CHECK ( sOut.contains("mysql bob:[redacted]@db1:3306/app") );
+		CHECK ( !sOut.contains("s3cr3t") );
+	}
+
+	SECTION("addresses with an '@' but without a password are untouched")
+	{
+		auto sOut = LoggedText("mail to bob@example.com via ssh://git@github.com/repo and https://host/@user/repo or mailto:bob@example.com");
+		CHECK ( sOut.contains("mail to bob@example.com via ssh://git@github.com/repo and https://host/@user/repo or mailto:bob@example.com") );
 		CHECK ( !sOut.contains("[redacted]") );
 	}
 

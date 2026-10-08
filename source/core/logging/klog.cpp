@@ -52,6 +52,7 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/system/os/kgetruntimestack.h>
 #include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/strings/kcaseless.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/http/server/kcgistream.h>
@@ -824,10 +825,314 @@ static inline bool kIsTokenChar(char ch)
 }
 
 //---------------------------------------------------------------------------
+/// Finds "eyJ", the start of a JWT, from iPos on. memchr scans for the 'J', which
+/// is rare in log text - a substring search would stop at nearly every 'e'.
+static KStringView::size_type kFindJWT(KStringView sText, KStringView::size_type iPos = 0)
+//---------------------------------------------------------------------------
+{
+	for (auto iHit = kFind(sText, 'J', iPos + 2); iHit != KStringView::npos; iHit = kFind(sText, 'J', iHit + 1))
+	{
+		if (sText[iHit - 2] == 'e' && sText[iHit - 1] == 'y')
+		{
+			return iHit - 2;
+		}
+	}
+
+	return KStringView::npos;
+
+} // kFindJWT
+
+//---------------------------------------------------------------------------
+/// Finds a lowercase ASCII word in any case, from iPos on. memchr scans for the
+/// anchor, a letter of the word, in its two cases, and only its hits compare the
+/// whole word - with a rare letter as the anchor this is faster than a substring
+/// search, while a caseless search compares at every position.
+static KStringView::size_type kFindAnyCase(KStringView sText, KStringView sWord, char chAnchor, KStringView::size_type iPos = 0)
+//---------------------------------------------------------------------------
+{
+	auto iAnchor = sWord.find(chAnchor);
+	auto iFound  = KStringView::npos;
+
+	for (auto chCase : { chAnchor, KASCII::kToUpper(chAnchor) })
+	{
+		for (auto iHit = kFind(sText, chCase, iPos + iAnchor); iHit < iFound; iHit = kFind(sText, chCase, iHit + 1))
+		{
+			auto iStart = iHit - iAnchor;
+
+			if (sText.size() - iStart < sWord.size())
+			{
+				break;
+			}
+
+			if (kCaselessBeginsWithLeft(sText.substr(iStart), sWord))
+			{
+				iFound = iStart;
+				break;
+			}
+		}
+	}
+
+	return iFound;
+
+} // kFindAnyCase
+
+//---------------------------------------------------------------------------
+/// Is this a character that ends a value in a log line - white space or a quote?
+static inline bool kIsValueEnd(char ch)
+//---------------------------------------------------------------------------
+{
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '"' || ch == '\'';
+}
+
+//---------------------------------------------------------------------------
+/// Does sName end with sWord, in any case? sWord is in lowercase. The comparison
+/// runs from the back, as the last characters already differ for nearly all names
+/// of parameters - this runs for each '=' of a line.
+static inline bool kEndsWithAnyCase(KStringView sName, KStringView sWord)
+//---------------------------------------------------------------------------
+{
+	if (sWord.size() > sName.size())
+	{
+		return false;
+	}
+
+	auto iName = sName.size();
+
+	for (auto iWord = sWord.size(); iWord > 0; )
+	{
+		if (KASCII::kToLower(sName[--iName]) != sWord[--iWord])
+		{
+			return false;
+		}
+	}
+
+	return true;
+
+} // kEndsWithAnyCase
+
+//---------------------------------------------------------------------------
+/// Is this a character of the name of a parameter - a letter, a digit, '_', '-' or '.'?
+/// This runs for each '=' of a line, and the tests are combined with '|' instead
+/// of '||', which compiles without branches - the version with branches was
+/// measurably slower on lines like "a=1 b=2 c=3".
+static inline bool kIsNameChar(char ch)
+//---------------------------------------------------------------------------
+{
+	auto c = static_cast<unsigned char>(ch);
+
+	// (c | 0x20) folds the upper case letters onto the lower case ones
+	return (static_cast<unsigned char>((c | 0x20) - 'a') < 26)
+	     | (static_cast<unsigned char>(c - '0') < 10)
+	     | (c == '_')
+	     | (c == '-')
+	     | (c == '.');
+}
+
+//---------------------------------------------------------------------------
+/// Does the text before a '=' end with the name of a parameter that holds a
+/// credential? Short names like "pass" or "key" count only in a URL, after a '?'
+/// or '&', as "pass=3 fail=0" or "key=..." are ordinary output elsewhere.
+///
+/// This runs for each '=' of a line, so it compares from the '=' backwards and
+/// never reads the whole name: the last character selects the few candidates,
+/// and nearly all names of ordinary parameters fail at their last or second to
+/// last character.
+/// @param sBefore the text up to the '='
+static bool kEndsWithSecretName(KStringView sBefore)
+//---------------------------------------------------------------------------
+{
+	// does sBefore end with sWord as a whole name?
+	auto IsName = [sBefore](KStringView sWord)
+	{
+		return kEndsWithAnyCase(sBefore, sWord)
+		    && (sBefore.size() == sWord.size() || !kIsNameChar(sBefore[sBefore.size() - sWord.size() - 1]));
+	};
+
+	// does sBefore end with sWord as a whole name in a URL?
+	auto IsNameInURL = [sBefore](KStringView sWord)
+	{
+		if (sBefore.size() <= sWord.size() || !kEndsWithAnyCase(sBefore, sWord))
+		{
+			return false;
+		}
+
+		auto chBefore = sBefore[sBefore.size() - sWord.size() - 1];
+
+		return chBefore == '?' || chBefore == '&';
+	};
+
+	auto EndsWith = [sBefore](KStringView sSuffix)
+	{
+		return kEndsWithAnyCase(sBefore, sSuffix);
+	};
+
+	if (sBefore.empty())
+	{
+		return false;
+	}
+
+	switch (KASCII::kToLower(sBefore.back()))
+	{
+		case 'd':
+			return IsName("password") || IsName("passwd") || EndsWith("_password") || IsNameInURL("pwd");
+
+		case 't':
+			return IsName("secret") || EndsWith("_secret");
+
+		case 'y':
+			return IsName("apikey") || IsName("api_key") || IsNameInURL("key");
+
+		case 'n':
+			return EndsWith("_token") || IsNameInURL("token");
+
+		case 's':
+			return IsNameInURL("pass");
+
+		case 'e':
+			return IsNameInURL("code") || IsNameInURL("signature");
+
+		case 'g':
+			return IsNameInURL("sig");
+
+		default:
+			return false;
+	}
+
+} // kEndsWithSecretName
+
+//---------------------------------------------------------------------------
+/// Finds the value of a parameter "name=value" whose name says that it holds a
+/// credential, from iPos on. memchr scans for the '=', and only its hits compare
+/// the name before it. The value runs to white space or a quote, and in a URL also
+/// to the next '&' or '#' - in other text these may be part of a password.
+/// @return the value, or an empty view if there is none
+static KStringView kFindSecretParameter(KStringView sText, KStringView::size_type iPos = 0)
+//---------------------------------------------------------------------------
+{
+	for (auto iHit = kFind(sText, '=', iPos); iHit != KStringView::npos; iHit = kFind(sText, '=', iHit + 1))
+	{
+		if (!kEndsWithSecretName(sText.substr(0, iHit)))
+		{
+			continue;
+		}
+
+		// only now the start of the name, to see if it is in a URL
+		auto iName = iHit;
+
+		while (iName > 0 && kIsNameChar(sText[iName - 1]))
+		{
+			--iName;
+		}
+
+		bool bInURL = iName > 0 && (sText[iName - 1] == '?' || sText[iName - 1] == '&');
+		auto iEnd   = iHit + 1;
+
+		while (iEnd < sText.size() && !kIsValueEnd(sText[iEnd]) && !(bInURL && (sText[iEnd] == '&' || sText[iEnd] == '#')))
+		{
+			++iEnd;
+		}
+
+		auto sValue = sText.substr(iHit + 1, iEnd - iHit - 1);
+
+		// never redact a redaction - "access_token=[redacted]" from the JWT pass
+		if (!sValue.empty() && !sValue.starts_with("[redacted]"))
+		{
+			return sValue;
+		}
+	}
+
+	return {};
+
+} // kFindSecretParameter
+
+//---------------------------------------------------------------------------
+/// Finds the password in the userinfo of a URL, "user:password@host", from iPos
+/// on, also without a scheme. memchr scans for the '@', and only its hits read the
+/// text before it: back to white space, a quote, a bracket or a '/'. A '/' must be
+/// the one of a "//" after the scheme, else the '@' is part of a path. A ':' in
+/// that run separates the password - an e-mail address has none, and "mailto:"
+/// and "sip:" are schemes, not users.
+/// @return the password, or an empty view if there is none
+static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_type iPos = 0)
+//---------------------------------------------------------------------------
+{
+	static constexpr KStringView Schemes[] = { "mailto", "sip", "sips", "xmpp" };
+
+	for (auto iAt = kFind(sText, '@', iPos); iAt != KStringView::npos; iAt = kFind(sText, '@', iAt + 1))
+	{
+		auto iRun   = iAt;
+		auto iColon = KStringView::npos;
+
+		while (iRun > 0)
+		{
+			auto ch = sText[iRun - 1];
+
+			if (kIsValueEnd(ch) || ch == '/' || ch == '<' || ch == '(' || ch == '[')
+			{
+				break;
+			}
+
+			if (ch == ':')
+			{
+				// the leftmost colon remains
+				iColon = iRun - 1;
+			}
+
+			--iRun;
+		}
+
+		// an e-mail address has no colon
+		if (iColon == KStringView::npos)
+		{
+			continue;
+		}
+
+		bool bAfterScheme = iRun > 1 && sText[iRun - 1] == '/' && sText[iRun - 2] == '/';
+
+		if (iRun > 0 && sText[iRun - 1] == '/' && !bAfterScheme)
+		{
+			continue;
+		}
+
+		auto sUser     = sText.substr(iRun, iColon - iRun);
+		auto sPassword = sText.substr(iColon + 1, iAt - iColon - 1);
+
+		if (sPassword.empty() || sPassword.starts_with("[redacted]"))
+		{
+			continue;
+		}
+
+		if (!bAfterScheme)
+		{
+			bool bIsScheme { false };
+
+			for (auto sScheme : Schemes)
+			{
+				if (kCaselessEqualLeft(sUser, sScheme))
+				{
+					bIsScheme = true;
+					break;
+				}
+			}
+
+			if (bIsScheme)
+			{
+				continue;
+			}
+		}
+
+		return sPassword;
+	}
+
+	return {};
+
+} // kFindUserinfoPassword
+
+//---------------------------------------------------------------------------
 /// Redact bearer credentials from a log message before it is written anywhere.
 ///
 /// WHY THIS LIVES IN THE LOG WRITER rather than at each call site: in one sweep
-/// of a single application (xapis, 2026-10-07) SIX separate places were found
+/// of a single application SIX separate places were found
 /// logging a live credential -- a full IDP access token, a full JWT on every
 /// authenticated call, an OAuth token response, a Slack token into a WARNING log,
 /// and, worst, two sites that logged the CONFIGURED token on a failed auth, so a
@@ -835,29 +1140,46 @@ static inline bool kIsTokenChar(char ch)
 /// Those were all fixed, but the seventh will be written next month. Per-site
 /// discipline has already been tried and has already failed; this is the net.
 ///
-/// It redacts three shapes:
+/// It redacts five shapes:
 ///   eyJ....  a JWT -- three base64url runs separated by dots. The "eyJ" prefix
 ///            is '{"' base64url-encoded, so every JWT begins with it.
 ///   Bearer <tok>          the value only, the scheme is kept
 ///   Authorization: <val>  the value only, the header name is kept
+///   password=<val>        the value of a parameter with a name of a credential,
+///                         the name is kept (see kEndsWithSecretName())
+///   user:<pass>@host      the password in the userinfo of a URL, with or
+///                         without a scheme
+/// Header names and authentication schemes are case insensitive in HTTP, so
+/// "Bearer" and "Authorization" are recognised in any case, and so are the
+/// names of parameters.
 ///
 /// THE GUARD MATTERS MORE THAN THE REDACTION. This runs on every log line at
-/// every level, so the common path must be three substring scans that all miss.
-/// Only a line that already looks like it carries a credential pays for the copy.
+/// every level, so the common path must be a few memchr scans for rare characters
+/// that all miss. Only a line that already looks like it carries a credential
+/// pays for the copy.
 ///
 /// It is a safety net and not a guarantee: a token logged under a name this does
 /// not recognise, or in a shape that is not a JWT, still gets through. Do not
 /// treat it as permission to log credentials.
+///
+/// @param sMessage the message to log
+/// @param sBuffer receives the redacted copy of the message
+/// @return true if sBuffer holds the message to log, false if sMessage needs no
+/// change and sBuffer is left alone - the caller owns both, so neither result
+/// can outlive what it points into
 //---------------------------------------------------------------------------
-static KStringView kRedactCredentials(KStringView sMessage, KString& sBuffer)
+static bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 //---------------------------------------------------------------------------
 {
-	// the fast path: no copy, no allocation, no scan beyond these three
-	if (DEKAF2_LIKELY(sMessage.find("eyJ")           == KStringView::npos
-	                && sMessage.find("earer ")       == KStringView::npos
-	                && sMessage.find("uthorization") == KStringView::npos))
+	// the fast path: no copy, no allocation, no scan beyond these five - the anchors
+	// are the rare characters 'J', 'b', 'z', '=' and '@'
+	if (DEKAF2_LIKELY(kFindJWT(sMessage)                            == KStringView::npos
+	               && kFindAnyCase(sMessage, "bearer ",        'b') == KStringView::npos
+	               && kFindAnyCase(sMessage, "authorization:", 'z') == KStringView::npos
+	               && kFindSecretParameter(sMessage).empty()
+	               && kFindUserinfoPassword(sMessage).empty()))
 	{
-		return sMessage;
+		return false;
 	}
 
 	sBuffer = sMessage;
@@ -866,8 +1188,22 @@ static KStringView kRedactCredentials(KStringView sMessage, KString& sBuffer)
 	// A JWT is header.payload.signature, all base64url. We only replace when the
 	// shape really is three dotted runs, so a log line that merely mentions "eyJ"
 	// in prose survives intact.
-	for (KString::size_type iPos = 0; (iPos = sBuffer.find("eyJ", iPos)) != KString::npos; )
+	for (KString::size_type iPos = 0; (iPos = kFindJWT(sBuffer, iPos)) != KString::npos; )
 	{
+		// a JWT starts at the beginning of a word - "keyJar.settings.production"
+		// holds "eyJ" and dots as well, but is not one. A '=' separates, as in
+		// "id_token=eyJ...": it is base64url padding only at the end of a run
+		if (iPos > 0)
+		{
+			auto chBefore = sBuffer[iPos - 1];
+
+			if (chBefore != '=' && (kIsTokenChar(chBefore) || chBefore == '.'))
+			{
+				iPos += 3;
+				continue;
+			}
+		}
+
 		auto iRun = iPos;
 		int  iDots { 0 };
 
@@ -882,8 +1218,8 @@ static KStringView kRedactCredentials(KStringView sMessage, KString& sBuffer)
 
 		if (iDots >= 2 && (iRun - iPos) > 20)
 		{
-			sBuffer.replace(iPos, iRun - iPos, "eyJ...[redacted]");
-			iPos += 16;  // length of the replacement, so we do not rescan it
+			sBuffer.replace(iPos, iRun - iPos, "[redacted]");
+			iPos += 10;  // length of the replacement, so we do not rescan it
 		}
 		else
 		{
@@ -893,7 +1229,8 @@ static KStringView kRedactCredentials(KStringView sMessage, KString& sBuffer)
 
 	// - - - "Authorization: [scheme] <value>" and a bare "Bearer <token>" - - -
 	// The header name AND the scheme are kept: "which auth did it try?" is a real
-	// debugging question and answering it costs nothing.
+	// debugging question and answering it costs nothing. All words match in any
+	// case, and white space may follow the colon of the header, or none at all.
 	//
 	// ORDER AND SCHEME-SKIPPING BOTH MATTER, and a test caught this. Handling
 	// "Bearer " first turned "Authorization: Bearer sk-live-..." into
@@ -901,19 +1238,30 @@ static KStringView kRedactCredentials(KStringView sMessage, KString& sBuffer)
 	// the word *Bearer* as its value and ate it too. So Authorization goes first and
 	// steps over a recognised scheme word before redacting what follows; the later
 	// Bearer pass then finds an already-redacted value and leaves it alone.
-	static constexpr KStringView Prefixes[] = { "Authorization: ", "authorization: ", "Bearer ", "bearer " };
-	static constexpr KStringView Schemes[]  = { "Bearer ", "bearer ", "Basic ", "basic ", "Digest ", "Token ", "token " };
-
-	for (auto sPrefix : Prefixes)
+	struct Prefix
 	{
-		for (KString::size_type iPos = 0; (iPos = sBuffer.find(sPrefix, iPos)) != KString::npos; )
+		KStringView sWord;    // in lowercase
+		char        chAnchor; // a rare letter of sWord
+	};
+
+	static constexpr Prefix      Prefixes[] = { { "authorization:", 'z' }, { "bearer ", 'b' } };
+	static constexpr KStringView Schemes[]  = { "bearer ", "basic ", "digest ", "token " };
+
+	for (const auto& Prefix : Prefixes)
+	{
+		for (KString::size_type iPos = 0; (iPos = kFindAnyCase(sBuffer, Prefix.sWord, Prefix.chAnchor, iPos)) != KString::npos; )
 		{
-			auto iValue = iPos + sPrefix.size();
+			auto iValue = iPos + Prefix.sWord.size();
+
+			while (iValue < sBuffer.size() && (sBuffer[iValue] == ' ' || sBuffer[iValue] == '\t'))
+			{
+				++iValue;
+			}
 
 			// step over "Bearer" / "Basic" / ... so the scheme survives the redaction
 			for (auto sScheme : Schemes)
 			{
-				if (sBuffer.compare(iValue, sScheme.size(), sScheme.data(), sScheme.size()) == 0)
+				if (kCaselessBeginsWithLeft(KStringView(sBuffer).substr(iValue), sScheme))
 				{
 					iValue += sScheme.size();
 					break;
@@ -950,7 +1298,29 @@ static KStringView kRedactCredentials(KStringView sMessage, KString& sBuffer)
 		}
 	}
 
-	return sBuffer;
+	// - - - "password=<value>" and "user:<password>@host" - - -
+	// each finder returns the secret as a view into sBuffer, from iPos on
+	auto RedactAll = [&sBuffer](KStringView (*Find)(KStringView, KStringView::size_type))
+	{
+		for (KString::size_type iPos = 0;;)
+		{
+			auto sSecret = Find(sBuffer, iPos);
+
+			if (sSecret.empty())
+			{
+				break;
+			}
+
+			auto iStart = static_cast<KString::size_type>(sSecret.data() - sBuffer.data());
+			sBuffer.replace(iStart, sSecret.size(), "[redacted]");
+			iPos = iStart + 10;  // length of "[redacted]"
+		}
+	};
+
+	RedactAll(kFindSecretParameter);
+	RedactAll(kFindUserinfoPassword);
+
+	return true;
 
 } // kRedactCredentials
 
@@ -997,7 +1367,11 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 	// never pays for it -- and done once, so the main logger, the mirror and the
 	// per-thread log all get the redacted text rather than three chances to differ.
 	KString sRedactBuffer;
-	sMessage = kRedactCredentials(sMessage, sRedactBuffer);
+
+	if (kRedactCredentials(sMessage, sRedactBuffer))
+	{
+		sMessage = sRedactBuffer;
+	}
 
 	// We need a lock if we run in multithreading, as the serializers
 	// have data members. We use a recursive mutex because we want to

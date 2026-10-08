@@ -49,6 +49,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h>
 
 // PKCS5_PBKDF2_HMAC was introduced with OpenSSL v1.0.2
@@ -164,8 +165,9 @@ public:
 
 	/// copy construction
 	KBlockCipher(const KBlockCipher&) = delete;
-	/// move construction
-	KBlockCipher(KBlockCipher&&) noexcept;
+	/// move construction - the moved-from cipher has no context any more, and its
+	/// finalization on destruction does nothing
+	KBlockCipher(KBlockCipher&&) = default;
 	// destruction
 	~KBlockCipher();
 
@@ -332,12 +334,14 @@ private:
 	bool FinalizeString();
 	bool FinalizeStream();
 	void PrepareNextRound();
-	void Release() noexcept;
 	uint64_t GetNextIncrementalIV();
 	KString PrintIncrementalIV(uint64_t iIV);
 
+	static void FreeContext(evp_cipher_ctx_st* pContext);
+	using CipherContext = KUniquePtr<evp_cipher_ctx_st, FreeContext>;
+
 	const evp_cipher_st* m_Cipher        { nullptr };
-	evp_cipher_ctx_st*   m_evpctx        { nullptr };
+	CipherContext        m_evpctx;
 	uint16_t             m_iKeyLength    { 0 };
 	uint16_t             m_iIVLength     { 0 };
 	uint16_t             m_iTagLength    { 0 };

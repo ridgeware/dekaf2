@@ -77,49 +77,12 @@ KBlockCipher::KBlockCipher(
 } // ctor
 
 //---------------------------------------------------------------------------
-KBlockCipher::KBlockCipher(KBlockCipher&& other) noexcept
+void KBlockCipher::FreeContext(evp_cipher_ctx_st* pContext)
 //---------------------------------------------------------------------------
-// move the base subobjects too - KErrorBase carries the throw-on-error flag and the
-// error state; KDigest is stateless but moved for completeness. Omitting them would
-// default-construct the bases and silently drop the throw-on-error setting.
-: KDigest(std::move(other))
-, KErrorBase(std::move(other))
-, m_Cipher(other.m_Cipher)
-, m_evpctx(other.m_evpctx)
-, m_iKeyLength(other.m_iKeyLength)
-, m_iIVLength(other.m_iIVLength)
-, m_iTagLength(other.m_iTagLength)
-, m_iBlockSize(other.m_iBlockSize)
-, m_iGetIVLength(other.m_iGetIVLength)
-, m_iGetTagLength(other.m_iGetTagLength)
-, m_sCipherName(other.m_sCipherName)
-, m_sIV(std::move(other.m_sIV))
-, m_sTag(std::move(other.m_sTag))
-, m_sLastIV(std::move(other.m_sLastIV))
-, m_sLastTag(std::move(other.m_sLastTag))
-, m_OutStream(other.m_OutStream)
-, m_OutString(other.m_OutString)
-, m_iStartOfString(other.m_iStartOfString)
-, m_iStartOfStream(other.m_iStartOfStream)
-, m_iNonceIV(other.m_iNonceIV)
-, m_Direction(other.m_Direction)
-, m_Algorithm(other.m_Algorithm)
-, m_Mode(other.m_Mode)
-, m_bInlineIV(other.m_bInlineIV)
-, m_bInlineTag(other.m_bInlineTag)
-, m_bKeyIsSet(other.m_bKeyIsSet)
-, m_bInitCompleted(other.m_bInitCompleted)
-, m_bTagIsSet(other.m_bTagIsSet)
-, m_bIVIsSet(other.m_bIVIsSet)
-, m_bCCMDataAdded(other.m_bCCMDataAdded)
 {
-	other.m_Cipher    = nullptr;
-	other.m_evpctx    = nullptr;
-	other.m_sCipherName.clear();
-	other.m_OutStream = nullptr;
-	other.m_OutString = nullptr;
+	::EVP_CIPHER_CTX_free(pContext);
 
-} // move ctor
+} // FreeContext
 
 //---------------------------------------------------------------------------
 KBlockCipher::~KBlockCipher()
@@ -141,8 +104,6 @@ KBlockCipher::~KBlockCipher()
 	DEKAF2_CATCH (...)
 	{
 	}
-
-	Release();
 
 } // dtor
 
@@ -536,7 +497,7 @@ bool KBlockCipher::SetKey(KStringView sKey)
 	// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
 	// is only supported from v3.0.0 onward
 	if (!::EVP_CipherInit(
-		m_evpctx,
+		m_evpctx.get(),
 		nullptr,
 		reinterpret_cast<const unsigned char*>(sKey.data()),
 		nullptr,
@@ -714,7 +675,7 @@ bool KBlockCipher::SetTag()
 
 	kDebug(3, "set tag {}", KEncode::Hex(m_sTag));
 
-	if (!::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_SET_TAG, static_cast<int>(m_iTagLength), m_sTag.data()))
+	if (!::EVP_CIPHER_CTX_ctrl(m_evpctx.get(), EVP_CTRL_AEAD_SET_TAG, static_cast<int>(m_iTagLength), m_sTag.data()))
 	{
 		return SetError(GetOpenSSLError(kFormat("{}: cannot set tag", "decryption")));
 	}
@@ -739,7 +700,7 @@ bool KBlockCipher::SetIV()
 	// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
 	// is only supported from v3.0.0 onward
 	if (!::EVP_CipherInit(
-		m_evpctx,
+		m_evpctx.get(),
 		nullptr,
 		nullptr,
 		reinterpret_cast<const unsigned char*>(m_sIV.data()),
@@ -770,18 +731,6 @@ void KBlockCipher::PrepareNextRound()
 } // PrepareNextRound
 
 //---------------------------------------------------------------------------
-void KBlockCipher::Release() noexcept
-//---------------------------------------------------------------------------
-{
-	if (m_evpctx)
-	{
-		::EVP_CIPHER_CTX_free(m_evpctx);
-		m_evpctx = nullptr;
-	}
-
-} // Release
-
-//---------------------------------------------------------------------------
 bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 //---------------------------------------------------------------------------
 {
@@ -800,7 +749,7 @@ bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 #else
 	m_sCipherName = ::EVP_CIPHER_name (m_Cipher);
 #endif
-	m_evpctx      = ::EVP_CIPHER_CTX_new();
+	m_evpctx.reset(::EVP_CIPHER_CTX_new());
 
 	if (!m_evpctx)
 	{
@@ -811,7 +760,7 @@ bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 	// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
 	// is only supported from v3.0.0 onward
 	if (!::EVP_CipherInit(
-		m_evpctx,
+		m_evpctx.get(),
 		m_Cipher,
 		nullptr,
 		nullptr,
@@ -823,14 +772,14 @@ bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 
 	// get required key and IV lengths
 #if OPENSSL_VERSION_NUMBER >= 0x030000000L
-	m_iBlockSize  = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_block_size (m_evpctx));
-	m_iKeyLength  = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_key_length (m_evpctx));
-	m_iIVLength   = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_iv_length  (m_evpctx));
-	m_iTagLength  = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_tag_length (m_evpctx));
+	m_iBlockSize  = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_block_size (m_evpctx.get()));
+	m_iKeyLength  = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_key_length (m_evpctx.get()));
+	m_iIVLength   = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_iv_length  (m_evpctx.get()));
+	m_iTagLength  = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_tag_length (m_evpctx.get()));
 #else
-	m_iBlockSize  = static_cast<uint16_t>(::EVP_CIPHER_CTX_block_size     (m_evpctx));
-	m_iKeyLength  = static_cast<uint16_t>(::EVP_CIPHER_CTX_key_length     (m_evpctx));
-	m_iIVLength   = static_cast<uint16_t>(::EVP_CIPHER_CTX_iv_length      (m_evpctx));
+	m_iBlockSize  = static_cast<uint16_t>(::EVP_CIPHER_CTX_block_size     (m_evpctx.get()));
+	m_iKeyLength  = static_cast<uint16_t>(::EVP_CIPHER_CTX_key_length     (m_evpctx.get()));
+	m_iIVLength   = static_cast<uint16_t>(::EVP_CIPHER_CTX_iv_length      (m_evpctx.get()));
 	if      (GetMode() == CCM) m_iTagLength = 12;
 	else if (GetMode() == GCM) m_iTagLength = 16;
 	else                       m_iTagLength =  0;
@@ -892,7 +841,7 @@ bool KBlockCipher::StartNewData()
 			// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
 			// is only supported from v3.0.0 onward
 			if (!::EVP_CipherInit(
-				m_evpctx,
+				m_evpctx.get(),
 				nullptr,
 				nullptr,
 				reinterpret_cast<const unsigned char*>(m_sIV.data()),
@@ -1061,7 +1010,7 @@ bool KBlockCipher::AddString(KStringView sInput)
 		{
 			// tell the total input size for CCM - we can only call AddString once
 			if (!::EVP_CipherUpdate(
-				m_evpctx,
+				m_evpctx.get(),
 				nullptr,
 				&iOutLen,
 				nullptr,
@@ -1073,7 +1022,7 @@ bool KBlockCipher::AddString(KStringView sInput)
 		}
 
 		if (!::EVP_CipherUpdate(
-			m_evpctx,
+			m_evpctx.get(),
 			pOut,
 			&iOutLen,
 			reinterpret_cast<const unsigned char*>(sChunk.data()),
@@ -1193,7 +1142,7 @@ bool KBlockCipher::FinalizeString()
 
 	int iOutLen;
 
-	if (!::EVP_CipherFinal_ex(m_evpctx, pOut, &iOutLen))
+	if (!::EVP_CipherFinal_ex(m_evpctx.get(), pOut, &iOutLen))
 	{
 		return SetError(GetOpenSSLError(kFormat("{}: finalization failed", m_Direction ? "encryption" : "decryption")));
 	}
@@ -1202,7 +1151,7 @@ bool KBlockCipher::FinalizeString()
 	{
 		m_sTag.resize(m_iTagLength);
 
-		if (!::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_GET_TAG, static_cast<int>(m_iTagLength), &m_sTag[0]))
+		if (!::EVP_CIPHER_CTX_ctrl(m_evpctx.get(), EVP_CTRL_AEAD_GET_TAG, static_cast<int>(m_iTagLength), &m_sTag[0]))
 		{
 			return SetError(GetOpenSSLError(kFormat("{}: cannot get tag", "encryption")));
 		}
@@ -1327,6 +1276,9 @@ bool KBlockCipher::SingleRound(KStringView sInput, KStringRef& sOutput)
 	return SetOutput(sOutput) && Add(sInput) && Finalize();
 
 } // SingleRound
+
+static_assert(std::is_nothrow_move_constructible<KBlockCipher>::value,
+			  "KBlockCipher is intended to be nothrow move constructible, but is not!");
 
 DEKAF2_NAMESPACE_END
 

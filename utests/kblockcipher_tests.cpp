@@ -3,6 +3,7 @@
 #include <dekaf2/crypto/kdf/khkdf.h>
 #include <dekaf2/crypto/encoding/khex.h>
 #include <dekaf2/crypto/random/krandom.h>
+#include <memory>
 #include <vector>
 
 #if DEKAF2_HAS_AES
@@ -525,6 +526,34 @@ TEST_CASE("KBlockCipher move construction")
 			CHECK ( Enc.Finalize() );
 		}
 		CHECK_FALSE ( sEncrypted.empty() );
+
+		KString sDecrypted;
+		KBlockCipher Dec(KBlockCipher::Decrypt, KBlockCipher::AES, KBlockCipher::GCM, KBlockCipher::B256);
+		CHECK ( Dec.SetPassword(sPassword) );
+		CHECK ( Dec.SetOutput(sDecrypted) );
+		CHECK ( Dec.Add(sEncrypted) );
+		CHECK ( Dec.Finalize() );
+		CHECK ( sDecrypted == sClear );
+	}
+
+	SECTION("a move in the middle of an encryption leaves the output to the moved-to cipher")
+	{
+		KStringView sPassword = "MySecretPassword";
+		KString     sClear    = "this is a secret message for your eyes only";
+
+		KString sEncrypted;
+		{
+			std::unique_ptr<KBlockCipher> Enc;
+			{
+				KBlockCipher Tmp(KBlockCipher::Encrypt, KBlockCipher::AES, KBlockCipher::GCM, KBlockCipher::B256);
+				CHECK ( Tmp.SetPassword(sPassword) );
+				CHECK ( Tmp.SetOutput(sEncrypted) );
+				CHECK ( Tmp.Add(sClear) );
+				Enc = std::make_unique<KBlockCipher>(std::move(Tmp));
+				// the destruction of the moved-from cipher must not finalize into the output
+			}
+			CHECK ( Enc->Finalize() );
+		}
 
 		KString sDecrypted;
 		KBlockCipher Dec(KBlockCipher::Decrypt, KBlockCipher::AES, KBlockCipher::GCM, KBlockCipher::B256);

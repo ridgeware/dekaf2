@@ -332,7 +332,9 @@ void KTunnel::Message::Read(KIOStreamSocket& Stream, KBlockCipher* Decryptor)
 		SetHaveEncoder(true);
 	}
 
-	if (!Frame::Read(Stream, false))
+	// The tunnel does not follow the masking rule of RFC 6455: a client may switch its
+	// masking off (bNeverMask), and the server cannot tell - so neither side requires it
+	if (!Frame::Read(Stream, false, /*bRequireMasking=*/false))
 	{
 		Throw(kFormat("[{}]: cannot read from {}", GetChannel(), Stream.GetEndPointAddress()));
 	}

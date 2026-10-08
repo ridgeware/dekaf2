@@ -371,10 +371,18 @@ public:
 
 		/// decodes one or multiple frames with payload from input stream, may send pong frames -
 		/// masking is required from client to server, and forbidden from server to client
-		bool           Read       (KInStream& InStream, KOutStream& OutStream, bool bMaskTx);
+		/// @param bMaskTx true for the client side, which masks what it sends
+		/// @param bRequireMasking fail an unmasked frame on the server side (bMaskTx false), as
+		/// RFC 6455 5.1 demands - a protocol on top of the frame format that lets a client send
+		/// unmasked frames switches it off
+		bool           Read       (KInStream& InStream, KOutStream& OutStream, bool bMaskTx, bool bRequireMasking = true);
 		/// decodes one or multiple frames with payload from input stream, may send pong frames -
 		/// masking is required from client to server, and forbidden from server to client
-		bool           Read       (KStream& Stream, bool bMaskTx) { return Read(Stream, Stream, bMaskTx); }
+		/// @param bMaskTx true for the client side, which masks what it sends
+		/// @param bRequireMasking fail an unmasked frame on the server side (bMaskTx false), as
+		/// RFC 6455 5.1 demands - a protocol on top of the frame format that lets a client send
+		/// unmasked frames switches it off
+		bool           Read       (KStream& Stream, bool bMaskTx, bool bRequireMasking = true) { return Read(Stream, Stream, bMaskTx, bRequireMasking); }
 		/// writes one full frame with payload to output stream -
 		/// masking is required from client to server, and forbidden from server to client
 		bool           Write      (KOutStream& OutStream, bool bMaskTx);

@@ -1001,7 +1001,7 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMaskTx, KInStream& Pa
 } // Write
 
 //-----------------------------------------------------------------------------
-bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bMaskTx)
+bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bMaskTx, bool bRequireMasking)
 //-----------------------------------------------------------------------------
 {
 	// buffer for the payload
@@ -1017,7 +1017,7 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 			return false;
 		}
 
-		if (!bMaskTx && !IsMaskedRx())
+		if (bRequireMasking && !bMaskTx && !IsMaskedRx())
 		{
 			// RFC 6455 5.1: a server must fail the connection on an unmasked client frame
 			kDebug(1, "unmasked frame from client - failing the connection");

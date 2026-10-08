@@ -386,6 +386,7 @@ bool KWebApp::StartLoopback()
 	Loopback.sBindAddress         = "127.0.0.1";
 	Loopback.bBlocking            = false;
 	Loopback.bCreateEphemeralCert = false;
+	Loopback.bAllowCompression    = false;   // nothing to save over loopback
 
 	// our guard runs before every route, an existing callback afterwards
 	m_UserPreRoute = std::move(Loopback.PreRouteCallback);

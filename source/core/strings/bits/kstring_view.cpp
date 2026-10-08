@@ -43,6 +43,7 @@
 #include <dekaf2/core/strings/bits/kstring_view.h>
 #include <dekaf2/core/strings/bits/simd/kfindfirstof.h>
 #include <dekaf2/core/strings/bits/simd/kmemsearch_neon.h>
+#include <dekaf2/core/strings/bits/kbyterarity.h>
 #ifdef DEKAF2_X86_64
 #endif
 
@@ -93,7 +94,8 @@ void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, siz
 //-----------------------------------------------------------------------------
 {
 #if DEKAF2_HAS_NEON
-	// ARM64 NEON first-and-last-byte filter. Benchmarks on M1 Pro show
+	// ARM64 NEON kMemMem (memchr on the rarest needle byte, with a NEON
+	// two-byte filter for dense haystacks). Benchmarks on M1 Pro show
 	// this wins big over glibc 2.34's Two-Way algorithm for short needles
 	// (2B -> ~25x, 8B -> ~4x, 16B -> ~2x faster) and loses to glibc for
 	// longer needles (64B -> ~2x slower). We therefore use the NEON path
@@ -132,28 +134,49 @@ void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, siz
 		return const_cast<void*>(haystack);
 	}
 
-	auto pHaystack = static_cast<const char*>(haystack);
-	auto pNeedle   = static_cast<const char*>(needle);
-
-	for(;iNeedleSize <= iHaystackSize;)
+	if (iNeedleSize > iHaystackSize)
 	{
-		auto pFound = static_cast<const char*>(std::memchr(pHaystack, pNeedle[0], (iHaystackSize - iNeedleSize) + 1));
+		return nullptr;
+	}
+
+	auto pHaystack = static_cast<const uint8_t*>(haystack);
+	auto pNeedle   = static_cast<const uint8_t*>(needle);
+
+	if (iNeedleSize == 1)
+	{
+		return std::memchr(const_cast<uint8_t*>(pHaystack), pNeedle[0], iHaystackSize);
+	}
+
+	// memchr searches for the rarest byte of the needle, which sits iRarest
+	// bytes after the start of a candidate - on the first byte it would stop
+	// at every 'e' for a needle like "eyJ". The last byte of the needle (or the
+	// first, if the last is the rarest) rejects most of the hits before the
+	// memcmp of the needle.
+	const auto Rare      = DEKAF2_PREFIX detail::kFindRareBytes(pNeedle, iNeedleSize);
+	auto       pCur      = pHaystack + Rare.iRarest;
+	auto       remaining = iHaystackSize - iNeedleSize + 1;
+
+	while (remaining)
+	{
+		auto pFound = static_cast<const uint8_t*>(std::memchr(pCur, pNeedle[Rare.iRarest], remaining));
 
 		if (DEKAF2_UNLIKELY(!pFound))
 		{
 			return nullptr;
 		}
 
-		// due to aligned loads it is faster to compare the full needle again
-		if (std::memcmp(pFound, pNeedle, iNeedleSize) == 0)
+		auto pCandidate = pFound - Rare.iRarest;
+
+		if (pCandidate[Rare.iSecond] == pNeedle[Rare.iSecond] &&
+		    std::memcmp(pCandidate, pNeedle, iNeedleSize) == 0)
 		{
-			return const_cast<char*>(pFound);
+			return const_cast<uint8_t*>(pCandidate);
 		}
 
-		auto iAdvance = static_cast<size_t>(pFound - pHaystack) + 1;
+		auto iAdvance = static_cast<size_t>(pFound - pCur) + 1;
 
-		pHaystack     += iAdvance;
-		iHaystackSize -= iAdvance;
+		pCur      += iAdvance;
+		remaining -= iAdvance;
 	}
 
 	return nullptr;

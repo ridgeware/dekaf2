@@ -91,9 +91,10 @@ namespace neon    {
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 void* kMemRChr(const void* s, int c, std::size_t n) noexcept;
 
-/// find the first occurrence of needle within haystack, using a NEON-based
-/// first-and-last-byte filter. Returns nullptr if not found. An empty needle
-/// matches at the start of the haystack.
+/// find the first occurrence of needle within haystack: memchr searches for the
+/// rarest byte of the needle, and a NEON-based filter on that byte and the last
+/// one takes over when the rarest byte is dense in the haystack. Returns nullptr if not
+/// found. An empty needle matches at the start of the haystack.
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 void* kMemMem(const void* haystack,
               std::size_t  iHaystackSize,

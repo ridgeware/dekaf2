@@ -45,6 +45,7 @@
 
 #include <arm_neon.h>
 #include <dekaf2/core/types/kbit.h>
+#include <dekaf2/core/strings/bits/kbyterarity.h>
 #include <cstring>
 #include <cstdint>
 
@@ -259,32 +260,36 @@ void* kMemRChr(const void* s, int c, std::size_t n) noexcept
 namespace {
 
 //-----------------------------------------------------------------------------
-// NEON two-byte filter body, called when we've decided that memchr+last-byte
-// is losing (i.e. the first byte of the needle is dense in the haystack).
-// pStart must point into the original haystack and iBytesLeft must be the
-// number of bytes from pStart to the end of the haystack.
+// NEON two-byte filter body, called when we've decided that memchr on the rarest
+// byte is losing (i.e. even the rarest byte of the needle is dense in the
+// haystack). pStart must point into the original haystack and iBytesLeft must be
+// the number of bytes from pStart to the end of the haystack. Rare holds the
+// positions of the rarest byte of the needle and of its last byte (or of its
+// first, if the last is the rarest).
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
-void* kMemMemNeonFilter(const uint8_t* pStart,
-                        std::size_t    iBytesLeft,
-                        const uint8_t* pNeedle,
-                        std::size_t    iNeedleSize) noexcept
+void* kMemMemNeonFilter(const uint8_t*    pStart,
+                        std::size_t       iBytesLeft,
+                        const uint8_t*    pNeedle,
+                        std::size_t       iNeedleSize,
+                        const KRareBytes& Rare) noexcept
 {
-	// classical first-and-last-byte filter (used by glibc, musl, folly, ...):
+	// two-byte filter (the classic one of glibc, musl, folly, ... checks the
+	// first and the last byte - we check the rarest one instead of the first):
 	//
 	//   at every window of 16 candidate positions, check whether
-	//     haystack[i]               == needle[0]    (first byte)
+	//     haystack[i + iRarest] == needle[iRarest]
 	//   AND
-	//     haystack[i + N - 1]       == needle[N-1]  (last byte)
+	//     haystack[i + iSecond] == needle[iSecond]
 	//   simultaneously in SIMD. Only windows where the AND mask is non-zero
-	//   proceed to a byte-wise memcmp of the middle bytes.
+	//   proceed to a memcmp of the needle.
 	//
-	// this filters out >99% of the work when needle[0] is common but
-	// needle[N-1] is not (the classic pathological case for a memchr+memcmp
-	// strategy).
+	// this filters out >99% of the work when the two bytes are not both
+	// dense in the haystack. Both positions are < iNeedleSize, so the loads
+	// stay within the bounds of the first-and-last-byte filter.
 
-	const uint8x16_t vFirst = vdupq_n_u8(pNeedle[0]);
-	const uint8x16_t vLast  = vdupq_n_u8(pNeedle[iNeedleSize - 1]);
+	const uint8x16_t vRarest = vdupq_n_u8(pNeedle[Rare.iRarest]);
+	const uint8x16_t vSecond = vdupq_n_u8(pNeedle[Rare.iSecond]);
 
 	// iMax is the highest valid starting offset, inclusive
 	const std::size_t iMax = iBytesLeft - iNeedleSize;
@@ -297,11 +302,11 @@ void* kMemMemNeonFilter(const uint8_t* pStart,
 
 		for (; i < iNeonEnd; i += 16)
 		{
-			uint8x16_t hFirst = vld1q_u8(pStart + i);
-			uint8x16_t hLast  = vld1q_u8(pStart + i + iNeedleSize - 1);
-			uint8x16_t cmp    = vandq_u8(vceqq_u8(hFirst, vFirst),
-			                             vceqq_u8(hLast,  vLast));
-			uint64_t   mask   = NibbleMask(cmp);
+			uint8x16_t hRarest = vld1q_u8(pStart + i + Rare.iRarest);
+			uint8x16_t hSecond = vld1q_u8(pStart + i + Rare.iSecond);
+			uint8x16_t cmp     = vandq_u8(vceqq_u8(hRarest, vRarest),
+			                              vceqq_u8(hSecond, vSecond));
+			uint64_t   mask    = NibbleMask(cmp);
 
 			while (mask)
 			{
@@ -309,9 +314,7 @@ void* kMemMemNeonFilter(const uint8_t* pStart,
 				int idx = bit >> 2;
 
 				if (iNeedleSize == 2 ||
-				    std::memcmp(pStart  + i + idx + 1,
-				                pNeedle + 1,
-				                iNeedleSize - 2) == 0)
+				    std::memcmp(pStart + i + idx, pNeedle, iNeedleSize) == 0)
 				{
 					return const_cast<uint8_t*>(pStart + i + idx);
 				}
@@ -324,12 +327,10 @@ void* kMemMemNeonFilter(const uint8_t* pStart,
 	// tail: the last (iMax - i + 1) positions
 	for (; i <= iMax; ++i)
 	{
-		if (pStart[i]                   == pNeedle[0] &&
-		    pStart[i + iNeedleSize - 1] == pNeedle[iNeedleSize - 1] &&
+		if (pStart[i + Rare.iRarest] == pNeedle[Rare.iRarest] &&
+		    pStart[i + Rare.iSecond] == pNeedle[Rare.iSecond] &&
 		    (iNeedleSize == 2 ||
-		     std::memcmp(pStart  + i + 1,
-		                 pNeedle + 1,
-		                 iNeedleSize - 2) == 0))
+		     std::memcmp(pStart + i, pNeedle, iNeedleSize) == 0))
 		{
 			return const_cast<uint8_t*>(pStart + i);
 		}
@@ -371,86 +372,94 @@ void* kMemMem(const void* haystack,
 
 	// adaptive strategy for iNeedleSize >= 2:
 	//
-	// Phase 1: use Apple's memchr (~43 GB/s on M-series) to locate the first
-	//          byte, then quickly reject the position via a last-byte check
-	//          before falling back to memcmp on the middle bytes. This is
-	//          the fastest path when the first byte is rare, because the
-	//          memchr scan is single-pass and we only verify on actual hits.
+	// Phase 1: use Apple's memchr (~43 GB/s on M-series) to locate the rarest
+	//          byte of the needle (by the rank of kByteRarity), then quickly
+	//          reject the position via the last byte of the needle (or the
+	//          first, if the last is the rarest) before the memcmp of the
+	//          needle. memchr on the first byte would stop at
+	//          every 'e' for a needle like "eyJ" - on the 'J' it stops rarely.
+	//          The memchr scan is single-pass and we only verify on actual hits.
 	//
-	// Phase 2: if we accumulate too many consecutive first-byte false starts,
-	//          the first byte must be dense in the haystack. Memchr is then
+	// Phase 2: if we accumulate too many consecutive false starts, even the
+	//          rarest byte must be dense in the haystack. Memchr is then
 	//          being restarted very often, which kills throughput. In that
-	//          case we switch to the NEON first-and-last-byte filter, which
-	//          processes 16 candidate positions per iteration regardless of
-	//          match density - except on GCC + glibc, where we instead hand
-	//          off to libc's Two-Way memmem (see the switch below for the
-	//          rationale).
+	//          case we switch to the NEON filter on the same two bytes,
+	//          which processes 16 candidate positions per iteration
+	//          regardless of match density - except on GCC + glibc, where we
+	//          instead hand off to libc's Two-Way memmem (see the switch below
+	//          for the rationale).
 	//
 	// This keeps the normal-case performance equivalent to Apple's memchr
 	// while still delivering >100x speedups in the pathological case where
-	// the first needle byte is everywhere in the haystack.
+	// the rare needle bytes are everywhere in the haystack.
 
-	const uint8_t fb = pNeedle[0];
-	const uint8_t lb = pNeedle[iNeedleSize - 1];
+	const KRareBytes Rare     = kFindRareBytes(pNeedle, iNeedleSize);
+	const uint8_t    chRarest = pNeedle[Rare.iRarest];
+	const uint8_t    chSecond = pNeedle[Rare.iSecond];
 
-	const uint8_t* pCur      = pHaystack;
+	// pCur scans for the rarest byte, which sits iRarest bytes after the start
+	// of a candidate - the candidates start at 0 .. iHaystackSize - iNeedleSize
+	const uint8_t* pCur      = pHaystack + Rare.iRarest;
 	std::size_t    remaining = iHaystackSize - iNeedleSize + 1;
 
 	// empirically chosen threshold: 8 false starts in a row is enough to
-	// distinguish "rare first byte" from "dense first byte" while keeping
-	// the phase 2 switch cost negligible in the common case.
+	// distinguish "rare byte" from "dense byte" while keeping the phase 2
+	// switch cost negligible in the common case.
 	constexpr int kSwitchThreshold = 8;
 	int           iMisses         = 0;
 
 	while (remaining)
 	{
 		const uint8_t* pFound =
-		    static_cast<const uint8_t*>(std::memchr(pCur, fb, remaining));
+		    static_cast<const uint8_t*>(std::memchr(pCur, chRarest, remaining));
 
 		if (DEKAF2_UNLIKELY(!pFound))
 		{
 			return nullptr;
 		}
 
-		// last-byte quick reject: a single byte compare often eliminates the
-		// position before we pay the cost of memcmp on the middle bytes.
-		if (pFound[iNeedleSize - 1] == lb)
+		const uint8_t* pCandidate = pFound - Rare.iRarest;
+
+		// second-byte quick reject: a single byte compare often eliminates the
+		// position before we pay the cost of the memcmp.
+		if (pCandidate[Rare.iSecond] == chSecond)
 		{
 			if (iNeedleSize == 2 ||
-			    std::memcmp(pFound + 1, pNeedle + 1, iNeedleSize - 2) == 0)
+			    std::memcmp(pCandidate, pNeedle, iNeedleSize) == 0)
 			{
-				return const_cast<uint8_t*>(pFound);
+				return const_cast<uint8_t*>(pCandidate);
 			}
 		}
 
 		if (DEKAF2_UNLIKELY(++iMisses >= kSwitchThreshold))
 		{
-			// First byte is dense in the haystack. We resume at pFound,
-			// including it, so no candidate position is lost.
-			const std::size_t iOffset = static_cast<std::size_t>(pFound - pHaystack);
+			// The rarest byte is dense in the haystack. We resume at
+			// pCandidate, including it, so no candidate position is lost.
+			const std::size_t iOffset = static_cast<std::size_t>(pCandidate - pHaystack);
 
 #if defined(__GLIBC__) && defined(__GNUC__) && !defined(__clang__)
 			// GCC + glibc: glibc's Two-Way memmem is significantly faster
-			// here than our NEON first-and-last-byte filter, because GCC's
-			// codegen for the filter's vshrn/NibbleMask pattern is ~2.6x
-			// slower than Clang's (measured on Fedora 43, gcc 15.2.1, M1
-			// Pro: worst-case 683k ns with NEON filter vs 446k ns with
-			// glibc's Two-Way; Clang 21 on the same machine gets 265k ns).
-			// Hand off to libc's tuned Two-Way for the rest of the scan.
+			// here than our NEON two-byte filter, because GCC's codegen for
+			// the filter's vshrn/NibbleMask pattern is ~2.6x slower than
+			// Clang's (measured on Fedora 43, gcc 15.2.1, M1 Pro: worst-case
+			// 683k ns with NEON filter vs 446k ns with glibc's Two-Way;
+			// Clang 21 on the same machine gets 265k ns). Hand off to libc's
+			// tuned Two-Way for the rest of the scan.
 			//
 			// Clang builds and non-glibc targets (Apple libc, musl, BSD)
 			// keep the NEON filter because:
 			//   - Clang compiles it to ~265k ns, beating glibc's Two-Way
 			//   - Apple libc / musl memmem are much slower than glibc's
-			return ::memmem(pFound,
+			return ::memmem(pCandidate,
 			                iHaystackSize - iOffset,
 			                pNeedle,
 			                iNeedleSize);
 #else
-			return kMemMemNeonFilter(pFound,
+			return kMemMemNeonFilter(pCandidate,
 			                         iHaystackSize - iOffset,
 			                         pNeedle,
-			                         iNeedleSize);
+			                         iNeedleSize,
+			                         Rare);
 #endif
 		}
 

@@ -1693,6 +1693,7 @@ set (BITS_HEADERS
 	source/core/format/bits/kformat.h
 	source/core/logging/bits/klogserializer.h
 	source/core/logging/bits/klogwriter.h
+	source/core/strings/bits/kbyterarity.h
 	source/core/strings/bits/kfindsetofchars.h
 	source/core/strings/bits/kstring_view.h
 	source/core/strings/bits/kstringviewz.h

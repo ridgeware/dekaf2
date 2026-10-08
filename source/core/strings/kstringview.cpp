@@ -78,7 +78,7 @@ std::size_t kFind(const KStringView haystack,
 	}
 
 	// dekaf2::memmem picks the best available implementation per platform:
-	// dekaf2's NEON first-and-last-byte filter for short needles (up to
+	// dekaf2's NEON kMemMem for short needles (up to
 	// 16 bytes) where it beats glibc's Two-Way algorithm, and forwards to
 	// glibc's tuned ::memmem for larger needles. On non-glibc targets it
 	// always uses the NEON path (Apple libc's memmem is ~100x slower).

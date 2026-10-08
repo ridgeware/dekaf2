@@ -8,6 +8,9 @@
 #include <dekaf2/crypto/encoding/khex.h>
 #include <vector>
 #include <list>
+#include <random>
+#include <algorithm>
+#include <string>
 
 using namespace dekaf2;
 
@@ -1824,5 +1827,115 @@ TEST_CASE("KStringView") {
 		CHECK ( sStr == "abcdefghijklmnopqrstuvw" );
 		CHECK ( sStr.remove_suffix('w') == true );
 		CHECK ( sStr == "abcdefghijklmnopqrstuv" );
+	}
+}
+
+TEST_CASE("memmem")
+{
+	// dekaf2::memmem searches with memchr for the rarest byte of the needle and
+	// switches to a SIMD filter on that byte and its last one when it is dense -
+	// compare it with a plain search on haystacks and needles from small
+	// alphabets, which produce many partial matches and many of these switches
+	auto Expected = [](const std::string& sHaystack, const std::string& sNeedle) -> std::size_t
+	{
+		auto it = std::search(sHaystack.begin(), sHaystack.end(), sNeedle.begin(), sNeedle.end());
+		return (it == sHaystack.end() && !sNeedle.empty()) ? KStringView::npos : static_cast<std::size_t>(it - sHaystack.begin());
+	};
+
+	auto Found = [](const std::string& sHaystack, const std::string& sNeedle) -> std::size_t
+	{
+		auto p = static_cast<const char*>(dekaf2::memmem(sHaystack.data(), sHaystack.size(), sNeedle.data(), sNeedle.size()));
+		return p ? static_cast<std::size_t>(p - sHaystack.data()) : KStringView::npos;
+	};
+
+	SECTION("chosen cases")
+	{
+		struct Case { std::string sHaystack; std::string sNeedle; };
+
+		std::vector<Case> Cases
+		{
+			{ "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeyeyeyJ token=eyJhbGc", "eyJ" },
+			{ "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab", "aab"          },
+			{ "aaaa", "aaaa" },
+			{ "aaa", "aaaa" },
+			{ "xJ", "J" },
+			{ "Jxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "Jx" },
+			{ "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxJ", "xJ" },
+			{ std::string("\0\0\xff\0\xff\xfe", 6), std::string("\xff\xfe", 2) },
+			{ "Authorization: Bearer abc", "uthorization" },
+			{ "the quick brown fox jumps over the lazy dog", "the lazy dog" },
+			{ "the quick brown fox jumps over the lazy dog", "the lazy cat" },
+			// UTF-8: the lead bytes are dense before the match
+			{ "äöäöäöäöäöäöäöäöäöäöäöäöäöäöäöäöäöäöäöäöäöäöäöäöäö für", "für" },
+			{ "přepřepřepřepřepřepřepřepřepřepřepřepřepřepřep přístup", "přístup" },
+			{ "жжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжж файл", "файл" },
+			{ "ファファファファファファファファファファファファファファ ファイル", "ファイル" },
+		};
+
+		for (const auto& Case : Cases)
+		{
+			INFO ( Case.sNeedle );
+			CHECK ( Found(Case.sHaystack, Case.sNeedle) == Expected(Case.sHaystack, Case.sNeedle) );
+		}
+	}
+
+	SECTION("random haystacks and needles")
+	{
+		std::mt19937 Random(4711);
+
+		// small alphabets make partial matches dense, and with one rare byte the
+		// rarest byte of a needle is sometimes dense in the haystack, too
+		const std::vector<std::string> Alphabets { "ab", "abJ", "eyJ ", "ab\xff\x01", "aaaaaaab", "\xc3\xa4\xc3\xb6\xc5\x99" "a" };
+		std::size_t iChecks { 0 };
+
+		for (const auto& sAlphabet : Alphabets)
+		{
+			std::uniform_int_distribution<std::size_t> Char(0, sAlphabet.size() - 1);
+
+			auto RandomString = [&](std::size_t iSize)
+			{
+				std::string sOut;
+
+				for (std::size_t i = 0; i < iSize; ++i)
+				{
+					sOut += sAlphabet[Char(Random)];
+				}
+
+				return sOut;
+			};
+
+			for (std::size_t iHaystackSize : { 0, 1, 2, 15, 16, 17, 31, 33, 64, 100, 257, 5000 })
+			{
+				for (std::size_t iNeedleSize : { 1, 2, 3, 5, 8, 15, 16, 17, 24 })
+				{
+					for (int iRound = 0; iRound < 20; ++iRound)
+					{
+						auto sHaystack = RandomString(iHaystackSize);
+						auto sNeedle   = RandomString(iNeedleSize);
+
+						// half of the needles come from the haystack, so that most
+						// of them are found and some at the very end
+						if ((iRound & 1) && iNeedleSize <= iHaystackSize)
+						{
+							std::uniform_int_distribution<std::size_t> Start(0, iHaystackSize - iNeedleSize);
+							sNeedle = sHaystack.substr(Start(Random), iNeedleSize);
+						}
+
+						auto iExpected = Expected(sHaystack, sNeedle);
+						auto iFound    = Found(sHaystack, sNeedle);
+
+						if (iFound != iExpected)
+						{
+							INFO ( kFormat("haystack '{}' needle '{}'", sHaystack, sNeedle) );
+							CHECK ( iFound == iExpected );
+						}
+
+						++iChecks;
+					}
+				}
+			}
+		}
+
+		CHECK ( iChecks == 6 * 12 * 9 * 20 );
 	}
 }

@@ -23,7 +23,7 @@ using namespace dekaf2;
 
 namespace {
 
-// place a char at every iEvery-th position to stress the first-byte filter in memmem
+// place a char at every iEvery-th position to make a needle byte dense for memmem
 void SetEvery(std::string& sStr, char ch, std::string::size_type iEvery)
 {
 	for (std::size_t iPos = iEvery; iPos < sStr.size(); iPos += iEvery)
@@ -195,9 +195,9 @@ void kmemsearch_bench()
 	// =============================================================
 	// memmem benchmarks
 	//
-	// Current approach: std::memchr for first byte + std::memcmp to
-	// confirm. Good when first byte is rare, pathological when first
-	// byte is common.
+	// Current approach: std::memchr for the rarest byte of the needle +
+	// std::memcmp to confirm, with a NEON two-byte filter when even the
+	// rarest byte is common in the haystack.
 	// =============================================================
 	{
 		dekaf2::KProf ps("-memmem");

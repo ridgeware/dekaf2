@@ -74,7 +74,7 @@ KString KRSASign::Sign(const KRSAKey& Key) const
 		sSignature.resize(EVP_PKEY_size(Key.GetEVPPKey()));
 		unsigned int iDigestLen { 0 };
 
-		if (1 != EVP_SignFinal(evpctx, reinterpret_cast<unsigned char*>(sSignature.data()), &iDigestLen, Key.GetEVPPKey()))
+		if (1 != EVP_SignFinal(evpctx.get(), reinterpret_cast<unsigned char*>(sSignature.data()), &iDigestLen, Key.GetEVPPKey()))
 		{
 			SetError(GetOpenSSLError("cannot read signature"));
 		}
@@ -112,7 +112,7 @@ bool KRSAVerify::Verify(const KRSAKey& Key, KStringView _sSignature) const
 {
 	if (evpctx && !Key.empty())
 	{
-		if (1 != EVP_VerifyFinal(evpctx, reinterpret_cast<const unsigned char*>(_sSignature.data()), static_cast<int>(_sSignature.size()), Key.GetEVPPKey()))
+		if (1 != EVP_VerifyFinal(evpctx.get(), reinterpret_cast<const unsigned char*>(_sSignature.data()), static_cast<int>(_sSignature.size()), Key.GetEVPPKey()))
 		{
 			return SetError(GetOpenSSLError("cannot verify signature"));
 		}

@@ -83,6 +83,19 @@ TEST_CASE("KMessageDigest") {
 		CHECK ( KSHA224("The quick brown fox jumps over the lazy dog").HexDigest() == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
 	}
 
+	SECTION("move")
+	{
+		KSHA224 sha_1("The quick brown fox jumps over the lazy dog");
+		KSHA224 sha_2(std::move(sha_1));
+		CHECK ( sha_2.HexDigest() == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
+		// the moved-from object has no context any more
+		CHECK       ( sha_1.Digest().empty() );
+		CHECK_FALSE ( sha_1.Update("more") );
+		KSHA224 sha_3("other");
+		sha_3 = std::move(sha_2);
+		CHECK ( sha_3.HexDigest() == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
+	}
+
 	SECTION("equality")
 	{
 		{

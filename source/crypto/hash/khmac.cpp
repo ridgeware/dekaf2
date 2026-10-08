@@ -60,15 +60,16 @@ KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 : m_Digest(digest)
 {
 #if OPENSSL_VERSION_NUMBER < 0x010100000L
-	m_hmacctx = new ::HMAC_CTX();
+	m_hmacctx.reset(new ::HMAC_CTX());
 #elif OPENSSL_VERSION_NUMBER < 0x030000000L
-	m_hmacctx = ::HMAC_CTX_new();
+	m_hmacctx.reset(::HMAC_CTX_new());
 #else
-	m_hmac  = ::EVP_MAC_fetch(nullptr, "hmac", nullptr);
+	// EVP_MAC_CTX_new() takes its own reference of the MAC, therefore the MAC is
+	// released at the end of the constructor
+	KUniquePtr<EVP_MAC, ::EVP_MAC_free> MAC(::EVP_MAC_fetch(nullptr, "hmac", nullptr));
 
-	if (!m_hmac)
+	if (!MAC)
 	{
-		Release();
 		SetError(GetOpenSSLError("cannot create MAC"));
 		return;
 	}
@@ -82,20 +83,19 @@ KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 	params[params_n++] = ::OSSL_PARAM_construct_utf8_string("digest", const_cast<char*>(sDigest.data()), sDigest.size());
 	params[params_n]   = ::OSSL_PARAM_construct_end();
 
-	m_hmacctx = ::EVP_MAC_CTX_new(m_hmac);
+	m_hmacctx.reset(::EVP_MAC_CTX_new(MAC.get()));
 #endif
 
 	if (!m_hmacctx)
 	{
-		Release();
 		SetError(GetOpenSSLError("cannot create context"));
 		return;
 	}
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000L
-	if (1 != ::HMAC_Init_ex(m_hmacctx, sKey.data(), static_cast<int>(sKey.size()), GetMessageDigest(digest), nullptr))
+	if (1 != ::HMAC_Init_ex(m_hmacctx.get(), sKey.data(), static_cast<int>(sKey.size()), GetMessageDigest(digest), nullptr))
 #else
-	if (!::EVP_MAC_init(m_hmacctx, reinterpret_cast<const unsigned char*>(sKey.data()), sKey.size(), params))
+	if (!::EVP_MAC_init(m_hmacctx.get(), reinterpret_cast<const unsigned char*>(sKey.data()), sKey.size(), params))
 #endif
 	{
 		Release();
@@ -110,64 +110,34 @@ KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 
 } // ctor
 
+#if OPENSSL_VERSION_NUMBER < 0x030000000L
 //---------------------------------------------------------------------------
-KHMAC::KHMAC(KHMAC&& other) noexcept
-//---------------------------------------------------------------------------
-: m_hmacctx(other.m_hmacctx)
-#if OPENSSL_VERSION_NUMBER >= 0x030000000L
-, m_hmac(other.m_hmac)
-#endif
-, m_sHMAC(std::move(other.m_sHMAC))
-, m_Digest(other.m_Digest)
-{
-	other.m_hmacctx = nullptr;
-#if OPENSSL_VERSION_NUMBER >= 0x030000000L
-	other.m_hmac = nullptr;
-#endif
-} // move ctor
-
-//---------------------------------------------------------------------------
-KHMAC& KHMAC::operator=(KHMAC&& other) noexcept
+void KHMAC::FreeContext(hmac_ctx_st* pContext)
 //---------------------------------------------------------------------------
 {
-	Release();
-	m_hmacctx = other.m_hmacctx;
-	other.m_hmacctx = nullptr;
-#if OPENSSL_VERSION_NUMBER >= 0x030000000L
-	m_hmac = other.m_hmac;
-	other.m_hmac = nullptr;
+#if OPENSSL_VERSION_NUMBER < 0x010100000L
+	::HMAC_CTX_cleanup(pContext);
+	delete pContext;
+#else
+	::HMAC_CTX_free(pContext);
 #endif
-	m_sHMAC   = std::move(other.m_sHMAC);
-	m_Digest  = other.m_Digest;
-	return *this;
 
-} // move assignment
+} // FreeContext
+#else
+//---------------------------------------------------------------------------
+void KHMAC::FreeContext(evp_mac_ctx_st* pContext)
+//---------------------------------------------------------------------------
+{
+	::EVP_MAC_CTX_free(pContext);
+
+} // FreeContext
+#endif
 
 //---------------------------------------------------------------------------
 void KHMAC::Release() noexcept
 //---------------------------------------------------------------------------
 {
-	if (m_hmacctx)
-	{
-#if OPENSSL_VERSION_NUMBER < 0x010100000L
-		::HMAC_CTX_cleanup(m_hmacctx);
-		delete m_hmacctx;
-#elif OPENSSL_VERSION_NUMBER < 0x030000000L
-		::HMAC_CTX_free(m_hmacctx);
-#else
-		::EVP_MAC_CTX_free(m_hmacctx);
-#endif
-		m_hmacctx = nullptr;
-	}
-
-#if OPENSSL_VERSION_NUMBER >= 0x030000000L
-	if (m_hmac)
-	{
-		::EVP_MAC_free(m_hmac);
-		m_hmac = nullptr;
-	}
-#endif
-
+	m_hmacctx.reset();
 	m_sHMAC.clear();
 
 } // Release
@@ -182,9 +152,9 @@ bool KHMAC::Update(const void* pAddress, std::size_t iSize)
 	}
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000L
-	if (1 != ::HMAC_Update(m_hmacctx, static_cast<const unsigned char*>(pAddress), iSize))
+	if (1 != ::HMAC_Update(m_hmacctx.get(), static_cast<const unsigned char*>(pAddress), iSize))
 #else
-	if (!::EVP_MAC_update(m_hmacctx, static_cast<const unsigned char*>(pAddress), iSize))
+	if (!::EVP_MAC_update(m_hmacctx.get(), static_cast<const unsigned char*>(pAddress), iSize))
 #endif
 	{
 		return SetError(GetOpenSSLError("update failed"));
@@ -210,9 +180,9 @@ bool KHMAC::Update(KInStream& InputStream)
 		auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000L
-		if (1 != ::HMAC_Update(m_hmacctx, Buffer.data(), iReadChunk))
+		if (1 != ::HMAC_Update(m_hmacctx.get(), Buffer.data(), iReadChunk))
 #else
-		if (!::EVP_MAC_update(m_hmacctx, Buffer.data(), iReadChunk))
+		if (!::EVP_MAC_update(m_hmacctx.get(), Buffer.data(), iReadChunk))
 #endif
 		{
 			return SetError(GetOpenSSLError("update failed"));
@@ -238,16 +208,18 @@ bool KHMAC::Update(KInStream&& InputStream)
 const KString& KHMAC::Digest() const
 //---------------------------------------------------------------------------
 {
-	if (m_sHMAC.empty())
+	// without a context (after a failed construction, or after a move) the HMAC
+	// stays empty
+	if (m_sHMAC.empty() && m_hmacctx)
 	{
 		std::array<unsigned char, EVP_MAX_MD_SIZE> Buffer;
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000L
 		unsigned int iDigestLen;
-		if (1 != ::HMAC_Final(m_hmacctx, Buffer.data(), &iDigestLen))
+		if (1 != ::HMAC_Final(m_hmacctx.get(), Buffer.data(), &iDigestLen))
 #else
 		std::size_t iDigestLen;
-		if (!::EVP_MAC_final(m_hmacctx, Buffer.data(), &iDigestLen, Buffer.size()))
+		if (!::EVP_MAC_final(m_hmacctx.get(), Buffer.data(), &iDigestLen, Buffer.size()))
 #endif
 		{
 			SetError(GetOpenSSLError("cannot read HMAC"));
@@ -271,5 +243,11 @@ KString KHMAC::HexDigest() const
 	return KEncode::Hex(Digest());
 
 } // HexDigest
+
+static_assert(std::is_nothrow_move_constructible<KHMAC>::value,
+			  "KHMAC is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_assignable<KHMAC>::value,
+			  "KHMAC is intended to be nothrow move assignable, but is not!");
 
 DEKAF2_NAMESPACE_END

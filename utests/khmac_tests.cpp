@@ -54,6 +54,19 @@ TEST_CASE("KHMAC") {
 		CHECK ( KHMAC_SHA256("key", "The quick brown fox jumps over the lazy dog").HexDigest() == "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8" );
 	}
 
+	SECTION("move")
+	{
+		KHMAC_SHA256 hmac_1("key", "The quick brown fox jumps over the lazy dog");
+		KHMAC_SHA256 hmac_2(std::move(hmac_1));
+		CHECK ( hmac_2.HexDigest() == "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8" );
+		// the moved-from object has no context any more
+		CHECK       ( hmac_1.Digest().empty() );
+		CHECK_FALSE ( hmac_1.Update("more") );
+		KHMAC_SHA256 hmac_3("other key");
+		hmac_3 = std::move(hmac_2);
+		CHECK ( hmac_3.HexDigest() == "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8" );
+	}
+
 	SECTION("equality")
 	{
 		{

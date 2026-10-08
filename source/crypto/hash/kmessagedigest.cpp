@@ -59,19 +59,18 @@ KMessageDigestBase::KMessageDigestBase(Digest digest, UpdateFunc _Updater)
 	// 0x000906000 == 0.9.6 dev
 	// 0x010100000 == 1.1.0
 #if OPENSSL_VERSION_NUMBER < 0x010100000
-	evpctx = ::EVP_MD_CTX_create();
+	evpctx.reset(::EVP_MD_CTX_create());
 #else
-	evpctx = ::EVP_MD_CTX_new();
+	evpctx.reset(::EVP_MD_CTX_new());
 #endif
 
 	if (!evpctx)
 	{
-		Release();
 		SetError(GetOpenSSLError("cannot create context"));
 		return;
 	}
 
-	if (1 != ::EVP_SignInit(evpctx, GetMessageDigest(digest)))
+	if (1 != ::EVP_SignInit(evpctx.get(), GetMessageDigest(digest)))
 	{
 		Release();
 		SetError(GetOpenSSLError("cannot initialize algorithm"));
@@ -79,23 +78,29 @@ KMessageDigestBase::KMessageDigestBase(Digest digest, UpdateFunc _Updater)
 
 } // ctor
 
+#if OPENSSL_VERSION_NUMBER >= 0x010100000L
+//---------------------------------------------------------------------------
+void KMessageDigestBase::FreeContext(evp_md_ctx_st* pContext)
+//---------------------------------------------------------------------------
+{
+	::EVP_MD_CTX_free(pContext);
+
+} // FreeContext
+#else
+//---------------------------------------------------------------------------
+void KMessageDigestBase::FreeContext(env_md_ctx_st* pContext)
+//---------------------------------------------------------------------------
+{
+	::EVP_MD_CTX_destroy(pContext);
+
+} // FreeContext
+#endif
+
 //---------------------------------------------------------------------------
 void KMessageDigestBase::Release() noexcept
 //---------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
-
-	if (evpctx)
-	{
-#if OPENSSL_VERSION_NUMBER < 0x010100000
-		::EVP_MD_CTX_destroy(evpctx);
-#else
-		::EVP_MD_CTX_free(evpctx);
-#endif
-		evpctx = nullptr;
-	}
-
-	DEKAF2_LOG_EXCEPTION
+	evpctx.reset();
 
 } // Release
 
@@ -109,12 +114,12 @@ void KMessageDigestBase::clear()
 	}
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000
-	const EVP_MD* md = ::EVP_MD_CTX_md(evpctx);
+	const EVP_MD* md = ::EVP_MD_CTX_md(evpctx.get());
 #else
-	const EVP_MD* md = ::EVP_MD_CTX_get0_md(evpctx);
+	const EVP_MD* md = ::EVP_MD_CTX_get0_md(evpctx.get());
 #endif
 
-	if (1 != ::EVP_DigestInit_ex(evpctx, md, nullptr))
+	if (1 != ::EVP_DigestInit_ex(evpctx.get(), md, nullptr))
 	{
 		Release();
 		SetError("failed");
@@ -122,30 +127,6 @@ void KMessageDigestBase::clear()
 	}
 
 } // clear
-
-//---------------------------------------------------------------------------
-KMessageDigestBase::KMessageDigestBase(KMessageDigestBase&& other) noexcept
-//---------------------------------------------------------------------------
-: evpctx(other.evpctx)
-, Updater(other.Updater)
-{
-	other.evpctx  = nullptr;
-	other.Updater = nullptr;
-
-} // move ctor
-
-//---------------------------------------------------------------------------
-KMessageDigestBase& KMessageDigestBase::operator=(KMessageDigestBase&& other) noexcept
-//---------------------------------------------------------------------------
-{
-	Release();
-	evpctx  = other.evpctx;
-	Updater = other.Updater;
-	other.evpctx  = nullptr;
-	other.Updater = nullptr;
-	return *this;
-
-} // move assignment
 
 //---------------------------------------------------------------------------
 bool KMessageDigestBase::Update(const void* pAddress, std::size_t iSize)
@@ -156,7 +137,7 @@ bool KMessageDigestBase::Update(const void* pAddress, std::size_t iSize)
 		return false;
 	}
 
-	if (1 != Updater(evpctx, pAddress, iSize))
+	if (1 != Updater(evpctx.get(), pAddress, iSize))
 	{
 		return SetError(GetOpenSSLError("update failed"));
 	}
@@ -180,7 +161,7 @@ bool KMessageDigestBase::Update(KInStream& InputStream)
 	{
 		auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
 
-		if (1 != Updater(evpctx, Buffer.data(), iReadChunk))
+		if (1 != Updater(evpctx.get(), Buffer.data(), iReadChunk))
 		{
 			return SetError(GetOpenSSLError("update failed"));
 		}
@@ -227,12 +208,14 @@ void KMessageDigest::clear()
 const KString& KMessageDigest::Digest() const
 //---------------------------------------------------------------------------
 {
-	if (m_sDigest.empty())
+	// without a context (after a failed construction, or after a move) the digest
+	// stays empty
+	if (m_sDigest.empty() && evpctx)
 	{
 		std::array<unsigned char, EVP_MAX_MD_SIZE> Buffer;
 		unsigned int iDigestLen;
 
-		if (1 != ::EVP_DigestFinal_ex(evpctx, Buffer.data(), &iDigestLen))
+		if (1 != ::EVP_DigestFinal_ex(evpctx.get(), Buffer.data(), &iDigestLen))
 		{
 			SetError(GetOpenSSLError("cannot read digest"));
 		}
@@ -258,6 +241,9 @@ KString KMessageDigest::HexDigest() const
 
 static_assert(std::is_nothrow_move_constructible<detail::KMessageDigestBase>::value,
 			  "KMessageDigestBase is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_assignable<detail::KMessageDigestBase>::value,
+			  "KMessageDigestBase is intended to be nothrow move assignable, but is not!");
 
 static_assert(std::is_nothrow_move_constructible<KMessageDigest>::value,
 			  "KMessageDigest is intended to be nothrow move constructible, but is not!");

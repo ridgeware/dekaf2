@@ -50,13 +50,13 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h>
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000L
 	struct hmac_ctx_st;
 #else
 	struct evp_mac_ctx_st;
-	struct evp_mac_st;
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -80,15 +80,11 @@ public:
 	/// copy construction
 	KHMAC(const KHMAC&) = delete;
 	/// move construction
-	KHMAC(KHMAC&&) noexcept;
-	~KHMAC()
-	{
-		Release();
-	}
+	KHMAC(KHMAC&&) = default;
 	/// copy assignment
 	KHMAC& operator=(const KHMAC&) = delete;
 	/// move assignment
-	KHMAC& operator=(KHMAC&&) noexcept;
+	KHMAC& operator=(KHMAC&&) = default;
 
 	/// appends a buffer to the digest
 	bool Update(const void* pAddress, std::size_t iSize);
@@ -133,10 +129,11 @@ protected:
 	void Release() noexcept;
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000L
-	hmac_ctx_st* m_hmacctx { nullptr };
+	static void FreeContext(hmac_ctx_st* pContext);
+	KUniquePtr<hmac_ctx_st, FreeContext> m_hmacctx;
 #else
-	evp_mac_ctx_st* m_hmacctx { nullptr };
-	evp_mac_st* m_hmac { nullptr };
+	static void FreeContext(evp_mac_ctx_st* pContext);
+	KUniquePtr<evp_mac_ctx_st, FreeContext> m_hmacctx;
 #endif
 
 	mutable KString m_sHMAC;

@@ -49,6 +49,7 @@
 #include <dekaf2/io/streams/kstream.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x010100000L
@@ -78,16 +79,11 @@ public:
 	/// copy construction
 	KMessageDigestBase(const KMessageDigestBase&) = delete;
 	/// move construction
-	KMessageDigestBase(KMessageDigestBase&&) noexcept;
-	// destruction
-	~KMessageDigestBase()
-	{
-		Release();
-	}
+	KMessageDigestBase(KMessageDigestBase&&) = default;
 	/// copy assignment
 	KMessageDigestBase& operator=(const KMessageDigestBase&) = delete;
 	/// move assignment
-	KMessageDigestBase& operator=(KMessageDigestBase&&) noexcept;
+	KMessageDigestBase& operator=(KMessageDigestBase&&) = default;
 
 	/// appends a buffer to the digest
 	bool Update(const void* pAddress, std::size_t iSize);
@@ -134,9 +130,11 @@ protected:
 	void Release() noexcept;
 
 #if OPENSSL_VERSION_NUMBER >= 0x010100000L
-	evp_md_ctx_st* evpctx { nullptr }; // is a EVP_MD_CTX
+	static void FreeContext(evp_md_ctx_st* pContext);
+	KUniquePtr<evp_md_ctx_st, FreeContext> evpctx; // is a EVP_MD_CTX
 #else
-	env_md_ctx_st* evpctx { nullptr }; // is a ENV_MD_CTX
+	static void FreeContext(env_md_ctx_st* pContext);
+	KUniquePtr<env_md_ctx_st, FreeContext> evpctx; // is a ENV_MD_CTX
 #endif
 	UpdateFunc Updater { nullptr }; // is a EVP_Update function
 

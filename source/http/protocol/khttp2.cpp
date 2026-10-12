@@ -454,15 +454,16 @@ Session::Session(KTLSStream& TLSStream, bool bIsClient, const KHTTPHeaders::Limi
 		return;
 	}
 
-#if NGHTTP2_VERSION_NUM >= 0x013d00
+#if DEKAF2_HAS_NGHTTP2_MAX_CONTINUATIONS
 	if (Limits.iMaxSectionSize)
 	{
-		// nghttp2 (since 1.61.0, CVE-2024-28182) accepts 8 CONTINUATION frames after a
-		// HEADERS frame - 144 KiB at the default frame size of 16 KiB, below the
-		// section limit. The encoded size of a section is never larger than its
-		// counted size (the HPACK framing of a field takes less than its 32 bytes of
-		// overhead), so this number of frames admits every section within the limit.
-		// Without a section limit the default of nghttp2 stays.
+		// nghttp2 (since 1.61.0, and older versions with a backport of the fix for
+		// CVE-2024-28182) accepts 8 CONTINUATION frames after a HEADERS frame -
+		// 144 KiB at the default frame size of 16 KiB, below the section limit. The
+		// encoded size of a section is never larger than its counted size (the HPACK
+		// framing of a field takes less than its 32 bytes of overhead), so this number
+		// of frames admits every section within the limit. Without a section limit the
+		// default of nghttp2 stays.
 		nghttp2_option_set_max_continuations(Option, (Limits.iMaxSectionSize + 16383) / 16384);
 	}
 #endif

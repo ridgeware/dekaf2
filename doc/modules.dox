@@ -167,14 +167,21 @@
 /// @defgroup http_protocol HTTP Protocol
 /// @ingroup http
 /// @brief Headers, methods, versions, request/response, HTTP/2, HTTP/3, chunked transfer, compression.
+///
+/// The limits for received headers are described in @ref http_header_limits.
 
 /// @defgroup http_client HTTP Client
 /// @ingroup http
 /// @brief HTTP and web client implementations.
+///
+/// The limits for received response headers and the transport errors of the client
+/// are described in @ref http_header_limits.
 
 /// @defgroup http_server HTTP Server
 /// @ingroup http
 /// @brief HTTP server, routing, CGI, filters, logging, and error handling.
+///
+/// The limits for received request headers are described in @ref http_header_limits.
 
 /// @defgroup http_cookie Cookies
 /// @ingroup http

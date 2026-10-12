@@ -107,7 +107,7 @@ if (WIN32)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.1.34 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.1.35 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1574,6 +1574,22 @@ if (DEKAF2_HAS_NGHTTP2)
 
 	if (NOT DEKAF2_HAS_NGHTTP2)
 		message(STATUS "dropped NGHTTP2 as it has an antique API")
+	endif()
+endif()
+
+if (DEKAF2_HAS_NGHTTP2)
+	# nghttp2 1.61.0 introduced the limit of CONTINUATION frames (CVE-2024-28182) with
+	# nghttp2_option_set_max_continuations() - distributions backported both to older
+	# versions, so check for the function, not for the version
+	try_compile(DEKAF2_HAS_NGHTTP2_MAX_CONTINUATIONS
+				"${DEKAF2_GENERATED_FILES_DIR}"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/nghttp2_max_continuations_test.cpp"
+				CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${NGHTTP2_INCLUDE_DIR}")
+
+	if (DEKAF2_HAS_NGHTTP2_MAX_CONTINUATIONS)
+		message(STATUS "NGHTTP2 can raise its limit of CONTINUATION frames")
+	else()
+		message(STATUS "NGHTTP2 cannot raise its limit of CONTINUATION frames")
 	endif()
 endif()
 

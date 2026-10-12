@@ -267,9 +267,25 @@ void RunHeaderLimitTests(KHTTPVersion Version, KStreamOptions::Options Option)
 	Check("fields" , Limits.iMaxFieldCount - Base.iFields     , KHTTPHeaders::NoError);
 	Check("fields" , Limits.iMaxFieldCount - Base.iFields + 1 , KHTTPHeaders::TooManyFields);
 
-	// the size of the section
-	Check("section", Limits.iMaxSectionSize - Base.iSize      , KHTTPHeaders::NoError);
-	Check("section", Limits.iMaxSectionSize - Base.iSize + 1  , KHTTPHeaders::SectionTooLarge);
+	// the size of the section - on HTTP/2 a section of 256 KiB needs more
+	// CONTINUATION frames than nghttp2 accepts by default since the fix for
+	// CVE-2024-28182, and without nghttp2_option_set_max_continuations() the
+	// client cannot raise that number
+	bool bSectionCases = true;
+
+#if !DEKAF2_HAS_NGHTTP2_MAX_CONTINUATIONS
+	if (Version == KHTTPVersion::http2)
+	{
+		WARN("nghttp2 cannot raise its limit of CONTINUATION frames, the section cases are skipped on HTTP/2");
+		bSectionCases = false;
+	}
+#endif
+
+	if (bSectionCases)
+	{
+		Check("section", Limits.iMaxSectionSize - Base.iSize      , KHTTPHeaders::NoError);
+		Check("section", Limits.iMaxSectionSize - Base.iSize + 1  , KHTTPHeaders::SectionTooLarge);
+	}
 
 	// interim responses
 	Check("interim", detail::iMaxInterimResponses             , KHTTPHeaders::NoError);
@@ -303,7 +319,11 @@ void RunHeaderLimitTests(KHTTPVersion Version, KStreamOptions::Options Option)
 
 	Check("field"  , Limits.iMaxFieldLength + 1               , KHTTPHeaders::NoError, Raised);
 	Check("fields" , Limits.iMaxFieldCount - Base.iFields + 1 , KHTTPHeaders::NoError, Raised);
-	Check("section", Limits.iMaxSectionSize - Base.iSize + 1  , KHTTPHeaders::NoError, Raised);
+
+	if (bSectionCases)
+	{
+		Check("section", Limits.iMaxSectionSize - Base.iSize + 1  , KHTTPHeaders::NoError, Raised);
+	}
 
 } // RunHeaderLimitTests
 

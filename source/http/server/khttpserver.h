@@ -141,8 +141,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// set the limits for the headers of received requests
-	/// @param Limits the limits, default KHTTPHeaders::DefaultRequestLimits
+	/// set the limits for the headers of received requests: the length of one field,
+	/// the number of fields, and the size of the header block (default
+	/// KHTTPHeaders::DefaultRequestLimits: 8 KiB, 500, 64 KiB). A value of 0 means
+	/// unlimited. GetParseErrorStatus() returns 431 for a request above a limit.
+	/// @param Limits the limits
+	/// @see @ref http_header_limits
 	void SetRequestHeaderLimits(const KHTTPHeaders::Limits& Limits)
 	//-----------------------------------------------------------------------------
 	{

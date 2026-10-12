@@ -1,0 +1,112 @@
+/// @page http_header_limits HTTP Header Limits
+///
+/// %dekaf2 limits the header blocks it receives: the requests a server receives and
+/// the responses a client receives. The two directions have separate limits with
+/// separate defaults, and the same limits apply to HTTP/1.1, HTTP/2 and HTTP/3.
+///
+/// @section hhl_limits Limits and Defaults
+///
+/// @ref dekaf2::KHTTPHeaders::Limits "KHTTPHeaders::Limits" holds three values. A
+/// value of 0 means unlimited.
+///
+/// | Limit                                               | Requests | Responses |
+/// |-----------------------------------------------------|----------|-----------|
+/// | `iMaxFieldLength`: the length of one field          | 8 KiB    | 64 KiB    |
+/// | `iMaxFieldCount`: the number of fields              | 500      | 500       |
+/// | `iMaxSectionSize`: the size of the header block     | 64 KiB   | 256 KiB   |
+///
+/// The defaults are
+/// @ref dekaf2::KHTTPHeaders::DefaultRequestLimits "KHTTPHeaders::DefaultRequestLimits"
+/// for servers and
+/// @ref dekaf2::KHTTPHeaders::DefaultResponseLimits "KHTTPHeaders::DefaultResponseLimits"
+/// for clients.
+///
+/// @section hhl_counting Counting
+///
+/// - The length of a field is the length of its name plus the length of its value.
+///   On HTTP/1.1 it is the length of the line as read, continuation lines included.
+/// - The size of a header block is counted as RFC 9113 section 6.5.2 and RFC 9114
+///   section 4.2.2 define the size of a field section: the sum over all fields of
+///   name length plus value length plus 32. HTTP/1.1 uses the same rule, so a value
+///   means the same on all three protocols. On HTTP/1.1 a line that is dropped
+///   because it is no valid field counts with its length plus 32.
+/// - On HTTP/2 and HTTP/3 the pseudo header fields, such as `:status`, count as fields.
+/// - Each header block is counted on its own: an interim (1xx) response and the final
+///   response each start a new count. A response may have at most 16 interim
+///   responses ahead of the final response.
+/// - The status line of a response is limited by `iMaxFieldLength`, the request line
+///   of a request by 65535 bytes.
+///
+/// @section hhl_server Server
+///
+/// A server sets the limits with
+/// @ref dekaf2::KRESTServer::Options::RequestHeaderLimits "KRESTServer::Options::RequestHeaderLimits",
+/// or with
+/// @ref dekaf2::KHTTPServer::SetRequestHeaderLimits "KHTTPServer::SetRequestHeaderLimits()".
+/// It answers a request
+///
+/// - above a header limit with 431 Request Header Fields Too Large,
+/// - with a request line above its limit with 414 URI Too Long,
+/// - with a malformed header block with 400 Bad Request,
+///
+/// and closes the connection after the answer. Request headers are parsed strictly
+/// (RFC 9112 sections 2.2 and 5): a line without a colon, a field name that is no
+/// token, whitespace between a name and its colon or before the first field, and
+/// continuation lines make a request malformed.
+///
+/// @section hhl_client Client
+///
+/// A client sets the limits with
+/// @ref dekaf2::KHTTPClient::SetResponseHeaderLimits "KHTTPClient::SetResponseHeaderLimits()",
+/// which @ref dekaf2::KWebClient "KWebClient" and @ref dekaf2::KRestClient "KRestClient"
+/// provide as well. A response above a limit fails with
+/// @ref dekaf2::KHTTPClient::TransportError "KHTTPClient::TransportError::HeaderLimit",
+/// @ref dekaf2::KHTTPHeaders::GetParseError "Response.GetParseError()" names the limit,
+/// and the error text names the limit and the size that exceeded it.
+///
+/// - On HTTP/2 the client resets the stream of the rejected response with
+///   ENHANCE_YOUR_CALM, on HTTP/3 with H3_EXCESSIVE_LOAD. The connection is not
+///   reused after the failed request, as after every transport error.
+/// - On HTTP/2 and HTTP/3 the client announces its limit for the header block size to
+///   the server: SETTINGS_MAX_HEADER_LIST_SIZE on HTTP/2, SETTINGS_MAX_FIELD_SECTION_SIZE
+///   on HTTP/3. It is taken from the limits that are set when the connection is
+///   established.
+/// - Since the fix for CVE-2024-28182 (nghttp2 1.61.0, and backports to older
+///   versions), nghttp2 accepts 8 CONTINUATION frames after a HEADERS frame, which
+///   limits an HTTP/2 header block to about 144 KiB on the wire. The client raises
+///   that number from the limit for the header block size, also when the connection
+///   is established. An nghttp2 that has the fix but not the function
+///   `nghttp2_option_set_max_continuations()` ends the connection for a larger header
+///   block, and the request fails with `TransportError::Read`.
+/// - nghttp2 and nghttp3 reject a field whose encoded name or value exceeds 64 KiB, and
+///   nghttp3 also a field whose encoded name exceeds 256 bytes. They end the connection,
+///   and the request fails with `TransportError::Read`. With a field limit above
+///   64 KiB, HTTP/2 and HTTP/3 therefore accept a larger field only if its Huffman
+///   coding brings the encoded size below 64 KiB.
+///
+/// Failures of the client side are reported apart from the HTTP status:
+/// @ref dekaf2::KHTTPClient::GetStatusCode "KHTTPClient::GetStatusCode()" returns the
+/// status that the server sent, or 0 if no status arrived, and
+/// @ref dekaf2::KHTTPClient::GetTransportError "KHTTPClient::GetTransportError()"
+/// returns the failure of the client side.
+/// @ref dekaf2::KHTTPClient::HttpSuccess "KHTTPClient::HttpSuccess()" is true if there
+/// was no transport error and the status is 2xx. KRestClient throws 502 Bad Gateway
+/// for a transport error.
+///
+/// @section hhl_changes Changes for Existing Code
+///
+/// The limits are new in %dekaf2 2.1.35. Before, HTTP/1.1 limited a header line to
+/// 8 KiB and a header block to 500 fields in both directions, and HTTP/2 and HTTP/3
+/// responses were not limited.
+///
+/// - Responses over HTTP/2 and HTTP/3 are limited to 256 KiB per header block. A
+///   client that receives larger header blocks has to raise the limit.
+
+/// - A server rejects a request whose header block exceeds 64 KiB. Before, a header
+///   block could reach 4 MiB, for example with nine cookie lines of 8 KiB each.
+/// - A server answers a request above a header limit with 431, and one with a request
+///   line above its limit with 414. Both were answered with 400 before.
+/// - A client failure was reported as status 598. During a transition period, a
+///   transport error other than `TransportError::Connect` still replaces a missing or
+///   a 2xx status with 598. This will be removed: test HttpSuccess() or
+///   GetTransportError() instead of status 598.

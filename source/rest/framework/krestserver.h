@@ -248,7 +248,7 @@ public:
 		/// Limits for the headers of received requests: length of one field, number of
 		/// fields, and size of the header block (default KHTTPHeaders::DefaultRequestLimits:
 		/// 8 KiB, 500, 64 KiB). A request above a limit is answered with 431. Set a
-		/// value to 0 for unlimited.
+		/// value to 0 for unlimited. See @ref http_header_limits.
 		KHTTPHeaders::Limits RequestHeaderLimits { KHTTPHeaders::DefaultRequestLimits };
 		/// Rate limiter shared across all connections. Set to a non-null shared_ptr
 		/// with a configured KRateLimiter to enable per-IP request throttling.

@@ -480,8 +480,11 @@ public:
 	/// the number of fields, and the size of the header block (default
 	/// KHTTPHeaders::DefaultResponseLimits: 64 KiB, 500, 256 KiB). A response above a
 	/// limit fails with TransportError::HeaderLimit, Response.GetParseError() names the
-	/// limit. A value of 0 means unlimited.
+	/// limit. A value of 0 means unlimited. On HTTP/2 and HTTP/3 the size of the header
+	/// block is also announced to the server, with the limits that are set when the
+	/// connection is established.
 	/// @param Limits the limits
+	/// @see @ref http_header_limits
 	self& SetResponseHeaderLimits(const KHTTPHeaders::Limits& Limits)
 	//-----------------------------------------------------------------------------
 	{

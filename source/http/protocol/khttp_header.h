@@ -967,7 +967,11 @@ public:
 	using KHeaderMap = KProps<KHTTPHeader, KString, /*Sequential =*/ true, /*Unique =*/ false>; // case insensitive map for header info
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// the limits for one received header block, a value of 0 means unlimited
+	/// the limits for one received header block, a value of 0 means unlimited. They
+	/// apply to HTTP/1.1, HTTP/2 and HTTP/3 alike: on HTTP/2 and HTTP/3 the pseudo
+	/// header fields count as fields, and each block of a response - an interim
+	/// response, the final response - is counted on its own.
+	/// @see @ref http_header_limits
 	struct Limits
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -977,9 +981,10 @@ public:
 		std::size_t iMaxFieldLength { 0 };
 		/// the maximum number of fields
 		std::size_t iMaxFieldCount  { 0 };
-		/// the maximum size of the block, counted as RFC 9113 section 6.5.2 defines
-		/// it: the sum over all fields of name length plus value length plus 32. On
-		/// HTTP/1.1 a dropped line that is no valid field counts with its length plus 32.
+		/// the maximum size of the block, counted as RFC 9113 section 6.5.2 and RFC 9114
+		/// section 4.2.2 define it: the sum over all fields of name length plus value
+		/// length plus 32. On HTTP/1.1 a dropped line that is no valid field counts with
+		/// its length plus 32.
 		std::size_t iMaxSectionSize { 0 };
 	};
 
@@ -997,7 +1002,7 @@ public:
 		FieldTooLong,            ///< a field exceeded Limits::iMaxFieldLength
 		TooManyFields,           ///< the block had more fields than Limits::iMaxFieldCount
 		SectionTooLarge,         ///< the block exceeded Limits::iMaxSectionSize
-		TooManyInterimResponses, ///< a response had more 1xx interim responses than permitted
+		TooManyInterimResponses, ///< a response had more than 16 1xx interim responses
 		Malformed                ///< the block or its start line was malformed, the error text names the cause
 	};
 

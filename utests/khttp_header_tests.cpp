@@ -375,7 +375,7 @@ TEST_CASE("KHTTPHeaders::Parse")
 		CHECK ( Headers.GetParseError() == KHTTPHeaders::NoError );
 	}
 
-	SECTION("malformed blocks")
+	SECTION("malformed and incomplete blocks")
 	{
 		{
 			KInStringStream iss("Content-Length : 5\r\n\r\n");
@@ -394,21 +394,24 @@ TEST_CASE("KHTTPHeaders::Parse")
 			KInStringStream iss("Host: localhost\r\n");
 			KHTTPHeaders Headers;
 			CHECK ( Headers.Parse(iss) == false );
-			CHECK ( Headers.GetParseError() == KHTTPHeaders::Malformed );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::Incomplete );
 		}
 	}
 
 	SECTION("field length")
 	{
-		// the line has 20 bytes, name plus value 18 - KInStringStream reads from a
-		// view, so the input must outlive the stream
-		KString sBlock = "Abcd: 0123456789abcd\r\n\r\n";
+		// the first line has 20 bytes, name plus value 18 - KInStringStream reads
+		// from a view, so the input must outlive the stream
+		KString sBlock = "Abcd: 0123456789abcd\r\nNext: 1\r\n\r\n";
 
 		{
+			// a line of exactly the limit must be read with its line end, or the
+			// following line would be lost
 			KInStringStream iss(sBlock);
 			KHTTPHeaders Headers;
 			CHECK ( Headers.Parse(iss, { 20, 0, 0 }) == true );
 			CHECK ( Headers.Headers.Get("Abcd") == "0123456789abcd" );
+			CHECK ( Headers.Headers.Get("Next") == "1" );
 		}
 		{
 			// the line is one byte too long, although name plus value would fit

@@ -250,15 +250,18 @@ void KInHTTPRequestLine::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequestHeaders::Parse(KInStream& Stream)
+bool KHTTPRequestHeaders::Parse(KInStream& Stream, const Limits& Limits)
 //-----------------------------------------------------------------------------
 {
+	ClearParseError();
+
 	KString sLine;
 
 	// make sure we detect an empty header
 	Stream.SetReaderRightTrim("\r\n");
 
-	if (!Stream.ReadLine(sLine, KInHTTPRequestLine::MAX_REQUESTLINELENGTH + 1))
+	// the limit plus CR and LF, see KHTTPHeaders::Parse()
+	if (!Stream.ReadLine(sLine, KInHTTPRequestLine::MAX_REQUESTLINELENGTH + 2))
 	{
 		// this is simply a read timeout, probably on a keep-alive
 		// connection, or the connection close in a CGI environment.
@@ -271,17 +274,18 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 		{
 			kDebug (2, "cannot read from input stream");
 		}
-		return SetError("");
+		return SetParseError(Incomplete, "");
 	}
 
 	if (sLine.empty())
 	{
-		return SetError("empty request line");
+		return SetParseError(Malformed, "empty request line");
 	}
 
 	if (sLine.size() > KInHTTPRequestLine::MAX_REQUESTLINELENGTH)
 	{
-		return SetError(kFormat("HTTP request line too long: {} bytes", sLine.size()));
+		// the line was not read to its end, so its full length is not known
+		return SetParseError(StartLineTooLong, kFormat("HTTP request line longer than {} bytes", KInHTTPRequestLine::MAX_REQUESTLINELENGTH));
 	}
 
 	// analyze method and resource
@@ -289,7 +293,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	if (!KASCII::kIsUpper(sLine.front()))
 	{
-		return SetError(kFormat("request line does not start with a valid character: {}", kEscapeForLogging(sLine.Left(20))));
+		return SetParseError(Malformed, kFormat("request line does not start with a valid character: {}", kEscapeForLogging(sLine.Left(20))));
 	}
 
 	auto Words = RequestLine.Parse(std::move(sLine));
@@ -300,11 +304,11 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 		kDebug (2, RequestLine.Get());
 		if (!Words.empty())
 		{
-			return SetError(kFormat("invalid request line: {} words instead of 3: {}", Words.size(), kEscapeForLogging(RequestLine.Get().Left(40))));
+			return SetParseError(Malformed, kFormat("invalid request line: {} words instead of 3: {}", Words.size(), kEscapeForLogging(RequestLine.Get().Left(40))));
 		}
 		else
 		{
-			return SetError("invalid request line");
+			return SetParseError(Malformed, "invalid request line");
 		}
 	}
 
@@ -316,7 +320,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	if (GetHTTPVersion() == KHTTPVersion::none)
 	{
-		return SetError(kFormat("invalid HTTP version: {}", kEscapeForLogging(Words[2])));
+		return SetParseError(Malformed, kFormat("invalid HTTP version: {}", kEscapeForLogging(Words[2])));
 	}
 
 	if ((GetHTTPVersion() & (KHTTPVersion::http2 | KHTTPVersion::http3)) != 0)
@@ -325,10 +329,10 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 		// them would be framed as if it had no body (the input filter ignores
 		// Transfer-Encoding for those versions), leaving the body to be read as
 		// the next request
-		return SetError("HTTP/2 and HTTP/3 have no text request line");
+		return SetParseError(Malformed, "HTTP/2 and HTTP/3 have no text request line");
 	}
 
-	if (!KHTTPHeaders::Parse(Stream, DefaultRequestLimits, true))
+	if (!KHTTPHeaders::Parse(Stream, Limits, true))
 	{
 		// error is already set
 		return false;
@@ -343,18 +347,18 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	if (Hosts.first == Hosts.second)
 	{
-		return SetError("no Host header");
+		return SetParseError(Malformed, "no Host header");
 	}
 
 	if (std::next(Hosts.first) != Hosts.second)
 	{
 		// RFC 9112 3.2 - intermediaries may route on either one
-		return SetError("multiple Host headers");
+		return SetParseError(Malformed, "multiple Host headers");
 	}
 
 	if (Hosts.first->second.empty())
 	{
-		return SetError("empty host header");
+		return SetParseError(Malformed, "empty host header");
 	}
 
 	return true;
@@ -567,7 +571,7 @@ bool KInHTTPRequest::Parse()
 {
 	if ((GetHTTPVersion() & (KHTTPVersion::http2 | KHTTPVersion::http3)) == 0)
 	{
-		if (!KHTTPRequestHeaders::Parse(UnfilteredStream()))
+		if (!KHTTPRequestHeaders::Parse(UnfilteredStream(), m_HeaderLimits))
 		{
 			return false;
 		}
@@ -576,11 +580,8 @@ bool KInHTTPRequest::Parse()
 	// analyze the headers for the filter chain
 	if (!KInHTTPFilter::Parse(*this, 0, GetHTTPVersion()))
 	{
-		if (Error().empty())
-		{
-			return SetError("invalid message framing (Content-Length / Transfer-Encoding)");
-		}
-		return false;
+		// the filter does not set an error text
+		return SetParseError(Malformed, "invalid message framing (Content-Length / Transfer-Encoding)");
 	}
 
 	return true;

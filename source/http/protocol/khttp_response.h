@@ -74,7 +74,11 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	bool Parse(KInStream& Stream);
+	/// parses the status line and the headers from Stream, skipping up to 16 1xx
+	/// interim responses
+	/// @param Stream the input stream
+	/// @param Limits the limits for each header block, default DefaultResponseLimits
+	bool Parse(KInStream& Stream, const Limits& Limits = DefaultResponseLimits);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -279,6 +283,23 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// set the limits for the headers of the received response
+	/// @param Limits the limits, default DefaultResponseLimits
+	void SetHeaderLimits(const Limits& Limits)
+	//-----------------------------------------------------------------------------
+	{
+		m_HeaderLimits = Limits;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns the limits for the headers of the received response
+	const Limits& GetHeaderLimits() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_HeaderLimits;
+	}
+
+	//-----------------------------------------------------------------------------
 	// overwrite the KInHTTPFilter version of Fail(), we need to manipulate the
 	// status code in KHTTPResponseHeaders
 	bool Fail() const;
@@ -302,7 +323,7 @@ protected:
 	bool Parse(KInStream& Stream)
 	//-----------------------------------------------------------------------------
 	{
-		return KHTTPResponseHeaders::Parse(Stream);
+		return KHTTPResponseHeaders::Parse(Stream, m_HeaderLimits);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -312,6 +333,12 @@ protected:
 	{
 		return KHTTPResponseHeaders::Serialize(Stream);
 	}
+
+//----------
+private:
+//----------
+
+	Limits m_HeaderLimits { DefaultResponseLimits };
 
 };
 

@@ -130,7 +130,11 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	bool Parse(KInStream& Stream);
+	/// parses the request line and the headers from Stream - the headers in the
+	/// strict mode of KHTTPHeaders::Parse()
+	/// @param Stream the input stream
+	/// @param Limits the limits for the header block, default DefaultRequestLimits
+	bool Parse(KInStream& Stream, const Limits& Limits = DefaultRequestLimits);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -324,6 +328,23 @@ public:
 	KStringView GetCookie (KStringView sCookieName) const;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// set the limits for the headers of the received request
+	/// @param Limits the limits, default DefaultRequestLimits
+	void SetHeaderLimits(const Limits& Limits)
+	//-----------------------------------------------------------------------------
+	{
+		m_HeaderLimits = Limits;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns the limits for the headers of the received request
+	const Limits& GetHeaderLimits() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_HeaderLimits;
+	}
+
 //----------
 protected:
 //----------
@@ -333,7 +354,7 @@ protected:
 	bool Parse(KInStream& Stream)
 	//-----------------------------------------------------------------------------
 	{
-		return KHTTPRequestHeaders::Parse(Stream);
+		return KHTTPRequestHeaders::Parse(Stream, m_HeaderLimits);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -343,6 +364,12 @@ protected:
 	{
 		return KHTTPRequestHeaders::Serialize(Stream);
 	}
+
+//----------
+private:
+//----------
+
+	Limits m_HeaderLimits { DefaultRequestLimits };
 
 }; // KInHTTPRequest
 

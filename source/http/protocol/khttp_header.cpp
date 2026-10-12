@@ -352,7 +352,11 @@ KString KHTTPHeaders::Counter::GetErrorText() const
 {
 	switch (m_ParseError)
 	{
+		// the counter only checks the three limits
 		case NoError:
+		case Incomplete:
+		case StartLineTooLong:
+		case TooManyInterimResponses:
 		case Malformed:
 			break;
 
@@ -434,7 +438,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream, const Limits& Limits, bool bStrict)
 		clear();
 	}
 
-	m_ParseError = NoError;
+	ClearParseError();
 
 	// make sure we detect an empty header
 	Stream.SetReaderRightTrim("\r\n");
@@ -443,8 +447,11 @@ bool KHTTPHeaders::Parse(KInStream& Stream, const Limits& Limits, bool bStrict)
 	KHeaderMap::iterator last = Headers.end();
 	Counter Count(Limits);
 
-	// one byte more than the limit, to detect a line that exceeds it
-	const auto iMaxRead = Limits.iMaxFieldLength ? Limits.iMaxFieldLength + 1 : npos;
+	// the limit plus CR and LF: a line of exactly the limit is read to its end,
+	// and a longer line is read with more than the limit. ReadLine() counts the
+	// line end - with only one byte more, the LF of a line of the limit would
+	// stay in the stream and end the header block early.
+	const auto iMaxRead = Limits.iMaxFieldLength ? Limits.iMaxFieldLength + 2 : npos;
 
 	while (Stream.ReadLine(sLine, iMaxRead))
 	{
@@ -568,7 +575,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream, const Limits& Limits, bool bStrict)
 		last = Headers.Add(sKey, sValue);
 	}
 
-	return SetParseError(Malformed, "HTTP header did not end with empty line");
+	return SetParseError(Incomplete, "HTTP header did not end with empty line");
 
 } // Parse
 

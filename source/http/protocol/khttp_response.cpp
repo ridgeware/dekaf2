@@ -47,7 +47,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 
 //-----------------------------------------------------------------------------
-bool KHTTPResponseHeaders::Parse(KInStream& Stream)
+bool KHTTPResponseHeaders::Parse(KInStream& Stream, const Limits& Limits)
 //-----------------------------------------------------------------------------
 {
 	// A server may send any number of 1xx interim responses ahead of the final
@@ -56,28 +56,39 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 	// interim, it is the final response to an upgrade request.
 	static constexpr uint16_t iMaxInterimResponses = 16;
 
+	ClearParseError();
+
 	// make sure we detect an empty header
 	Stream.SetReaderRightTrim("\r\n");
+
+	// the limit plus CR and LF, see KHTTPHeaders::Parse()
+	const auto iMaxRead = Limits.iMaxFieldLength ? Limits.iMaxFieldLength + 2 : npos;
 
 	for (uint16_t iInterimResponse = 0; ; ++iInterimResponse)
 	{
 		KString sLine;
 
-		if (!Stream.ReadLine(sLine))
+		if (!Stream.ReadLine(sLine, iMaxRead))
 		{
 			if (iInterimResponse == 0)
 			{
 				// this is simply a read timeout, probably on a keep-alive
 				// connection. Unset the error string and return false;
-				return SetError("");
+				return SetParseError(Incomplete, "");
 			}
 
-			return SetError("read error after interim response");
+			return SetParseError(Incomplete, "read error after interim response");
 		}
 
 		if (sLine.empty())
 		{
-			return SetError("empty status line");
+			return SetParseError(Malformed, "empty status line");
+		}
+
+		if (Limits.iMaxFieldLength && sLine.size() > Limits.iMaxFieldLength)
+		{
+			// the line was not read to its end, so its full length is not known
+			return SetParseError(StartLineTooLong, kFormat("HTTP status line longer than {} bytes", Limits.iMaxFieldLength));
 		}
 
 		// analyze protocol and status
@@ -88,7 +99,7 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 		if (Words.size() < 2)
 		{
 			// garbage, bail out
-			return SetError("cannot read HTTP response status");
+			return SetParseError(Malformed, "cannot read HTTP response status");
 		}
 
 		SetHTTPVersion(Words[0]);
@@ -109,11 +120,12 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 
 		if (GetHTTPVersion() == KHTTPVersion::none)
 		{
-			return SetError(kFormat("invalid HTTP version: {}", Words[0]));
+			return SetParseError(Malformed, kFormat("invalid HTTP version: {}", Words[0]));
 		}
 
-		// KHTTPHeaders::Parse() drops the headers of a preceding interim response
-		if (!KHTTPHeaders::Parse(Stream, DefaultResponseLimits))
+		// KHTTPHeaders::Parse() drops the headers of a preceding interim response,
+		// each header block is counted on its own
+		if (!KHTTPHeaders::Parse(Stream, Limits))
 		{
 			return false;
 		}
@@ -125,7 +137,7 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 
 		if (iInterimResponse >= iMaxInterimResponses)
 		{
-			return SetError(kFormat("more than {} interim responses", iMaxInterimResponses));
+			return SetParseError(TooManyInterimResponses, kFormat("more than {} interim responses", iMaxInterimResponses));
 		}
 
 		kDebug(2, "skipping interim response: {} {}", iStatusCode, sStatusString);
@@ -230,7 +242,7 @@ bool KInHTTPResponse::Parse()
 {
 	if ((GetHTTPVersion() & (KHTTPVersion::http2 | KHTTPVersion::http3)) == 0)
 	{
-		if (!KHTTPResponseHeaders::Parse(UnfilteredStream()))
+		if (!KHTTPResponseHeaders::Parse(UnfilteredStream(), m_HeaderLimits))
 		{
 			return false;
 		}

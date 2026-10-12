@@ -972,7 +972,8 @@ public:
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 		/// the maximum length of one field, counted as name plus value. On HTTP/1.1
-		/// it is also the maximum length of a header line as read.
+		/// it is also the maximum length of a header line as read, and of the status
+		/// line of a response.
 		std::size_t iMaxFieldLength { 0 };
 		/// the maximum number of fields
 		std::size_t iMaxFieldCount  { 0 };
@@ -990,11 +991,14 @@ public:
 	/// the reason why a received header block was rejected
 	enum ParseError : uint8_t
 	{
-		NoError,         ///< the block was not rejected
-		FieldTooLong,    ///< a field exceeded Limits::iMaxFieldLength
-		TooManyFields,   ///< the block had more fields than Limits::iMaxFieldCount
-		SectionTooLarge, ///< the block exceeded Limits::iMaxSectionSize
-		Malformed        ///< the block was malformed or incomplete, the error text names the cause
+		NoError,                 ///< the block was not rejected
+		Incomplete,              ///< the input ended before the block was complete: the connection closed or a read timed out
+		StartLineTooLong,        ///< the request line or the status line exceeded its limit
+		FieldTooLong,            ///< a field exceeded Limits::iMaxFieldLength
+		TooManyFields,           ///< the block had more fields than Limits::iMaxFieldCount
+		SectionTooLarge,         ///< the block exceeded Limits::iMaxSectionSize
+		TooManyInterimResponses, ///< a response had more 1xx interim responses than permitted
+		Malformed                ///< the block or its start line was malformed, the error text names the cause
 	};
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1227,6 +1231,11 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// sets the reason and the error text of a failed parse, always returns false
 	bool SetParseError(ParseError Error, KStringViewZ sError);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// resets the reason of a failed parse, at the start of a new parse
+	void ClearParseError() { m_ParseError = NoError; }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

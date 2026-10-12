@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/http/protocol/khttp_request.h>
+#include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 
@@ -235,5 +236,153 @@ TEST_CASE("KInHTTPRequestLine::GetQuery")
 		RL.Parse("GET / HTTP/1.1");
 		CHECK ( RL.GetQuery().empty() );
 		CHECK ( RL.GetPath() == "/" );
+	}
+}
+
+TEST_CASE("KHTTPRequest limits")
+{
+	SECTION("default limits")
+	{
+		KInHTTPRequest Request;
+		CHECK ( Request.GetHeaderLimits().iMaxFieldLength == KHTTPHeaders::DefaultRequestLimits.iMaxFieldLength );
+		CHECK ( Request.GetHeaderLimits().iMaxFieldCount  == KHTTPHeaders::DefaultRequestLimits.iMaxFieldCount  );
+		CHECK ( Request.GetHeaderLimits().iMaxSectionSize == KHTTPHeaders::DefaultRequestLimits.iMaxSectionSize );
+	}
+
+	SECTION("a well formed request")
+	{
+		// KInStringStream reads from a view, so the input must outlive the stream
+		KString sRaw = "GET /path HTTP/1.1\r\nHost: localhost\r\n\r\n";
+		KInStringStream iss(sRaw);
+		KInHTTPRequest Request(iss);
+		CHECK ( Request.Parse() == true );
+		CHECK ( Request.GetParseError() == KHTTPHeaders::NoError );
+		CHECK ( Request.Headers.Get(KHTTPHeader::HOST) == "localhost" );
+	}
+
+	SECTION("the request line has its own limit")
+	{
+		// "GET /" and " HTTP/1.1" have 14 bytes
+		KString sPath(KInHTTPRequestLine::MAX_REQUESTLINELENGTH - 14, 'a');
+		KString sRaw = "GET /" + sPath + " HTTP/1.1\r\nHost: localhost\r\n\r\n";
+
+		{
+			// a request line of exactly the limit
+			KInStringStream iss(sRaw);
+			KInHTTPRequest Request(iss);
+			CHECK ( Request.Parse() == true );
+			CHECK ( Request.Headers.Get(KHTTPHeader::HOST) == "localhost" );
+		}
+
+		sRaw = "GET /a" + sPath + " HTTP/1.1\r\nHost: localhost\r\n\r\n";
+
+		{
+			KInStringStream iss(sRaw);
+			KInHTTPRequest Request(iss);
+			CHECK ( Request.Parse() == false );
+			CHECK ( Request.GetParseError() == KHTTPHeaders::StartLineTooLong );
+			CHECK ( Request.Error() == "HTTP request line longer than 65535 bytes" );
+		}
+	}
+
+	SECTION("a field line of 8 KiB is accepted, one byte more is not")
+	{
+		// the long line comes first - its line end must be consumed, or the Host
+		// header behind it would be lost
+		KString sRaw = "GET / HTTP/1.1\r\nX: " + KString(8 * 1024 - 3, 'a') + "\r\nHost: localhost\r\n\r\n";
+
+		{
+			KInStringStream iss(sRaw);
+			KInHTTPRequest Request(iss);
+			CHECK ( Request.Parse() == true );
+			CHECK ( Request.Headers.Get(KHTTPHeader::HOST) == "localhost" );
+		}
+
+		sRaw = "GET / HTTP/1.1\r\nX: " + KString(8 * 1024 - 2, 'a') + "\r\nHost: localhost\r\n\r\n";
+
+		{
+			KInStringStream iss(sRaw);
+			KInHTTPRequest Request(iss);
+			CHECK ( Request.Parse() == false );
+			CHECK ( Request.GetParseError() == KHTTPHeaders::FieldTooLong );
+		}
+		{
+			// a raised limit accepts it
+			KInStringStream iss(sRaw);
+			KInHTTPRequest Request(iss);
+			Request.SetHeaderLimits({ 16 * 1024, 500, 64 * 1024 });
+			CHECK ( Request.Parse() == true );
+		}
+	}
+
+	SECTION("field count and section size")
+	{
+		// "Host: localhost" counts 4 + 9 + 32 = 45 bytes, "A: 1" 1 + 1 + 32 = 34
+		KString sRaw = "GET / HTTP/1.1\r\nHost: localhost\r\nA: 1\r\n\r\n";
+
+		{
+			KInStringStream iss(sRaw);
+			KInHTTPRequest Request(iss);
+			Request.SetHeaderLimits({ 0, 1, 0 });
+			CHECK ( Request.Parse() == false );
+			CHECK ( Request.GetParseError() == KHTTPHeaders::TooManyFields );
+		}
+		{
+			KInStringStream iss(sRaw);
+			KInHTTPRequest Request(iss);
+			Request.SetHeaderLimits({ 0, 0, 79 });
+			CHECK ( Request.Parse() == true );
+		}
+		{
+			KInStringStream iss(sRaw);
+			KInHTTPRequest Request(iss);
+			Request.SetHeaderLimits({ 0, 0, 78 });
+			CHECK ( Request.Parse() == false );
+			CHECK ( Request.GetParseError() == KHTTPHeaders::SectionTooLarge );
+		}
+	}
+
+	SECTION("incomplete and malformed requests")
+	{
+		struct Case { KStringView sRaw; KHTTPHeaders::ParseError Error; };
+
+		std::vector<Case> Cases
+		{
+			{ "",                                                         KHTTPHeaders::Incomplete },
+			{ "GET / HTTP/1.1\r\nHost: localhost\r\n",                    KHTTPHeaders::Incomplete },
+			{ "\r\n",                                                     KHTTPHeaders::Malformed  },
+			{ "get / HTTP/1.1\r\nHost: localhost\r\n\r\n",                KHTTPHeaders::Malformed  },
+			{ "GET /\r\nHost: localhost\r\n\r\n",                         KHTTPHeaders::Malformed  },
+			{ "GET / HTTP/9.9\r\nHost: localhost\r\n\r\n",                KHTTPHeaders::Malformed  },
+			{ "GET / HTTP/1.1\r\n\r\n",                                   KHTTPHeaders::Malformed  },
+			{ "GET / HTTP/1.1\r\nHost: a\r\nHost: b\r\n\r\n",             KHTTPHeaders::Malformed  },
+			{ "GET / HTTP/1.1\r\nHost: localhost\r\nno colon\r\n\r\n",    KHTTPHeaders::Malformed  },
+			{ "GET / HTTP/1.1\r\nHost: localhost\r\nX: 1\r\n 2\r\n\r\n",  KHTTPHeaders::Malformed  },
+			{ "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1\r\nTransfer-Encoding: chunked\r\n\r\n", KHTTPHeaders::Malformed },
+		};
+
+		for (const auto& Case : Cases)
+		{
+			INFO ( Case.sRaw );
+			KInStringStream iss(Case.sRaw);
+			KInHTTPRequest Request(iss);
+			CHECK ( Request.Parse() == false );
+			CHECK ( Request.GetParseError() == Case.Error );
+		}
+	}
+
+	SECTION("a new parse resets the reason")
+	{
+		KString sBad  = "GET / HTTP/1.1\r\n\r\n";
+		KString sGood = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
+		KHTTPRequestHeaders Request;
+
+		KInStringStream iss1(sBad);
+		CHECK ( Request.Parse(iss1) == false );
+		CHECK ( Request.GetParseError() == KHTTPHeaders::Malformed );
+
+		KInStringStream iss2(sGood);
+		CHECK ( Request.Parse(iss2) == true );
+		CHECK ( Request.GetParseError() == KHTTPHeaders::NoError );
 	}
 }

@@ -132,6 +132,24 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// after a failed Parse(): returns the status to answer the request with - 431
+	/// for an exceeded header limit, 414 for a request line that is too long, 400 for
+	/// a malformed request or one that ended within its headers, and 0 if not even the
+	/// request line arrived (the connection closed or a read timed out), which gets no
+	/// answer
+	uint16_t GetParseErrorStatus() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// set the limits for the headers of received requests
+	/// @param Limits the limits, default KHTTPHeaders::DefaultRequestLimits
+	void SetRequestHeaderLimits(const KHTTPHeaders::Limits& Limits)
+	//-----------------------------------------------------------------------------
+	{
+		Request.SetHeaderLimits(Limits);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// write reponse headers (and setup the filtered output stream)
 	/// @return true if response could be serialized, false otherwise
 	bool Serialize();

@@ -965,6 +965,80 @@ x-klog: -level 1
 		CHECK ( sResponse.contains("HTTP/1.1 200") );
 	}
 
+	SECTION("request header limits")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			http.json.tx["status"] = "ok";
+		}});
+
+		// a header line of 8 KiB is accepted, one byte more is answered with 431
+		auto sResponse = RunRequest("GET /test HTTP/1.1\r\nHost: localhost\r\nX: " + KString(8 * 1024 - 3, 'a') + "\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+
+		KString sLongField = "GET /test HTTP/1.1\r\nHost: localhost\r\nX: " + KString(8 * 1024 - 2, 'a') + "\r\n\r\n";
+		sResponse = RunRequest(sLongField, Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 431") );
+		CHECK ( sResponse.contains("connection: close") );
+
+		// too many fields
+		KString sManyFields = "GET /test HTTP/1.1\r\nHost: localhost\r\n";
+
+		for (int i = 0; i < 500; ++i)
+		{
+			sManyFields += kFormat("X-{}: {}\r\n", i, i);
+		}
+
+		sManyFields += "\r\n";
+		sResponse = RunRequest(sManyFields, Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 431") );
+
+		// ten fields of 7000 bytes each stay below the field limit, but exceed the
+		// section limit of 64 KiB
+		KString sLargeSection = "GET /test HTTP/1.1\r\nHost: localhost\r\n";
+
+		for (int i = 0; i < 10; ++i)
+		{
+			sLargeSection += kFormat("X-{}: {}\r\n", i, KString(7000, 'a'));
+		}
+
+		sLargeSection += "\r\n";
+		sResponse = RunRequest(sLargeSection, Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 431") );
+
+		// a request line that is too long is answered with 414
+		sResponse = RunRequest("GET /test?" + KString(KInHTTPRequestLine::MAX_REQUESTLINELENGTH, 'a') + " HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 414") );
+
+		// a malformed request is answered with 400
+		sResponse = RunRequest("GET /test HTTP/1.1\r\nHost: localhost\r\nno colon\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+
+		// a request that ends within its headers is answered with 400 - read from a
+		// file or a CGI input, the answer informs the sender
+		sResponse = RunRequest("GET /test HTTP/1.1\r\nHost: localhost\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+		CHECK ( sResponse.contains("did not end with empty line") );
+
+		// no request at all gets no answer
+		sResponse = RunRequest("", Routes, Options);
+		CHECK ( sResponse.empty() );
+
+		// raised limits accept the same requests
+		Options.RequestHeaderLimits = { 16 * 1024, 1000, 128 * 1024 };
+
+		sResponse = RunRequest(sLongField, Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+
+		sResponse = RunRequest(sManyFields, Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+
+		sResponse = RunRequest(sLargeSection, Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+	}
+
 	SECTION("whitespace between header name and colon is rejected")
 	{
 		KRESTServer::Options Options;

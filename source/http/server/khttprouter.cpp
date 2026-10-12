@@ -247,7 +247,15 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 
 		if (!KHTTPServer::Parse())
 		{
-			throw KHTTPError  { KHTTPError::H4xx_BADREQUEST, KHTTPServer::Error() };
+			auto iStatus = KHTTPServer::GetParseErrorStatus();
+
+			if (!iStatus)
+			{
+				// no request arrived - the connection closed or timed out
+				return false;
+			}
+
+			throw KHTTPError  { iStatus, KHTTPServer::Error() };
 		}
 
 		Response.SetStatus(200, "OK");

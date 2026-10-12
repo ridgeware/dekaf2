@@ -245,6 +245,11 @@ public:
 		/// Maximum request body size in bytes (default 256 MB). Set to 0 for unlimited.
 		/// Can be overridden per route with KRESTRoute::iMaxRequestBodySize.
 		std::size_t iMaxRequestBodySize { 256 * 1024 * 1024 };
+		/// Limits for the headers of received requests: length of one field, number of
+		/// fields, and size of the header block (default KHTTPHeaders::DefaultRequestLimits:
+		/// 8 KiB, 500, 64 KiB). A request above a limit is answered with 431. Set a
+		/// value to 0 for unlimited.
+		KHTTPHeaders::Limits RequestHeaderLimits { KHTTPHeaders::DefaultRequestLimits };
 		/// Rate limiter shared across all connections. Set to a non-null shared_ptr
 		/// with a configured KRateLimiter to enable per-IP request throttling.
 		/// When null (the default), rate limiting is completely disabled with zero overhead.

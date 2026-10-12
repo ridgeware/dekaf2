@@ -40,6 +40,7 @@
 */
 
 #include <dekaf2/http/server/khttpserver.h>
+#include <dekaf2/http/server/khttperror.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -128,6 +129,37 @@ bool KHTTPServer::Parse()
 	return true;
 
 } // Parse
+
+//-----------------------------------------------------------------------------
+uint16_t KHTTPServer::GetParseErrorStatus() const
+//-----------------------------------------------------------------------------
+{
+	switch (Request.GetParseError())
+	{
+		case KHTTPHeaders::NoError:    // Parse() failed outside of the request parser
+		case KHTTPHeaders::Incomplete:
+			// no answer if not even the request line arrived: an idle keep-alive
+			// connection closed or timed out. A request that ended within its headers
+			// is answered with 400 - on a closed connection the answer is lost, but a
+			// request read from a file or a CGI input informs its sender this way
+			return Error().empty() ? 0 : KHTTPError::H4xx_BADREQUEST;
+
+		case KHTTPHeaders::StartLineTooLong:
+			return KHTTPError::H4xx_URI_TOO_LONG;
+
+		case KHTTPHeaders::FieldTooLong:
+		case KHTTPHeaders::TooManyFields:
+		case KHTTPHeaders::SectionTooLarge:
+			return KHTTPError::H4xx_HEADER_FIELDS_TOO_LARGE;
+
+		case KHTTPHeaders::TooManyInterimResponses: // only for responses
+		case KHTTPHeaders::Malformed:
+			return KHTTPError::H4xx_BADREQUEST;
+	}
+
+	return KHTTPError::H4xx_BADREQUEST;
+
+} // GetParseErrorStatus
 
 //-----------------------------------------------------------------------------
 bool KHTTPServer::Serialize()

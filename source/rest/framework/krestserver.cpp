@@ -856,6 +856,8 @@ bool KRESTServer::Execute()
 			{
 				KCountingInputStreamBuf InputCounter(Request.UnfilteredStream());
 
+				SetRequestHeaderLimits(m_Options.RequestHeaderLimits);
+
 				bOK = KHTTPServer::Parse();
 
 				// store rx header length
@@ -881,7 +883,12 @@ bool KRESTServer::Execute()
 
 			if (!bOK)
 			{
-				if (Error().empty())
+				// 431 for an exceeded header limit, 414 for a request line that is too
+				// long, 400 for a malformed request - the error handler closes the
+				// connection after the answer, as the rest of the request cannot be framed
+				auto iStatus = GetParseErrorStatus();
+
+				if (!iStatus)
 				{
 					if (m_iRequestHeaderLength > 0)
 					{
@@ -891,11 +898,9 @@ bool KRESTServer::Execute()
 					kDebug (3, "read timeout in keepalive round {}", m_iRound + 1);
 					return false;
 				}
-				else
-				{
-					kDebug (1, "read error: {}", GetLastError());
-					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, GetLastError() };
-				}
+
+				kDebug (1, "invalid request: {}", GetLastError());
+				throw KHTTPError { iStatus, GetLastError() };
 			}
 
 			// set crash context before rewriting any resources, to make sure we get the

@@ -1512,9 +1512,10 @@ void KHTTPClient::CheckBodyReadError()
 	}
 #endif
 
-	// at the end of the body: with a Content-Length or a chunked transfer, the
-	// input must have ended where the body ends
-	if (Response.eof() && !Response.IsInputConsumed())
+	// with a Content-Length or a chunked transfer: the input ended before the body
+	// was complete (the stream state of the filter cannot tell, the body is copied
+	// directly from its stream buffer)
+	if (Response.IsBodyIncomplete())
 	{
 		SetTransportError(TransportError::IncompleteBody,
 		                  (m_Connection && m_Connection->HasError())

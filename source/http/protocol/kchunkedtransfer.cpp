@@ -95,6 +95,32 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 			if (c == EOF)
 			{
+				switch (m_State)
+				{
+					case SkipUntilEmptyLine:
+					case HadNonEmptyLine:
+						// the last chunk arrived, only the end of the trailer section is
+						// missing - the body is complete
+						m_State = Finished;
+						break;
+
+					case StartingUp:
+					case ReadingSize:
+					case SkipChunkExtension:
+					case ReadingChunkEnd:
+						// the input ended before the last chunk - the body is incomplete
+						kDebug(1, "input ended before the last chunk");
+						m_bError = true;
+						m_State  = Finished;
+						break;
+
+					case IsNotChunked:
+					case ReadingChunk:
+					case Finished:
+						// not read in these states
+						break;
+				}
+
 				return iResult;
 			}
 
@@ -121,6 +147,8 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 				iResult = m_src.Read(s, len);
 
+				// only an empty read is the end of the input - a short read may also
+				// end with a timeout after which the stream can still deliver
 				if (iResult <= 0)
 				{
 					if (m_iContentLen > 0)
@@ -342,15 +370,14 @@ KString KChunkedSource::read()
 	{
 		auto iRead = read(buffer.data(), buffer.size());
 
-		if (iRead > 0)
+		if (iRead <= 0)
 		{
-			sBuffer.append(buffer.data(), iRead);
-		}
-
-		if (iRead < static_cast<std::streamsize>(buffer.size()))
-		{
+			// the end of the transfer - a short read is not, it may also end
+			// with a timeout after which the stream can still deliver
 			break;
 		}
+
+		sBuffer.append(buffer.data(), iRead);
 	}
 
 	return sBuffer;

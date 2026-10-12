@@ -78,6 +78,56 @@ TEST_CASE("KChunkedSource")
 		CHECK ( Source.HadError() == false );
 	}
 
+	SECTION("input that ends before the last chunk is an error")
+	{
+		for (KStringView sInput : { "5\r\nHello\r\n", "5\r\nHello\r\n0", "5\r\nHel", "" })
+		{
+			INFO ( sInput );
+			KInStringStream iss(sInput);
+			KChunkedSource  Source(iss, true);
+			Source.read();
+			CHECK ( Source.IsFinished() );
+			CHECK ( Source.HadError()   );
+		}
+	}
+
+	SECTION("input that ends within the trailer section is complete")
+	{
+		// the last chunk arrived, only the end of the trailer section is missing
+		for (KStringView sInput : { "5\r\nHello\r\n0\r\n", "5\r\nHello\r\n0\r\nTrailer: x\r\n" })
+		{
+			INFO ( sInput );
+			KInStringStream iss(sInput);
+			KChunkedSource  Source(iss, true);
+			CHECK ( Source.read() == "Hello" );
+			CHECK ( Source.IsFinished()        );
+			CHECK ( Source.HadError() == false );
+		}
+	}
+
+	SECTION("input that ends before Content-Length is an error")
+	{
+		{
+			KInStringStream iss("Hello");
+			KChunkedSource  Source(iss, false, 10);
+			CHECK ( Source.read() == "Hello" );
+			CHECK ( Source.HadError() );
+		}
+		{
+			KInStringStream iss("Hello");
+			KChunkedSource  Source(iss, false, 5);
+			CHECK ( Source.read() == "Hello" );
+			CHECK ( Source.HadError() == false );
+		}
+		{
+			// without a Content-Length, the end of the input is the end of the body
+			KInStringStream iss("Hello");
+			KChunkedSource  Source(iss, false);
+			CHECK ( Source.read() == "Hello" );
+			CHECK ( Source.HadError() == false );
+		}
+	}
+
 	SECTION("oversized chunk size is rejected without overflow")
 	{
 		// A crafted chunk-size line whose value does not fit into the signed

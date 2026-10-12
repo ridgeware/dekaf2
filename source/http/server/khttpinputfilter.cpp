@@ -333,6 +333,21 @@ bool KInHTTPFilter::IsInputConsumed() const
 } // IsInputConsumed
 
 //-----------------------------------------------------------------------------
+bool KInHTTPFilter::IsBodyIncomplete() const
+//-----------------------------------------------------------------------------
+{
+	if (m_Filter && !m_Filter->empty())
+	{
+		auto chunker = m_Filter->component<KChunkedSource>(static_cast<int>(m_Filter->size()-1));
+		return chunker && chunker->HadError();
+	}
+
+	// the filter was never created - nothing was read
+	return false;
+
+} // IsBodyIncomplete
+
+//-----------------------------------------------------------------------------
 bool KInHTTPFilter::ResetCount()
 //-----------------------------------------------------------------------------
 {

@@ -175,6 +175,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// returns true if the body ended before its end (before Content-Length or before
+	/// the last chunk) or had a framing error - the connection must not be reused
+	bool IsBodyIncomplete() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// returns true if the decompressed body size limit was exceeded during reading.
 	/// This flag is set by the input limiter filter even when the exception it throws
 	/// is swallowed by the std::istream layer.

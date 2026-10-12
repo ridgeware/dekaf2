@@ -1077,6 +1077,9 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 			}
 		}
 
+		// the end or the failure of the previous response must not carry over
+		m_HTTP2->IStream.clear();
+
 		m_HTTP2->StreamID = m_HTTP2->Session.SubmitRequest(m_RequestURL,
 														   Request.Method,
 														   Request,
@@ -1115,6 +1118,9 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 				return SetError("API error");
 			}
 		}
+
+		// the end or the failure of the previous response must not carry over
+		m_HTTP3->IStream.clear();
 
 		m_HTTP3->StreamID = m_HTTP3->Session.SubmitRequest(m_RequestURL,
 														   Request.Method,
@@ -1276,7 +1282,16 @@ std::streamsize KHTTPClient::HTTP2StreamReader(void* buf, std::streamsize size, 
 //-----------------------------------------------------------------------------
 {
 	auto StreamInfo = static_cast<HTTP2Session*>(ptr);
-	return StreamInfo->Session.ReadData(StreamInfo->StreamID, buf, size);
+	auto iRead = StreamInfo->Session.ReadData(StreamInfo->StreamID, buf, size);
+
+	if (iRead < 0)
+	{
+		// a streambuf can only signal the end of input - mark the failure on the
+		// stream, CheckSessionReadError() and Response.Fail() pick it up
+		StreamInfo->IStream.setstate(std::ios::badbit);
+	}
+
+	return iRead;
 
 } // HTTP2StreamReader
 #endif
@@ -1287,9 +1302,18 @@ std::streamsize KHTTPClient::HTTP3StreamReader(void* buf, std::streamsize size, 
 //-----------------------------------------------------------------------------
 {
 	auto StreamInfo = static_cast<HTTP3Session*>(ptr);
-	return StreamInfo->Session.ReadData(StreamInfo->StreamID, buf, size);
+	auto iRead = StreamInfo->Session.ReadData(StreamInfo->StreamID, buf, size);
 
-} // HTTP2StreamReader
+	if (iRead < 0)
+	{
+		// a streambuf can only signal the end of input - mark the failure on the
+		// stream, CheckSessionReadError() and Response.Fail() pick it up
+		StreamInfo->IStream.setstate(std::ios::badbit);
+	}
+
+	return iRead;
+
+} // HTTP3StreamReader
 #endif
 
 //-----------------------------------------------------------------------------
@@ -1426,6 +1450,26 @@ bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint, KStringView sTL
 	return false;
 
 } // AlreadyConnected
+
+//-----------------------------------------------------------------------------
+void KHTTPClient::CheckSessionReadError()
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_HAS_NGHTTP2
+	if (m_HTTP2 && m_HTTP2->IStream.bad())
+	{
+		SetNetworkError(true, m_HTTP2->Session.GetLastError());
+	}
+#endif
+
+#if DEKAF2_HAS_NGHTTP3
+	if (m_HTTP3 && m_HTTP3->IStream.bad())
+	{
+		SetNetworkError(true, m_HTTP3->Session.GetLastError());
+	}
+#endif
+
+} // CheckSessionReadError
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::SetNetworkError(bool bRead, KStringViewZ sError)

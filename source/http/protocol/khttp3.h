@@ -192,9 +192,17 @@ protected:
 	/// returns the Stream::Type
 	Type          GetType            () const        { return m_Type;             }
 	/// mark this stream as closed
-	void          Close              ();
+	/// @param iAppErrorCode the HTTP/3 application error code the stream was closed with, 0 if none
+	void          Close              (uint64_t iAppErrorCode = 0);
 	/// check if this stream is closed
 	bool          IsClosed           () const        { return m_bDoneReceivedFin || m_bIsClosed;     }
+	/// the peer ended its side of the stream regularly (FIN) - the response is complete
+	void          SetReceivedFin     ()              { m_bDoneReceivedFin = true; }
+	/// returns true if the peer ended its side of the stream regularly - a stream that is
+	/// closed without it was reset, and its response is incomplete
+	bool          HasReceivedFin     () const        { return m_bDoneReceivedFin; }
+	/// returns the HTTP/3 application error code the stream was closed with
+	uint64_t      GetCloseErrorCode  () const        { return m_iCloseAppErrorCode; }
 	/// check if this stream can be removed
 	bool          CanDelete          () const        { return IsClosed() && m_RXSpillBuffer.empty(); }
 	/// set the buffer that will be filled by the next receive operation
@@ -247,6 +255,7 @@ private:
 	                               m_TXBuffer;
 	std::size_t                    m_iTotalTXData       { 0 };
 	std::size_t                    m_iTotalAckedTXData  { 0 };
+	uint64_t                       m_iCloseAppErrorCode { 0 };
 	KHTTPMethod                    m_Method;
 	Type                           m_Type;
 	bool                           m_bHeadersComplete   {   false };

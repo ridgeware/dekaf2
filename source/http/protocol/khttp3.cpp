@@ -185,10 +185,11 @@ KStringView Stream::GetPath()
 } // GetPath
 
 //-----------------------------------------------------------------------------
-void Stream::Close ()
+void Stream::Close (uint64_t iAppErrorCode)
 //-----------------------------------------------------------------------------
 {
-	m_bIsClosed = true;
+	m_bIsClosed          = true;
+	m_iCloseAppErrorCode = iAppErrorCode;
 
 	if (m_DataConsumer)
 	{
@@ -927,6 +928,7 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 	Stream->SetReceiveBuffer( { data, len } );
 
 	std::streamsize iRead = Stream->GetReceiveBuffer().size();
+	bool bFailed { false };
 
 	if (iRead == 0 && !Stream->IsClosed())
 	{
@@ -942,21 +944,25 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 			{
 				kDebug(1, "[stream {}] connection timed out", StreamID);
 				SetError("connection timed out");
+				bFailed = true;
 				break;
 			}
 
 			auto Result = Pump(Remaining);
 
+			// data received before a failure is still delivered, the next call reports the failure
+			iRead = Stream->GetReceiveBuffer().size();
+
 			if (Result == KQuicConnection::PumpResult::Error)
 			{
+				// Pump() has set the error
+				bFailed = (iRead == 0);
 				break;
 			}
 			else if (Result == KQuicConnection::PumpResult::Received)
 			{
 				tLast = chrono::steady_clock::now();
 			}
-
-			iRead = Stream->GetReceiveBuffer().size();
 
 			if (iRead > 0 || Stream->IsClosed())
 			{
@@ -967,6 +973,20 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 	// the caller's buffer is only valid during this call - further data goes to the spill buffer
 	Stream->SetReceiveBuffer( KBuffer{} );
+
+	if (bFailed)
+	{
+		return -1;
+	}
+
+	if (iRead == 0 && Stream->IsClosed() && !Stream->HasReceivedFin())
+	{
+		// all received data is delivered, but the peer never ended its side of the
+		// stream - it reset the stream, or the connection ended
+		SetError(kFormat("[stream {}] closed before the end of the response, application error code: 0x{:x}",
+		                 StreamID, Stream->GetCloseErrorCode()));
+		return -1;
+	}
 
 	if (len != static_cast<std::size_t>(iRead))
 	{
@@ -1043,6 +1063,8 @@ int Session::OnEndStream(Stream::ID StreamID)
 
 	if (Stream)
 	{
+		// the response is complete
+		Stream->SetReceivedFin();
 		Stream->Close();
 	}
 
@@ -1054,13 +1076,13 @@ int Session::OnEndStream(Stream::ID StreamID)
 int Session::OnStreamClose(Stream::ID StreamID, uint64_t iAppErrorCode)
 //-----------------------------------------------------------------------------
 {
-	kDebug(4, "[stream {}] stream closed", StreamID);
+	kDebug(4, "[stream {}] stream closed with application error code 0x{:x}", StreamID, iAppErrorCode);
 
 	auto Stream = GetStream(StreamID);
 
 	if (Stream)
 	{
-		Stream->Close();
+		Stream->Close(iAppErrorCode);
 	}
 
 	return 0;

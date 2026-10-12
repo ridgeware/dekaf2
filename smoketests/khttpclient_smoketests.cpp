@@ -2,6 +2,8 @@
 
 #include <dekaf2/http/client/kwebclient.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/format/kformat.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/net/util/kiostreamsocket.h>
 #include <iostream>
@@ -77,31 +79,52 @@ TEST_CASE("KHTTPClient")
 		HTTP.AcceptCookies(false);
 		// set a user agent that is accepted by facebook
 		HTTP.AddHeader(KHTTPHeader::USER_AGENT, "curl/7.54");
-		// request the reference
-		HTTP.RequestCompression(true, "gzip, deflate");
-		auto sReference = HTTP.Get(URL);
-		sReference.Trim();
-		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "gzip" );
-		CHECK ( sReference.starts_with("<!DOCTYPE html>") );
-		CHECK ( sReference.Right(7) == "</html>" );
-		CHECK ( sReference.ends_with("</html>") );
+		// shown when a check fails: what the server delivered, with the page
+		// shortened in the middle
+		auto Delivered = [&HTTP](KStringView sPage)
+		{
+			return kFormat("status {}, {}, content-encoding '{}', error '{}', {} bytes:\n{}",
+			               HTTP.Response.GetStatusCode(),
+			               HTTP.Response.GetHTTPVersion().Serialize(),
+			               HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING),
+			               HTTP.Error(),
+			               sPage.size(),
+			               kLimitSizeUTF8(sPage, 2000));
+		};
+		{
+			// request the reference
+			HTTP.RequestCompression(true, "gzip, deflate");
+			auto sReference = HTTP.Get(URL);
+			sReference.Trim();
+			INFO  ( Delivered(sReference) );
+			CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "gzip" );
+			CHECK ( sReference.starts_with("<!DOCTYPE html>") );
+			CHECK ( sReference.Right(7) == "</html>" );
+			CHECK ( sReference.ends_with("</html>") );
+		}
 #ifdef DEKAF2_HAS_LIBZSTD
-		// request the zstd version
-		HTTP.RequestCompression(true, "zstd");
-		auto sZSTD = HTTP.Get(URL);
-		sZSTD.Trim();
-		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "zstd" );
-		CHECK ( sZSTD.starts_with("<!DOCTYPE html>") );
-		CHECK ( sZSTD.ends_with("</html>") );
+		{
+			// request the zstd version
+			HTTP.RequestCompression(true, "zstd");
+			auto sZSTD = HTTP.Get(URL);
+			sZSTD.Trim();
+			INFO  ( Delivered(sZSTD) );
+			CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "zstd" );
+			CHECK ( sZSTD.starts_with("<!DOCTYPE html>") );
+			CHECK ( sZSTD.ends_with("</html>") );
+		}
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
-		// request the brotli version
-		HTTP.RequestCompression(true, "br");
-		auto sBrotli = HTTP.Get(URL);
-		sBrotli.Trim();
-		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "br" );
-		CHECK ( sBrotli.starts_with("<!DOCTYPE html>") );
-		CHECK ( sBrotli.ends_with("</html>") );
+		{
+			// request the brotli version
+			HTTP.RequestCompression(true, "br");
+			auto sBrotli = HTTP.Get(URL);
+			sBrotli.Trim();
+			INFO  ( Delivered(sBrotli) );
+			CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "br" );
+			CHECK ( sBrotli.starts_with("<!DOCTYPE html>") );
+			CHECK ( sBrotli.ends_with("</html>") );
+		}
 #endif
 	}
 }

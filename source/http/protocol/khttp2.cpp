@@ -218,10 +218,11 @@ bool Stream::EndResponseHeaders(ID id)
 } // EndResponseHeaders
 
 //-----------------------------------------------------------------------------
-void Stream::Close ()
+void Stream::Close (uint32_t iErrorCode)
 //-----------------------------------------------------------------------------
 {
-	m_bIsClosed = true;
+	m_bIsClosed       = true;
+	m_iCloseErrorCode = iErrorCode;
 
 	if (m_DataConsumer)
 	{
@@ -481,6 +482,21 @@ KStringView Session::TranslateFrameType(uint8_t FrameType)
 } // TranslateFrameType
 
 //-----------------------------------------------------------------------------
+KString Session::GetTLSReadError() const
+//-----------------------------------------------------------------------------
+{
+	// the TLS stream records read errors and timeouts - without an error,
+	// the peer closed the connection
+	if (m_TLSStream.HasError())
+	{
+		return m_TLSStream.GetLastError();
+	}
+
+	return kFormat("connection closed by {}", m_TLSStream.GetEndPoint().Serialize());
+
+} // GetTLSReadError
+
+//-----------------------------------------------------------------------------
 Stream* Session::GetStream(Stream::ID StreamID)
 //-----------------------------------------------------------------------------
 {
@@ -507,14 +523,14 @@ bool Session::AddStream(Stream::ID StreamID, Stream Stream)
 } // AddStream
 
 //-----------------------------------------------------------------------------
-bool Session::CloseStream(Stream::ID StreamID)
+bool Session::CloseStream(Stream::ID StreamID, uint32_t iErrorCode)
 //-----------------------------------------------------------------------------
 {
 	auto Stream = GetStream(StreamID);
 
 	if (Stream)
 	{
-		Stream->Close();
+		Stream->Close(iErrorCode);
 		return true;
 	}
 
@@ -704,9 +720,20 @@ int Session::OnFrameRecv (const void* frame)
 			Stream->EndResponseHeaders(Frame->hd.stream_id);
 		}
 	}
-	else if (Frame->hd.flags & NGHTTP2_FLAG_END_STREAM)
+
+	if ((Frame->hd.type == NGHTTP2_DATA || Frame->hd.type == NGHTTP2_HEADERS) &&
+	    (Frame->hd.flags & NGHTTP2_FLAG_END_STREAM))
 	{
 		kDebug(4, "[stream {}] last frame of stream", Frame->hd.stream_id);
+
+		// the response is complete - a stream that is closed without this frame
+		// ended early, by a reset of the peer or by the end of the session
+		auto Stream = GetStream(Frame->hd.stream_id);
+
+		if (Stream)
+		{
+			Stream->SetEndOfStream();
+		}
 	}
 
 	return NGHTTP2_NO_ERROR;
@@ -741,7 +768,7 @@ int Session::OnStreamClose (Stream::ID stream_id, uint32_t error_code)
 {
 	kDebug(4, "[stream {}] closed with error_code={}", stream_id, error_code);
 
-	if (!CloseStream(stream_id))
+	if (!CloseStream(stream_id, error_code))
 	{
 		return NGHTTP2_PROTOCOL_ERROR;
 	}
@@ -1088,7 +1115,7 @@ bool SingleStreamSession::ReadResponseHeaders(Stream::ID StreamID)
 
 		if (iRead <= 0)
 		{
-			return SetError(kFormat("TLS header read returned {}", iRead));
+			return SetError(GetTLSReadError());
 		}
 
 		Received(TLSBuffer.data(), iRead);
@@ -1134,6 +1161,14 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 			{
 				kDebug(4, "[stream {}] closed, but have still RX data buffered", StreamID);
 			}
+			else if (!iRead && !Stream->IsEndOfStream())
+			{
+				// all received data is delivered, but the peer never sent the end of
+				// the response - it reset the stream, or the session ended
+				SetError(kFormat("[stream {}] closed before the end of the response, error code: {}",
+				                 StreamID, nghttp2_http2_strerror(Stream->GetCloseErrorCode())));
+				return -1;
+			}
 			break;
 		}
 
@@ -1148,7 +1183,7 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 		if (iReadTLS <= 0)
 		{
-			SetError(kFormat("TLS data read returned {}", iReadTLS));
+			SetError(GetTLSReadError());
 			return -1;
 		}
 

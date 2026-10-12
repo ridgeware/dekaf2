@@ -124,9 +124,17 @@ public:
 	/// get the receive buffer (to lookup fill and remaining bytes)
 	const KBuffer& GetReceiveBuffer  () const         { return m_RXBuffer;         }
 	/// the stream was closed, set the IsClosed flag, and if set, call the DataConsumer callback
-	void          Close              ();
+	/// @param iErrorCode the HTTP/2 error code the stream was closed with, 0 (NO_ERROR) by default
+	void          Close              (uint32_t iErrorCode = 0);
 	/// return the close flag
 	bool          IsClosed           () const         { return m_bIsClosed;        }
+	/// returns the HTTP/2 error code the stream was closed with
+	uint32_t      GetCloseErrorCode  () const         { return m_iCloseErrorCode;  }
+	/// the peer sent the last frame of the response (a frame with END_STREAM)
+	void          SetEndOfStream     ()               { m_bEndOfStream = true;     }
+	/// returns true if the peer sent the last frame of the response - a stream that is
+	/// closed without it was reset, and its response is incomplete
+	bool          IsEndOfStream      () const         { return m_bEndOfStream;     }
 	/// add incoming data to this stream - this is a method normally called by the Session class upon reception
 	/// of a data chunk. It is written into the ReceiveBuffer (if existing), and any overflowing data gets stored in
 	/// a temporary FIFO buffer (which gets later emptied when a new receive buffer is set)
@@ -148,9 +156,11 @@ private:
 	KString                        m_sAuthority;
 	KString                        m_sPath;
 	KHTTPMethod                    m_Method;
+	uint32_t                       m_iCloseErrorCode    { 0 };
 	bool                           m_bHeadersComplete   { false };
 	bool                           m_bIsInterimResponse { false };
 	bool                           m_bIsClosed          { false };
+	bool                           m_bEndOfStream       { false };
 
 }; // Stream
 
@@ -198,9 +208,11 @@ protected:
 
 	bool    AddStream           (Stream::ID StreamID, Stream Stream);
 	Stream* GetStream           (Stream::ID StreamID);
-	bool    CloseStream         (Stream::ID StreamID);
+	bool    CloseStream         (Stream::ID StreamID, uint32_t iErrorCode);
 	bool    DeleteStream        (Stream::ID StreamID);
 
+	/// returns the cause of a failed read from the TLS stream: its error, or the end of the connection
+	KString GetTLSReadError() const;
 	static KStringView TranslateError(int iError);
 	static KStringView TranslateFrameType (uint8_t FrameType);
 

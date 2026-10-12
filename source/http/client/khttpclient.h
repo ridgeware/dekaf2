@@ -327,7 +327,9 @@ public:
 	size_t Read(KOutStream& stream, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{
-		return Response.Read(stream, len);
+		auto iRead = Response.Read(stream, len);
+		CheckSessionReadError();
+		return iRead;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -335,7 +337,9 @@ public:
 	size_t Read(KStringRef& sBuffer, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{
-		return Response.Read(sBuffer, len);
+		auto iRead = Response.Read(sBuffer, len);
+		CheckSessionReadError();
+		return iRead;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -343,7 +347,9 @@ public:
 	bool ReadLine(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
-		return Response.ReadLine(sBuffer);
+		auto bRead = Response.ReadLine(sBuffer);
+		CheckSessionReadError();
+		return bRead;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -575,6 +581,13 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// Mark an IO error
 	bool SetNetworkError(bool bRead, KStringViewZ sError);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// After reading the body of an HTTP/2 or HTTP/3 response: if the session failed
+	/// to deliver it to its end, mark a network read error with the session's error.
+	/// A body that ends early would otherwise look complete.
+	void CheckSessionReadError();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

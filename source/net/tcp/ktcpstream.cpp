@@ -51,6 +51,16 @@ DEKAF2_NAMESPACE_BEGIN
 std::streamsize KTCPStream::direct_read_some(void* sBuffer, std::streamsize iCount)
 //-----------------------------------------------------------------------------
 {
+	// If a previous read already reported EOF, don't start another async_read_some:
+	// on Linux it does not complete before the per-op timeout fires (up to 15s
+	// default), which delayed every read that follows the end of the input, e.g.
+	// of a response body that ended before its Content-Length. Return 0 to signal
+	// EOF to the streambuf, as KTLSStream does.
+	if (m_Stream.ec == boost::asio::error::eof)
+	{
+		return 0;
+	}
+
 	std::streamsize iRead { 0 };
 
 	GetAsioSocket().async_read_some(boost::asio::buffer(sBuffer, iCount),

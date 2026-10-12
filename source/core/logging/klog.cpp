@@ -1168,7 +1168,7 @@ static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_ty
 /// change and sBuffer is left alone - the caller owns both, so neither result
 /// can outlive what it points into
 //---------------------------------------------------------------------------
-static bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
+bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 //---------------------------------------------------------------------------
 {
 	// the fast path: no copy, no allocation, no scan beyond these five - the anchors
@@ -1321,6 +1321,22 @@ static bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 	RedactAll(kFindUserinfoPassword);
 
 	return true;
+
+} // kRedactCredentials
+
+//---------------------------------------------------------------------------
+KString kRedactCredentials(KStringView sMessage)
+//---------------------------------------------------------------------------
+{
+	KString sBuffer;
+
+	if (kRedactCredentials(sMessage, sBuffer))
+	{
+		return sBuffer;
+	}
+
+	// nothing needed redacting - the two-argument form left sBuffer alone
+	return KString { sMessage };
 
 } // kRedactCredentials
 

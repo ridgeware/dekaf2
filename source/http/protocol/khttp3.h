@@ -147,9 +147,17 @@ public:
 	/// returns the Method
 	KStringView   GetMethod          () const         { return m_Method.Serialize(); }
 
+	/// starts the count of a new response header block
+	void          StartResponseHeaders();
 	/// adds an incoming response header. id is only used for logging purposes.
-	/// Headers of a 1xx interim response are dropped.
-	int           AddResponseHeader  (ID id, KStringView sName, KStringView sValue);
+	/// Headers of a 1xx interim response are dropped, the pseudo header fields count
+	/// toward the limits.
+	/// @returns false if a header limit or the limit of interim responses is exceeded -
+	/// the response headers then name the reason, and the stream has to be reset - or if
+	/// the stream has no response headers object
+	bool          AddResponseHeader  (ID id, KStringView sName, KStringView sValue);
+	/// returns true if the response was rejected for an exceeded limit
+	bool          IsRejected         () const         { return m_bRejected;        }
 	/// called at the end of a response header block - completes the headers,
 	/// except after a 1xx interim response, whose final response is still to come
 	/// @returns true if the headers are complete now
@@ -257,7 +265,10 @@ private:
 	std::size_t                    m_iTotalAckedTXData  { 0 };
 	uint64_t                       m_iCloseAppErrorCode { 0 };
 	KHTTPMethod                    m_Method;
+	KHTTPHeaders::Counter          m_Count;
 	Type                           m_Type;
+	uint16_t                       m_iInterimResponses  {       0 };
+	bool                           m_bRejected          {   false };
 	bool                           m_bHeadersComplete   {   false };
 	bool                           m_bIsInterimResponse {   false };
 	bool                           m_bDoneReceivedFin   {   false };
@@ -287,7 +298,10 @@ public:
 
 	/// construct a HTTP/3 session around a connected Quic stream (after successful ALPN H3 negotiation) -
 	/// the session takes over the stream's QUIC connection until it is destroyed
-	              Session(KQuicStream& QuicConnection, bool bIsClient);
+	/// @param Limits the limits for received response headers - the size of the header
+	/// block is also announced to the peer
+	              Session(KQuicStream& QuicConnection, bool bIsClient,
+	                      const KHTTPHeaders::Limits& Limits = KHTTPHeaders::DefaultResponseLimits);
 	virtual       ~Session();
 
 	/// Submit a (client) request. Internally, this generates a new Stream object, the handle of which is returned as a Stream::ID.
@@ -309,6 +323,13 @@ public:
 
 	/// returns true if the last failure was a timeout
 	bool          IsTimedOut          () const           { return m_bTimedOut;          }
+
+	/// set the limits for the response headers of new streams - the announced size
+	/// stays as set at construction
+	void          SetResponseHeaderLimits(const KHTTPHeaders::Limits& Limits) { m_Limits = Limits; }
+
+	/// returns the limits for the response headers of new streams
+	const KHTTPHeaders::Limits& GetResponseHeaderLimits() const { return m_Limits; }
 
 //----------
 protected:
@@ -358,6 +379,7 @@ private:
 		return { reinterpret_cast<const char*>(value), len };
 	}
 
+	int           OnBeginHeaders      (Stream::ID StreamID);
 	int           OnReceiveHeader     (Stream::ID StreamID, KStringView sName, KStringView sValue, uint8_t iFlags);
 	int           OnEndHeaders        (Stream::ID StreamID, int fin);
 	int           OnReceiveData       (Stream::ID StreamID, KStringView sData);
@@ -386,6 +408,10 @@ private:
 
 	/// sets the error on both the session and the connection (which fails with it)
 	int           DelegateError       (KString sError);
+	/// resets a stream whose response was rejected for an exceeded limit, with the
+	/// application error H3_EXCESSIVE_LOAD - the connection stays usable
+	/// @returns 0, or -1 if the connection failed
+	int           ResetRejectedStream (Stream& Stream);
 
 	KQuicStream&     m_KQuicStream;
 	KQuicConnection& m_Connection;
@@ -395,6 +421,7 @@ private:
 	Stream::ID       m_QPackDecStreamID  { -1 };
 	KString          m_sAuthority; // the common authority for all Streams managed by this Session
 	std::unordered_map<Stream::ID, std::unique_ptr<Stream>> m_Streams;
+	KHTTPHeaders::Limits m_Limits; // for the response headers of new Streams
 	bool             m_bTimedOut         { false };
 
 	// -------------------------------------------------------------------
@@ -405,6 +432,13 @@ private:
 	{
 		return static_cast<Session*>(conn_user_data);
 	}
+
+	static int on_begin_headers(
+		nghttp3_conn* h3conn,
+		Stream::ID stream_id,
+		void* conn_user_data,
+		void* stream_user_data
+	);
 
 	static int on_recv_header(
 		nghttp3_conn* h3conn,
@@ -508,6 +542,7 @@ public:
 	using Session::CopyLastError;
 	using Session::HasError;
 	using Session::IsTimedOut;
+	using Session::SetResponseHeaderLimits;
 
 	/// Submit a (client) request. Internally, this generates a new Stream object, the handle of which is returned as a Stream::ID.
 	/// This method only returns after having sent request headers and body, and received all response headers.

@@ -739,7 +739,7 @@ private:
 	struct HTTP3Session
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		HTTP3Session(KQuicStream& QuicStream);
+		HTTP3Session(KQuicStream& QuicStream, const KHTTPHeaders::Limits& Limits);
 
 		khttp3::SingleStreamSession Session;
 		KInStreamBuf                StreamBuf;

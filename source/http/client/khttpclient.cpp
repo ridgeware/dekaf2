@@ -272,9 +272,9 @@ KHTTPClient::HTTP2Session::HTTP2Session(KTLSStream& TLSStream, const KHTTPHeader
 
 #if DEKAF2_HAS_NGHTTP3
 //-----------------------------------------------------------------------------
-KHTTPClient::HTTP3Session::HTTP3Session(KQuicStream& QuicStream)
+KHTTPClient::HTTP3Session::HTTP3Session(KQuicStream& QuicStream, const KHTTPHeaders::Limits& Limits)
 //-----------------------------------------------------------------------------
-: Session(QuicStream, true)
+: Session(QuicStream, true, Limits)
 , StreamBuf(HTTP3StreamReader, this)
 , IStream(&StreamBuf)
 , InStream(IStream)
@@ -420,7 +420,7 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 			if (sALPN == "h3")
 			{
 				kDebug(2, "switching to HTTP/3");
-				m_HTTP3 = std::make_unique<HTTP3Session>(*QuicStream);
+				m_HTTP3 = std::make_unique<HTTP3Session>(*QuicStream, Response.GetHeaderLimits());
 
 				if (!m_HTTP3->Session.GetLastError().empty())
 				{
@@ -1158,6 +1158,7 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 
 		// the end or the failure of the previous response must not carry over
 		m_HTTP3->IStream.clear();
+		m_HTTP3->Session.SetResponseHeaderLimits(Response.GetHeaderLimits());
 
 		m_HTTP3->StreamID = m_HTTP3->Session.SubmitRequest(m_RequestURL,
 														   Request.Method,

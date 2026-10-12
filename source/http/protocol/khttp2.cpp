@@ -329,6 +329,15 @@ static int OnFrameRecvCallback(
 	return Session::ToThis(user_data)->OnFrameRecv(frame);
 }
 
+static int OnFrameSendCallback(
+	nghttp2_session* session,
+	const nghttp2_frame* frame,
+	void* user_data
+)
+{
+	return Session::ToThis(user_data)->OnFrameSend(frame);
+}
+
 static int OnDataChunkRecvCallback(
 	nghttp2_session* session,
 	uint8_t flags, Stream::ID stream_id,
@@ -431,6 +440,7 @@ Session::Session(KTLSStream& TLSStream, bool bIsClient, const KHTTPHeaders::Limi
 #endif
 	nghttp2_session_callbacks_set_send_data_callback          (callbacks, SessionCallbacks::OnSendDataCallback     );
 	nghttp2_session_callbacks_set_on_frame_recv_callback      (callbacks, SessionCallbacks::OnFrameRecvCallback    );
+	nghttp2_session_callbacks_set_on_frame_send_callback      (callbacks, SessionCallbacks::OnFrameSendCallback    );
 	nghttp2_session_callbacks_set_on_data_chunk_recv_callback (callbacks, SessionCallbacks::OnDataChunkRecvCallback);
 	nghttp2_session_callbacks_set_on_stream_close_callback    (callbacks, SessionCallbacks::OnStreamCloseCallback  );
 	nghttp2_session_callbacks_set_on_header_callback          (callbacks, SessionCallbacks::OnHeaderCallback       );
@@ -810,6 +820,25 @@ int Session::OnFrameRecv (const void* frame)
 } // OnFrameRecv
 
 //-----------------------------------------------------------------------------
+int Session::OnFrameSend (const void* frame)
+//-----------------------------------------------------------------------------
+{
+	auto Frame = static_cast<const nghttp2_frame*>(frame);
+
+	if (Frame->hd.type == NGHTTP2_GOAWAY)
+	{
+		// nghttp2 sends a GOAWAY on its own when it ends the session for a protocol
+		// error, e.g. a header field its HPACK decoder rejects
+		kDebug(2, "sent GOAWAY, error code: {}", nghttp2_http2_strerror(Frame->goaway.error_code));
+		m_bSentGoAway      = true;
+		m_iGoAwayErrorCode = Frame->goaway.error_code;
+	}
+
+	return 0;
+
+} // OnFrameSend
+
+//-----------------------------------------------------------------------------
 int Session::OnDataChunkRecv (uint8_t flags, Stream::ID stream_id, KConstBuffer data)
 //-----------------------------------------------------------------------------
 {
@@ -1107,6 +1136,27 @@ bool Session::Received(const void* data, std::size_t len)
 } // Receive
 
 //-----------------------------------------------------------------------------
+bool Session::IsSessionEnded() const
+//-----------------------------------------------------------------------------
+{
+	return !nghttp2_session_want_read(m_Session) && !nghttp2_session_want_write(m_Session);
+
+} // IsSessionEnded
+
+//-----------------------------------------------------------------------------
+KString Session::GetSessionEndReason() const
+//-----------------------------------------------------------------------------
+{
+	if (m_bSentGoAway)
+	{
+		return kFormat("the HTTP/2 session ended with GOAWAY {}", nghttp2_http2_strerror(m_iGoAwayErrorCode));
+	}
+
+	return "the HTTP/2 session ended";
+
+} // GetSessionEndReason
+
+//-----------------------------------------------------------------------------
 bool Session::Run()
 //-----------------------------------------------------------------------------
 {
@@ -1204,6 +1254,13 @@ bool SingleStreamSession::ReadResponseHeaders(Stream::ID StreamID)
 			return false;
 		}
 
+		if (IsSessionEnded())
+		{
+			// the connection may stay open, but nothing more is read from it
+			return SetError(kFormat("[stream {}] {} before the response headers were complete",
+			                        StreamID, GetSessionEndReason()));
+		}
+
 		auto iRead = m_TLSStream.direct_read_some(TLSBuffer.data(), TLSBuffer.size());
 		kDebug(4, "[stream {}] direct TLS header read: {}", StreamID, iRead);
 
@@ -1212,7 +1269,10 @@ bool SingleStreamSession::ReadResponseHeaders(Stream::ID StreamID)
 			return SetError(GetTLSReadError());
 		}
 
-		Received(TLSBuffer.data(), iRead);
+		if (!Received(TLSBuffer.data(), iRead))
+		{
+			return false;
+		}
 	}
 
 } // ReadResponseHeaders
@@ -1272,6 +1332,21 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 			break;
 		}
 
+		if (IsSessionEnded())
+		{
+			iRead = Stream->GetReceiveBuffer().size();
+
+			if (iRead)
+			{
+				// deliver what arrived, the next call reports the end
+				break;
+			}
+
+			// the connection may stay open, but nothing more is read from it
+			SetError(kFormat("[stream {}] {} before the end of the response", StreamID, GetSessionEndReason()));
+			return -1;
+		}
+
 		auto iReadTLS = m_TLSStream.direct_read_some(TLSBuffer.data(), TLSBuffer.size());
 		kDebug(4, "[stream {}] direct TLS data read: {}", StreamID, iReadTLS);
 
@@ -1281,7 +1356,10 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 			return -1;
 		}
 
-		Received(TLSBuffer.data(), iReadTLS);
+		if (!Received(TLSBuffer.data(), iReadTLS))
+		{
+			return -1;
+		}
 	}
 
 	if (len != static_cast<std::size_t>(iRead))

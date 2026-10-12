@@ -100,6 +100,7 @@ Stream::Stream(
 Stream::Stream(Session& session, Type type)
 //-----------------------------------------------------------------------------
 : m_Session(session)
+, m_Count(session.GetResponseHeaderLimits())
 , m_Type(type)
 {
 	bool bOK;
@@ -129,6 +130,7 @@ Stream::Stream(Session& session, ID StreamID, Type type)
 //-----------------------------------------------------------------------------
 : m_Session(session)
 , m_StreamID(StreamID)
+, m_Count(session.GetResponseHeaderLimits())
 , m_Type(type)
 {
 	kDebug(4, "[stream {}] accepted", GetStreamID());
@@ -199,47 +201,71 @@ void Stream::Close (uint64_t iAppErrorCode)
 } // Close
 
 //-----------------------------------------------------------------------------
-int Stream::AddResponseHeader  (ID id, KStringView sName, KStringView sValue)
+void Stream::StartResponseHeaders()
 //-----------------------------------------------------------------------------
 {
-	if (!IsHeadersComplete())
+	// each header block - an interim response, the final response - is counted
+	// on its own, as on HTTP/1.1
+	m_Count.clear();
+
+} // StartResponseHeaders
+
+//-----------------------------------------------------------------------------
+bool Stream::AddResponseHeader  (ID id, KStringView sName, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	if (IsHeadersComplete() || m_bRejected)
 	{
-		if (m_ResponseHeaders)
+		// the rest of a rejected header block is not stored
+		return true;
+	}
+
+	if (!m_ResponseHeaders)
+	{
+		return SetError(kFormat("stream {} has no response header struct set", id));
+	}
+
+	// the pseudo header fields are part of the field section (RFC 9114 4.2.2)
+	if (!m_Count.Add(sName, sValue))
+	{
+		m_bRejected = true;
+		return m_ResponseHeaders->SetParseError(m_Count);
+	}
+
+	if (sName == ":status")
+	{
+		auto iStatus = sValue.UInt16();
+
+		// a 1xx interim response (RFC 9110 15.2, e.g. 103 Early Hints) is not
+		// the response - drop its headers and wait for the final one. HTTP/3
+		// has no 101, so every 1xx is interim.
+		m_bIsInterimResponse = (iStatus / 100 == 1);
+
+		if (m_bIsInterimResponse)
 		{
-			if (sName == ":status")
+			if (++m_iInterimResponses > detail::iMaxInterimResponses)
 			{
-				auto iStatus = sValue.UInt16();
-
-				// a 1xx interim response (RFC 9110 15.2, e.g. 103 Early Hints) is not
-				// the response - drop its headers and wait for the final one. HTTP/3
-				// has no 101, so every 1xx is interim.
-				m_bIsInterimResponse = (iStatus / 100 == 1);
-
-				if (m_bIsInterimResponse)
-				{
-					kDebug(2, "[stream {}] skipping interim response {}", id, iStatus);
-				}
-				else
-				{
-					kDebug(2, "[stream {}] setting HTTP response status to {}", id, iStatus);
-					m_ResponseHeaders->SetStatus(iStatus);
-					m_ResponseHeaders->SetHTTPVersion(KHTTPVersion::http3);
-				}
+				m_bRejected = true;
+				return m_ResponseHeaders->SetParseError(KHTTPHeaders::TooManyInterimResponses,
+				                                        kFormat("more than {} interim responses", detail::iMaxInterimResponses));
 			}
-			else if (!m_bIsInterimResponse)
-			{
-				kDebug(2, "[stream {}] {}: {}", id, sName, sValue);
-				m_ResponseHeaders->Headers.Add(sName, sValue);
-			}
+
+			kDebug(2, "[stream {}] skipping interim response {}", id, iStatus);
 		}
 		else
 		{
-			SetError(kFormat("stream {} has no response header struct set", id));
-			return 1;
+			kDebug(2, "[stream {}] setting HTTP response status to {}", id, iStatus);
+			m_ResponseHeaders->SetStatus(iStatus);
+			m_ResponseHeaders->SetHTTPVersion(KHTTPVersion::http3);
 		}
 	}
+	else if (!m_bIsInterimResponse)
+	{
+		kDebug(2, "[stream {}] {}: {}", id, sName, sValue);
+		m_ResponseHeaders->Headers.Add(sName, sValue);
+	}
 
-	return 0;
+	return true;
 
 } // AddResponseHeader
 
@@ -424,10 +450,11 @@ void Stream::Unblock()
 
 
 //-----------------------------------------------------------------------------
-Session::Session(KQuicStream& QuicConnection, bool bIsClient)
+Session::Session(KQuicStream& QuicConnection, bool bIsClient, const KHTTPHeaders::Limits& Limits)
 //-----------------------------------------------------------------------------
 : m_KQuicStream(QuicConnection)
 , m_Connection(QuicConnection.GetConnection())
+, m_Limits(Limits)
 {
 	if (!m_Connection.IsConnected())
 	{
@@ -452,6 +479,7 @@ Session::Session(KQuicStream& QuicConnection, bool bIsClient)
 	std::memset(&callbacks, 0, sizeof(nghttp3_callbacks));
 
 	// setup our callbacks for nghttp3
+	callbacks.begin_headers     = on_begin_headers;
 	callbacks.recv_header       = on_recv_header;
 	callbacks.end_headers       = on_end_headers;
 	callbacks.recv_data         = on_recv_data;
@@ -466,6 +494,13 @@ Session::Session(KQuicStream& QuicConnection, bool bIsClient)
 	nghttp3_settings settings;
 	std::memset(&settings, 0, sizeof(nghttp3_settings));
 	nghttp3_settings_default(&settings);
+
+	if (Limits.iMaxSectionSize)
+	{
+		// announce the section limit to the peer - it is advisory, nghttp3 does not
+		// enforce it, the limit is enforced when the headers arrive
+		settings.max_field_section_size = Limits.iMaxSectionSize;
+	}
 
 	// create the HTTP/3 client state
 	auto ec = ::nghttp3_conn_client_new(&m_Session, &callbacks, &settings, nullptr, this);
@@ -548,7 +583,8 @@ bool Session::HaveOpenRequestStreams(bool bWithResponses) const
 		if (Stream.second->GetType() == Stream::Type::Request)
 		{
 			if (bWithResponses) return true;
-			if (Stream.second->IsHeadersComplete() == false) return true;
+			// a stream that closed before its headers were complete waits for nothing
+			if (!Stream.second->IsHeadersComplete() && !Stream.second->IsClosed()) return true;
 		}
 	}
 	return false;
@@ -605,10 +641,19 @@ bool Session::Run(bool bWithResponses)
 	{
 		if (HasError())
 		{
+			// send what is due - the reset of a stream whose response was rejected is
+			// queued while the data is received, and is otherwise never sent
+			m_Connection.Flush();
 			return false;
 		}
 
-		PurgeStreams();
+		if (bWithResponses)
+		{
+			// Without bWithResponses the caller reads the response body from the
+			// stream afterwards. A stream whose headers and end arrive together is
+			// closed right away, and must not be removed before its body is read.
+			PurgeStreams();
+		}
 
 		if (!HaveOpenRequestStreams(bWithResponses))
 		{
@@ -882,6 +927,9 @@ Stream::ID SingleStreamSession::SubmitRequest(
 )
 //-----------------------------------------------------------------------------
 {
+	// the response of the previous request is read - remove its stream if it is closed
+	PurgeStreams();
+
 	auto stream = std::make_unique<Stream>(GetSession(), std::move(url), Method, RequestHeaders, ResponseHeaders);
 
 	stream->SetDataProvider(std::move(SendData));
@@ -897,6 +945,16 @@ Stream::ID SingleStreamSession::SubmitRequest(
 	// and receive the response headers, but do not wait for the response body here!
 	if (!Run(false))
 	{
+		return -1;
+	}
+
+	auto Stream = GetStream(StreamID);
+
+	if (!Stream || !Stream->IsHeadersComplete())
+	{
+		// the peer reset the stream, or the connection ended
+		SetError(kFormat("[stream {}] closed before the response headers were complete, application error code: 0x{:x}",
+		                 StreamID, Stream ? Stream->GetCloseErrorCode() : 0));
 		return -1;
 	}
 
@@ -920,6 +978,7 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 	if (!Stream)
 	{
+		SetError(kFormat("[stream {}] unknown stream", StreamID));
 		return -1;
 	}
 
@@ -1006,6 +1065,22 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 
 //-----------------------------------------------------------------------------
+int Session::OnBeginHeaders(Stream::ID StreamID)
+//-----------------------------------------------------------------------------
+{
+	kDebug(4, "[stream {}] response header start", StreamID);
+	auto Stream = GetStream(StreamID);
+
+	if (Stream)
+	{
+		Stream->StartResponseHeaders();
+	}
+
+	return 0;
+
+} // OnBeginHeaders
+
+//-----------------------------------------------------------------------------
 int Session::OnReceiveHeader(Stream::ID StreamID, KStringView sName, KStringView sValue, uint8_t iFlags)
 //-----------------------------------------------------------------------------
 {
@@ -1014,7 +1089,19 @@ int Session::OnReceiveHeader(Stream::ID StreamID, KStringView sName, KStringView
 
 	if (Stream)
 	{
-		return Stream->AddResponseHeader(StreamID, sName, sValue);
+		if (!Stream->AddResponseHeader(StreamID, sName, sValue))
+		{
+			if (!Stream->IsRejected())
+			{
+				SetError(Stream->CopyLastError());
+				return NGHTTP3_ERR_CALLBACK_FAILURE;
+			}
+
+			// a header limit was exceeded - the stream is reset once nghttp3 returns
+			// from processing the received data, a failure in this callback would end
+			// the connection
+			SetError(kFormat("[stream {}] {}", StreamID, Stream->GetResponseHeaders()->GetLastError()));
+		}
 	}
 
 	return 0;
@@ -1029,7 +1116,7 @@ int Session::OnEndHeaders(Stream::ID StreamID, int fin)
 	auto Stream = GetStream(StreamID);
 
 	// completes the headers, unless this block was a 1xx interim response
-	if (Stream && !Stream->IsHeadersComplete())
+	if (Stream && !Stream->IsHeadersComplete() && !Stream->IsRejected())
 	{
 		Stream->EndResponseHeaders(StreamID);
 	}
@@ -1044,7 +1131,7 @@ int Session::OnReceiveData(Stream::ID StreamID, KStringView sData)
 {
 	auto Stream = GetStream(StreamID);
 
-	if (Stream)
+	if (Stream && !Stream->IsRejected())
 	{
 		// only the bytes taken right away are credited now, the rest when the spill buffer drains
 		CreditReceived(StreamID, Stream->AddData(sData));
@@ -1188,6 +1275,37 @@ int Session::DelegateError(KString sError)
 } // DelegateError
 
 //-----------------------------------------------------------------------------
+int Session::ResetRejectedStream(Stream& Stream)
+//-----------------------------------------------------------------------------
+{
+	auto id = Stream.GetStreamID();
+
+	kDebug(2, "[stream {}] resetting the stream with H3_EXCESSIVE_LOAD", id);
+
+	// nghttp3 discards all further data of the stream, and cancels its pending
+	// header block on the QPACK decoder stream
+	auto ec = ::nghttp3_conn_shutdown_stream_read(m_Session, id);
+
+	if (ec != 0)
+	{
+		return DelegateError(kFormat("nghttp3 cannot shutdown stream read: {}", ::nghttp3_strerror(ec)));
+	}
+
+	::nghttp3_conn_shutdown_stream_write(m_Session, id);
+
+	// STOP_SENDING and RESET_STREAM with H3_EXCESSIVE_LOAD (RFC 9114 8.1) - only
+	// this stream ends, not the connection. ngtcp2 omits the frame for a direction
+	// that is already complete, e.g. a request that the peer acknowledged
+	m_Connection.ShutdownStreamRead (id, NGHTTP3_H3_EXCESSIVE_LOAD);
+	m_Connection.ShutdownStreamWrite(id, NGHTTP3_H3_EXCESSIVE_LOAD);
+
+	Stream.Close(NGHTTP3_H3_EXCESSIVE_LOAD);
+
+	return 0;
+
+} // ResetRejectedStream
+
+//-----------------------------------------------------------------------------
 std::ptrdiff_t Session::OnQuicStreamData(KQuicConnection::StreamID id, KStringView sData, bool bFin)
 //-----------------------------------------------------------------------------
 {
@@ -1209,6 +1327,16 @@ std::ptrdiff_t Session::OnQuicStreamData(KQuicConnection::StreamID id, KStringVi
 	{
 		DelegateError(kFormat("nghttp3 failed to process incoming data: {}", ::nghttp3_strerror(static_cast<int>(iRead))));
 		return -1;
+	}
+
+	auto Stream = GetStream(id);
+
+	if (Stream && Stream->IsRejected() && !Stream->IsClosed())
+	{
+		if (ResetRejectedStream(*Stream) != 0)
+		{
+			return -1;
+		}
 	}
 
 	if (bFin)
@@ -1390,6 +1518,16 @@ KStringView RCBufToView(nghttp3_rcbuf* buf)
 }
 
 } // end of anonymous namespace
+
+int Session::on_begin_headers(
+	nghttp3_conn* h3conn,
+	Stream::ID stream_id,
+	void* conn_user_data,
+	void* stream_user_data
+)
+{
+	return ToThis(conn_user_data)->OnBeginHeaders(stream_id);
+}
 
 int Session::on_recv_header(
 	nghttp3_conn* h3conn,

@@ -229,6 +229,11 @@ protected:
 	bool    SessionSend         ();
 	bool    SessionReceive      ();
 	bool    Received            (const void* data, std::size_t len);
+	/// returns true if nghttp2 ended the session, e.g. after it sent a GOAWAY for a
+	/// protocol error - no further frames are processed
+	bool    IsSessionEnded      () const;
+	/// returns the cause of the end of the session, for the error message of a stream
+	KString GetSessionEndReason () const;
 
 	bool    AddStream           (Stream::ID StreamID, Stream Stream);
 	Stream* GetStream           (Stream::ID StreamID);
@@ -264,6 +269,7 @@ private:
 	int           OnHeader        (const void* frame, KStringView sName, KStringView sValue, uint8_t flags);
 	int           OnBeginHeaders  (const void* frame);
 	int           OnFrameRecv     (const void* frame);
+	int           OnFrameSend     (const void* frame);
 	int           OnDataChunkRecv (uint8_t flags, Stream::ID stream_id, KConstBuffer data);
 	int           OnStreamClose   (Stream::ID stream_id, uint32_t error_code);
 
@@ -271,6 +277,8 @@ private:
 	std::unordered_map<Stream::ID, Stream> m_Streams;
 	KString          m_sAuthority; // the common authority for all Streams managed by this Session
 	KHTTPHeaders::Limits m_Limits; // for the response headers of new Streams
+	uint32_t         m_iGoAwayErrorCode { 0 }; // of a GOAWAY that this side sent
+	bool             m_bSentGoAway      { false };
 
 }; // Session
 

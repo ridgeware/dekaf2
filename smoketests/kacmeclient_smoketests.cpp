@@ -19,6 +19,11 @@ using namespace dekaf2;
 //
 //   podman run --rm -d --name pebble -p 14000:14000 -e PEBBLE_VA_NOSLEEP=1 ghcr.io/letsencrypt/pebble
 //
+// or with docker, which needs the name of this host as an alias of the host gateway
+// (docker 20.10 or later):
+//
+//   docker run --rm -d --name pebble -p 14000:14000 -e PEBBLE_VA_NOSLEEP=1 --add-host=host.containers.internal:host-gateway ghcr.io/letsencrypt/pebble
+//
 // Pebble validates tls-alpn-01 by connecting to port 5001 of the ordered domain.
 // The default domain "host.containers.internal" resolves to this host from inside
 // the container, so no DNS mock is needed. The tests skip themselves when no ACME

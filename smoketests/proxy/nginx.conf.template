@@ -1,0 +1,32 @@
+# nginx as HTTP/2 and HTTP/3 reverse proxy for the dekaf2 smoketests, see
+# start-proxy.sh. The official nginx image substitutes ${BACKEND_HOST} and
+# ${BACKEND_PORT} when it starts and installs the result as
+# /etc/nginx/conf.d/default.conf.
+
+server {
+	listen      8443 ssl;
+	listen      8443 quic reuseport;
+	http2       on;
+	http3       on;
+	server_name _;
+
+	ssl_certificate     /etc/nginx/certs/cert.pem;
+	ssl_certificate_key /etc/nginx/certs/key.pem;
+	ssl_protocols       TLSv1.3;
+
+	location / {
+		# the backend runs inside the smoketest process, on the host or in a
+		# container of the same network
+		proxy_pass              http://${BACKEND_HOST}:${BACKEND_PORT};
+		proxy_http_version      1.1;
+
+		# the whole response header of the backend has to fit into one buffer -
+		# the tests send header sections above 256 KiB
+		proxy_buffer_size       1m;
+		proxy_buffers           4 1m;
+		proxy_busy_buffers_size 2m;
+
+		# pass 103 Early Hints of the backend on to the client
+		early_hints             1;
+	}
+}

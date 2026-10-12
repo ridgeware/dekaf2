@@ -262,6 +262,7 @@ void KHTTPClient::clear()
 	Request.clear();
 	Response.clear();
 	ClearError();
+	m_TransportError = TransportError::None;
 	m_bHaveHostSet = false;
 
 	// do not reset m_bUseHTTPProxyProtocol here - it stays valid until
@@ -328,6 +329,7 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 //-----------------------------------------------------------------------------
 {
 	ClearError();
+	m_TransportError = TransportError::None;
 
 	// clear the response object, otherwise a previous
 	// status would prevail if not overwritten by a new connection
@@ -350,10 +352,10 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 
 		if (m_Connection && !m_Connection->Good())
 		{
-			return SetError(m_Connection->Error());
+			return SetTransportError(TransportError::Connect, m_Connection->Error());
 		}
 
-		return SetError("KConnection is invalid");
+		return SetTransportError(TransportError::Connect, "KConnection is invalid");
 	}
 
 	m_Connection->SetReaderEndOfLine('\n');
@@ -391,16 +393,16 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 
 				if (!m_HTTP3->Session.GetLastError().empty())
 				{
-					return SetError(m_HTTP3->Session.CopyLastError());
+					return SetTransportError(TransportError::Connect, m_HTTP3->Session.GetLastError());
 				}
 
 				Request .SetHTTPVersion(KHTTPVersion::http3);
 				Response.SetHTTPVersion(KHTTPVersion::http3);
 				Response.SetInputStream(m_HTTP3->InStream);
 			}
-			else return SetError("server did not accept HTTP/3 request");
+			else return SetTransportError(TransportError::Connect, "server did not accept HTTP/3 request");
 		}
-		else return SetError("not a KQuicStream");
+		else return SetTransportError(TransportError::Connect, "not a KQuicStream");
 	}
 #endif
 
@@ -428,7 +430,7 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 
 					if (!m_HTTP2->Session.GetLastError().empty())
 					{
-						return SetError(m_HTTP2->Session.CopyLastError());
+						return SetTransportError(TransportError::Connect, m_HTTP2->Session.GetLastError());
 					}
 
 					Request .SetHTTPVersion(KHTTPVersion::http2);
@@ -437,7 +439,7 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 				}
 				else if (m_StreamOptions.IsSet(KHTTPStreamOptions::FallBackToHTTP1) == false)
 				{
-					return SetError("wanted a HTTP/2 connection, but got only HTTP/1.1");
+					return SetTransportError(TransportError::Connect, "wanted a HTTP/2 connection, but got only HTTP/1.1");
 				}
 			}
 			else if (TLSStream->ShouldRetryWithHTTP1())
@@ -459,7 +461,7 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 		}
 		else if (m_StreamOptions.IsSet(KHTTPStreamOptions::FallBackToHTTP1) == false)
 		{
-			return SetError("not a KTLSStream");
+			return SetTransportError(TransportError::Connect, "not a KTLSStream");
 		}
 	}
 #endif
@@ -630,7 +632,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& GivenProxy, KStringView s
 
 		if (Response.iStatusCode != 200)
 		{
-			return SetError(kFormat("proxy server returned {} {}", Response.iStatusCode, Response.sStatusString));
+			return SetTransportError(TransportError::Connect, kFormat("proxy server returned {} {}", Response.iStatusCode, Response.sStatusString));
 		}
 
 		// the tunnel is up - the handshake shall carry the target's identity, not the
@@ -651,7 +653,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& GivenProxy, KStringView s
 		// end of header, start TLS
 		if (!m_Connection->StartManualTLSHandshake())
 		{
-			return SetError(m_Connection->Error());
+			return SetTransportError(TransportError::Connect, m_Connection->Error());
 		}
 
 		// remove all headers from the outer proxy connection
@@ -972,7 +974,7 @@ bool KHTTPClient::SetupAutomaticHeaders(KStringView* svPostData, KInStream* Post
 
 	if (!m_Connection || !m_Connection->Good())
 	{
-		return SetNetworkError(false, "no stream");
+		return SetTransportError(TransportError::Connect, "no stream");
 	}
 
 	if (Request.Method != KHTTPMethod::HEAD &&
@@ -1049,6 +1051,7 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 //-----------------------------------------------------------------------------
 {
 	Response.clear();
+	m_TransportError = TransportError::None;
 
 	if (!SetupAutomaticHeaders(svPostData, PostDataStream, len, Mime))
 	{
@@ -1088,7 +1091,8 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 
 		if (m_HTTP2->StreamID < 0)
 		{
-			return SetError(m_HTTP2->Session.CopyLastError());
+			// sending the request or reading the response headers failed
+			return SetTransportError(TransportError::Read, m_HTTP2->Session.GetLastError());
 		}
 
 		return Parse();
@@ -1130,7 +1134,8 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 
 		if (m_HTTP3->StreamID < 0)
 		{
-			return SetError(m_HTTP3->Session.CopyLastError());
+			// sending the request or reading the response headers failed
+			return SetTransportError(TransportError::Read, m_HTTP3->Session.GetLastError());
 		}
 
 		return Parse();
@@ -1169,13 +1174,13 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 		if (iWrote != len)
 		{
 			kDebug(2, "cannot write body");
-			return SetNetworkError(false, Request.Error());
+			return SetTransportError(TransportError::Write, Request.Error());
 		}
 	}
 
 	if (!m_Connection->Good())
 	{
-		return SetNetworkError(false, "write error");
+		return SetTransportError(TransportError::Write, m_Connection->HasError() ? m_Connection->GetLastError() : KStringViewZ("write error"));
 	}
 
 	return Parse();
@@ -1197,7 +1202,7 @@ bool KHTTPClient::Serialize()
 			return SetError(Request.Error());
 		}
 
-		return SetNetworkError(false, Request.Error());
+		return SetTransportError(TransportError::Write, Request.Error());
 	}
 
 	return true;
@@ -1237,7 +1242,36 @@ bool KHTTPClient::Parse()
 
 	if (!Response.Parse())
 	{
-		return SetNetworkError(true, m_Connection->HasError() ? m_Connection->GetLastError() : Response.GetLastError() );
+		auto Error = TransportError::Read;
+
+		switch (Response.GetParseError())
+		{
+			case KHTTPHeaders::NoError:
+			case KHTTPHeaders::Incomplete:
+				// the connection ended or failed before the headers were complete -
+				// the connection knows why
+				if (m_Connection->HasError())
+				{
+					return SetTransportError(TransportError::Read, m_Connection->GetLastError());
+				}
+				break;
+
+			case KHTTPHeaders::StartLineTooLong:
+			case KHTTPHeaders::FieldTooLong:
+			case KHTTPHeaders::TooManyFields:
+			case KHTTPHeaders::SectionTooLarge:
+			case KHTTPHeaders::TooManyInterimResponses:
+				Error = TransportError::HeaderLimit;
+				break;
+
+			case KHTTPHeaders::Malformed:
+				Error = TransportError::MalformedResponse;
+				break;
+		}
+
+		return SetTransportError(Error, Response.GetLastError().empty()
+		                                ? KStringViewZ("the connection closed before a response arrived")
+		                                : Response.GetLastError());
 	}
 
 	// make sure also a network read error triggers a meaningful status
@@ -1287,7 +1321,7 @@ std::streamsize KHTTPClient::HTTP2StreamReader(void* buf, std::streamsize size, 
 	if (iRead < 0)
 	{
 		// a streambuf can only signal the end of input - mark the failure on the
-		// stream, CheckSessionReadError() and Response.Fail() pick it up
+		// stream, CheckBodyReadError() and Response.Fail() pick it up
 		StreamInfo->IStream.setstate(std::ios::badbit);
 	}
 
@@ -1307,7 +1341,7 @@ std::streamsize KHTTPClient::HTTP3StreamReader(void* buf, std::streamsize size, 
 	if (iRead < 0)
 	{
 		// a streambuf can only signal the end of input - mark the failure on the
-		// stream, CheckSessionReadError() and Response.Fail() pick it up
+		// stream, CheckBodyReadError() and Response.Fail() pick it up
 		StreamInfo->IStream.setstate(std::ios::badbit);
 	}
 
@@ -1452,40 +1486,92 @@ bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint, KStringView sTL
 } // AlreadyConnected
 
 //-----------------------------------------------------------------------------
-void KHTTPClient::CheckSessionReadError()
+void KHTTPClient::CheckBodyReadError()
 //-----------------------------------------------------------------------------
 {
+	if (m_TransportError != TransportError::None)
+	{
+		// already reported
+		return;
+	}
+
 #if DEKAF2_HAS_NGHTTP2
 	if (m_HTTP2 && m_HTTP2->IStream.bad())
 	{
-		SetNetworkError(true, m_HTTP2->Session.GetLastError());
+		// the session knows why the stream ended early
+		SetTransportError(TransportError::IncompleteBody, m_HTTP2->Session.GetLastError());
+		return;
 	}
 #endif
 
 #if DEKAF2_HAS_NGHTTP3
 	if (m_HTTP3 && m_HTTP3->IStream.bad())
 	{
-		SetNetworkError(true, m_HTTP3->Session.GetLastError());
+		SetTransportError(TransportError::IncompleteBody, m_HTTP3->Session.GetLastError());
+		return;
 	}
 #endif
 
-} // CheckSessionReadError
-
-//-----------------------------------------------------------------------------
-bool KHTTPClient::SetNetworkError(bool bRead, KStringViewZ sError)
-//-----------------------------------------------------------------------------
-{
-	if (!Response.GetStatusCode() || Response.Good())
+	// at the end of the body: with a Content-Length or a chunked transfer, the
+	// input must have ended where the body ends
+	if (Response.eof() && !Response.IsInputConsumed())
 	{
-		Response.SetStatus(KHTTPError::H5xx_READTIMEOUT,
-						   kFormat("NETWORK {} ERROR", bRead ? "READ" : "WRITE"));
+		SetTransportError(TransportError::IncompleteBody,
+		                  (m_Connection && m_Connection->HasError())
+		                  ? m_Connection->GetLastError()
+		                  : KStringViewZ("the response body ended before its end"));
 	}
 
+} // CheckBodyReadError
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::SetTransportError(TransportError Error, KStringViewZ sError)
+//-----------------------------------------------------------------------------
+{
+	// TRANSITION: until the consumers that detect a failure by status 598 are
+	// migrated to GetTransportError(), a transport error replaces a missing or a
+	// 2xx status with 598, as before - a connection that could not be established
+	// keeps status 0, as before
+	if (Error != TransportError::None && Error != TransportError::Connect)
+	{
+		if (!Response.GetStatusCode() || Response.GetStatusCode() / 100 == 2)
+		{
+			Response.SetStatus(KHTTPError::H5xx_READTIMEOUT,
+			                   kFormat("NETWORK {} ERROR", (Error == TransportError::Write) ? "WRITE" : "READ"));
+		}
+	}
+
+	switch (Error)
+	{
+		case TransportError::Write:
+		case TransportError::Read:
+		case TransportError::IncompleteBody:
+			// a read or write that ended by its timeout is reported as such
+			if ((m_Connection && m_Connection->IsTimedOut())
+#if DEKAF2_HAS_NGHTTP3
+			    || (m_HTTP3 && m_HTTP3->Session.IsTimedOut())
+#endif
+			   )
+			{
+				Error = TransportError::Timeout;
+			}
+			break;
+
+		case TransportError::None:
+		case TransportError::Connect:
+		case TransportError::Timeout:
+		case TransportError::HeaderLimit:
+		case TransportError::MalformedResponse:
+			break;
+	}
+
+	m_TransportError = Error;
+	// the state of the connection is undefined after a failure
 	m_bKeepAlive = false;
 
 	return SetError(sError);
 
-} // SetNetworkError
+} // SetTransportError
 
 //-----------------------------------------------------------------------------
 const KTCPEndPoint& KHTTPClient::GetConnectedEndpoint() const

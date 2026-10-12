@@ -203,6 +203,7 @@ TEST_CASE("KWebClient") {
 		sRet = HTTP.Post("http://localhost:7653/test1", "some body", KMIME::HTML_UTF8);
 		CHECK( sRet.empty() );
 		CHECK( HTTP.GetStatusCode() == 598 );
+		CHECK( HTTP.GetTransportError() == KHTTPClient::TransportError::Timeout );
 #ifndef DEKAF2_IS_WINDOWS
 		// on Windows the error is the system text of ERROR_OPERATION_ABORTED, in the
 		// language of the system
@@ -434,6 +435,7 @@ TEST_CASE("KWebClient") {
 		HTTP.HttpRequest2Host(oss, ConnectURL, "localhost/test1", KHTTPMethod::POST, "some body", KMIME::HTML_UTF8);
 		CHECK( sRet.empty() );
 		CHECK( HTTP.GetStatusCode() == 598 );
+		CHECK( HTTP.GetTransportError() == KHTTPClient::TransportError::Timeout );
 #ifndef DEKAF2_IS_WINDOWS
 		// on Windows the error is the system text of ERROR_OPERATION_ABORTED, in the
 		// language of the system

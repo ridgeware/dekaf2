@@ -620,6 +620,7 @@ bool Session::Run(bool bWithResponses)
 		if (Remaining <= KDuration::zero())
 		{
 			kDebug(1, "connection timed out");
+			SetTimedOut();
 			return SetError("connection timed out");
 		}
 
@@ -894,7 +895,10 @@ Stream::ID SingleStreamSession::SubmitRequest(
 
 	// finally send all the prepared request data
 	// and receive the response headers, but do not wait for the response body here!
-	Run(false);
+	if (!Run(false))
+	{
+		return -1;
+	}
 
 	return StreamID;
 
@@ -943,6 +947,7 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 			if (Remaining <= KDuration::zero())
 			{
 				kDebug(1, "[stream {}] connection timed out", StreamID);
+				SetTimedOut();
 				SetError("connection timed out");
 				bFailed = true;
 				break;

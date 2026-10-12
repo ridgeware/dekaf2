@@ -300,8 +300,10 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	// overwrite the KInHTTPFilter version of Fail(), we need to manipulate the
-	// status code in KHTTPResponseHeaders
+	/// returns true if the input stream failed or the status is no success - this
+	/// overwrites the KInHTTPFilter version of Fail(), which only checks the stream.
+	/// During the transition period, a failed stream still replaces a missing or a 2xx status
+	/// with 598.
 	bool Fail() const;
 	//-----------------------------------------------------------------------------
 

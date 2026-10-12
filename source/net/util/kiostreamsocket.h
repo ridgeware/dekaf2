@@ -128,6 +128,9 @@ public:
 	/// is this stream good for reading and writing?
 	virtual bool Good() const = 0;
 
+	/// returns true if the last read or write ended because its timeout fired
+	virtual bool IsTimedOut() const { return false; }
+
 	/// read directly from the stream, not using the std::streambuf hierarchy - returns only as many characters as
 	/// are immediately available - do not mix these reads with streambuf based reads, they are not synchronized
 	virtual std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) = 0;

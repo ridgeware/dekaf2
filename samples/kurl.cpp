@@ -909,7 +909,8 @@ void kurl::ServerQuery ()
 			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::CreateByInspection(sPath).Serialize());
 		}
 
-		m_Results.Add(HTTP.Response.iStatusCode, tDuration.elapsed());
+		// a response that did not arrive complete counts as no response
+		m_Results.Add(HTTP.GetTransportError() == KHTTPClient::TransportError::None ? HTTP.Response.iStatusCode : 0, tDuration.elapsed());
 
 		m_Progress.ProgressOne();
 
@@ -919,9 +920,11 @@ void kurl::ServerQuery ()
 			HTTP.GetCookies().Write(CookieJar);
 		}
 
-		if (HTTP.Response.iStatusCode == 0)
+		if (HTTP.Response.iStatusCode == 0 ||
+		    (HTTP.GetTransportError() != KHTTPClient::TransportError::None && HTTP.Response.Headers.empty()))
 		{
-			// no connection
+			// no connection, or no response - during the transition of the status
+			// to what the server sent, a missing response still shows as 598
 			KErr.FormatLine("{}: {}", RequestURL, HTTP.Error());
 			continue;
 		}
@@ -980,6 +983,13 @@ void kurl::ServerQuery ()
 		if (!bPrinted)
 		{
 			Out.Write (sResponse);
+		}
+
+		if (HTTP.GetTransportError() != KHTTPClient::TransportError::None)
+		{
+			// the status line above is what the server sent, but the response did not
+			// arrive complete
+			KErr.FormatLine("{}: {}", RequestURL, HTTP.Error());
 		}
 
 		if (RQ->Config.HasFlag(Flags::CONNECTION_CLOSE))

@@ -157,6 +157,8 @@ public:
 	using base::HttpFailure;
 	using base::GetStatusCode;
 	using base::GetStatusString;
+	using base::TransportError;
+	using base::GetTransportError;
 	using base::GetLastError;
 	using base::HasError;
 	using base::Authentication;
@@ -193,6 +195,10 @@ protected:
 	/// Throws the error if no error object is set, otherwise sets the error object and
 	/// returns false
 	bool ThrowOrReturn (KHTTPError&& ec, bool bRetval = false);
+	/// returns the error for a failed request: 502 Bad Gateway if no complete response
+	/// arrived (a transport error), else the status of the response
+	/// @param sError the error text
+	KHTTPError ResponseError (KStringView sError) const;
 	/// Calls clear once after a Request() to reset all state and setup except from ctor
 	void ResetAfterRequest();
 

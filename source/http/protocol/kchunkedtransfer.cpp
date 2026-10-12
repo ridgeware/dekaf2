@@ -123,6 +123,13 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 				if (iResult <= 0)
 				{
+					if (m_iContentLen > 0)
+					{
+						// the input ended before Content-Length - the body is incomplete
+						kDebug(1, "input ended {} bytes before the end of the content length", m_iContentLen);
+						m_bError = true;
+					}
+
 					// make sure that any following requests get an end of stream..
 					m_State = Finished;
 				}

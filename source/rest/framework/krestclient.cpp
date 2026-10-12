@@ -241,12 +241,28 @@ bool KRestClient::Request (KOutStream& OutStream, KStringView sBody, const KMIME
 			sError = Error();
 		}
 
-		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_Verb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) });
+		return ThrowOrReturn (ResponseError(sError));
 	}
 
 	return true;
 
 } // Request
+
+//-----------------------------------------------------------------------------
+KHTTPError KRestClient::ResponseError (KStringView sError) const
+//-----------------------------------------------------------------------------
+{
+	if (GetTransportError() != TransportError::None)
+	{
+		// the server did not answer, or not completely - for the callers of this
+		// client the request failed at a gateway, the status would otherwise be 0
+		// or one that the server sent for a response that did not arrive
+		return KHTTPError { KHTTPError::H5xx_BAD_GATEWAY, kFormat("{} {}: {} from {}", m_Verb.Serialize(), m_sPath, sError, m_URL.Serialize()) };
+	}
+
+	return KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_Verb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) };
+
+} // ResponseError
 
 //-----------------------------------------------------------------------------
 bool KRestClient::Request (KOutStream& OutStream, const KMIMEMultiPart& MultiPart)
@@ -387,7 +403,7 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, const KMIM
 			}
 		}
 
-		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_Verb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) }, std::move(jResponse));
+		return ThrowOrReturn (ResponseError(sError), std::move(jResponse));
 	}
 
 	return jResponse;

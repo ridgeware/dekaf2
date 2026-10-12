@@ -259,8 +259,9 @@ bool KInHTTPResponse::Fail() const
 {
 	if (KInHTTPFilter::Fail())
 	{
-		// check if we have to set an appropriate error code, maybe
-		// we had a timeout after already receiving a bad status code
+		// TRANSITION: the client reports a failed input stream as its transport
+		// error - until the consumers that detect a failure by status 598 are
+		// migrated, a missing or a 2xx status is still replaced with 598
 		if (KHTTPResponseHeaders::GetStatusCode() == 0 || KHTTPResponseHeaders::Good())
 		{
 			// set a read error - we cast the const away..

@@ -324,6 +324,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns true if the last read or write ended because its timeout fired
+	virtual bool IsTimedOut() const override final
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.bTimedOut;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// If a HTTP/2 handshake failed in a specific way it may be due to an OpenSSL communication problem.
 	/// In that case, it is advised to retry the connection with HTTP/1.1
 	bool ShouldRetryWithHTTP1() const

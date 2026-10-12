@@ -174,6 +174,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns true if the last read or write ended because its timeout fired
+	virtual bool IsTimedOut() const override final
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.bTimedOut;
+	}
+
+	//-----------------------------------------------------------------------------
 	std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) override final;
 	//-----------------------------------------------------------------------------
 

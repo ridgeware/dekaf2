@@ -1084,7 +1084,10 @@ Stream::ID SingleStreamSession::SubmitRequest(KURL                           url
 	}
 
 	// and receive the response headers
-	ReadResponseHeaders(StreamID);
+	if (!ReadResponseHeaders(StreamID))
+	{
+		return -1;
+	}
 
 	return StreamID;
 

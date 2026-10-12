@@ -212,13 +212,13 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 				{
 					TransmitTime.halt();
 
-					if (Response.Fail())
+					if (GetTransportError() == TransportError::Write ||
+					    GetTransportError() == TransportError::Read)
 					{
-						// check for error 598 - NETWORK READ/WRITE ERROR,
-						// allow one retry, but only if it was a reused connection
-						if (Response.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT &&
-						    !iRetries++ &&
-						    bReuseConnection)
+						// the request could not be sent, or no complete response
+						// header arrived: allow one retry, but only if it was a
+						// reused connection
+						if (!iRetries++ && bReuseConnection)
 						{
 							if (m_bAllowOneRetry)
 							{

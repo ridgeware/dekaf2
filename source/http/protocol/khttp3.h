@@ -307,6 +307,9 @@ public:
 	/// @returns false in case of an error, which can be retrieved with GetLastError(), else true
 	bool          Run                 ()                 { return Run(true);            }
 
+	/// returns true if the last failure was a timeout
+	bool          IsTimedOut          () const           { return m_bTimedOut;          }
+
 //----------
 protected:
 //----------
@@ -340,6 +343,8 @@ protected:
 	KQuicStream&  GetKQuicStream      ()                 { return m_KQuicStream;        }
 	KQuicConnection& GetConnection    ()                 { return m_Connection;         }
 	KDuration     GetTimeout          ()                 { return GetKQuicStream().GetTimeout(); }
+	/// marks the last failure as a timeout
+	void          SetTimedOut         ()                 { m_bTimedOut = true;          }
 
 	/// credit received stream data back to the peer's flow control window once it is consumed
 	void          CreditReceived      (Stream::ID StreamID, std::size_t iBytes) { m_Connection.CreditReceived(StreamID, iBytes); }
@@ -390,6 +395,7 @@ private:
 	Stream::ID       m_QPackDecStreamID  { -1 };
 	KString          m_sAuthority; // the common authority for all Streams managed by this Session
 	std::unordered_map<Stream::ID, std::unique_ptr<Stream>> m_Streams;
+	bool             m_bTimedOut         { false };
 
 	// -------------------------------------------------------------------
 	// the static C style callback functions which translate from C to C++
@@ -501,6 +507,7 @@ public:
 	using Session::GetLastError;
 	using Session::CopyLastError;
 	using Session::HasError;
+	using Session::IsTimedOut;
 
 	/// Submit a (client) request. Internally, this generates a new Stream object, the handle of which is returned as a Stream::ID.
 	/// This method only returns after having sent request headers and body, and received all response headers.

@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/http/client/khttpclient.h>
+#include <dekaf2/http/client/kwebclient.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/core/strings/kstring.h>
@@ -12,6 +13,7 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/io/streams/koutstringstream.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
+#include <atomic>
 
 
 using namespace dekaf2;
@@ -431,3 +433,178 @@ TEST_CASE("KHTTPClient") {
 
 }
 
+namespace {
+
+// answers every request with a scripted response and closes the connection after
+// it, without announcing that in a Connection header
+class KScriptedHTTPServer : public KTCPServer
+{
+
+public:
+
+	KScriptedHTTPServer(uint16_t iPort)
+	: KTCPServer(iPort, false, 5)
+	{
+	}
+
+	// the response head, a pause after it, and the body
+	void Respond(KString sHead, KString sBody = {}, KDuration Pause = KDuration::zero())
+	{
+		m_sHead = std::move(sHead);
+		m_sBody = std::move(sBody);
+		m_Pause = Pause;
+	}
+
+	std::atomic<int> m_iConnections { 0 };
+
+protected:
+
+	virtual void Session(std::unique_ptr<KIOStreamSocket>& stream) override
+	{
+		++m_iConnections;
+
+		stream->SetReaderRightTrim("\r\n");
+
+		KString sLine;
+
+		// the requests of these tests have no body
+		while (stream->ReadLine(sLine) && !sLine.empty())
+		{
+		}
+
+		stream->Write(m_sHead).Flush();
+
+		if (m_Pause > KDuration::zero())
+		{
+			kSleep(m_Pause);
+		}
+
+		stream->Write(m_sBody).Flush();
+	}
+
+	KString   m_sHead;
+	KString   m_sBody;
+	KDuration m_Pause;
+
+}; // KScriptedHTTPServer
+
+} // end of anonymous namespace
+
+TEST_CASE("KHTTPClient transport errors")
+{
+	KScriptedHTTPServer Server(7656);
+	Server.Start(chrono::seconds(2), false);
+
+	KStringViewZ sURL = "http://127.0.0.1:7656/path";
+
+	SECTION("no connection")
+	{
+		// nothing listens on port 1
+		KWebClient HTTP;
+		HTTP.SetTimeout(chrono::seconds(1));
+		HTTP.Get("http://127.0.0.1:1/path");
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::Connect );
+		// no 598 for a connection that could not be established, as before
+		CHECK ( HTTP.GetStatusCode() == 0 );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
+	SECTION("a 404 is no transport error")
+	{
+		Server.Respond("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+		KWebClient HTTP;
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::None );
+		CHECK ( HTTP.GetStatusCode() == 404 );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
+	SECTION("a complete response")
+	{
+		Server.Respond("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n", "hello");
+		KWebClient HTTP;
+		CHECK ( HTTP.Get(sURL) == "hello" );
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::None );
+		CHECK ( HTTP.GetStatusCode() == 200 );
+		CHECK ( HTTP.HttpSuccess() == true );
+	}
+
+	SECTION("a body that ends before Content-Length")
+	{
+		Server.Respond("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n", "short");
+		KWebClient HTTP;
+		CHECK ( HTTP.Get(sURL) == "short" );
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::IncompleteBody );
+		// during the transition, a transport error replaces a 2xx status with 598
+		CHECK ( HTTP.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
+	SECTION("a chunked body without the last chunk")
+	{
+		Server.Respond("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n", "5\r\nhello\r\n");
+		KWebClient HTTP;
+		CHECK ( HTTP.Get(sURL) == "hello" );
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::IncompleteBody );
+		CHECK ( HTTP.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
+	SECTION("a timeout while reading the body")
+	{
+		Server.Respond("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n", "hello", chrono::milliseconds(1500));
+		KWebClient HTTP;
+		HTTP.SetTimeout(chrono::milliseconds(300));
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::Timeout );
+		CHECK ( HTTP.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
+	SECTION("a response header above the limit")
+	{
+		Server.Respond("HTTP/1.1 200 OK\r\nX: " + KString(64 * 1024, 'a') + "\r\nContent-Length: 0\r\n\r\n");
+		KWebClient HTTP;
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::HeaderLimit );
+		CHECK ( HTTP.Response.GetParseError() == KHTTPHeaders::FieldTooLong );
+		CHECK ( HTTP.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
+	SECTION("a malformed response")
+	{
+		Server.Respond("garbage\r\n\r\n");
+		KWebClient HTTP;
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::MalformedResponse );
+		CHECK ( HTTP.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
+	SECTION("a connection that closes without a response")
+	{
+		Server.Respond("");
+		KWebClient HTTP;
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::Read );
+		CHECK ( HTTP.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
+	SECTION("a reused connection that the server closed")
+	{
+		// the server closes each connection after its response, but the client
+		// considers it reusable - the second request fails on it and is retried
+		// on a new connection
+		Server.Respond("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n", "hello");
+		KWebClient HTTP;
+		CHECK ( HTTP.Get(sURL) == "hello" );
+		CHECK ( HTTP.Get(sURL) == "hello" );
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::None );
+		CHECK ( HTTP.HttpSuccess() == true );
+		CHECK ( Server.m_iConnections == 2 );
+	}
+
+	Server.Stop();
+}

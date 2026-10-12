@@ -94,6 +94,23 @@ public:
 
 	using self = KHTTPClient;
 
+	/// a failure of the client side: the request did not reach the server, or the
+	/// response did not arrive complete - apart from the HTTP status, which is what
+	/// the server sent. During the transition period, a transport error other than Connect
+	/// still replaces a missing or a 2xx status with 598, for callers that detect a
+	/// failure by that previous status.
+	enum class TransportError : uint8_t
+	{
+		None,              ///< no failure
+		Connect,           ///< the connection, its TLS handshake or a proxy tunnel could not be established
+		Write,             ///< sending the request failed
+		Timeout,           ///< a read or write timed out
+		Read,              ///< the connection ended or failed before the response headers were complete
+		IncompleteBody,    ///< the response body ended before its end (Content-Length, last chunk, END_STREAM or FIN)
+		HeaderLimit,       ///< the response headers exceeded a limit, see Response.GetParseError()
+		MalformedResponse  ///< the status line or the headers of the response were malformed
+	};
+
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// ABC for authenticators
 	class Authenticator
@@ -328,7 +345,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		auto iRead = Response.Read(stream, len);
-		CheckSessionReadError();
+		CheckBodyReadError();
 		return iRead;
 	}
 
@@ -338,7 +355,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		auto iRead = Response.Read(sBuffer, len);
-		CheckSessionReadError();
+		CheckBodyReadError();
 		return iRead;
 	}
 
@@ -348,7 +365,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		auto bRead = Response.ReadLine(sBuffer);
-		CheckSessionReadError();
+		CheckBodyReadError();
 		return bRead;
 	}
 
@@ -371,11 +388,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// evaluates the http status code after a request and returns true 200 >= code <= 299
+	/// returns true if the last request had no transport error and its status is 2xx
 	bool HttpSuccess() const
 	//-----------------------------------------------------------------------------
 	{
-		return Response.Good();
+		return m_TransportError == TransportError::None && Response.Good();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -392,7 +409,18 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Return HTTP status code from last request
+	/// returns the failure of the client side in the last request, or None - the
+	/// error text is in Error()
+	TransportError GetTransportError() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_TransportError;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Return HTTP status code from last request - what the server sent, 0 if no
+	/// status arrived. During the transition period, a transport error replaces a missing or a
+	/// 2xx status with 598, see GetTransportError().
 	uint16_t GetStatusCode() const
 	//-----------------------------------------------------------------------------
 	{
@@ -579,15 +607,26 @@ protected:
 //------
  
 	//-----------------------------------------------------------------------------
-	/// Mark an IO error
-	bool SetNetworkError(bool bRead, KStringViewZ sError);
+	/// marks a failure of the client side, reports a read or write that timed out as
+	/// Timeout, and ends the reuse of the connection
+	/// @param Error the failure
+	/// @param sError the error text
+	/// @return always false
+	bool SetTransportError(TransportError Error, KStringViewZ sError);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// After reading the body of an HTTP/2 or HTTP/3 response: if the session failed
-	/// to deliver it to its end, mark a network read error with the session's error.
-	/// A body that ends early would otherwise look complete.
-	void CheckSessionReadError();
+	/// marks a read or write failure - use SetTransportError()
+	bool SetNetworkError(bool bRead, KStringViewZ sError)
+	//-----------------------------------------------------------------------------
+	{
+		return SetTransportError(bRead ? TransportError::Read : TransportError::Write, sError);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// After reading the response body: if the body ended before its end, mark
+	/// IncompleteBody (or Timeout) - a body that ends early would otherwise look complete
+	void CheckBodyReadError();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -705,6 +744,7 @@ private:
 	bool               m_bRequestCompression   { true  };
 	bool               m_bAutoProxy            { false };
 	bool               m_bUseHTTPProxyProtocol { false };
+	TransportError     m_TransportError        { TransportError::None };
 	bool               m_bKeepAlive            { true  };
 	bool               m_bHaveHostSet          { false };
 

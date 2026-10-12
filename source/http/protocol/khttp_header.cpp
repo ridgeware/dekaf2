@@ -52,6 +52,7 @@
 #if !DEKAF2_HTTP_HEADER_VIEW_PIPELINE
 	#include <boost/foreach.hpp>
 #endif
+#include <algorithm>
 #include <cerrno>
 #include <limits>
 
@@ -261,94 +262,296 @@ static_assert(std::is_nothrow_move_constructible<KHTTPHeader>::value,
 			  "KHTTPHeader is intended to be nothrow move constructible, but is not!");
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeaders::Parse(KInStream& Stream, bool bRejectSpaceBeforeColon)
+bool KHTTPHeaders::Counter::Add(KStringView sName, KStringView sValue) noexcept
 //-----------------------------------------------------------------------------
 {
-	// Continuation lines are no more allowed in HTTP headers, so we don't
-	// care for them. Any broken header (like missing key, no colon) will
-	// get dropped.
-	// We also do not care for line endings and will canonify them on
-	// serialization.
-	// For sake of SMTP we do now support continuation lines, but we
-	// canonify the separator to a single space when composing multi line
-	// headers into one single line header.
+	// RFC 9113 section 6.5.2 and RFC 9114 section 4.2.2 count each field
+	// with 32 bytes of overhead
+	m_iFieldLength  = sName.size() + sValue.size();
+	m_iSectionSize += m_iFieldLength + 32;
+	++m_iFieldCount;
+
+	return Check();
+
+} // Counter::Add
+
+//-----------------------------------------------------------------------------
+bool KHTTPHeaders::Counter::Extend(std::size_t iSize) noexcept
+//-----------------------------------------------------------------------------
+{
+	m_iFieldLength += iSize;
+	m_iSectionSize += iSize;
+
+	return Check();
+
+} // Counter::Extend
+
+//-----------------------------------------------------------------------------
+bool KHTTPHeaders::Counter::AddDropped(std::size_t iLength) noexcept
+//-----------------------------------------------------------------------------
+{
+	m_iSectionSize += iLength + 32;
+
+	return Check();
+
+} // Counter::AddDropped
+
+//-----------------------------------------------------------------------------
+void KHTTPHeaders::Counter::clear() noexcept
+//-----------------------------------------------------------------------------
+{
+	m_iFieldCount  = 0;
+	m_iSectionSize = 0;
+	m_iFieldLength = 0;
+	m_iErrorSize   = 0;
+	m_ParseError   = NoError;
+
+} // Counter::clear
+
+//-----------------------------------------------------------------------------
+bool KHTTPHeaders::Counter::Check() noexcept
+//-----------------------------------------------------------------------------
+{
+	if (m_Limits.iMaxFieldLength && m_iFieldLength > m_Limits.iMaxFieldLength)
+	{
+		return SetParseError(FieldTooLong, m_iFieldLength);
+	}
+
+	if (m_Limits.iMaxFieldCount && m_iFieldCount > m_Limits.iMaxFieldCount)
+	{
+		return SetParseError(TooManyFields, m_iFieldCount);
+	}
+
+	if (m_Limits.iMaxSectionSize && m_iSectionSize > m_Limits.iMaxSectionSize)
+	{
+		return SetParseError(SectionTooLarge, m_iSectionSize);
+	}
+
+	return true;
+
+} // Counter::Check
+
+//-----------------------------------------------------------------------------
+bool KHTTPHeaders::Counter::SetParseError(ParseError Error, std::size_t iSize) noexcept
+//-----------------------------------------------------------------------------
+{
+	// keep the first violation
+	if (m_ParseError == NoError)
+	{
+		m_ParseError = Error;
+		m_iErrorSize = iSize;
+	}
+
+	return false;
+
+} // Counter::SetParseError
+
+//-----------------------------------------------------------------------------
+KString KHTTPHeaders::Counter::GetErrorText() const
+//-----------------------------------------------------------------------------
+{
+	switch (m_ParseError)
+	{
+		case NoError:
+		case Malformed:
+			break;
+
+		case FieldTooLong:
+			return kFormat("HTTP header field too long: {} bytes, the limit is {}", m_iErrorSize, m_Limits.iMaxFieldLength);
+
+		case TooManyFields:
+			return kFormat("too many HTTP header fields: {}, the limit is {}", m_iErrorSize, m_Limits.iMaxFieldCount);
+
+		case SectionTooLarge:
+			return kFormat("HTTP header section too large: {} bytes, the limit is {}", m_iErrorSize, m_Limits.iMaxSectionSize);
+	}
+
+	return {};
+
+} // Counter::GetErrorText
+
+//-----------------------------------------------------------------------------
+bool KHTTPHeaders::SetParseError(ParseError Error, KStringViewZ sError)
+//-----------------------------------------------------------------------------
+{
+	m_ParseError = Error;
+	return SetError(sError);
+
+} // SetParseError
+
+//-----------------------------------------------------------------------------
+bool KHTTPHeaders::SetParseError(const Counter& Counter)
+//-----------------------------------------------------------------------------
+{
+	return SetParseError(Counter.GetParseError(), Counter.GetErrorText());
+
+} // SetParseError
+
+namespace {
+
+// the characters of an HTTP field name, a token as RFC 9110 section 5.6.2 defines it
+constexpr KFindSetOfChars HTTPTokenChars("!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+
+//-----------------------------------------------------------------------------
+// returns true if sName is a valid field name: in strict mode an HTTP token, in
+// lenient mode any visible ASCII characters, as RFC 5322 section 2.2 allows them
+// for mail headers
+bool IsValidFieldName(KStringView sName, bool bStrict)
+//-----------------------------------------------------------------------------
+{
+	if (sName.empty())
+	{
+		return false;
+	}
+
+	if (bStrict)
+	{
+		return sName.find_first_not_of(HTTPTokenChars) == KStringView::npos;
+	}
+
+	return std::all_of(sName.begin(), sName.end(), [](char ch)
+	{
+		auto iChar = static_cast<unsigned char>(ch);
+		return iChar > 0x20 && iChar < 0x7f;
+	});
+
+} // IsValidFieldName
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+bool KHTTPHeaders::Parse(KInStream& Stream, const Limits& Limits, bool bStrict)
+//-----------------------------------------------------------------------------
+{
+	// In strict mode (HTTP requests) every line that is no valid field fails the
+	// parse. In lenient mode (HTTP responses, MIME and mail headers) such lines are
+	// dropped, and a continuation line is appended to the value of the previous
+	// field, separated by a single space - SMTP and MIME still use them.
+	// We do not care for line endings and will canonify them on serialization.
 
 	if (!Headers.empty())
 	{
 		clear();
 	}
 
+	m_ParseError = NoError;
+
 	// make sure we detect an empty header
 	Stream.SetReaderRightTrim("\r\n");
 
 	KString sLine;
 	KHeaderMap::iterator last = Headers.end();
-	std::size_t iHeaderCount { 0 };
+	Counter Count(Limits);
 
-	while (Stream.ReadLine(sLine, MAX_LINELENGTH + 1))
+	// one byte more than the limit, to detect a line that exceeds it
+	const auto iMaxRead = Limits.iMaxFieldLength ? Limits.iMaxFieldLength + 1 : npos;
+
+	while (Stream.ReadLine(sLine, iMaxRead))
 	{
 		if (sLine.empty())
 		{
 			// end of header
 			return true;
 		}
-		else if (sLine.size() > MAX_LINELENGTH)
+		else if (Limits.iMaxFieldLength && sLine.size() > Limits.iMaxFieldLength)
 		{
-			return SetError(kFormat("HTTP {}header line too long: {} bytes", "", sLine.size()));
+			// the line was not read to its end, so its full length is not known
+			return SetParseError(FieldTooLong, kFormat("HTTP header line longer than {} bytes", Limits.iMaxFieldLength));
 		}
 
-		if (!KASCII::kIsAlpha(sLine.front()))
+		if (KASCII::kIsSpace(sLine.front()))
 		{
-			if (KASCII::kIsSpace(sLine.front()) && last != Headers.end())
+			if (bStrict)
+			{
+				// RFC 9112 sections 2.2 and 5.2 permit a server to reject both - a
+				// proxy in front may have read such a line differently than we do,
+				// and diverging views of a request open a request smuggling desync
+				return SetParseError(Malformed, (last == Headers.end())
+				                                ? "whitespace before the first header field"
+				                                : "obsolete line folding in header");
+			}
+
+			if (last != Headers.end())
 			{
 				// continuation line, append trimmed line to last header, insert a space
+				auto iLineLength = sLine.size();
 				kTrim(sLine);
 				if (!sLine.empty())
 				{
-					if (last->second.size() + sLine.size() > MAX_LINELENGTH)
+					if (!Count.Extend(1 + sLine.size()))
 					{
-						return SetError(kFormat("HTTP {}header line too long: {} bytes",
-												"continuation ",
-												last->second.size() + sLine.size()));
+						return SetParseError(Count);
 					}
 					kDebug(2, "continuation header: {}", sLine);
 					last->second += ' ';
 					last->second += sLine;
 				}
-				continue;
+				else if (!Count.AddDropped(iLineLength))
+				{
+					// a line of only whitespace adds nothing, but counts toward the section
+					return SetParseError(Count);
+				}
 			}
-			else
+			else if (!Count.AddDropped(sLine.size()))
 			{
-				// garbage, drop
-				continue;
+				// whitespace before the first field, the line is dropped but counts
+				// toward the section
+				return SetParseError(Count);
 			}
+			continue;
 		}
 
 		auto pos = sLine.find(':');
 
 		if (pos == npos)
 		{
+			if (bStrict)
+			{
+				return SetParseError(Malformed, "header line without colon");
+			}
+
 			kDebug(2, "dropping invalid header: {}", sLine);
+
+			if (!Count.AddDropped(sLine.size()))
+			{
+				return SetParseError(Count);
+			}
 			continue;
 		}
 
-		if (bRejectSpaceBeforeColon && pos > 0 && KASCII::kIsSpace(sLine[pos - 1]))
+		if (bStrict && pos > 0 && KASCII::kIsSpace(sLine[pos - 1]))
 		{
 			// "Content-Length : 5" - a proxy may have dropped this header as invalid,
 			// while we would frame the message with it (request smuggling)
-			return SetError("whitespace between header name and colon");
+			return SetParseError(Malformed, "whitespace between header name and colon");
 		}
 
-		if (++iHeaderCount > MAX_HEADERCOUNT)
-		{
-			return SetError(kFormat("too many HTTP headers: >{}", MAX_HEADERCOUNT));
-		}
-
-		// store
 		KStringView sKey(sLine.ToView(0, pos));
 		KStringView sValue(sLine.ToView(pos + 1, npos));
 		kTrimRight(sKey);
 		kTrim(sValue);
+
+		if (!IsValidFieldName(sKey, bStrict))
+		{
+			if (bStrict)
+			{
+				return SetParseError(Malformed, "invalid header field name");
+			}
+
+			kDebug(2, "dropping header with invalid name: {}", sLine);
+
+			if (!Count.AddDropped(sLine.size()))
+			{
+				return SetParseError(Count);
+			}
+			continue;
+		}
+
+		// store
+		if (!Count.Add(sKey, sValue))
+		{
+			return SetParseError(Count);
+		}
 
 		// reject duplicate Content-Length with different values (RFC 7230 §3.3.3)
 		if (KHTTPHeader::Parse(sKey) == KHTTPHeader::CONTENT_LENGTH)
@@ -357,7 +560,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream, bool bRejectSpaceBeforeColon)
 
 			if (!sExisting.empty() && sExisting != sValue)
 			{
-				return SetError(kFormat("duplicate Content-Length with conflicting values: {} vs {}", sExisting, sValue));
+				return SetParseError(Malformed, kFormat("duplicate Content-Length with conflicting values: {} vs {}", sExisting, sValue));
 			}
 		}
 
@@ -365,7 +568,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream, bool bRejectSpaceBeforeColon)
 		last = Headers.Add(sKey, sValue);
 	}
 
-	return SetError("HTTP header did not end with empty line");
+	return SetParseError(Malformed, "HTTP header did not end with empty line");
 
 } // Parse
 
@@ -505,6 +708,7 @@ void KHTTPHeaders::clear()
 	m_HTTPVersion.clear();
 	m_sCharset.clear();
 	m_sContentType.clear();
+	m_ParseError = NoError;
 	ClearError();
 
 } // clear
@@ -1000,7 +1204,8 @@ void KHTTPTrustedRemoteEndpoint::clear() noexcept
 } // KHTTPTrustedRemoteEndpoint::clear
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-constexpr std::size_t KHTTPHeaders::MAX_HEADERCOUNT;
+constexpr KHTTPHeaders::Limits KHTTPHeaders::DefaultRequestLimits;
+constexpr KHTTPHeaders::Limits KHTTPHeaders::DefaultResponseLimits;
 #endif
 
 DEKAF2_NAMESPACE_END

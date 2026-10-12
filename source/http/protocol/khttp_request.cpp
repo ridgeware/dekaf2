@@ -328,7 +328,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 		return SetError("HTTP/2 and HTTP/3 have no text request line");
 	}
 
-	if (!KHTTPHeaders::Parse(Stream, true))
+	if (!KHTTPHeaders::Parse(Stream, DefaultRequestLimits, true))
 	{
 		// error is already set
 		return false;

@@ -964,19 +964,144 @@ class DEKAF2_PUBLIC KHTTPHeaders : public KErrorBase
 public:
 //------
 
-	static std::size_t constexpr MAX_LINELENGTH  { 8 * 1024 };
-	static std::size_t constexpr MAX_HEADERCOUNT { 500      };
-
 	using KHeaderMap = KProps<KHTTPHeader, KString, /*Sequential =*/ true, /*Unique =*/ false>; // case insensitive map for header info
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// the limits for one received header block, a value of 0 means unlimited
+	struct Limits
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		/// the maximum length of one field, counted as name plus value. On HTTP/1.1
+		/// it is also the maximum length of a header line as read.
+		std::size_t iMaxFieldLength { 0 };
+		/// the maximum number of fields
+		std::size_t iMaxFieldCount  { 0 };
+		/// the maximum size of the block, counted as RFC 9113 section 6.5.2 defines
+		/// it: the sum over all fields of name length plus value length plus 32. On
+		/// HTTP/1.1 a dropped line that is no valid field counts with its length plus 32.
+		std::size_t iMaxSectionSize { 0 };
+	};
+
+	/// the default limits for requests received by a server
+	static constexpr Limits DefaultRequestLimits  {  8 * 1024, 500,  64 * 1024 };
+	/// the default limits for responses received by a client
+	static constexpr Limits DefaultResponseLimits { 64 * 1024, 500, 256 * 1024 };
+
+	/// the reason why a received header block was rejected
+	enum ParseError : uint8_t
+	{
+		NoError,         ///< the block was not rejected
+		FieldTooLong,    ///< a field exceeded Limits::iMaxFieldLength
+		TooManyFields,   ///< the block had more fields than Limits::iMaxFieldCount
+		SectionTooLarge, ///< the block exceeded Limits::iMaxSectionSize
+		Malformed        ///< the block was malformed or incomplete, the error text names the cause
+	};
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// counts the fields of one received header block and checks them against
+	/// the Limits - HTTP/1.1, HTTP/2 and HTTP/3 use the same counter
+	class DEKAF2_PUBLIC Counter
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//------
+	public:
+	//------
+
+		/// construct with the limits to check
+		explicit Counter(const Limits& Limits) noexcept : m_Limits(Limits) {}
+
+		//-----------------------------------------------------------------------------
+		/// adds a field to the block
+		/// @param sName the field name
+		/// @param sValue the field value
+		/// @return false if a limit is exceeded, GetParseError() then names it
+		bool Add(KStringView sName, KStringView sValue) noexcept;
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// adds bytes to the value of the last added field, as an HTTP/1.1
+		/// continuation line does
+		/// @param iSize the number of bytes added to the value
+		/// @return false if a limit is exceeded, GetParseError() then names it
+		bool Extend(std::size_t iSize) noexcept;
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// counts a line that is dropped because it is no valid field, as on HTTP/1.1
+		/// a line without a colon, toward the section size: with its length plus 32,
+		/// as a field would count. The field count does not change.
+		/// @param iLength the length of the dropped line
+		/// @return false if a limit is exceeded, GetParseError() then names it
+		bool AddDropped(std::size_t iLength) noexcept;
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// starts the count of a new header block with the same limits
+		void clear() noexcept;
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// returns the first limit that was exceeded, or NoError
+		ParseError GetParseError() const noexcept { return m_ParseError; }
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// returns an error text that names the exceeded limit and the size that
+		/// exceeded it, or an empty string if no limit was exceeded
+		KString GetErrorText() const;
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// returns the number of fields added
+		std::size_t GetFieldCount() const noexcept { return m_iFieldCount; }
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// returns the size of the block as counted for Limits::iMaxSectionSize
+		std::size_t GetSectionSize() const noexcept { return m_iSectionSize; }
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// returns the limits
+		const Limits& GetLimits() const noexcept { return m_Limits; }
+		//-----------------------------------------------------------------------------
+
+	//------
+	private:
+	//------
+
+		bool Check() noexcept;
+		bool SetParseError(ParseError Error, std::size_t iSize) noexcept;
+
+		Limits      m_Limits;
+		std::size_t m_iFieldCount  { 0 };
+		std::size_t m_iSectionSize { 0 };
+		std::size_t m_iFieldLength { 0 }; // of the last added field
+		std::size_t m_iErrorSize   { 0 }; // the size that exceeded the limit
+		ParseError  m_ParseError   { NoError };
+
+	}; // Counter
 
 	//-----------------------------------------------------------------------------
 	/// parses from Stream into headers
 	/// @param Stream the input stream
-	/// @param bRejectSpaceBeforeColon fail on whitespace between a header name and its
-	/// colon instead of trimming it - mandatory for HTTP requests (RFC 9112 5.1): a proxy
-	/// in front may have dropped such a header, and diverging views of the message
-	/// framing open a request smuggling desync. Responses and MIME headers stay lenient.
-	bool Parse(KInStream& Stream, bool bRejectSpaceBeforeColon = false);
+	/// @param Limits the limits for the header block, default DefaultRequestLimits
+	/// @param bStrict fail on every line that is no valid HTTP field: whitespace between
+	/// a header name and its colon (mandatory for HTTP requests, RFC 9112 5.1), a line
+	/// without a colon, a name that is no token, whitespace before the first field and
+	/// continuation lines (obsolete line folding). Use it for HTTP requests: a proxy in
+	/// front may have read such a line differently, and diverging views of the message
+	/// framing open a request smuggling desync. In lenient mode, for responses and MIME
+	/// headers, such lines are dropped or trimmed, names may contain all visible ASCII
+	/// characters as in mail headers, and continuation lines are appended to the
+	/// previous field.
+	bool Parse(KInStream& Stream, const Limits& Limits = DefaultRequestLimits, bool bStrict = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the reason why the last Parse() failed, or NoError
+	ParseError GetParseError() const { return m_ParseError; }
 	//-----------------------------------------------------------------------------
 
 	/// what Serialize() does with a header whose value contains a CR or LF
@@ -1099,6 +1224,17 @@ protected:
 	void SplitContentType() const;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// sets the reason and the error text of a failed parse, always returns false
+	bool SetParseError(ParseError Error, KStringViewZ sError);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// sets the reason and the error text from a counter that exceeded a limit,
+	/// always returns false
+	bool SetParseError(const Counter& Counter);
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
@@ -1108,6 +1244,7 @@ private:
 	KHTTPVersion    m_HTTPVersion;
 	mutable KString m_sCharset;
 	mutable KMIME   m_sContentType;
+	ParseError      m_ParseError { NoError };
 
 }; // KHTTPHeaders
 

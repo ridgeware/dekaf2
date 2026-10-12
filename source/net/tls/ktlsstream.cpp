@@ -322,6 +322,19 @@ std::streamsize KTLSStream::direct_read_some(void* sBuffer, std::streamsize iCou
 
 	m_Stream.RunTimed();
 
+	if (m_Stream.ec
+	 && m_Stream.ec != boost::asio::error::eof
+	 && m_Stream.ec != boost::asio::ssl::error::stream_truncated)
+	{
+		// record the cause for the callers - a timeout closes the socket, and the
+		// read itself then only reports "Operation canceled". The non-logging
+		// overload of SetError() is used, the callers report the error.
+		SetError(KErrorBase(m_Stream.bTimedOut
+		                    ? kFormat("read timeout ({}) from {}", m_Stream.Timeout, m_Stream.sEndpoint)
+		                    : kFormat("cannot read from {} stream {}: {}", "TLS", m_Stream.sEndpoint, m_Stream.ec.message()),
+		                    m_Stream.ec.value()));
+	}
+
 	return iRead;
 
 } // direct_read_some

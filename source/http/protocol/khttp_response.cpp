@@ -113,7 +113,7 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 		}
 
 		// KHTTPHeaders::Parse() drops the headers of a preceding interim response
-		if (!KHTTPHeaders::Parse(Stream))
+		if (!KHTTPHeaders::Parse(Stream, DefaultResponseLimits))
 		{
 			return false;
 		}

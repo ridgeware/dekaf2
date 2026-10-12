@@ -296,7 +296,7 @@ TEST_CASE("KHTTPHeaders::Parse")
 	{
 		KInStringStream iss("Content-Length : 5\r\n\r\n");
 		KHTTPHeaders Headers;
-		CHECK ( Headers.Parse(iss, true) == false );
+		CHECK ( Headers.Parse(iss, KHTTPHeaders::DefaultRequestLimits, true) == false );
 		CHECK ( Headers.Error().contains("whitespace") );
 	}
 
@@ -304,9 +304,373 @@ TEST_CASE("KHTTPHeaders::Parse")
 	{
 		KInStringStream iss("Content-Length: 5\r\nHost: localhost\r\n\r\n");
 		KHTTPHeaders Headers;
-		CHECK ( Headers.Parse(iss, true) == true );
+		CHECK ( Headers.Parse(iss, KHTTPHeaders::DefaultRequestLimits, true) == true );
 		CHECK ( Headers.Headers.Get(KHTTPHeader::CONTENT_LENGTH) == "5" );
 		CHECK ( Headers.Headers.Get(KHTTPHeader::HOST) == "localhost" );
+		CHECK ( Headers.GetParseError() == KHTTPHeaders::NoError );
+	}
+
+	SECTION("strict mode rejects every line that is no valid field")
+	{
+		struct Case { KStringView sBlock; KStringView sError; };
+
+		std::vector<Case> Cases
+		{
+			{ "Host: localhost\r\nno colon here\r\n\r\n",      "header line without colon"                },
+			{ " Host: localhost\r\n\r\n",                       "whitespace before the first header field" },
+			{ "X-A: 1\r\n 2\r\n\r\n",                           "obsolete line folding in header"          },
+			{ "X-A: 1\r\n\t2\r\n\r\n",                          "obsolete line folding in header"          },
+			{ "X Y: 1\r\n\r\n",                                 "invalid header field name"                },
+			{ "X@Y: 1\r\n\r\n",                                 "invalid header field name"                },
+			{ ": 1\r\n\r\n",                                    "invalid header field name"                },
+		};
+
+		for (const auto& Case : Cases)
+		{
+			INFO ( Case.sBlock );
+			KInStringStream iss(Case.sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, KHTTPHeaders::DefaultRequestLimits, true) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::Malformed );
+			CHECK ( Headers.Error() == Case.sError );
+		}
+	}
+
+	SECTION("field names are tokens")
+	{
+		// a token may start with a digit or a symbol
+		KStringView sBlock = "1x: a\r\n#x: b\r\nx.y~z: c\r\n!#$%&'*+-.^_`|~: d\r\n\r\n";
+
+		for (bool bStrict : { true, false })
+		{
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, KHTTPHeaders::DefaultRequestLimits, bStrict) == true );
+			CHECK ( Headers.Headers.size() == 4 );
+			CHECK ( Headers.Headers.Get("1x")    == "a" );
+			CHECK ( Headers.Headers.Get("#x")    == "b" );
+			CHECK ( Headers.Headers.Get("x.y~z") == "c" );
+			CHECK ( Headers.Headers.Get("!#$%&'*+-.^_`|~") == "d" );
+		}
+	}
+
+	SECTION("lenient mode accepts the field names of mail headers")
+	{
+		// RFC 5322 allows all visible ASCII characters except the colon
+		KInStringStream iss("X@Y: 1\r\n(x): 2\r\n\r\n");
+		KHTTPHeaders Headers;
+		CHECK ( Headers.Parse(iss) == true );
+		CHECK ( Headers.Headers.Get("X@Y") == "1" );
+		CHECK ( Headers.Headers.Get("(x)") == "2" );
+	}
+
+	SECTION("lenient mode drops lines that are no valid field")
+	{
+		KInStringStream iss(" lead\r\nA: 1\r\nno colon\r\nX Y: 2\r\n: 3\r\nB: 4\r\n\r\n");
+		KHTTPHeaders Headers;
+		CHECK ( Headers.Parse(iss) == true );
+		CHECK ( Headers.Headers.size() == 2 );
+		CHECK ( Headers.Headers.Get("A") == "1" );
+		CHECK ( Headers.Headers.Get("B") == "4" );
+		CHECK ( Headers.GetParseError() == KHTTPHeaders::NoError );
+	}
+
+	SECTION("malformed blocks")
+	{
+		{
+			KInStringStream iss("Content-Length : 5\r\n\r\n");
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, KHTTPHeaders::DefaultRequestLimits, true) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::Malformed );
+		}
+		{
+			KInStringStream iss("Content-Length: 5\r\nContent-Length: 6\r\n\r\n");
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::Malformed );
+		}
+		{
+			// no empty line at the end
+			KInStringStream iss("Host: localhost\r\n");
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::Malformed );
+		}
+	}
+
+	SECTION("field length")
+	{
+		// the line has 20 bytes, name plus value 18 - KInStringStream reads from a
+		// view, so the input must outlive the stream
+		KString sBlock = "Abcd: 0123456789abcd\r\n\r\n";
+
+		{
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 20, 0, 0 }) == true );
+			CHECK ( Headers.Headers.Get("Abcd") == "0123456789abcd" );
+		}
+		{
+			// the line is one byte too long, although name plus value would fit
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 19, 0, 0 }) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::FieldTooLong );
+			CHECK ( Headers.Error() == "HTTP header line longer than 19 bytes" );
+		}
+		{
+			// the default request limit
+			auto sDefault = kFormat("X: {}\r\n\r\n", KString(8 * 1024 - 3, 'a'));
+			KInStringStream iss(sDefault);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss) == true );
+		}
+		{
+			auto sTooLong = kFormat("X: {}\r\n\r\n", KString(8 * 1024 - 2, 'a'));
+			KInStringStream iss(sTooLong);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::FieldTooLong );
+		}
+		{
+			// 0 is unlimited
+			auto sUnlimited = kFormat("X: {}\r\n\r\n", KString(100000, 'a'));
+			KInStringStream iss(sUnlimited);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 0, 0, 0 }) == true );
+			CHECK ( Headers.Headers.Get("X").size() == 100000 );
+		}
+	}
+
+	SECTION("continuation lines")
+	{
+		// a continuation line adds a space and its trimmed content to the value:
+		// name plus value are 3 + 5 + 1 + 4 = 13 bytes
+		KStringView sBlock = "X-A: 12345\r\n   6789\r\n\r\n";
+
+		{
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 13, 0, 0 }) == true );
+			CHECK ( Headers.Headers.Get("X-A") == "12345 6789" );
+		}
+		{
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 12, 0, 0 }) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::FieldTooLong );
+			CHECK ( Headers.Error() == "HTTP header field too long: 13 bytes, the limit is 12" );
+		}
+		{
+			// the continuation counts toward the section size: 13 + 32 = 45 bytes
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 0, 0, 44 }) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::SectionTooLarge );
+		}
+	}
+
+	SECTION("field count")
+	{
+		KStringView sBlock = "A: 1\r\nB: 2\r\nC: 3\r\n\r\n";
+
+		{
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 0, 3, 0 }) == true );
+			CHECK ( Headers.Headers.size() == 3 );
+		}
+		{
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 0, 2, 0 }) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::TooManyFields );
+			CHECK ( Headers.Error() == "too many HTTP header fields: 3, the limit is 2" );
+		}
+	}
+
+	SECTION("section size")
+	{
+		// each field counts 1 + 1 + 32 = 34 bytes
+		KStringView sBlock = "A: 1\r\nB: 2\r\n\r\n";
+
+		{
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 0, 0, 68 }) == true );
+		}
+		{
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 0, 0, 67 }) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::SectionTooLarge );
+			CHECK ( Headers.Error() == "HTTP header section too large: 68 bytes, the limit is 67" );
+		}
+	}
+
+	SECTION("dropped lines count toward the section size")
+	{
+		// "A: 1" counts 1 + 1 + 32 = 34 bytes, the dropped lines their length plus 32:
+		// "garbage" (no colon) 39, "x y: 1" (no valid name) 38, "   " (only
+		// whitespace after a field) 35
+		KStringView sBlock = "A: 1\r\ngarbage\r\nx y: 1\r\n   \r\n\r\n";
+
+		{
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			// the dropped lines are no fields
+			CHECK ( Headers.Parse(iss, { 0, 1, 146 }) == true );
+			CHECK ( Headers.Headers.size() == 1 );
+			CHECK ( Headers.Headers.Get("A") == "1" );
+		}
+		{
+			KInStringStream iss(sBlock);
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 0, 1, 145 }) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::SectionTooLarge );
+			CHECK ( Headers.Error() == "HTTP header section too large: 146 bytes, the limit is 145" );
+		}
+		{
+			// garbage before the first field
+			KInStringStream iss(" x\r\nA: 1\r\n\r\n");
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 0, 0, 34 + 34 }) == true );
+		}
+		{
+			KInStringStream iss(" x\r\nA: 1\r\n\r\n");
+			KHTTPHeaders Headers;
+			CHECK ( Headers.Parse(iss, { 0, 0, 34 + 33 }) == false );
+			CHECK ( Headers.GetParseError() == KHTTPHeaders::SectionTooLarge );
+		}
+	}
+
+	SECTION("a new parse resets the reason")
+	{
+		KHTTPHeaders Headers;
+		KInStringStream iss1("A: 1\r\nB: 2\r\n\r\n");
+		CHECK ( Headers.Parse(iss1, { 0, 1, 0 }) == false );
+		CHECK ( Headers.GetParseError() == KHTTPHeaders::TooManyFields );
+		KInStringStream iss2("A: 1\r\n\r\n");
+		CHECK ( Headers.Parse(iss2, { 0, 1, 0 }) == true );
+		CHECK ( Headers.GetParseError() == KHTTPHeaders::NoError );
+	}
+}
+
+TEST_CASE("KHTTPHeaders::Counter")
+{
+	SECTION("default limits")
+	{
+		CHECK ( KHTTPHeaders::DefaultRequestLimits.iMaxFieldLength  ==   8 * 1024 );
+		CHECK ( KHTTPHeaders::DefaultRequestLimits.iMaxFieldCount   ==        500 );
+		CHECK ( KHTTPHeaders::DefaultRequestLimits.iMaxSectionSize  ==  64 * 1024 );
+		CHECK ( KHTTPHeaders::DefaultResponseLimits.iMaxFieldLength ==  64 * 1024 );
+		CHECK ( KHTTPHeaders::DefaultResponseLimits.iMaxFieldCount  ==        500 );
+		CHECK ( KHTTPHeaders::DefaultResponseLimits.iMaxSectionSize == 256 * 1024 );
+	}
+
+	SECTION("accounting")
+	{
+		KHTTPHeaders::Counter Count({ 0, 0, 0 });
+		CHECK ( Count.Add("abc", "defg") == true );
+		CHECK ( Count.GetFieldCount()  == 1 );
+		CHECK ( Count.GetSectionSize() == 3 + 4 + 32 );
+		CHECK ( Count.Extend(5) == true );
+		CHECK ( Count.GetFieldCount()  == 1 );
+		CHECK ( Count.GetSectionSize() == 3 + 4 + 32 + 5 );
+		CHECK ( Count.Add(":status", "200") == true );
+		CHECK ( Count.GetFieldCount()  == 2 );
+		CHECK ( Count.GetSectionSize() == 3 + 4 + 32 + 5 + 7 + 3 + 32 );
+		CHECK ( Count.GetParseError()  == KHTTPHeaders::NoError );
+		CHECK ( Count.GetErrorText().empty() );
+	}
+
+	SECTION("field length")
+	{
+		KHTTPHeaders::Counter Count({ 10, 0, 0 });
+		CHECK ( Count.Add("name", "value1") == true );
+		CHECK ( Count.Add("name", "value12") == false );
+		CHECK ( Count.GetParseError() == KHTTPHeaders::FieldTooLong );
+		CHECK ( Count.GetErrorText() == "HTTP header field too long: 11 bytes, the limit is 10" );
+	}
+
+	SECTION("field length through Extend")
+	{
+		KHTTPHeaders::Counter Count({ 10, 0, 0 });
+		CHECK ( Count.Add("name", "value") == true );
+		CHECK ( Count.Extend(1) == true );
+		CHECK ( Count.Extend(1) == false );
+		CHECK ( Count.GetParseError() == KHTTPHeaders::FieldTooLong );
+	}
+
+	SECTION("field count")
+	{
+		KHTTPHeaders::Counter Count({ 0, 2, 0 });
+		CHECK ( Count.Add("a", "1") == true );
+		CHECK ( Count.Add("b", "2") == true );
+		CHECK ( Count.Add("c", "3") == false );
+		CHECK ( Count.GetParseError() == KHTTPHeaders::TooManyFields );
+		CHECK ( Count.GetErrorText() == "too many HTTP header fields: 3, the limit is 2" );
+	}
+
+	SECTION("section size")
+	{
+		KHTTPHeaders::Counter Count({ 0, 0, 100 });
+		// 1 + 1 + 32 = 34 bytes
+		CHECK ( Count.Add("a", "1") == true );
+		// 34 + 1 + 33 + 32 = 100 bytes
+		CHECK ( Count.Add("b", KString(33, 'x')) == true );
+		CHECK ( Count.GetSectionSize() == 100 );
+		// a field with an empty value still counts 1 + 32 bytes
+		CHECK ( Count.Add("c", "") == false );
+		CHECK ( Count.GetParseError() == KHTTPHeaders::SectionTooLarge );
+		CHECK ( Count.GetErrorText() == "HTTP header section too large: 133 bytes, the limit is 100" );
+	}
+
+	SECTION("dropped lines")
+	{
+		KHTTPHeaders::Counter Count({ 0, 0, 100 });
+		CHECK ( Count.Add("a", "1") == true );
+		// 34 + 10 + 32 = 76 bytes
+		CHECK ( Count.AddDropped(10) == true );
+		CHECK ( Count.GetFieldCount()  == 1 );
+		CHECK ( Count.GetSectionSize() == 76 );
+		// 76 + 32 = 108 bytes
+		CHECK ( Count.AddDropped(0) == false );
+		CHECK ( Count.GetParseError() == KHTTPHeaders::SectionTooLarge );
+	}
+
+	SECTION("0 is unlimited")
+	{
+		KHTTPHeaders::Counter Count({ 0, 0, 0 });
+
+		for (int i = 0; i < 100; ++i)
+		{
+			CHECK ( Count.Add("name", KString(100000, 'x')) == true );
+		}
+
+		CHECK ( Count.GetParseError() == KHTTPHeaders::NoError );
+	}
+
+	SECTION("the first violation is kept")
+	{
+		KHTTPHeaders::Counter Count({ 5, 1, 0 });
+		CHECK ( Count.Add("name", "value") == false );
+		CHECK ( Count.GetParseError() == KHTTPHeaders::FieldTooLong );
+		CHECK ( Count.Add("a", "b") == false );
+		CHECK ( Count.GetParseError() == KHTTPHeaders::FieldTooLong );
+	}
+
+	SECTION("clear")
+	{
+		KHTTPHeaders::Counter Count({ 0, 1, 0 });
+		CHECK ( Count.Add("a", "1") == true );
+		CHECK ( Count.Add("b", "2") == false );
+		Count.clear();
+		CHECK ( Count.GetFieldCount()  == 0 );
+		CHECK ( Count.GetSectionSize() == 0 );
+		CHECK ( Count.GetParseError()  == KHTTPHeaders::NoError );
+		CHECK ( Count.Add("c", "3") == true );
+		CHECK ( Count.GetLimits().iMaxFieldCount == 1 );
 	}
 }
 

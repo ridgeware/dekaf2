@@ -219,6 +219,9 @@ struct KAsioStream
 		{
 			boost::system::error_code ignored_ec;
 
+			// the operation will end with operation_aborted - keep the cause
+			bTimedOut = true;
+
 			if (bCancelOnTimeout)
 			{
 				// cancel the pending operations, but keep the connection open -
@@ -260,6 +263,7 @@ struct KAsioStream
 		}
 
 		ResetTimer();
+		bTimedOut = false;
 
 		try
 		{
@@ -300,6 +304,8 @@ struct KAsioStream
 	KDuration                   Timeout;
 	/// cancel operations on timeout instead of closing the connection
 	bool                        bCancelOnTimeout { false };
+	/// the last operation ended because its timeout fired
+	bool                        bTimedOut        { false };
 	/// tripwire against concurrent operations, see RunTimed()
 	std::atomic<bool>           bInRun           { false };
 

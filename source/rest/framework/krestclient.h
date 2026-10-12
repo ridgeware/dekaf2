@@ -167,6 +167,8 @@ public:
 	using base::TokenAuthentication;
 	using base::ClearAuthentication;
 	using base::SetTimeout;
+	using base::SetResponseHeaderLimits;
+	using base::GetResponseHeaderLimits;
 	using base::SetProxy;
 	using base::AutoConfigureProxy;
 	using base::AllowRedirects;

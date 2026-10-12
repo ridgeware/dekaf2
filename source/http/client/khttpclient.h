@@ -476,6 +476,28 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// set the limits for the headers of received responses: the length of one field,
+	/// the number of fields, and the size of the header block (default
+	/// KHTTPHeaders::DefaultResponseLimits: 64 KiB, 500, 256 KiB). A response above a
+	/// limit fails with TransportError::HeaderLimit, Response.GetParseError() names the
+	/// limit. A value of 0 means unlimited.
+	/// @param Limits the limits
+	self& SetResponseHeaderLimits(const KHTTPHeaders::Limits& Limits)
+	//-----------------------------------------------------------------------------
+	{
+		Response.SetHeaderLimits(Limits);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns the limits for the headers of received responses
+	const KHTTPHeaders::Limits& GetResponseHeaderLimits() const
+	//-----------------------------------------------------------------------------
+	{
+		return Response.GetHeaderLimits();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Shall the server Certs be verified? -- DEPRECATED, use SetVerifyCerts()
 	self& VerifyCerts(bool bYesNo)
 	//-----------------------------------------------------------------------------

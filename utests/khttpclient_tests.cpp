@@ -608,3 +608,80 @@ TEST_CASE("KHTTPClient transport errors")
 
 	Server.Stop();
 }
+
+TEST_CASE("KHTTPClient response header limits")
+{
+	KScriptedHTTPServer Server(7657);
+	Server.Start(chrono::seconds(2), false);
+
+	KStringViewZ sURL = "http://127.0.0.1:7657/path";
+
+	// five fields of 60 KiB each: every field is below the field limit of 64 KiB,
+	// together they exceed the section limit of 256 KiB
+	KString sLargeSection = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n";
+
+	for (int i = 0; i < 5; ++i)
+	{
+		sLargeSection += kFormat("X-{}: {}\r\n", i, KString(60 * 1024, 'a'));
+	}
+
+	sLargeSection += "\r\n";
+
+	KString sLongField = "HTTP/1.1 200 OK\r\nX: " + KString(64 * 1024, 'a') + "\r\nContent-Length: 0\r\n\r\n";
+
+	SECTION("default limits")
+	{
+		KWebClient HTTP;
+		CHECK ( HTTP.GetResponseHeaderLimits().iMaxFieldLength == KHTTPHeaders::DefaultResponseLimits.iMaxFieldLength );
+		CHECK ( HTTP.GetResponseHeaderLimits().iMaxFieldCount  == KHTTPHeaders::DefaultResponseLimits.iMaxFieldCount  );
+		CHECK ( HTTP.GetResponseHeaderLimits().iMaxSectionSize == KHTTPHeaders::DefaultResponseLimits.iMaxSectionSize );
+	}
+
+	SECTION("a field of 9 KiB is accepted")
+	{
+		// rejected with the former limit of 8 KiB for responses
+		Server.Respond("HTTP/1.1 200 OK\r\nX: " + KString(9 * 1024, 'a') + "\r\nContent-Length: 5\r\n\r\n", "hello");
+		KWebClient HTTP;
+		CHECK ( HTTP.Get(sURL) == "hello" );
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::None );
+		CHECK ( HTTP.Response.Headers.Get("X").size() == 9 * 1024 );
+	}
+
+	SECTION("a section above 256 KiB is rejected")
+	{
+		Server.Respond(sLargeSection);
+		KWebClient HTTP;
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::HeaderLimit );
+		CHECK ( HTTP.Response.GetParseError() == KHTTPHeaders::SectionTooLarge );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
+	SECTION("raised limits accept a longer field and a larger section, for every request")
+	{
+		KWebClient HTTP;
+		HTTP.SetResponseHeaderLimits({ 128 * 1024, 500, 512 * 1024 });
+
+		Server.Respond(sLongField);
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::None );
+		CHECK ( HTTP.GetStatusCode() == 200 );
+
+		Server.Respond(sLargeSection);
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::None );
+		CHECK ( HTTP.GetStatusCode() == 200 );
+	}
+
+	SECTION("lowered limits reject smaller headers")
+	{
+		Server.Respond("HTTP/1.1 200 OK\r\nX: " + KString(2 * 1024, 'a') + "\r\nContent-Length: 0\r\n\r\n");
+		KWebClient HTTP;
+		HTTP.SetResponseHeaderLimits({ 1024, 500, 0 });
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::HeaderLimit );
+		CHECK ( HTTP.Response.GetParseError() == KHTTPHeaders::FieldTooLong );
+	}
+
+	Server.Stop();
+}

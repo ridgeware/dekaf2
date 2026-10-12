@@ -54,7 +54,6 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream, const Limits& Limits)
 	// response (RFC 9110 15.2), e.g. "103 Early Hints" before every response
 	// from an origin behind Cloudflare. They are skipped here. 101 is not
 	// interim, it is the final response to an upgrade request.
-	static constexpr uint16_t iMaxInterimResponses = 16;
 
 	ClearParseError();
 
@@ -135,9 +134,9 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream, const Limits& Limits)
 			return true;
 		}
 
-		if (iInterimResponse >= iMaxInterimResponses)
+		if (iInterimResponse >= detail::iMaxInterimResponses)
 		{
-			return SetParseError(TooManyInterimResponses, kFormat("more than {} interim responses", iMaxInterimResponses));
+			return SetParseError(TooManyInterimResponses, kFormat("more than {} interim responses", detail::iMaxInterimResponses));
 		}
 
 		kDebug(2, "skipping interim response: {} {}", iStatusCode, sStatusString);

@@ -46,6 +46,8 @@
 
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/io/readwrite/kwrite.h>
+#include <array>
+#include <limits>
 
 #define NGHTTP2_NO_SSIZE_T 1
 #include <nghttp2/nghttp2.h>
@@ -71,11 +73,12 @@ namespace khttp2
 {
 
 //-----------------------------------------------------------------------------
-Stream::Stream(KURL url, KHTTPMethod Method, KHTTPResponseHeaders& ResponseHeaders)
+Stream::Stream(KURL url, KHTTPMethod Method, KHTTPResponseHeaders& ResponseHeaders, const KHTTPHeaders::Limits& Limits)
 //-----------------------------------------------------------------------------
 : m_ResponseHeaders(ResponseHeaders)
 , m_URI(std::move(url))
 , m_Method(Method)
+, m_Count(Limits)
 {
 }
 
@@ -165,37 +168,66 @@ void Stream::Receive(KConstBuffer data)
 } // Receive
 
 //-----------------------------------------------------------------------------
-void Stream::AddResponseHeader(ID id, KStringView sName, KStringView sValue)
+void Stream::StartResponseHeaders()
 //-----------------------------------------------------------------------------
 {
-	if (!IsHeadersComplete())
+	// each header block - an interim response, the final response - is counted
+	// on its own, as on HTTP/1.1
+	m_Count.clear();
+
+} // StartResponseHeaders
+
+//-----------------------------------------------------------------------------
+bool Stream::AddResponseHeader(ID id, KStringView sName, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	if (IsHeadersComplete())
 	{
-		if (sName == ":status")
+		// trailers are not stored
+		return true;
+	}
+
+	// the pseudo header fields are part of the field section (RFC 9113 8.3)
+	if (!m_Count.Add(sName, sValue))
+	{
+		m_bRejected = true;
+		return m_ResponseHeaders.SetParseError(m_Count);
+	}
+
+	if (sName == ":status")
+	{
+		auto iStatus = sValue.UInt16();
+
+		// a 1xx interim response (RFC 9110 15.2, e.g. 103 Early Hints) is not
+		// the response - drop its headers and wait for the final one. HTTP/2
+		// has no 101, so every 1xx is interim.
+		m_bIsInterimResponse = (iStatus / 100 == 1);
+
+		if (m_bIsInterimResponse)
 		{
-			auto iStatus = sValue.UInt16();
-
-			// a 1xx interim response (RFC 9110 15.2, e.g. 103 Early Hints) is not
-			// the response - drop its headers and wait for the final one. HTTP/2
-			// has no 101, so every 1xx is interim.
-			m_bIsInterimResponse = (iStatus / 100 == 1);
-
-			if (m_bIsInterimResponse)
+			if (++m_iInterimResponses > detail::iMaxInterimResponses)
 			{
-				kDebug(2, "[stream {}] skipping interim response {}", id, iStatus);
+				m_bRejected = true;
+				return m_ResponseHeaders.SetParseError(KHTTPHeaders::TooManyInterimResponses,
+				                                       kFormat("more than {} interim responses", detail::iMaxInterimResponses));
 			}
-			else
-			{
-				kDebug(2, "[stream {}] setting HTTP response status to {}", id, iStatus);
-				m_ResponseHeaders.SetStatus(iStatus);
-				m_ResponseHeaders.SetHTTPVersion(KHTTPVersion::http2);
-			}
+
+			kDebug(2, "[stream {}] skipping interim response {}", id, iStatus);
 		}
-		else if (!m_bIsInterimResponse)
+		else
 		{
-			kDebug(2, "[stream {}] {}: {}", id, sName, sValue);
-			m_ResponseHeaders.Headers.Add(sName, sValue);
+			kDebug(2, "[stream {}] setting HTTP response status to {}", id, iStatus);
+			m_ResponseHeaders.SetStatus(iStatus);
+			m_ResponseHeaders.SetHTTPVersion(KHTTPVersion::http2);
 		}
 	}
+	else if (!m_bIsInterimResponse)
+	{
+		kDebug(2, "[stream {}] {}: {}", id, sName, sValue);
+		m_ResponseHeaders.Headers.Add(sName, sValue);
+	}
+
+	return true;
 
 } // AddResponseHeader
 
@@ -378,9 +410,10 @@ static int OnSendDataCallback(
 }; // struct SessionCallbacks
 
 //-----------------------------------------------------------------------------
-Session::Session(KTLSStream& TLSStream, bool bIsClient)
+Session::Session(KTLSStream& TLSStream, bool bIsClient, const KHTTPHeaders::Limits& Limits)
 //-----------------------------------------------------------------------------
 : m_TLSStream(TLSStream)
+, m_Limits(Limits)
 {
 	nghttp2_session_callbacks* callbacks { nullptr };
 
@@ -402,17 +435,40 @@ Session::Session(KTLSStream& TLSStream, bool bIsClient)
 	nghttp2_session_callbacks_set_on_stream_close_callback    (callbacks, SessionCallbacks::OnStreamCloseCallback  );
 	nghttp2_session_callbacks_set_on_header_callback          (callbacks, SessionCallbacks::OnHeaderCallback       );
 	nghttp2_session_callbacks_set_on_begin_headers_callback   (callbacks, SessionCallbacks::OnBeginHeadersCallback );
+	nghttp2_option* Option { nullptr };
+
+	if (nghttp2_option_new(&Option) != 0)
+	{
+		nghttp2_session_callbacks_del(callbacks);
+		SetError("nghttp2 option allocation failed");
+		return;
+	}
+
+#if NGHTTP2_VERSION_NUM >= 0x013d00
+	if (Limits.iMaxSectionSize)
+	{
+		// nghttp2 (since 1.61.0, CVE-2024-28182) accepts 8 CONTINUATION frames after a
+		// HEADERS frame - 144 KiB at the default frame size of 16 KiB, below the
+		// section limit. The encoded size of a section is never larger than its
+		// counted size (the HPACK framing of a field takes less than its 32 bytes of
+		// overhead), so this number of frames admits every section within the limit.
+		// Without a section limit the default of nghttp2 stays.
+		nghttp2_option_set_max_continuations(Option, (Limits.iMaxSectionSize + 16383) / 16384);
+	}
+#endif
+
 	int rv;
 
 	if (bIsClient)
 	{
-		rv = nghttp2_session_client_new(&m_Session, callbacks, this);
+		rv = nghttp2_session_client_new2(&m_Session, callbacks, this, Option);
 	}
 	else
 	{
-		rv = nghttp2_session_server_new(&m_Session, callbacks, this);
+		rv = nghttp2_session_server_new2(&m_Session, callbacks, this, Option);
 	}
 
+	nghttp2_option_del(Option);
 	nghttp2_session_callbacks_del(callbacks);
 
 	if (rv != 0)
@@ -662,7 +718,13 @@ int Session::OnHeader (const void* frame, KStringView sName, KStringView sValue,
 
 		if (Stream)
 		{
-			Stream->AddResponseHeader(Frame->hd.stream_id, sName, sValue);
+			if (!Stream->AddResponseHeader(Frame->hd.stream_id, sName, sValue))
+			{
+				// a header limit was exceeded - reset this stream, not the connection
+				SetError(kFormat("[stream {}] {}", Frame->hd.stream_id, Stream->GetResponseHeaders().GetLastError()));
+				nghttp2_submit_rst_stream(m_Session, NGHTTP2_FLAG_NONE, Frame->hd.stream_id, NGHTTP2_ENHANCE_YOUR_CALM);
+				return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+			}
 		}
 		else
 		{
@@ -685,6 +747,13 @@ int Session::OnBeginHeaders (const void* frame)
 	    (Frame->headers.cat == NGHTTP2_HCAT_RESPONSE || Frame->headers.cat == NGHTTP2_HCAT_HEADERS))
 	{
 		kDebug(4, "[stream {}] response header start", Frame->hd.stream_id);
+
+		auto Stream = GetStream(Frame->hd.stream_id);
+
+		if (Stream)
+		{
+			Stream->StartResponseHeaders();
+		}
 	}
 
 	return NGHTTP2_NO_ERROR;
@@ -781,10 +850,18 @@ int Session::OnStreamClose (Stream::ID stream_id, uint32_t error_code)
 bool Session::SendClientConnectionHeader()
 //-----------------------------------------------------------------------------
 {
-	nghttp2_settings_entry iv[1] = {{ NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100 }};
+	std::array<nghttp2_settings_entry, 2> iv {{ { NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100 } }};
+	std::size_t iSettings { 1 };
+
+	if (m_Limits.iMaxSectionSize && m_Limits.iMaxSectionSize <= std::numeric_limits<uint32_t>::max())
+	{
+		// announce the section limit to the peer - it is advisory, the limit is
+		// enforced when the headers arrive
+		iv[iSettings++] = { NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, static_cast<uint32_t>(m_Limits.iMaxSectionSize) };
+	}
 
 	/* client 24 bytes magic string will be sent by nghttp2 library */
-	int iReturn = nghttp2_submit_settings(m_Session, NGHTTP2_FLAG_NONE, iv, (sizeof(iv) / sizeof(iv[0])));
+	int iReturn = nghttp2_submit_settings(m_Session, NGHTTP2_FLAG_NONE, iv.data(), iSettings);
 
 	if (iReturn != 0)
 	{
@@ -952,7 +1029,7 @@ Stream::ID Session::NewStream(KURL                           url,
 //-----------------------------------------------------------------------------
 {
 	// construct this stream's data record
-	Stream Stream(std::move(url), Method, ResponseHeaders);
+	Stream Stream(std::move(url), Method, ResponseHeaders, m_Limits);
 
 	Stream.SetDataConsumer(std::move(ReceiveData));
 
@@ -1062,7 +1139,7 @@ Stream::ID SingleStreamSession::SubmitRequest(KURL                           url
 //-----------------------------------------------------------------------------
 {
 	// construct this stream's data record
-	Stream Stream(std::move(url), Method, ResponseHeaders);
+	Stream Stream(std::move(url), Method, ResponseHeaders, GetResponseHeaderLimits());
 
 	auto StreamID = NewRequest(std::move(Stream), RequestHeaders, std::move(SendData));
 
@@ -1111,6 +1188,20 @@ bool SingleStreamSession::ReadResponseHeaders(Stream::ID StreamID)
 		if (Stream->IsHeadersComplete())
 		{
 			return true;
+		}
+
+		if (Stream->IsRejected() || Stream->IsClosed())
+		{
+			// send the reset of a rejected stream - the error is already set
+			SessionSend();
+
+			if (!HasError())
+			{
+				SetError(kFormat("[stream {}] closed before the response headers were complete, error code: {}",
+				                 StreamID, nghttp2_http2_strerror(Stream->GetCloseErrorCode())));
+			}
+
+			return false;
 		}
 
 		auto iRead = m_TLSStream.direct_read_some(TLSBuffer.data(), TLSBuffer.size());

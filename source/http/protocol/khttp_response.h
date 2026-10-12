@@ -53,6 +53,14 @@ DEKAF2_NAMESPACE_BEGIN
 /// @addtogroup http_protocol
 /// @{
 
+namespace detail {
+
+/// the number of 1xx interim responses permitted ahead of the final response,
+/// shared by the HTTP/1.1, HTTP/2 and HTTP/3 clients
+DEKAF2_INLINE_VARIABLE constexpr uint16_t iMaxInterimResponses = 16;
+
+} // end of namespace detail
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPResponseHeaders : public KHTTPHeaders
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

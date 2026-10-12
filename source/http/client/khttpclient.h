@@ -716,7 +716,7 @@ private:
 	struct HTTP2Session
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		HTTP2Session(KTLSStream& TLSStream);
+		HTTP2Session(KTLSStream& TLSStream, const KHTTPHeaders::Limits& Limits);
 
 		khttp2::SingleStreamSession Session;
 		KInStreamBuf                StreamBuf;

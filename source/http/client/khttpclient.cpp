@@ -51,6 +51,37 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+//-----------------------------------------------------------------------------
+// the transport error for a response that failed while its headers were read
+KHTTPClient::TransportError TransportErrorFor(KHTTPHeaders::ParseError Error)
+//-----------------------------------------------------------------------------
+{
+	switch (Error)
+	{
+		case KHTTPHeaders::NoError:
+		case KHTTPHeaders::Incomplete:
+			break;
+
+		case KHTTPHeaders::StartLineTooLong:
+		case KHTTPHeaders::FieldTooLong:
+		case KHTTPHeaders::TooManyFields:
+		case KHTTPHeaders::SectionTooLarge:
+		case KHTTPHeaders::TooManyInterimResponses:
+			return KHTTPClient::TransportError::HeaderLimit;
+
+		case KHTTPHeaders::Malformed:
+			return KHTTPClient::TransportError::MalformedResponse;
+	}
+
+	// the connection ended or failed before the headers were complete
+	return KHTTPClient::TransportError::Read;
+
+} // TransportErrorFor
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 KHTTPClient::BasicAuthenticator::BasicAuthenticator(KString _sUsername, KString _sPassword)
 //-----------------------------------------------------------------------------
@@ -225,9 +256,9 @@ const KString& KHTTPClient::TokenAuthenticator::GetAuthHeader(const KOutHTTPRequ
 
 #if DEKAF2_HAS_NGHTTP2
 //-----------------------------------------------------------------------------
-KHTTPClient::HTTP2Session::HTTP2Session(KTLSStream& TLSStream)
+KHTTPClient::HTTP2Session::HTTP2Session(KTLSStream& TLSStream, const KHTTPHeaders::Limits& Limits)
 //-----------------------------------------------------------------------------
-: Session(TLSStream, true)
+: Session(TLSStream, true, Limits)
 , StreamBuf(HTTP2StreamReader, this)
 , IStream(&StreamBuf)
 , InStream(IStream)
@@ -426,7 +457,7 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 				if (sALPN == "h2")
 				{
 					kDebug(2, "switching to HTTP/2");
-					m_HTTP2 = std::make_unique<HTTP2Session>(*TLSStream);
+					m_HTTP2 = std::make_unique<HTTP2Session>(*TLSStream, Response.GetHeaderLimits());
 
 					if (!m_HTTP2->Session.GetLastError().empty())
 					{
@@ -1082,6 +1113,7 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 
 		// the end or the failure of the previous response must not carry over
 		m_HTTP2->IStream.clear();
+		m_HTTP2->Session.SetResponseHeaderLimits(Response.GetHeaderLimits());
 
 		m_HTTP2->StreamID = m_HTTP2->Session.SubmitRequest(m_RequestURL,
 														   Request.Method,
@@ -1091,8 +1123,9 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 
 		if (m_HTTP2->StreamID < 0)
 		{
-			// sending the request or reading the response headers failed
-			return SetTransportError(TransportError::Read, m_HTTP2->Session.GetLastError());
+			// sending the request or reading the response headers failed, or the
+			// response headers exceeded a limit
+			return SetTransportError(TransportErrorFor(Response.GetParseError()), m_HTTP2->Session.GetLastError());
 		}
 
 		return Parse();
@@ -1134,8 +1167,9 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 
 		if (m_HTTP3->StreamID < 0)
 		{
-			// sending the request or reading the response headers failed
-			return SetTransportError(TransportError::Read, m_HTTP3->Session.GetLastError());
+			// sending the request or reading the response headers failed, or the
+			// response headers exceeded a limit
+			return SetTransportError(TransportErrorFor(Response.GetParseError()), m_HTTP3->Session.GetLastError());
 		}
 
 		return Parse();
@@ -1242,31 +1276,12 @@ bool KHTTPClient::Parse()
 
 	if (!Response.Parse())
 	{
-		auto Error = TransportError::Read;
+		auto Error = TransportErrorFor(Response.GetParseError());
 
-		switch (Response.GetParseError())
+		if (Error == TransportError::Read && m_Connection->HasError())
 		{
-			case KHTTPHeaders::NoError:
-			case KHTTPHeaders::Incomplete:
-				// the connection ended or failed before the headers were complete -
-				// the connection knows why
-				if (m_Connection->HasError())
-				{
-					return SetTransportError(TransportError::Read, m_Connection->GetLastError());
-				}
-				break;
-
-			case KHTTPHeaders::StartLineTooLong:
-			case KHTTPHeaders::FieldTooLong:
-			case KHTTPHeaders::TooManyFields:
-			case KHTTPHeaders::SectionTooLarge:
-			case KHTTPHeaders::TooManyInterimResponses:
-				Error = TransportError::HeaderLimit;
-				break;
-
-			case KHTTPHeaders::Malformed:
-				Error = TransportError::MalformedResponse;
-				break;
+			// the connection knows why the headers are incomplete
+			return SetTransportError(Error, m_Connection->GetLastError());
 		}
 
 		return SetTransportError(Error, Response.GetLastError().empty()

@@ -1108,6 +1108,19 @@ public:
 	ParseError GetParseError() const { return m_ParseError; }
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// sets the reason and the error text of a rejected header block - for the
+	/// protocols that fill the headers themselves (HTTP/2, HTTP/3)
+	/// @return always false
+	bool SetParseError(ParseError Error, KStringViewZ sError);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// sets the reason and the error text from a counter that exceeded a limit
+	/// @return always false
+	bool SetParseError(const Counter& Counter);
+	//-----------------------------------------------------------------------------
+
 	/// what Serialize() does with a header whose value contains a CR or LF
 	enum LineBreakAction
 	{
@@ -1229,19 +1242,8 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// sets the reason and the error text of a failed parse, always returns false
-	bool SetParseError(ParseError Error, KStringViewZ sError);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// resets the reason of a failed parse, at the start of a new parse
 	void ClearParseError() { m_ParseError = NoError; }
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// sets the reason and the error text from a counter that exceeded a limit,
-	/// always returns false
-	bool SetParseError(const Counter& Counter);
 	//-----------------------------------------------------------------------------
 
 //------

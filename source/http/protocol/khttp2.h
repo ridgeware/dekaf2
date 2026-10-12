@@ -91,7 +91,9 @@ public:
 	using ID = int32_t;
 
 	/// construct around url, method and ResponseHeaders
-	Stream(KURL url, KHTTPMethod Method, KHTTPResponseHeaders& ResponseHeaders);
+	/// @param Limits the limits for each received response header block
+	Stream(KURL url, KHTTPMethod Method, KHTTPResponseHeaders& ResponseHeaders,
+	       const KHTTPHeaders::Limits& Limits = KHTTPHeaders::DefaultResponseLimits);
 
 	/// set the data provider for this Stream's request (if any)
 	void          SetDataProvider    (std::unique_ptr<KDataProvider> Data) { m_DataProvider = std::move(Data); }
@@ -108,9 +110,18 @@ public:
 	/// returns the Method
 	KStringView   GetMethod          () const         { return m_Method.Serialize(); }
 
+	/// starts the count of a new response header block
+	void          StartResponseHeaders();
 	/// adds an incoming response header. id is only used for logging purposes.
-	/// Headers of a 1xx interim response are dropped.
-	void          AddResponseHeader  (ID id, KStringView sName, KStringView sValue);
+	/// Headers of a 1xx interim response are dropped, the pseudo header fields count
+	/// toward the limits.
+	/// @returns false if a header limit or the limit of interim responses is exceeded -
+	/// the response headers then name the reason, and the stream has to be reset
+	bool          AddResponseHeader  (ID id, KStringView sName, KStringView sValue);
+	/// returns true if the response was rejected for an exceeded limit
+	bool          IsRejected         () const         { return m_bRejected;        }
+	/// returns the response headers object of this stream
+	const KHTTPResponseHeaders& GetResponseHeaders() const { return m_ResponseHeaders; }
 	/// called at the end of a response header block - completes the headers,
 	/// except after a 1xx interim response, whose final response is still to come
 	/// @returns true if the headers are complete now
@@ -156,7 +167,10 @@ private:
 	KString                        m_sAuthority;
 	KString                        m_sPath;
 	KHTTPMethod                    m_Method;
+	KHTTPHeaders::Counter          m_Count;
 	uint32_t                       m_iCloseErrorCode    { 0 };
+	uint16_t                       m_iInterimResponses  { 0 };
+	bool                           m_bRejected          { false };
 	bool                           m_bHeadersComplete   { false };
 	bool                           m_bIsInterimResponse { false };
 	bool                           m_bIsClosed          { false };
@@ -176,7 +190,10 @@ public:
 //----------
 
 	/// construct a HTTP/2 session around a connected TLS stream (after successful ALPN H2 negotiation)
-	Session(KTLSStream& TLSStream, bool bIsClient);
+	/// @param Limits the limits for received response headers - the size of the header
+	/// block is also announced to the peer, and bounds the number of CONTINUATION frames
+	Session(KTLSStream& TLSStream, bool bIsClient,
+	        const KHTTPHeaders::Limits& Limits = KHTTPHeaders::DefaultResponseLimits);
 	~Session();
 
 	/// Submit a (client) request. Internally, this generates a new Stream object, the handle of which is returned as an StreamID_t.
@@ -192,6 +209,13 @@ public:
 
 	/// after adding streams, run the data pump here until Run() returns false
 	bool Run();
+
+	/// set the limits for the response headers of new streams - the announced size and
+	/// the CONTINUATION limit of the session stay as set at construction
+	void SetResponseHeaderLimits(const KHTTPHeaders::Limits& Limits) { m_Limits = Limits; }
+
+	/// returns the limits for the response headers of new streams
+	const KHTTPHeaders::Limits& GetResponseHeaderLimits() const { return m_Limits; }
 
 //----------
 protected:
@@ -246,6 +270,7 @@ private:
 	nghttp2_session* m_Session { nullptr };
 	std::unordered_map<Stream::ID, Stream> m_Streams;
 	KString          m_sAuthority; // the common authority for all Streams managed by this Session
+	KHTTPHeaders::Limits m_Limits; // for the response headers of new Streams
 
 }; // Session
 
@@ -266,6 +291,7 @@ public:
 	using Session::GetLastError;
 	using Session::CopyLastError;
 	using Session::HasError;
+	using Session::SetResponseHeaderLimits;
 
 	/// Submit a (client) request. Internally, this generates a new Stream object, the handle of which is returned as an Stream::ID.
 	/// This method only returns after having sent request headers and body, and received all response headers.

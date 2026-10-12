@@ -53,4 +53,99 @@ TEST_CASE("HTTP2")
 	}
 }
 
+TEST_CASE("HTTP2 response header limits")
+{
+	KURL URL("https://localhost/");
+
+	SECTION("the pseudo header fields count toward the field count")
+	{
+		KHTTPResponseHeaders Response;
+		khttp2::Stream Stream(URL, KHTTPMethod::GET, Response, { 0, 3, 0 });
+		Stream.StartResponseHeaders();
+		CHECK ( Stream.AddResponseHeader(1, ":status", "200") );
+		CHECK ( Stream.AddResponseHeader(1, "a", "1") );
+		CHECK ( Stream.AddResponseHeader(1, "b", "2") );
+		CHECK ( Response.GetStatusCode() == 200 );
+		CHECK ( Stream.IsRejected() == false );
+		CHECK ( Stream.AddResponseHeader(1, "c", "3") == false );
+		CHECK ( Stream.IsRejected() );
+		CHECK ( Response.GetParseError() == KHTTPHeaders::TooManyFields );
+	}
+
+	SECTION("a field above the length limit")
+	{
+		KHTTPResponseHeaders Response;
+		khttp2::Stream Stream(URL, KHTTPMethod::GET, Response, { 10, 0, 0 });
+		Stream.StartResponseHeaders();
+		CHECK ( Stream.AddResponseHeader(1, ":status", "200") );
+		// name plus value: 4 + 6 = 10 bytes
+		CHECK ( Stream.AddResponseHeader(1, "name", "123456") );
+		CHECK ( Stream.AddResponseHeader(1, "name", "1234567") == false );
+		CHECK ( Response.GetParseError() == KHTTPHeaders::FieldTooLong );
+	}
+
+	SECTION("the section size")
+	{
+		KHTTPResponseHeaders Response;
+		// ":status" counts 7 + 3 + 32 = 42 bytes, "a" 1 + 1 + 32 = 34
+		khttp2::Stream Stream(URL, KHTTPMethod::GET, Response, { 0, 0, 76 });
+		Stream.StartResponseHeaders();
+		CHECK ( Stream.AddResponseHeader(1, ":status", "200") );
+		CHECK ( Stream.AddResponseHeader(1, "a", "1") );
+		CHECK ( Stream.AddResponseHeader(1, "b", "") == false );
+		CHECK ( Response.GetParseError() == KHTTPHeaders::SectionTooLarge );
+	}
+
+	SECTION("each header block is counted on its own")
+	{
+		KHTTPResponseHeaders Response;
+		khttp2::Stream Stream(URL, KHTTPMethod::GET, Response, { 0, 2, 0 });
+
+		Stream.StartResponseHeaders();
+		CHECK ( Stream.AddResponseHeader(1, ":status", "103") );
+		CHECK ( Stream.AddResponseHeader(1, "link", "</style.css>; rel=preload") );
+		CHECK ( Stream.EndResponseHeaders(1) == false );
+
+		Stream.StartResponseHeaders();
+		CHECK ( Stream.AddResponseHeader(1, ":status", "200") );
+		CHECK ( Stream.AddResponseHeader(1, "a", "1") );
+		CHECK ( Stream.EndResponseHeaders(1) == true );
+		CHECK ( Response.GetStatusCode() == 200 );
+		CHECK ( Response.Headers.Get("link").empty() );
+		CHECK ( Response.Headers.Get("a") == "1" );
+	}
+
+	SECTION("16 interim responses are accepted, 17 are not")
+	{
+		KHTTPResponseHeaders Response;
+		khttp2::Stream Stream(URL, KHTTPMethod::GET, Response);
+
+		for (uint16_t i = 0; i < detail::iMaxInterimResponses; ++i)
+		{
+			Stream.StartResponseHeaders();
+			CHECK ( Stream.AddResponseHeader(1, ":status", "103") );
+			CHECK ( Stream.EndResponseHeaders(1) == false );
+		}
+
+		Stream.StartResponseHeaders();
+		CHECK ( Stream.AddResponseHeader(1, ":status", "103") == false );
+		CHECK ( Response.GetParseError() == KHTTPHeaders::TooManyInterimResponses );
+	}
+
+	SECTION("trailers are not counted")
+	{
+		KHTTPResponseHeaders Response;
+		khttp2::Stream Stream(URL, KHTTPMethod::GET, Response, { 0, 2, 0 });
+		Stream.StartResponseHeaders();
+		CHECK ( Stream.AddResponseHeader(1, ":status", "200") );
+		CHECK ( Stream.AddResponseHeader(1, "a", "1") );
+		CHECK ( Stream.EndResponseHeaders(1) == true );
+		Stream.StartResponseHeaders();
+		CHECK ( Stream.AddResponseHeader(1, "x", "1") );
+		CHECK ( Stream.AddResponseHeader(1, "y", "2") );
+		CHECK ( Stream.AddResponseHeader(1, "z", "3") );
+		CHECK ( Stream.IsRejected() == false );
+	}
+}
+
 #endif // DEKAF2_HAS_NGHTTP2

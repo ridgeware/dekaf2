@@ -719,6 +719,131 @@ KUnixTime BootTime()
 } // BootTime
 #endif
 
+#ifdef DEKAF2_IS_LINUX
+//-----------------------------------------------------------------------------
+/// counts the TCP connections of /proc/net/tcp or /proc/net/tcp6 by their state,
+/// under the names of netstat, and as netstat -n does without the sockets that
+/// have no remote port, the listening ones
+/// @return false if the file cannot be read
+bool CountProcNetTcp(KStringViewZ sFile, KProps<KString, KSystemStats::int_t>& Netstat)
+//-----------------------------------------------------------------------------
+{
+	KInFile File(sFile);
+
+	if (!File.is_open())
+	{
+		kDebug(2, "cannot read {}", sFile);
+		return false;
+	}
+
+	KString sLine;
+
+	// the header line
+	File.ReadLine(sLine);
+
+	while (File.ReadLine(sLine))
+	{
+		//   sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt ...
+		//    0: 0100007F:1F90 0100007F:D3C4 01 00000000:00000000 00:00000000 00000000 ...
+		auto Parts = sLine.Split(' ');
+
+		if (Parts.size() < 4)
+		{
+			continue;
+		}
+
+		auto sRemote = Parts[2];
+		auto iColon  = sRemote.rfind(':');
+
+		if (iColon == KStringView::npos || sRemote.substr(iColon + 1).UInt16(true) == 0)
+		{
+			// no remote port: a listening socket
+			continue;
+		}
+
+		KStringView sState;
+
+		// the states of the kernel, include/net/tcp_states.h
+		switch (Parts[3].UInt16(true))
+		{
+			case 0x01: sState = "established"; break;
+			case 0x02: sState = "syn_sent";    break;
+			case 0x03: sState = "syn_recv";    break;
+			case 0x04: sState = "fin_wait1";   break;
+			case 0x05: sState = "fin_wait2";   break;
+			case 0x06: sState = "time_wait";   break;
+			case 0x07: sState = "close";       break;
+			case 0x08: sState = "close_wait";  break;
+			case 0x09: sState = "last_ack";    break;
+			case 0x0B: sState = "closing";     break;
+			default:                           continue;
+		}
+
+		++Netstat[kFormat("netstat_tcp_{}", sState)];
+	}
+
+	return true;
+
+} // CountProcNetTcp
+
+//-----------------------------------------------------------------------------
+/// counts the unix domain sockets of /proc/net/unix by their type, under the names
+/// of netstat, and as netstat -n does without the listening ones
+/// @return false if the file cannot be read
+bool CountProcNetUnix(KProps<KString, KSystemStats::int_t>& Netstat)
+//-----------------------------------------------------------------------------
+{
+	KStringViewZ sFile = "/proc/net/unix";
+	KInFile File(sFile);
+
+	if (!File.is_open())
+	{
+		kDebug(2, "cannot read {}", sFile);
+		return false;
+	}
+
+	KString sLine;
+
+	// the header line
+	File.ReadLine(sLine);
+
+	while (File.ReadLine(sLine))
+	{
+		// Num       RefCount Protocol Flags    Type St Inode Path
+		// 0000000000000000: 00000002 00000000 00010000 0001 01 21813 /run/dbus/system_bus_socket
+		auto Parts = sLine.Split(' ');
+
+		if (Parts.size() < 5)
+		{
+			continue;
+		}
+
+		// __SO_ACCEPTCON marks a listening socket
+		if (Parts[3].UInt32(true) & 0x00010000)
+		{
+			continue;
+		}
+
+		KStringView sType;
+
+		switch (Parts[4].UInt16(true))
+		{
+			case 1:  sType = "stream";    break;
+			case 2:  sType = "dgram";     break;
+			case 3:  sType = "raw";       break;
+			case 4:  sType = "rdm";       break;
+			case 5:  sType = "seqpacket"; break;
+			default: sType = "unknown";   break;
+		}
+
+		++Netstat[kFormat("netstat_unix_{}", sType)];
+	}
+
+	return true;
+
+} // CountProcNetUnix
+#endif // DEKAF2_IS_LINUX
+
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -1876,17 +2001,6 @@ bool KSystemStats::GatherNetstat ()
 {
 	kDebug (4, "counting the connections ...");
 
-#ifndef DEKAF2_IS_WINDOWS
-	KInShell pipe;
-	pipe.SetReaderRightTrim("\r\n\t ");
-
-	if (!pipe.Open ("netstat -n")) // <-- we need to add --numeric to netstat so that it runs faster and does not try to resolve hostnames, etc.
-	{
-		m_sLastError = "command failed: netstat";
-		return (false);
-	}
-#endif
-
 	// iniitialize all possible values coming back from netstat so that missing ones have zeros instead of nulls:
 	KProps<KString, int_t> Netstat;
 	Netstat.Add ("netstat_tcp_close_wait",  0);
@@ -1902,13 +2016,36 @@ bool KSystemStats::GatherNetstat ()
 	Netstat.Add ("netstat_unix_stream",     0);
 	Netstat.Add ("netstat_unix_unknown",    0);
 
-#ifdef DEKAF2_IS_WINDOWS
+#if defined(DEKAF2_IS_WINDOWS)
 
 	// the TCP connections from the system - Windows cannot list unix domain sockets
 	CountTcpConnections(AF_INET,  Netstat);
 	CountTcpConnections(AF_INET6, Netstat);
 
+#elif defined(DEKAF2_IS_LINUX)
+
+	// the tables of the kernel that netstat reads - netstat itself is part of the
+	// deprecated net-tools and often not installed
+	if (!CountProcNetTcp("/proc/net/tcp", Netstat))
+	{
+		m_sLastError = "cannot read /proc/net/tcp";
+		return false;
+	}
+
+	// a kernel without IPv6 has no /proc/net/tcp6
+	CountProcNetTcp("/proc/net/tcp6", Netstat);
+	CountProcNetUnix(Netstat);
+
 #else
+
+	KInShell pipe;
+	pipe.SetReaderRightTrim("\r\n\t ");
+
+	if (!pipe.Open ("netstat -n")) // <-- we need to add --numeric to netstat so that it runs faster and does not try to resolve hostnames, etc.
+	{
+		m_sLastError = "command failed: netstat";
+		return (false);
+	}
 
 	// now run "netstat" command and increment any occurances of these:
 	KString sLine;
@@ -1980,7 +2117,7 @@ bool KSystemStats::GatherNetstat ()
 #endif
 	}
 
-#endif // DEKAF2_IS_WINDOWS
+#endif
 
 	for (const auto& stat : Netstat)
 	{

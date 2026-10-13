@@ -4,8 +4,35 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/system/os/ksystemstats.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/net/tcp/ktcpclient.h>
 
 using namespace dekaf2;
+
+namespace {
+
+// holds each connection open until the client sends a line
+class KHoldingServer : public KTCPServer
+{
+
+public:
+
+	KHoldingServer(uint16_t iPort)
+	: KTCPServer(iPort, false, 5)
+	{
+	}
+
+protected:
+
+	virtual void Session(std::unique_ptr<KIOStreamSocket>& stream) override
+	{
+		KString sLine;
+		stream->ReadLine(sLine);
+	}
+
+}; // KHoldingServer
+
+} // end of anonymous namespace
 
 TEST_CASE("KSystemStats")
 {
@@ -31,6 +58,23 @@ TEST_CASE("KSystemStats")
 			INFO ( Value.first );
 			CHECK ( Value.second.sValue.empty() == false );
 		}
+	}
+
+	SECTION("GatherNetstat")
+	{
+		KHoldingServer Server(7658);
+		Server.Start(chrono::seconds(5), false);
+
+		KTCPClient Client("127.0.0.1:7658", chrono::seconds(5));
+		REQUIRE ( Client.is_open() );
+
+		KSystemStats Stats;
+		CHECK ( Stats.GatherNetstat() );
+
+		// both ends of the connection on this host
+		CHECK ( Stats.GetStats().Get("netstat_tcp_established").sValue.Int64() >= 2 );
+
+		Client.WriteLine("done").Flush();
 	}
 
 	SECTION("GatherProcs")

@@ -57,7 +57,10 @@ DEKAF2_NAMESPACE_BEGIN
 /// Redacts credentials in a text: a JWT, the value after "Bearer " and after
 /// "Authorization:", the value of a parameter whose name denotes a credential
 /// (password, secret, api_key, ...), and the password in the userinfo of a URL.
-/// Each is replaced by "[redacted]", names and schemes are kept. KLog redacts
+/// Each is replaced by "[redacted]", names and schemes (Bearer, Basic, a scheme
+/// that ends with "Key" or "Token", ...) are kept - after "Authorization:", any
+/// other first word is redacted together with the word after it, as it may be the
+/// scheme of the credentials that follow. KLog redacts
 /// every message with it, and it serves as well for a text that is stored or
 /// forwarded, such as the error body of a service. A text without credentials
 /// costs a few scans for rare characters and no allocation. Credentials in other

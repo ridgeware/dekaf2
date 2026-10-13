@@ -376,7 +376,10 @@ static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_ty
 ///   eyJ....  a JWT -- three base64url runs separated by dots. The "eyJ" prefix
 ///            is '{"' base64url-encoded, so every JWT begins with it.
 ///   Bearer <tok>          the value only, the scheme is kept
-///   Authorization: <val>  the value only, the header name is kept
+///   Authorization: <val>  the value only, the header name and the scheme are
+///                         kept: Bearer, Basic, Digest, Negotiate, NTLM, and a
+///                         word that ends with "key" or "token". Of any other
+///                         first word, it and the word after it are redacted
 ///   password=<val>        the value of a parameter with a name of a credential,
 ///                         the name is kept (see kEndsWithSecretName())
 ///   user:<pass>@host      the password in the userinfo of a URL, with or
@@ -470,63 +473,90 @@ bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 	// the word *Bearer* as its value and ate it too. So Authorization goes first and
 	// steps over a recognised scheme word before redacting what follows; the later
 	// Bearer pass then finds an already-redacted value and leaves it alone.
+	//
+	// A scheme that is not in the list is no value of one word either: the header is
+	// "<scheme> <credentials>" (RFC 9110 section 11.6.2), and only redacting the
+	// first word left the credentials of "Authorization: DeepL-Auth-Key <key>"
+	// readable. The schemes of services name the kind of their credentials, so a
+	// first word of letters, '-' and '_' that ends with "key" or "token" and that
+	// another word follows is a scheme as well. A credential nearly always has a
+	// digit, so a word with a digit is no scheme, and "key" has to end the word:
+	// about one in a thousand random base64 credentials of 40 characters contains
+	// "key" somewhere.
+	// Any other first word cannot be told from a credential that other text
+	// follows, so it is redacted together with the word after it.
 	struct Prefix
 	{
 		KStringView sWord;    // in lowercase
 		char        chAnchor; // a rare letter of sWord
+		bool        bHeader;  // the value may start with a scheme
 	};
 
-	static constexpr Prefix      Prefixes[] = { { "authorization:", 'z' }, { "bearer ", 'b' } };
-	static constexpr KStringView Schemes[]  = { "bearer ", "basic ", "digest ", "token " };
+	static constexpr Prefix      Prefixes[] = { { "authorization:", 'z', true }, { "bearer ", 'b', false } };
+	static constexpr KStringView Schemes[]  = { "bearer", "basic", "digest", "negotiate", "ntlm" };
+
+	// is this the name of a scheme - a listed one, or one that names the kind of its
+	// credentials, as "DeepL-Auth-Key", "ApiKey" or "Token"?
+	auto IsScheme = [](KStringView sWord)
+	{
+		for (auto sScheme : Schemes)
+		{
+			if (kCaselessEqualLeft(sWord, sScheme))
+			{
+				return true;
+			}
+		}
+
+		for (auto ch : sWord)
+		{
+			if (!(ch >= 'A' && ch <= 'Z') && !(ch >= 'a' && ch <= 'z') && ch != '-' && ch != '_')
+			{
+				return false;
+			}
+		}
+
+		return kEndsWithAnyCase(sWord, "key") || kEndsWithAnyCase(sWord, "token");
+	};
 
 	for (const auto& Prefix : Prefixes)
 	{
 		for (KString::size_type iPos = 0; (iPos = kFindAnyCase(sBuffer, Prefix.sWord, Prefix.chAnchor, iPos)) != KString::npos; )
 		{
-			auto iValue = iPos + Prefix.sWord.size();
+			iPos += Prefix.sWord.size();
 
-			while (iValue < sBuffer.size() && (sBuffer[iValue] == ' ' || sBuffer[iValue] == '\t'))
-			{
-				++iValue;
-			}
+			// the value runs to the end of the line or to a quote
+			KStringView sValue(sBuffer);
+			sValue.remove_prefix(iPos);
+			sValue = sValue.substr(0, sValue.find_first_of("\n\r\"'"));
 
-			// step over "Bearer" / "Basic" / ... so the scheme survives the redaction
-			for (auto sScheme : Schemes)
+			auto sSecret = kGetWord(sValue);
+			auto sNext   = kFirstWord(sValue);
+
+			if (Prefix.bHeader && !sNext.empty())
 			{
-				if (kCaselessBeginsWithLeft(KStringView(sBuffer).substr(iValue), sScheme))
+				if (IsScheme(sSecret))
 				{
-					iValue += sScheme.size();
-					break;
+					// the scheme survives the redaction
+					sSecret = sNext;
+				}
+				else
+				{
+					// an unknown scheme, or a credential that other text follows - the
+					// next word of the line is redacted as well
+					sSecret = KStringView(sSecret.data(), sNext.data() + sNext.size() - sSecret.data());
 				}
 			}
 
 			// never redact a redaction -- the passes overlap by design
-			if (sBuffer.compare(iValue, 10, "[redacted]", 10) == 0)
+			if (sSecret.empty() || sSecret.starts_with("[redacted]"))
 			{
-				iPos = iValue + 10;
 				continue;
 			}
 
-			auto iEnd = iValue;
+			auto iSecret = static_cast<KString::size_type>(sSecret.data() - sBuffer.data());
 
-			// the value runs to whitespace, a quote, or the end of the line
-			while (iEnd < sBuffer.size()
-			    && sBuffer[iEnd] != ' '  && sBuffer[iEnd] != '\t'
-			    && sBuffer[iEnd] != '\n' && sBuffer[iEnd] != '\r'
-			    && sBuffer[iEnd] != '"'  && sBuffer[iEnd] != '\'')
-			{
-				++iEnd;
-			}
-
-			if (iEnd > iValue)
-			{
-				sBuffer.replace(iValue, iEnd - iValue, "[redacted]");
-				iPos = iValue + 10;  // length of "[redacted]"
-			}
-			else
-			{
-				iPos = iValue;
-			}
+			sBuffer.replace(iSecret, sSecret.size(), "[redacted]");
+			iPos = iSecret + 10;  // length of "[redacted]"
 		}
 	}
 

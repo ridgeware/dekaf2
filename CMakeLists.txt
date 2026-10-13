@@ -1773,6 +1773,7 @@ set(PUBLIC_HEADERS
 	source/core/init/kcompatibility.h
 	source/core/init/kdefinitions.h
 	source/core/logging/klog.h
+	source/core/logging/kredact.h
 	source/core/logging/klogrotate.h
 	source/core/strings/kcaseless.h
 	source/core/strings/kcasestring.h
@@ -2072,6 +2073,7 @@ set (SOURCES
 	source/core/logging/bits/klogserializer.cpp
 	source/core/logging/bits/klogwriter.cpp
 	source/core/logging/klog.cpp
+	source/core/logging/kredact.cpp
 	source/core/logging/klogrotate.cpp
 	source/core/strings/bits/kfindsetofchars.cpp
 	source/core/strings/bits/kstring_view.cpp

@@ -47,7 +47,6 @@
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
-#include <dekaf2/core/strings/kstring.h>   // kRedactCredentials is declared below, outside the KLOG guard
 
 #ifdef DEKAF2_WITH_KLOG
 	#include <dekaf2/core/strings/kstring.h>
@@ -62,52 +61,6 @@
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
-
-#ifdef DEKAF2_WITH_KLOG
-
-//---------------------------------------------------------------------------
-/// Redact credentials out of a string: JWTs, "Bearer <token>", an
-/// "Authorization:" header value, and the values of parameters whose NAME looks
-/// secret (token, secret, password, api_key, ...).
-///
-/// Written for KLog, exported because the problem is not specific to logging
-/// (Joe, 2026-10-12): anywhere a provider's error body is about to be stored,
-/// forwarded or pasted, it may be carrying a bearer token. A column someone can
-/// query is at least as bad a home for one as a log file.
-///
-/// THE GUARD MATTERS MORE THAN THE REDACTION. The common path is a few scans for
-/// rare anchor characters that all miss, so a string with no credential in it
-/// pays almost nothing and never allocates.
-///
-/// It is a safety net, not a guarantee: a token logged under a name this does not
-/// recognise, or in a shape that is not a JWT, still gets through. It is not
-/// permission to put credentials where they do not belong.
-///
-/// @param sMessage the text to redact
-/// @param sBuffer receives the redacted copy, only when there was something to do
-/// @return true if sBuffer now holds the text to use, false if sMessage was
-/// already clean and sBuffer was left untouched - the caller owns both, so
-/// neither result can outlive what it points into
-DEKAF2_PUBLIC
-bool kRedactCredentials(KStringView sMessage, KString& sBuffer);
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-/// Convenience form: returns the redacted text by value, always. Costs a copy
-/// even when nothing needed redacting, so prefer the two-argument form on a hot
-/// path such as the logger itself. For a call site that is about to store or
-/// send the string anyway, the copy is free in context and this reads better:
-///
-///     Probe.sError = kRedactCredentials(sProviderErrorBody);
-///
-/// @param sMessage the text to redact
-/// @return the redacted text
-DEKAF2_PUBLIC
-KString kRedactCredentials(KStringView sMessage);
-//---------------------------------------------------------------------------
-
-#endif // DEKAF2_WITH_KLOG
-
 
 /// @addtogroup core_logging
 /// @{

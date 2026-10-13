@@ -125,6 +125,7 @@ set (USOURCES
 	kquotedprintable_tests.cpp
 	krandom_tests.cpp
 	kreader_tests.cpp
+	kredact_tests.cpp
 	kreedsolomon_tests.cpp
 	kregex_tests.cpp
 	kreplacer_tests.cpp

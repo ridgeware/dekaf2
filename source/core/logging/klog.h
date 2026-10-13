@@ -65,8 +65,10 @@ DEKAF2_NAMESPACE_BEGIN
 /// @addtogroup core_logging
 /// @{
 
-#ifdef DEKAF2_WITH_KLOG
+// KLogWriter appears in SetMirror() also without KLog
 class KLogWriter;
+
+#ifdef DEKAF2_WITH_KLOG
 class KLogSerializer;
 #endif
 

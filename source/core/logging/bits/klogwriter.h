@@ -46,28 +46,23 @@
 /// Output writers for the logging framework
 
 #include <dekaf2/core/init/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
 
 #ifdef DEKAF2_WITH_KLOG
 #include <dekaf2/core/strings/kstring.h>
-#include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <memory>
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 	#include <dekaf2/data/json/kjson.h>
 #endif
+#endif // DEKAF2_WITH_KLOG
 
 DEKAF2_NAMESPACE_BEGIN
 
-class KWebClient;
-class KHTTPHeaders;
-
-#ifdef DEKAF2_KLOG_WITH_TCP
-class KIOStreamSocket;
-#endif
-
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// ABC for the LogWriter object
+/// ABC for the LogWriter object - it exists also without KLog, as a writer can be
+/// passed to KLog::SetMirror() in both modes
 class DEKAF2_PUBLIC KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -82,6 +77,15 @@ public:
 	virtual bool Good() const = 0;
 
 }; // KLogWriter
+
+#ifdef DEKAF2_WITH_KLOG
+
+class KWebClient;
+class KHTTPHeaders;
+
+#ifdef DEKAF2_KLOG_WITH_TCP
+class KIOStreamSocket;
+#endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// LogWriter to /dev/null
@@ -334,6 +338,6 @@ protected:
 
 #endif // of DEKAF2_KLOG_WITH_TCP
 
-DEKAF2_NAMESPACE_END
-
 #endif // of DEKAF2_WITH_KLOG
+
+DEKAF2_NAMESPACE_END

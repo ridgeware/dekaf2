@@ -42,6 +42,17 @@
 
 #include <dekaf2/core/logging/bits/klogwriter.h>
 
+DEKAF2_NAMESPACE_BEGIN
+
+//---------------------------------------------------------------------------
+// also without KLog - the vtable of KLogWriter is emitted with it
+KLogWriter::~KLogWriter()
+//---------------------------------------------------------------------------
+{
+}
+
+DEKAF2_NAMESPACE_END
+
 #ifdef DEKAF2_WITH_KLOG
 
 #include <dekaf2/core/strings/kstring.h>
@@ -67,12 +78,6 @@
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
-
-//---------------------------------------------------------------------------
-KLogWriter::~KLogWriter()
-//---------------------------------------------------------------------------
-{
-}
 
 //---------------------------------------------------------------------------
 KLogNullWriter::~KLogNullWriter()

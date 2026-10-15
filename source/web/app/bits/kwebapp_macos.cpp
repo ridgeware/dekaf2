@@ -58,6 +58,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
 #include <pthread.h>
+#include <xlocale.h>
 #include <cstring>
 #include <algorithm>
 #include <atomic>
@@ -1075,10 +1076,49 @@ void CancelAttention(void* /*pWindow*/, int64_t iRequest)
 
 } // CancelAttention
 
+namespace {
+
+//-----------------------------------------------------------------------------
+// for the scope's lifetime this thread reads and writes numbers the C way -
+// the rest of its locale and other threads remain unchanged. AppKit's NSAlert
+// on macOS 27 (26A428) fails with a decimal comma in LC_NUMERIC.
+class ScopedCNumbers
+//-----------------------------------------------------------------------------
+{
+public:
+	ScopedCNumbers()
+	{
+		auto Base = ::duplocale(LC_GLOBAL_LOCALE);
+		if (!Base) return;
+		// newlocale takes over Base when it succeeds, and leaves it otherwise
+		m_Numbers = ::newlocale(LC_NUMERIC_MASK, "C", Base);
+		if (!m_Numbers) { ::freelocale(Base); return; }
+		m_Previous = ::uselocale(m_Numbers);
+	}
+
+	~ScopedCNumbers()
+	{
+		if (m_Previous) ::uselocale(m_Previous);
+		if (m_Numbers)  ::freelocale(m_Numbers);
+	}
+
+	ScopedCNumbers(const ScopedCNumbers&) = delete;
+	ScopedCNumbers& operator=(const ScopedCNumbers&) = delete;
+
+private:
+	locale_t m_Numbers  { nullptr };
+	locale_t m_Previous { nullptr };
+};
+
+} // namespace
+
 //-----------------------------------------------------------------------------
 bool Confirm(void* pWindow, KStringView sTitle, KStringView sText, KStringView sOK, KStringView sCancel)
 //-----------------------------------------------------------------------------
 {
+	// the alert in the C way of numbers, from its layout to the answer
+	ScopedCNumbers CNumbers;
+
 	// Record who is in front now, and get our own window out of the way if it
 	// sits on another space: when the panel closes, AppKit makes the next window
 	// key, and a key window on another space takes the user there. With the

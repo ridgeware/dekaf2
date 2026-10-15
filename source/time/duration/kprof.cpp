@@ -46,6 +46,7 @@
 
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/format/kformat.h>
 #include <algorithm>
 #include <set>
 #include <cstring>
@@ -61,6 +62,17 @@ std::mutex            KSharedProfiler::s_constructor_mutex;
 std::atomic<uint32_t> KSharedProfiler::s_order{0};
 FILE*                 KSharedProfiler::s_json_fp{nullptr};
 const char*           g_empty_label{"(unnamed)"};
+
+//-----------------------------------------------------------------------------
+KQDProf::~KQDProf()
+//-----------------------------------------------------------------------------
+{
+	if (m_print)
+	{
+		kPrint(stdout, "KQDProf::{:<25.25} {:>10} nsecs\n", m_label, (clock_t::now()-m_start).count());
+	}
+
+} // dtor
 
 //-----------------------------------------------------------------------------
 KSharedProfiler::KSharedProfiler()
@@ -281,9 +293,9 @@ void KSharedProfiler::printJSON()
 			{
 				case '"':  std::fprintf(fp, "\\\""); break;
 				case '\\': std::fprintf(fp, "\\\\"); break;
-				case '\n': std::fprintf(fp, "\\n");   break;
-				case '\t': std::fprintf(fp, "\\t");   break;
-				default:   std::fputc(*p, fp);         break;
+				case '\n': std::fprintf(fp, "\\n");  break;
+				case '\t': std::fprintf(fp, "\\t");  break;
+				default:   std::fputc(*p, fp);       break;
 			}
 		}
 
@@ -291,7 +303,8 @@ void KSharedProfiler::printJSON()
 		std::fprintf(fp, "      \"level\": %u,\n",    it.second.level);
 		std::fprintf(fp, "      \"is_group\": %s,\n", bIsGroup ? "true" : "false");
 		std::fprintf(fp, "      \"duration_usec\": %" PRId64 ",\n", static_cast<int64_t>(iUsecs));
-		std::fprintf(fp, "      \"percent\": %.2f",   nPercent);
+		// not printf's %f, which writes the decimal separator of the locale into the JSON
+		std::fprintf(fp, "      \"percent\": %s",     kFormat("{:.2f}", nPercent).c_str());
 
 		if (!bIsGroup && it.second.count)
 		{
@@ -312,7 +325,7 @@ void KSharedProfiler::printJSON()
 	auto iWallUsec = std::chrono::duration_cast<std::chrono::microseconds>(clock_t::now() - m_start).count();
 
 	std::fprintf(fp, "  \"accumulated_runtime_usec\": %" PRId64 ",\n", static_cast<int64_t>(iAccUsec));
-	std::fprintf(fp, "  \"wall_clock_usec\": %" PRId64 "\n",         static_cast<int64_t>(iWallUsec));
+	std::fprintf(fp, "  \"wall_clock_usec\": %" PRId64 "\n",           static_cast<int64_t>(iWallUsec));
 	std::fprintf(fp, "}\n");
 
 	std::fflush(fp);

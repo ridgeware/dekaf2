@@ -543,22 +543,6 @@ uint128_t KStringView::UInt128(bool bIsHex) const noexcept
 #endif
 
 //-----------------------------------------------------------------------------
-float KStringView::Float() const noexcept
-//-----------------------------------------------------------------------------
-{
-	KString sTmp(*this);
-	return std::strtof(sTmp.c_str(), nullptr);
-}
-
-//-----------------------------------------------------------------------------
-double KStringView::Double() const noexcept
-//-----------------------------------------------------------------------------
-{
-	KString sTmp(*this);
-	return std::strtod(sTmp.c_str(), nullptr);
-}
-
-//-----------------------------------------------------------------------------
 void KStringView::Warn(KStringView sWhere, KStringView sWhat) const
 //-----------------------------------------------------------------------------
 {

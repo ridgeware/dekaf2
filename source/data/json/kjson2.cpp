@@ -137,10 +137,18 @@ bool ToDouble(const KJSON2::StringT& sFloat, double& Double) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (sFloat.empty()) return false;
+#ifdef DEKAF2
+	// the decimal separator is '.', whatever the locale - a number beyond the
+	// range of double is read as +/- infinity
+	std::size_t iPos;
+	Double = kToDouble(sFloat, &iPos);
+	return iPos == sFloat.size();
+#else
 	char* pos;
 	Double = std::strtod(sFloat.c_str(), &pos);
 	// we DO want to return HUGE_VAL in case of an overflow - hence we return true on errno == ERANGE
 	return (errno == ERANGE) || static_cast<KJSON2::StringT::size_type>(pos - sFloat.c_str()) == sFloat.size();
+#endif
 }
 
 //-----------------------------------------------------------------------------

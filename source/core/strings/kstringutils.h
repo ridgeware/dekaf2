@@ -1382,6 +1382,26 @@ Integer kToInt(const String sNumber, uint16_t iBase = 10) noexcept
 }
 
 //-----------------------------------------------------------------------------
+/// Converts the decimal floating point number at the start of sNumber to a double.
+/// Leading white space and a leading '+' or '-' are accepted, and inf, infinity and
+/// nan in any case. The decimal separator is always '.', whatever the locale.
+/// @param sNumber the text that starts with the number
+/// @param pPos if not nullptr, receives the count of characters of the number
+/// including the leading white space, or 0 if sNumber does not start with a number
+/// @return the number, 0 if sNumber does not start with a number, or +/- infinity
+/// if the number is beyond the range of double
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+double kToDouble(KStringView sNumber, std::size_t* pPos = nullptr) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Converts the decimal floating point number at the start of sNumber to a float,
+/// like kToDouble().
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+float kToFloat(KStringView sNumber, std::size_t* pPos = nullptr) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 template<class First>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 First kFirstNonZero(const First& iFirst)
@@ -1579,12 +1599,7 @@ inline DEKAF2_PUBLIC
 void kFromString(float& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_KSTRING_IS_STD_STRING
-	KString sTmp(sValue);
-	Value = std::strtof(sTmp.c_str(), nullptr);
-#else
-	Value = sValue.Float();
-#endif
+	Value = kToFloat(sValue);
 }
 
 //-----------------------------------------------------------------------------
@@ -1592,12 +1607,7 @@ inline DEKAF2_PUBLIC
 void kFromString(double& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_KSTRING_IS_STD_STRING
-	KString sTmp(sValue);
-	Value = std::strtod(sTmp.c_str(), nullptr);
-#else
-	Value = sValue.Double();
-#endif
+	Value = kToDouble(sValue);
 }
 
 //-----------------------------------------------------------------------------

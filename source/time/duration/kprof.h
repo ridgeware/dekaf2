@@ -48,7 +48,6 @@
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
 #include <dekaf2/core/init/kdefinitions.h>
-#include <dekaf2/core/format/kformat.h>
 #include <map>
 #include <cinttypes>
 #include <cstring>
@@ -65,13 +64,13 @@ namespace enabled {
 
 class KProf;
 
-extern const char* g_empty_label;
+extern DEKAF2_PUBLIC const char* g_empty_label;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// "Quick-and-Dirty" profiling helper
 /// - simply prints one line per call with label and used usecs
 /// - can be disabled and enabled on command, e.g. for branch analysis
-class KQDProf
+class DEKAF2_PUBLIC KQDProf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -90,14 +89,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	~KQDProf()
+	/// prints the label and the nanoseconds since construction, unless disabled
+	~KQDProf();
 	//-----------------------------------------------------------------------------
-	{
-		if (m_print)
-		{
-			kPrint(stdout, "KQDProf::{:<25.25} {:>10} nsecs\n", m_label, (clock_t::now()-m_start).count());
-		}
-	}
 
 	//-----------------------------------------------------------------------------
 	void disable()
@@ -125,7 +119,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// profiler class, working single process, single thread, multi threaded
-class KSharedProfiler
+class DEKAF2_PUBLIC KSharedProfiler
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	friend class KProf;
@@ -287,7 +281,7 @@ private:
 /// utility (RAII) class used to measure and count activity
 /// it has to stay in the same thread as the parent it is reporting
 /// to, or it will cause races.
-class KProf
+class DEKAF2_PUBLIC KProf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

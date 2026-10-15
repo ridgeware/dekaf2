@@ -122,7 +122,7 @@ set(CMAKE_REQUIRED_QUIET TRUE)
 # ================================= CONFIG OPTIONS =================================
 
 # In package mode (DEKAF2_VCPKG_BUILD) the package manager owns the Debug/Release split (via
-# triplets) and the install layout, and provides fmt, simdutf and nlohmann-json. These cache
+# triplets) and the install layout, and provides fmt, simdutf, fast_float and nlohmann-json. These cache
 # entries have to be set before the options below are declared: without FORCE, set(CACHE)
 # changes nothing once option() has created the entry. Like this they become the defaults
 # of those options, and an explicit -D still overrides them.
@@ -131,10 +131,11 @@ set(CMAKE_REQUIRED_QUIET TRUE)
 # Without them, when std::chrono provides the calendar but not the timezone db (e.g. AppleClang),
 # date's local_t does not match the std::chrono calendar types dekaf2 builds against.
 if (DEKAF2_VCPKG_BUILD)
-	set(DEKAF2_USE_SYSTEM_FMTLIB     ON  CACHE BOOL "use a system installed fmtlib instead of our own copy")
-	set(DEKAF2_DUAL_TARGET           OFF CACHE BOOL "install Release and Debug versions of dekaf2 side by side")
-	set(DEKAF2_USE_VENDORED_SIMDUTF  OFF CACHE BOOL "use the vendored simdutf instead of find_package(simdutf)")
-	set(DEKAF2_USE_VENDORED_NLOHMANN OFF CACHE BOOL "use the vendored nlohmann-json instead of find_package(nlohmann_json) (needs >= 3.11.2)")
+	set(DEKAF2_USE_SYSTEM_FMTLIB      ON  CACHE BOOL "use a system installed fmtlib instead of our own copy")
+	set(DEKAF2_DUAL_TARGET            OFF CACHE BOOL "install Release and Debug versions of dekaf2 side by side")
+	set(DEKAF2_USE_VENDORED_SIMDUTF   OFF CACHE BOOL "use the vendored simdutf instead of find_package(simdutf)")
+	set(DEKAF2_USE_VENDORED_FASTFLOAT OFF CACHE BOOL "use the vendored fast_float instead of find_package(FastFloat)")
+	set(DEKAF2_USE_VENDORED_NLOHMANN  OFF CACHE BOOL "use the vendored nlohmann-json instead of find_package(nlohmann_json) (needs >= 3.11.2)")
 endif()
 
 # these are all configurable project options
@@ -166,6 +167,7 @@ OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
 OPTION(DEKAF2_VCPKG_BUILD "build for vcpkg: no self-setup, find_package deps, single triplet-driven config" OFF)
 OPTION(DEKAF2_USE_VENDORED_DATE "use the vendored hhinnant/date instead of find_package(date)" ON)
 OPTION(DEKAF2_USE_VENDORED_SIMDUTF "use the vendored simdutf instead of find_package(simdutf)" ON)
+OPTION(DEKAF2_USE_VENDORED_FASTFLOAT "use the vendored fast_float instead of find_package(FastFloat)" ON)
 OPTION(DEKAF2_USE_VENDORED_NLOHMANN "use the vendored nlohmann-json instead of find_package(nlohmann_json) (needs >= 3.11.2)" ON)
 OPTION(DEKAF2_BUILD_SAMPLES "build and install samples" ON)
 OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
@@ -482,6 +484,15 @@ if (DEKAF2_WITH_SIMDUTF AND NOT DEKAF2_USE_VENDORED_SIMDUTF)
 	find_package(simdutf CONFIG REQUIRED)
 	set(DEKAF2_SIMDUTF_TARGET simdutf::simdutf)
 	set(DEKAF2_USE_SYSTEM_SIMDUTF ON)
+endif()
+
+# fast_float: vendored (from/fast_float/fast_float.h is #included into kstringutils.cpp),
+# or find_package(FastFloat) -> link FastFloat::fast_float and let kstringutils.cpp include the
+# system <fast_float/fast_float.h>. DEKAF2_USE_SYSTEM_FASTFLOAT (in kconfiguration.h) switches the include.
+if (NOT DEKAF2_USE_VENDORED_FASTFLOAT)
+	find_package(FastFloat CONFIG REQUIRED)
+	set(DEKAF2_FASTFLOAT_TARGET FastFloat::fast_float)
+	set(DEKAF2_USE_SYSTEM_FASTFLOAT ON)
 endif()
 
 if (DEKAF2_LINK_TIME_OPTIMIZATION AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -2585,6 +2596,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${WEBVIEW_LIBRARIES}
 		re2
 		${DEKAF2_SIMDUTF_TARGET}
+		${DEKAF2_FASTFLOAT_TARGET}
 		${UAP-CPP_LIBRARIES}
 		${YAML_CPP_LIBRARIES}
 		${JEMalloc_LIBRARIES}

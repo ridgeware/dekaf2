@@ -49,6 +49,12 @@
 	#include <dekaf2/core/strings/kregex.h>
 #endif
 
+#if DEKAF2_USE_SYSTEM_FASTFLOAT
+	#include <fast_float/fast_float.h>
+#else
+	#include "../../../from/fast_float/fast_float.h"
+#endif
+
 DEKAF2_NAMESPACE_BEGIN
 
 //----------------------------------------------------------------------
@@ -668,6 +674,57 @@ bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator) noexc
 	return bDeciSeen && bHadDigit;
 
 } // kIsFloat
+
+namespace {
+
+//-----------------------------------------------------------------------------
+// strtod() reads the decimal separator of the locale and needs a terminating NUL.
+// fast_float reads a '.' and works on a range, and otherwise reads what strtod()
+// reads, except hex floats.
+template<typename Float>
+Float kToFloatingPoint(KStringView sNumber, std::size_t* pPos) noexcept
+//-----------------------------------------------------------------------------
+{
+	const fast_float::parse_options Options
+	{
+		fast_float::chars_format::general
+		| fast_float::chars_format::skip_white_space
+		| fast_float::chars_format::allow_leading_plus
+	};
+
+	Float fValue { 0 };
+
+	auto Result = fast_float::from_chars_advanced(sNumber.data(), sNumber.data() + sNumber.size(), fValue, Options);
+
+	// a number beyond the range of Float is read as +/- infinity or 0, as by strtod()
+	bool bIsNumber = Result.ec == std::errc() || Result.ec == std::errc::result_out_of_range;
+
+	if (pPos)
+	{
+		*pPos = bIsNumber ? static_cast<std::size_t>(Result.ptr - sNumber.data()) : 0;
+	}
+
+	return bIsNumber ? fValue : 0;
+
+} // kToFloatingPoint
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+double kToDouble(KStringView sNumber, std::size_t* pPos) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kToFloatingPoint<double>(sNumber, pPos);
+
+} // kToDouble
+
+//-----------------------------------------------------------------------------
+float kToFloat(KStringView sNumber, std::size_t* pPos) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kToFloatingPoint<float>(sNumber, pPos);
+
+} // kToFloat
 
 //-----------------------------------------------------------------------------
 bool kIsEmail(KStringView str) noexcept

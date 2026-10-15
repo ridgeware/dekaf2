@@ -3,6 +3,8 @@
 #include <dekaf2/data/sql/krow.h>
 #include <dekaf2/io/streams/kstringstream.h>
 #include <vector>
+#include <clocale>
+#include <locale>
 
 #if defined(DEKAF2_WRAPPED_KJSON) || !defined(DEKAF2_IS_GCC)
 
@@ -1491,6 +1493,36 @@ TEST_CASE("KJSON2")
 			KInStringStream iss(sJSON);
 			CHECK ( json.Parse(iss) == false );
 		}
+	}
+
+	SECTION("Float() of a string, independent of the locale")
+	{
+		KJSON2 json = "0.5";
+		CHECK ( json.Float()               ==  0.5 );
+		CHECK ( KJSON2("0.5x").Float(-1.0) == -1.0 );
+
+		// the global locale of a German user, if it is installed - it has a decimal
+		// comma, and Float() still reads a '.'
+		auto        OldLocale   = std::locale();
+		std::string sOldCLocale = std::setlocale(LC_ALL, nullptr);
+		bool        bIsSet      { false };
+
+		try
+		{
+			std::locale::global(std::locale("de_DE.UTF-8"));
+			bIsSet = true;
+		}
+		catch (const std::exception&)
+		{
+		}
+
+		if (bIsSet)
+		{
+			CHECK ( json.Float() == 0.5 );
+		}
+
+		std::locale::global(OldLocale);
+		std::setlocale(LC_ALL, sOldCLocale.c_str());
 	}
 }
 #endif

@@ -10,6 +10,9 @@
 #include <set>
 #include <list>
 #include <array>
+#include <clocale>
+#include <cmath>
+#include <locale>
 
 using namespace dekaf2;
 
@@ -3062,5 +3065,98 @@ TEST_CASE("kColumnWidth")
 		CHECK ( svz.LeftColumns(4)  == "北京" );
 		CHECK ( s  .LeftColumns(5)  == "北京x" );
 		CHECK ( KString("北京x").LeftColumns(3) == "北" );
+	}
+}
+
+namespace {
+
+// sets the global locale of a German user for the lifetime of the object, if
+// it is installed, and restores the previous C and C++ locales afterwards
+class GermanLocale
+{
+public:
+
+	GermanLocale()
+	: m_OldLocale(std::locale())
+	, m_sOldCLocale(std::setlocale(LC_ALL, nullptr))
+	{
+		try
+		{
+			std::locale::global(std::locale("de_DE.UTF-8"));
+			m_bIsSet = true;
+		}
+		catch (const std::exception&)
+		{
+		}
+	}
+
+	~GermanLocale()
+	{
+		std::locale::global(m_OldLocale);
+		std::setlocale(LC_ALL, m_sOldCLocale.c_str());
+	}
+
+	bool IsSet() const { return m_bIsSet; }
+
+private:
+
+	std::locale m_OldLocale;
+	std::string m_sOldCLocale;
+	bool        m_bIsSet { false };
+
+}; // GermanLocale
+
+} // end of anonymous namespace
+
+TEST_CASE("kToDouble")
+{
+	SECTION("numbers")
+	{
+		CHECK ( kToDouble("0.5")      == 0.5    );
+		CHECK ( kToDouble(" \t1.5")   == 1.5    );
+		CHECK ( kToDouble("+2.5")     == 2.5    );
+		CHECK ( kToDouble("-3.5e2")   == -350.0 );
+		CHECK ( kToDouble(".5")       == 0.5    );
+		CHECK ( kToFloat ("0.25")     == 0.25f  );
+		CHECK ( std::isinf(kToDouble("1e999"    )) );
+		CHECK ( std::isinf(kToDouble("-Infinity")) );
+		CHECK ( std::isnan(kToDouble("nan"      )) );
+	}
+
+	SECTION("the end of the number")
+	{
+		std::size_t iPos { 99 };
+
+		CHECK ( kToDouble("1.5 apples", &iPos) == 1.5 );
+		CHECK ( iPos == 3 );
+		CHECK ( kToDouble("  2"       , &iPos) == 2.0 );
+		CHECK ( iPos == 3 );
+		CHECK ( kToDouble("apples"    , &iPos) == 0.0 );
+		CHECK ( iPos == 0 );
+		CHECK ( kToDouble("   "       , &iPos) == 0.0 );
+		CHECK ( iPos == 0 );
+		CHECK ( kToDouble(""          , &iPos) == 0.0 );
+		CHECK ( iPos == 0 );
+
+		// a view without a terminating NUL
+		KStringView sDigits("3.25999");
+		CHECK ( kToDouble(sDigits.substr(0, 4)) == 3.25 );
+		CHECK ( sDigits.substr(0, 4).Double()   == 3.25 );
+	}
+
+	SECTION("independent of the locale")
+	{
+		GermanLocale Locale;
+
+		if (Locale.IsSet())
+		{
+			// this locale has a decimal comma - the conversions still read a '.'
+			CHECK ( kToDouble("0.5")                 == 0.5  );
+			CHECK ( kToDouble("0,5")                 == 0.0  );
+			CHECK ( KString("0.5").Double()          == 0.5  );
+			CHECK ( KStringView("0.5").Float()       == 0.5f );
+			CHECK ( kFromString<double>("0.5")       == 0.5  );
+			CHECK ( KString::to_string(0.5).Double() == 0.5  );
+		}
 	}
 }

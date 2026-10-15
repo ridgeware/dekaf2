@@ -1219,10 +1219,10 @@ public:
 	DEKAF2_NODISCARD
 	uint128_t UInt128(bool bIsHex = false) const noexcept;
 #endif
-	/// convert to float
+	/// convert to float, the decimal separator is '.' - see kToFloat()
 	DEKAF2_NODISCARD
 	float Float() const noexcept;
-	/// convert to double
+	/// convert to double, the decimal separator is '.' - see kToDouble()
 	DEKAF2_NODISCARD
 	double Double() const noexcept;
 
@@ -2235,6 +2235,20 @@ inline uint64_t KString::UInt64(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
 	return ToView().UInt64(bIsHex);
+}
+
+//-----------------------------------------------------------------------------
+inline float KString::Float() const noexcept
+//-----------------------------------------------------------------------------
+{
+	return ToView().Float();
+}
+
+//-----------------------------------------------------------------------------
+inline double KString::Double() const noexcept
+//-----------------------------------------------------------------------------
+{
+	return ToView().Double();
 }
 
 #ifdef DEKAF2_HAS_INT128

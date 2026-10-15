@@ -61,10 +61,11 @@ vcpkg_cmake_configure(
         # one configuration per triplet, in the unversioned layout
         -DDEKAF2_DUAL_TARGET=OFF
         -DDEKAF2_VERSION_IN_TARGET=OFF
-        # fmt, simdutf and nlohmann-json from their ports (date stays vendored, it carries
-        # dekaf2's std::chrono interop patches)
+        # fmt, simdutf, fast_float and nlohmann-json from their ports (date stays vendored,
+        # it carries dekaf2's std::chrono interop patches)
         -DDEKAF2_USE_SYSTEM_FMTLIB=ON
         -DDEKAF2_USE_VENDORED_SIMDUTF=OFF
+        -DDEKAF2_USE_VENDORED_FASTFLOAT=OFF
         -DDEKAF2_USE_VENDORED_NLOHMANN=OFF
         # the MSVC runtime of the triplet (the option has no effect outside Windows)
         -DDEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS=${DEKAF2_STATIC_RUNTIME}

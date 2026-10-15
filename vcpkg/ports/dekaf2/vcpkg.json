@@ -11,6 +11,7 @@
     "fmt",
     "nlohmann-json",
     "simdutf",
+    "fast-float",
     { "name": "boost-iostreams",     "version>=": "1.72.0" },
     { "name": "boost-serialization", "version>=": "1.72.0" },
     "boost-system",

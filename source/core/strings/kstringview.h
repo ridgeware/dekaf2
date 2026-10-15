@@ -1530,13 +1530,13 @@ public:
 #endif
 
 	//-----------------------------------------------------------------------------
-	/// convert to float
+	/// convert to float, the decimal separator is '.' - see kToFloat()
 	DEKAF2_NODISCARD
 	float Float() const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// convert to double
+	/// convert to double, the decimal separator is '.' - see kToDouble()
 	DEKAF2_NODISCARD
 	double Double() const noexcept;
 	//-----------------------------------------------------------------------------
@@ -2136,6 +2136,22 @@ KStringView& KStringView::operator=(const KString& other)
 {
 	assign(other.data(), other.size());
 	return *this;
+}
+
+//-----------------------------------------------------------------------------
+inline
+float KStringView::Float() const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kToFloat(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline
+double KStringView::Double() const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kToDouble(*this);
 }
 
 //-----------------------------------------------------------------------------

@@ -462,7 +462,18 @@ if (NOT DEKAF2_BUILD_STATIC_DEKAF2 AND NOT DEKAF2_BUILD_SHARED_DEKAF2)
 	message(FATAL "do not switch both shared and static options off")
 endif()
 
-if (DEKAF2_WITH_SIMDUTF AND "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" AND NOT "${CPU_x86}" STREQUAL "")
+if (DEKAF2_WITH_SIMDUTF)
+	# simdutf requires C++17 with if constexpr, which rules out gcc < 7 and
+	# compilers that cmake can only run with an older standard
+	try_compile(DEKAF2_HAS_CPP17_FOR_SIMDUTF
+				"${CMAKE_CURRENT_BINARY_DIR}"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/simdutf_cpp17_test.cpp")
+endif()
+
+if (DEKAF2_WITH_SIMDUTF AND NOT DEKAF2_HAS_CPP17_FOR_SIMDUTF)
+	set(DEKAF2_WITH_SIMDUTF OFF)
+	message(STATUS "simdutf: switched off, it requires C++17 with if constexpr (gcc >= 7)")
+elseif (DEKAF2_WITH_SIMDUTF AND "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" AND NOT "${CPU_x86}" STREQUAL "")
 	# on amd64 in debug mode there are compile issues with simdutf for some
 	# instruction sets (haskell)
 	set(DEKAF2_WITH_SIMDUTF OFF)

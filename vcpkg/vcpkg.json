@@ -46,7 +46,7 @@
   ],
   "overrides": [
     {
-      "$comment": "the version dekaf2 vendors and is tested with (libs/, from/simdutf)",
+      "$comment": "from/simdutf vendors 9.3.0, vcpkg has at most 9.1.1 - 8.1.0 to 9.2.0 write past the end of an output buffer of exactly binary_length_from_base64() when decoding base64 with white space (fixed in 9.2.1), so stay with 8.0.0 until vcpkg has 9.2.1 or newer",
       "name": "simdutf",
       "version": "8.0.0"
     }

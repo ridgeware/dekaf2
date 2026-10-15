@@ -231,6 +231,12 @@ void kSetupThreadSignalHandling(bool bExceptSEGVandFPE)
 
 	sigset_t signal_set;
 	sigfillset(&signal_set);
+	// SIGTRAP must stay deliverable: it is synchronous and raised by a trap
+	// instruction - __builtin_trap(), Swift runtime failures, AppKit's
+	// _crashOnException. When blocked, the kernel cannot deliver it, and the
+	// thread executes the same trap instruction again and again at 100 % CPU
+	// instead of terminating.
+	sigdelset(&signal_set, SIGTRAP);
 
 	if (bExceptSEGVandFPE)
 	{
@@ -379,6 +385,7 @@ void KSignals::WaitForSignals()
 	sigdelset(&signal_set, SIGFPE);
 	sigdelset(&signal_set, SIGILL);
 	sigdelset(&signal_set, SIGBUS);
+	sigdelset(&signal_set, SIGTRAP);
 
 	for (;;)
 	{

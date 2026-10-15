@@ -1530,15 +1530,15 @@ public:
 #endif
 
 	//-----------------------------------------------------------------------------
-	/// convert to float, the decimal separator is '.' - see kToFloat()
+	/// convert to float, with chDecimalSeparator as the decimal separator - see kToFloat()
 	DEKAF2_NODISCARD
-	float Float() const noexcept;
+	float Float(value_type chDecimalSeparator = '.') const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// convert to double, the decimal separator is '.' - see kToDouble()
+	/// convert to double, with chDecimalSeparator as the decimal separator - see kToDouble()
 	DEKAF2_NODISCARD
-	double Double() const noexcept;
+	double Double(value_type chDecimalSeparator = '.') const noexcept;
 	//-----------------------------------------------------------------------------
 
 	/// @}
@@ -2140,18 +2140,18 @@ KStringView& KStringView::operator=(const KString& other)
 
 //-----------------------------------------------------------------------------
 inline
-float KStringView::Float() const noexcept
+float KStringView::Float(value_type chDecimalSeparator) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToFloat(*this);
+	return kToFloat(*this, chDecimalSeparator);
 }
 
 //-----------------------------------------------------------------------------
 inline
-double KStringView::Double() const noexcept
+double KStringView::Double(value_type chDecimalSeparator) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToDouble(*this);
+	return kToDouble(*this, chDecimalSeparator);
 }
 
 //-----------------------------------------------------------------------------

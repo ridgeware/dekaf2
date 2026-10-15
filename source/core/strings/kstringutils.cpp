@@ -679,17 +679,18 @@ namespace {
 
 //-----------------------------------------------------------------------------
 // strtod() reads the decimal separator of the locale and needs a terminating NUL.
-// fast_float reads a '.' and works on a range, and otherwise reads what strtod()
-// reads, except hex floats.
+// fast_float reads the decimal separator it is given and works on a range, and
+// otherwise reads what strtod() reads, except hex floats.
 template<typename Float>
-Float kToFloatingPoint(KStringView sNumber, std::size_t* pPos) noexcept
+Float kToFloatingPoint(KStringView sNumber, KStringView::value_type chDecimalSeparator, std::size_t* pPos) noexcept
 //-----------------------------------------------------------------------------
 {
 	const fast_float::parse_options Options
 	{
 		fast_float::chars_format::general
 		| fast_float::chars_format::skip_white_space
-		| fast_float::chars_format::allow_leading_plus
+		| fast_float::chars_format::allow_leading_plus,
+		chDecimalSeparator
 	};
 
 	Float fValue { 0 };
@@ -711,18 +712,18 @@ Float kToFloatingPoint(KStringView sNumber, std::size_t* pPos) noexcept
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
-double kToDouble(KStringView sNumber, std::size_t* pPos) noexcept
+double kToDouble(KStringView sNumber, KStringView::value_type chDecimalSeparator, std::size_t* pPos) noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToFloatingPoint<double>(sNumber, pPos);
+	return kToFloatingPoint<double>(sNumber, chDecimalSeparator, pPos);
 
 } // kToDouble
 
 //-----------------------------------------------------------------------------
-float kToFloat(KStringView sNumber, std::size_t* pPos) noexcept
+float kToFloat(KStringView sNumber, KStringView::value_type chDecimalSeparator, std::size_t* pPos) noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToFloatingPoint<float>(sNumber, pPos);
+	return kToFloatingPoint<float>(sNumber, chDecimalSeparator, pPos);
 
 } // kToFloat
 

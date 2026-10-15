@@ -1384,21 +1384,23 @@ Integer kToInt(const String sNumber, uint16_t iBase = 10) noexcept
 //-----------------------------------------------------------------------------
 /// Converts the decimal floating point number at the start of sNumber to a double.
 /// Leading white space and a leading '+' or '-' are accepted, and inf, infinity and
-/// nan in any case. The decimal separator is always '.', whatever the locale.
+/// nan in any case. The decimal separator is chDecimalSeparator, whatever the locale.
 /// @param sNumber the text that starts with the number
+/// @param chDecimalSeparator the decimal separator, an ASCII character other than a
+/// digit, a sign or 'e' - '.' by default
 /// @param pPos if not nullptr, receives the count of characters of the number
 /// including the leading white space, or 0 if sNumber does not start with a number
 /// @return the number, 0 if sNumber does not start with a number, or +/- infinity
 /// if the number is beyond the range of double
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-double kToDouble(KStringView sNumber, std::size_t* pPos = nullptr) noexcept;
+double kToDouble(KStringView sNumber, KStringView::value_type chDecimalSeparator = '.', std::size_t* pPos = nullptr) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Converts the decimal floating point number at the start of sNumber to a float,
 /// like kToDouble().
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-float kToFloat(KStringView sNumber, std::size_t* pPos = nullptr) noexcept;
+float kToFloat(KStringView sNumber, KStringView::value_type chDecimalSeparator = '.', std::size_t* pPos = nullptr) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

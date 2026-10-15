@@ -141,7 +141,7 @@ bool ToDouble(const KJSON2::StringT& sFloat, double& Double) noexcept
 	// the decimal separator is '.', whatever the locale - a number beyond the
 	// range of double is read as +/- infinity
 	std::size_t iPos;
-	Double = kToDouble(sFloat, &iPos);
+	Double = kToDouble(sFloat, '.', &iPos);
 	return iPos == sFloat.size();
 #else
 	char* pos;

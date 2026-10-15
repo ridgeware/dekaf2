@@ -3127,21 +3127,36 @@ TEST_CASE("kToDouble")
 	{
 		std::size_t iPos { 99 };
 
-		CHECK ( kToDouble("1.5 apples", &iPos) == 1.5 );
+		CHECK ( kToDouble("1.5 apples", '.', &iPos) == 1.5 );
 		CHECK ( iPos == 3 );
-		CHECK ( kToDouble("  2"       , &iPos) == 2.0 );
+		CHECK ( kToDouble("  2"       , '.', &iPos) == 2.0 );
 		CHECK ( iPos == 3 );
-		CHECK ( kToDouble("apples"    , &iPos) == 0.0 );
+		CHECK ( kToDouble("apples"    , '.', &iPos) == 0.0 );
 		CHECK ( iPos == 0 );
-		CHECK ( kToDouble("   "       , &iPos) == 0.0 );
+		CHECK ( kToDouble("   "       , '.', &iPos) == 0.0 );
 		CHECK ( iPos == 0 );
-		CHECK ( kToDouble(""          , &iPos) == 0.0 );
+		CHECK ( kToDouble(""          , '.', &iPos) == 0.0 );
 		CHECK ( iPos == 0 );
 
 		// a view without a terminating NUL
 		KStringView sDigits("3.25999");
 		CHECK ( kToDouble(sDigits.substr(0, 4)) == 3.25 );
 		CHECK ( sDigits.substr(0, 4).Double()   == 3.25 );
+	}
+
+	SECTION("another decimal separator")
+	{
+		std::size_t iPos { 99 };
+
+		CHECK ( kToDouble("12,75"   , ',')        == 12.75 );
+		CHECK ( kToFloat ("-0,5e1"  , ',')        == -5.0f );
+		CHECK ( kToDouble("0.5"     , ',', &iPos) == 0.0   );
+		CHECK ( iPos == 1 );
+		CHECK ( kToDouble("1.234,56", ',', &iPos) == 1.0   );
+		CHECK ( iPos == 1 );
+		CHECK ( KString    ("3,25").Double(',')   == 3.25  );
+		CHECK ( KStringView("3,25").Float(',')    == 3.25f );
+		CHECK ( KStringView("3,25").Double()      == 3.0   );
 	}
 
 	SECTION("independent of the locale")

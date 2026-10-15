@@ -314,11 +314,14 @@ void KPoll::BuildPollVec()
 
 	for (const auto& FileDescriptor : m_FileDescriptors)
 	{
-		if (!FileDescriptor.second.bArmed || !FileDescriptor.second.iEvents)
+		if (!FileDescriptor.second.bArmed)
 		{
-			// disarmed (currently processed by a worker) or no events to watch
+			// disarmed (currently processed by a worker)
 			continue;
 		}
+
+		// an fd without events is watched as well: poll() always reports POLLHUP,
+		// POLLERR and POLLNVAL, and the disconnect watch of KREST relies on that
 
 		pollfd pfd{};
 		pfd.fd     = FileDescriptor.first;
@@ -343,7 +346,7 @@ void KPoll::DrainArmQueue()
 	{
 		auto it = m_FileDescriptors.find(fd);
 
-		if (it == m_FileDescriptors.end() || !it->second.bArmed || !it->second.iEvents)
+		if (it == m_FileDescriptors.end() || !it->second.bArmed)
 		{
 			continue;
 		}
@@ -561,6 +564,12 @@ uint16_t KSocketWatch::AdjustEvents(int fd, uint16_t iEvents) const
 	// needed on macOS to detect disconnects
 	// (this looks silly, but test it - it is needed - it is a known BSD quirk)
 	iEvents |= POLLHUP;
+#elif defined(POLLRDHUP)
+	// Linux reports a reset of the connection with POLLHUP and POLLERR, which
+	// poll() always reports, but the close of the remote end (a FIN) only with
+	// POLLRDHUP - a remote end that only shuts down its writing side counts as
+	// gone as well
+	iEvents |= POLLRDHUP;
 #endif
 
 	return iEvents;

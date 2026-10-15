@@ -5,6 +5,12 @@
 #include <dekaf2/rest/framework/krestclient.h>
 #include <dekaf2/http/server/kcgistream.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/net/tcp/ktcpstream.h>
+#include <dekaf2/net/util/kstreamoptions.h>
+#include <atomic>
+#ifndef DEKAF2_IS_WINDOWS
+	#include <sys/socket.h>
+#endif
 
 using namespace dekaf2;
 
@@ -696,4 +702,98 @@ TEST_CASE("KREST")
 		}
 	}
 
+}
+
+TEST_CASE("KREST disconnect detection")
+{
+	// A client that closes or resets its connection while the request is
+	// processed is reported to the route by IsDisconnected() and to the
+	// application by the DisconnectCallback, with the thread ID of the route -
+	// applications use it to cancel the database queries of that thread.
+
+	std::atomic<bool>        bRouteEntered   { false };
+	std::atomic<bool>        bRouteDone      { false };
+	std::atomic<bool>        bRouteSawIt     { false };
+	std::atomic<std::size_t> iRouteThread    { 0 };
+	std::atomic<std::size_t> iCallbackThread { 0 };
+
+	KRESTRoutes Routes;
+
+	Routes.AddRoute({ KHTTPMethod::GET, false, "/wait", [&](KRESTServer& http)
+	{
+		iRouteThread  = kGetTid();
+		bRouteEntered = true;
+
+		// wait up to 10 seconds for the disconnect
+		for (int i = 0; i < 1000 && !http.IsDisconnected(); ++i)
+		{
+			kSleep(chrono::milliseconds(10));
+		}
+
+		bRouteSawIt = http.IsDisconnected();
+		bRouteDone  = true;
+	}});
+
+	KREST::Options Options;
+	Options.Type                 = KREST::HTTP;
+	Options.iPort                = 0;
+	Options.sBindAddress         = "127.0.0.1";
+	Options.bBlocking            = false;
+	Options.bCreateEphemeralCert = false;
+	Options.bPollForDisconnect   = true;
+	Options.DisconnectCallback   = [&](std::size_t iThreadID)
+	{
+		iCallbackThread = iThreadID;
+	};
+
+	KREST REST;
+	REQUIRE ( REST.Execute(Options, Routes) );
+
+	// sends the request, waits until the route runs, and closes the connection
+	// at the end of its scope - with bReset as a reset (RST), else as a normal
+	// close (FIN), which Linux reports only with POLLRDHUP
+	auto RequestAndDisconnect = [&](bool bReset)
+	{
+		KTCPStream Stream(KTCPEndPoint(kFormat("127.0.0.1:{}", REST.GetPort())), KStreamOptions(chrono::seconds(5)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write("GET /wait HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").Flush();
+
+		for (int i = 0; i < 500 && !bRouteEntered; ++i)
+		{
+			kSleep(chrono::milliseconds(10));
+		}
+
+		REQUIRE ( bRouteEntered );
+
+		if (bReset)
+		{
+			// with SO_LINGER on and a timeout of 0 the close resets the connection
+			struct ::linger Linger;
+			Linger.l_onoff  = 1;
+			Linger.l_linger = 0;
+
+			REQUIRE ( ::setsockopt(Stream.GetNativeSocket(), SOL_SOCKET, SO_LINGER, reinterpret_cast<const char*>(&Linger), sizeof(Linger)) == 0 );
+		}
+	};
+
+	SECTION("the client closes the connection")
+	{
+		RequestAndDisconnect(false);
+	}
+
+	SECTION("the client resets the connection")
+	{
+		RequestAndDisconnect(true);
+	}
+
+	for (int i = 0; i < 1500 && !bRouteDone; ++i)
+	{
+		kSleep(chrono::milliseconds(10));
+	}
+
+	CHECK ( bRouteDone      );
+	CHECK ( bRouteSawIt     );
+	CHECK ( iCallbackThread != 0 );
+	CHECK ( iCallbackThread == iRouteThread );
 }

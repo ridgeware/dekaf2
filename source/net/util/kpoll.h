@@ -149,7 +149,7 @@ public:
 	{
 		CallbackT   Callback;              ///< the callback function
 		std::size_t iParameter { 0 };      ///< arbitrary parameter to pass in callback
-		uint16_t    iEvents    { 0 };      ///< the file desc events to watch for
+		uint16_t    iEvents    { 0 };      ///< the file desc events to watch for - with 0 the fd is still watched for POLLHUP, POLLERR and POLLNVAL, which poll() always reports
 		bool        bOnce      { false };  ///< trigger only once, or repeatedly?
 		bool        bRearm     { false };  ///< if set, the fd is disarmed (removed from the poll set) when it triggers, and stays in the registry until Arm() re-enables it - this serializes per-fd dispatch for a reactor that hands the work to a worker pool
 		bool        bArmed     { true  };  ///< internal: is this fd currently part of the poll set? (managed by KPoll, do not set)

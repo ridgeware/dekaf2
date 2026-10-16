@@ -46,6 +46,7 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/time/duration/kduration.h>
+#include <thread>
 
 using namespace dekaf2;
 
@@ -1612,6 +1613,87 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 			db.SetQueryTimeout(std::chrono::seconds(0));
 			db.SetThrow(bTOld);
 			CHECK ( Timer.elapsed().seconds() < chrono::seconds(5) );
+		}
+
+		// the reason of a canceled statement
+		if (db.GetDBType() == KSQL::DBT::MYSQL || db.GetDBType() == KSQL::DBT::POSTGRESQL)
+		{
+			bool bIsMySQL = db.GetDBType() == KSQL::DBT::MYSQL;
+			auto bTOld    = db.SetThrow(false);
+
+			// a statement that sleeps for 5 seconds
+			auto Sleep = [&db, bIsMySQL]()
+			{
+				return bIsMySQL ? db.ExecRawQuery("select sleep(5)") : db.ExecRawQuery("select pg_sleep(5)");
+			};
+
+			// the query timeout
+			db.SetQueryTimeout(std::chrono::milliseconds(100), KSQL::QueryType::Select);
+			CHECK_FALSE ( Sleep() );
+			CHECK ( db.GetCancelReason() == KSQL::CancelReason::Timeout );
+			CHECK ( db.GetLastError().contains("query timed out after 100ms") );
+			db.SetQueryTimeout(std::chrono::seconds(0));
+
+			// the next statement works and clears the reason
+			CHECK ( db.ExecRawQuery("select 1") );
+			CHECK ( db.GetCancelReason() == KSQL::CancelReason::None );
+
+			// an ordinary error is no cancel
+			CHECK_FALSE ( db.ExecRawQuery("select no_such_column from no_such_table") );
+			CHECK ( db.GetCancelReason() == KSQL::CancelReason::None );
+
+			KSQL dbKiller(db);
+			dbKiller.SetThrow(false);
+			REQUIRE ( dbKiller.OpenConnection() );
+
+			// KillConnection() while the statement runs
+			{
+				auto iID = db.GetConnectionID();
+				bool bOK { true };
+				std::thread Sleeper([&]() { bOK = Sleep(); });
+				std::this_thread::sleep_for(std::chrono::milliseconds(300));
+				CHECK ( dbKiller.KillConnection(iID) );
+				Sleeper.join();
+				CHECK_FALSE ( bOK );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::Application );
+				CHECK ( db.GetLastError().contains("query canceled by the application") );
+			}
+
+			// KillQuery() ends the running statement early
+			{
+				auto iID = db.GetConnectionID();
+				bool bOK { true };
+				KStopTime Timer;
+				std::thread Sleeper([&]() { bOK = Sleep(); });
+				std::this_thread::sleep_for(std::chrono::milliseconds(300));
+				CHECK ( dbKiller.KillQuery(iID) );
+				Sleeper.join();
+				CHECK ( Timer.elapsed().seconds() < chrono::seconds(4) );
+
+				if (!bIsMySQL)
+				{
+					// PostgreSQL fails the canceled statement, MySQL ends an interrupted
+					// sleep() without an error
+					CHECK_FALSE ( bOK );
+					CHECK ( db.GetCancelReason() == KSQL::CancelReason::Application );
+				}
+
+				// an ordinary error afterwards is no cancel, also after the kill of a
+				// statement that ended without an error
+				CHECK_FALSE ( db.ExecRawQuery("select no_such_column from no_such_table") );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::None );
+			}
+
+			// KillConnection() between two statements: the next one fails, the one after works
+			{
+				CHECK ( dbKiller.KillConnection(db.GetConnectionID()) );
+				CHECK_FALSE ( db.ExecRawQuery("select 1") );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::Application );
+				CHECK ( db.ExecRawQuery("select 1") );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::None );
+			}
+
+			db.SetThrow(bTOld);
 		}
 
 		{

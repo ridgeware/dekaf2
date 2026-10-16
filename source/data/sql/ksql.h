@@ -84,6 +84,7 @@
 #if DEKAF2_IS_GCC
 #pragma GCC diagnostic pop
 #endif
+#include <atomic>
 #include <cinttypes>
 #include <vector>
 #include <tuple>
@@ -510,6 +511,14 @@ public:
 		Any         = Select|Insert|Update|Delete|Create|Alter|Drop|Transaction|Execute|Action|Maintenance|Info|Other
 	};
 
+	/// why the last statement was canceled
+	enum class CancelReason : uint8_t
+	{
+		None,        ///< the last statement was not canceled
+		Application, ///< canceled through KillConnection() or KillQuery()
+		Timeout      ///< canceled because it exceeded the query timeout
+	};
+
 	/// returns QueryType of a query string - if bAllowAny == true, the string "any" will select all query types
 	static QueryType GetQueryType(KStringView sQuery, bool bAllowAny = false);
 
@@ -519,7 +528,11 @@ public:
 	/// returns a string with the names of the selected query types
 	static std::vector<KStringViewZ> SerializeQueryTypes(QueryType QueryType);
 
-	/// set a timeout and type of query to abort after the timeout expired
+	/// Sets a timeout and the types of statements to abort after the timeout expired. An aborted
+	/// statement fails with "KSQL: query timed out after <timeout>", and GetCancelReason() returns
+	/// CancelReason::Timeout. Effective on MySQL, PostgreSQL, SQL Server and Sybase: the statement
+	/// is killed through a second connection with the same credentials, so the database user needs
+	/// the permission to kill its own connections (on SQL Server: ALTER ANY CONNECTION).
 	void SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType Queries = QueryType::Any);
 
 	/// set the timeout and type of query to abort after the timeout expired to the default values set with SetDefaultQueryTimeout()
@@ -759,6 +772,9 @@ public:
 	uint32_t    GetLastErrorNum   () const { return (m_iErrorSetOnlyWithSetError);     }
 	/// returns true for MySQL duplicate index error
 	bool        WasDuplicateError () const { return (GetLastErrorNum() == 1062); /*TODO:this is hardcoded for MySQL only*/ }
+	/// returns why the last statement was canceled, or CancelReason::None - see KillConnection(),
+	/// KillQuery() and SetQueryTimeout()
+	CancelReason GetCancelReason  () const { return m_LastCancelReason; }
 	int         GetLastOCIError   () const { return (GetLastErrorNum());               }
 	/// returns last issued SQL statement
 	const KString& GetLastSQL     () const { return m_sLastSQL.str();                  }
@@ -1128,11 +1144,16 @@ public:
 	/// returns the connection ID for the current connection, or 0
 	ConnectionID GetConnectionID(bool bQueryIfUnknown = true);
 
-	/// kills connection with ID iConnectionID
-	bool KillConnection(ConnectionID iConnectionID);
+	/// Kills the connection with ID iConnectionID, on MySQL, PostgreSQL, SQL Server and
+	/// Sybase. Call it on an instance that is connected to the same host and port as the
+	/// connection to kill: the failing statement of that connection then reports
+	/// CancelReason::Application.
+	bool KillConnection(ConnectionID iConnectionID) { return Kill(iConnectionID, CancelReason::Application, false); }
 
-	/// kills running query of connection with ID iConnectionID
-	bool KillQuery(ConnectionID iConnectionID);
+	/// Kills the running query of the connection with ID iConnectionID, on MySQL and
+	/// PostgreSQL. Call it on an instance that is connected to the same host and port as
+	/// the connection: its canceled statement then reports CancelReason::Application.
+	bool KillQuery(ConnectionID iConnectionID) { return Kill(iConnectionID, CancelReason::Application, true); }
 
 	/// helper for hex-encoded DBC blobs
 	static bool LooksLikeHexEncoded (KStringViewZ sDBC)
@@ -1235,9 +1256,13 @@ private:
 
 	static DBCCache s_DBCCache;
 
+	/// identifies a database server by API set, host and port
+	using ServerKey = uint64_t;
+
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// keep a list of connection IDs, thread safe
-	class ConnectionIDs
+	/// the connections that were killed on purpose, with the reason, until their
+	/// statement fails - thread safe
+	class CanceledConnections
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -1245,19 +1270,61 @@ private:
 	public:
 	//----------
 
-		void Add(ConnectionID iConnectionID);
-		bool Has(ConnectionID iConnectionID) const;
-		bool HasAndRemove(ConnectionID iConnectionID);
+		/// marks a connection before it is killed - bQueryOnly if only its running statement is killed
+		void         Add             (ServerKey Server, ConnectionID iConnectionID, CancelReason Reason, bool bQueryOnly);
+		/// returns the reason of a marked connection and removes the mark, or returns CancelReason::None
+		CancelReason Take            (ServerKey Server, ConnectionID iConnectionID);
+		/// removes the mark of a connection
+		void         Remove          (ServerKey Server, ConnectionID iConnectionID) { Take(Server, iConnectionID); }
+		/// removes the mark of a connection if only its running statement was killed: a statement
+		/// that ended without an error was not hit by that kill
+		void         RemoveQueryKill (ServerKey Server, ConnectionID iConnectionID);
 
 	//----------
 	private:
 	//----------
 
-		KThreadSafe<std::set<ConnectionID>> m_Connections;
+		struct CanceledConnection
+		{
+			ServerKey    Server;
+			ConnectionID ID;
 
-	}; // ConnectionIDs
+			bool operator<(const CanceledConnection& other) const
+			{
+				return std::tie(Server, ID) < std::tie(other.Server, other.ID);
+			}
+		};
 
-	static ConnectionIDs s_CanceledConnections;
+		struct Mark
+		{
+			CancelReason Reason;
+			bool         bQueryOnly;
+		};
+
+		KThreadSafe<KMap<CanceledConnection, Mark>> m_Connections;
+		// the counts of all marks and of the marks with bQueryOnly, changed under the lock of
+		// m_Connections and read without it, so that the common case without any mark does not
+		// take the lock - every closed connection and every successful statement asks
+		std::atomic<std::size_t>                    m_iMarks      { 0 };
+		std::atomic<std::size_t>                    m_iQueryKills { 0 };
+
+	}; // CanceledConnections
+
+	/// the marks of all instances
+	static CanceledConnections& GetCanceledConnections();
+
+	/// returns the key of the server this instance connects to
+	ServerKey GetServerKey () const;
+
+	/// kills a connection, or its running query if bQueryOnly is true, and marks it with Reason
+	bool Kill (ConnectionID iConnectionID, CancelReason Reason, bool bQueryOnly);
+
+	/// if the connection of a failing statement was killed on purpose: stores the reason,
+	/// sets sError to its text, reconnects, and returns true
+	bool HandleCanceledConnection (KString* sError);
+
+	/// a statement ended without an error, so a kill of only its query missed it
+	void ForgetQueryKill ();
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// keep a list of timed queries and their connection IDs, thread safe
@@ -1329,6 +1396,31 @@ private:
 	}; // TimedConnectionIDs
 
 	static TimedConnectionIDs s_TimedConnections;
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// registers a statement with the query timeout watcher for the lifetime of the
+	/// object, if the query timeout of the instance applies to the type of the statement
+	class QueryTimeoutGuard
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		QueryTimeoutGuard(KSQL& Instance, QueryType Type);
+		~QueryTimeoutGuard();
+
+		QueryTimeoutGuard(const QueryTimeoutGuard&) = delete;
+		QueryTimeoutGuard& operator=(const QueryTimeoutGuard&) = delete;
+
+	//----------
+	private:
+	//----------
+
+		KSQL* m_pInstance { nullptr };
+
+	}; // QueryTimeoutGuard
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// keeps column information
@@ -1748,7 +1840,9 @@ private:
 	uint64_t   m_iNumRowsAffected { 0 };
 	uint64_t   m_iLastInsertID { 0 };
 	mutable uint64_t m_iConnectHash { 0 };
+	mutable ServerKey m_iServerKey { 0 };
 	ConnectionID m_iConnectionID { 0 };
+	CancelReason m_LastCancelReason { CancelReason::None };
 	char**     m_dBufferedColArray { nullptr };
 	KString    m_sErrorPrefix;
 	bool       m_bDisableRetries { false };
@@ -1768,7 +1862,7 @@ private:
 	bool  BufferResults ();
 	void  FreeAll (bool bDestructor=false);
 	void  FreeBufferedColArray (bool fValuesOnly=false);
-	void  InvalidateConnectHash () const { m_iConnectHash = 0; }
+	void  InvalidateConnectHash () const { m_iConnectHash = 0; m_iServerKey = 0; }
 	void  FormatConnectSummary () const;
 	/// modifies sError if connection was lost due to a connection kill request, else retains old message
 	bool  PreparedToRetry (uint32_t iErrorNum, KString* sError = nullptr);

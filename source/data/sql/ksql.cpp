@@ -60,7 +60,6 @@
 #include <dekaf2/http/client/kwebclient.h>
 #include <dekaf2/crypto/hash/khash.h>
 #include <dekaf2/core/format/kbar.h>
-#include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/crypto/encoding/khex.h>
@@ -739,6 +738,7 @@ void KSQL::ClearError()
 {
 	m_sLastErrorSetOnlyWithSetError.clear();
 	m_iErrorSetOnlyWithSetError = 0;
+	m_LastCancelReason          = CancelReason::None;
 	// also clear the last info, if any
 	ClearInfo();
 
@@ -1818,6 +1818,10 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout/*=30s*/, Transport Transp
 			kDebug (2, "POSTGRESQL: could not set client encoding to UTF8");
 		}
 
+		// the process ID of the server backend is the connection ID, as for
+		// mysql there is no need for an extra query (select pg_backend_pid())
+		m_iConnectionID = static_cast<ConnectionID>(PQbackendPID(m_PostgreSQL->Connection));
+
 		break;
 	}
 	#endif
@@ -1866,6 +1870,13 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 		if (!bDestructor)
 		{
 			kDebug (GetDebugLevel(), "disconnecting from {}...", ConnectSummary());
+		}
+
+		if (m_iConnectionID)
+		{
+			// a connection that was killed and is closed before its next statement
+			// must not leave its mark behind
+			GetCanceledConnections().Remove(GetServerKey(), m_iConnectionID);
 		}
 
 		ClearError ();
@@ -2254,44 +2265,9 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		return false;
 	}
 
-	bool bQueryTypeMatch { false };
-
-	if (m_bEnableQueryTimeout && m_QueryTimeout > std::chrono::milliseconds(0) && (m_QueryTypeForTimeout & QueryType) == QueryType)
-	{
-		// we shall cancel long-running queries
-		bQueryTypeMatch = true;
-
-		// make sure we have a connection ID (this may lead to a recursion, and we want it
-		// right at this place, not any later!)
-		// Due to this recursion, make sure that all code above this point is recursion
-		// safe!
-		if (GetConnectionID(false) == 0)
-		{
-			// recursion protection..
-			DisableQueryTimeout();
-			auto sBackupSQL = m_sLastSQL;
-			GetConnectionID();
-			m_sLastSQL = sBackupSQL;
-			EnableQueryTimeout();
-		}
-
-		// add this query to the list of timed connections..
-		kDebug(2, "'{}' query will timeout after {}ms", SerializeOneQueryType(QueryType), m_QueryTimeout.count());
-		s_TimedConnections.Add(*this);
-	}
-
-	// we use a named lambda because we want compatibility with C++11, which needs
-	// a type for KScopeGuard..
-	auto namedLambdaGuard  = [this]() noexcept { s_TimedConnections.Remove(*this); };
-	// construct the scope guard to revoke our connection from the connection timeout
-	// watchlist at end of block
-	auto GuardQueryTimeout = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
-
-	if (!bQueryTypeMatch)
-	{
-		// or don't ..
-		GuardQueryTimeout.release();
-	}
+	// cancel the statement if it runs longer than the query timeout - the code above
+	// this point must be safe for recursion, see QueryTimeoutGuard
+	QueryTimeoutGuard TimeoutGuard(*this, QueryType);
 
 	m_SQLStmtStats.Collect(m_sLastSQL.str(), QueryType);
 
@@ -2620,8 +2596,10 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	if (!bOK)
 	{
-		return SetError(sError, iErrorNum);
+		return SetError(std::move(sError), iErrorNum);
 	}
+
+	ForgetQueryKill();
 
 	LogPerformance (Timer.elapsed().milliseconds(), /*bIsQuery=*/false);
 
@@ -2686,20 +2664,9 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 	// Note: this is called every time m_sLastError and m_iLastErrorNum have
 	// been set by an RDBMS error.
 
-	if (m_iConnectionID > 0 && s_CanceledConnections.HasAndRemove(m_iConnectionID))
+	if (HandleCanceledConnection(sError))
 	{
-		// this was a canceled connection or query - do not retry
-		kDebug(2, "connection {} was canceled on demand, query retry aborted", m_iConnectionID);
-		// make sure all state is correctly reset
-		CloseConnection();
-		OpenConnection(m_ConnectionTimeout);
-
-		if (sError)
-		{
-			// notify our caller that this connection was canceled on demand
-			*sError = "connection was canceled on demand";
-		}
-
+		// the connection was killed on purpose - do not retry
 		return false;
 	}
 
@@ -3752,6 +3719,10 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				}
 			}
 
+			// cancel the query if it runs longer than the query timeout - if the guard
+			// has to query the connection ID first, the flush below removes its results
+			QueryTimeoutGuard TimeoutGuard(*this, GetQueryType(m_sLastSQL.str()));
+
 			ctlib_flush_results ();
 			ctlib_clear_errors ();
 
@@ -3760,7 +3731,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			if (ct_command (m_pCtCommand, CS_LANG_CMD, m_sLastSQL.data(), static_cast<CS_INT>(m_sLastSQL.size()), CS_UNUSED) != CS_SUCCEED)
 			{
 				ctlib_api_error ("KSQL>ExecQuery>ct_command");
-				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum))
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError))
 				{
 					continue;
 				}
@@ -3772,7 +3743,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			if (ct_send(m_pCtCommand) != CS_SUCCEED)
 			{
 				ctlib_api_error ("KSQL>ExecQuery>ct_send");
-				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum))
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError))
 				{
 					continue;
 				}
@@ -3781,7 +3752,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 			if (!ctlib_prepare_results ())
 			{
-				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum))
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError))
 				{
 					continue;
 				}
@@ -3790,7 +3761,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 			if (ctlib_check_errors() != 0)
 			{
-				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum))
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError))
 				{
 					continue;
 				}
@@ -3863,16 +3834,23 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 		kDebug (3, "PQexec() for SELECT...");
 
-		m_PostgreSQL->ClearResult();
-		m_PostgreSQL->Result = PQexec(m_PostgreSQL->Connection, m_sLastSQL.data());
+		{
+			// cancel the query if it runs longer than the query timeout
+			QueryTimeoutGuard TimeoutGuard(*this, GetQueryType(m_sLastSQL.str()));
+
+			m_PostgreSQL->ClearResult();
+			m_PostgreSQL->Result = PQexec(m_PostgreSQL->Connection, m_sLastSQL.data());
+		}
 
 		auto iStatus = PQresultStatus(m_PostgreSQL->Result);
 
 		if (iStatus != PGRES_TUPLES_OK)
 		{
-			auto sError = kFormat("POSTGRESQL: {}", PQerrorMessage(m_PostgreSQL->Connection));
+			KString sError = kFormat("POSTGRESQL: {}", PQerrorMessage(m_PostgreSQL->Connection));
 			m_PostgreSQL->ClearResult();
-			return SetError(sError);
+			// a query that was killed on purpose reports why, and gets a new connection
+			HandleCanceledConnection(&sError);
+			return SetError(std::move(sError));
 		}
 
 		m_PostgreSQL->iNumRows    = PQntuples(m_PostgreSQL->Result);
@@ -3927,6 +3905,8 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 	m_iRowNum           = 0;
 	m_iNumRowsBuffered  = 0;
 	m_iNumRowsAffected  = 0;
+
+	ForgetQueryKill();
 
 	LogPerformance (Timer.elapsed().milliseconds(), /*bIsQuery=*/true);
 	
@@ -5933,6 +5913,21 @@ uint64_t KSQL::GetHash () const
 }
 
 //-----------------------------------------------------------------------------
+KSQL::ServerKey KSQL::GetServerKey () const
+//-----------------------------------------------------------------------------
+{
+	// the server only - user and database do not matter, so that a connection with
+	// other credentials can kill a connection of this server
+	if (!m_iServerKey)
+	{
+		m_iServerKey = kFormat("{}:{}:{}", TxAPISet(m_iAPISet), m_sHostname, m_iDBPortNum).Hash();
+	}
+
+	return m_iServerKey;
+
+} // GetServerKey
+
+//-----------------------------------------------------------------------------
 void KSQL::FormatConnectSummary () const
 //-----------------------------------------------------------------------------
 {
@@ -7537,6 +7532,15 @@ bool KSQL::ctlib_login ()
 //-----------------------------------------------------------------------------
 {
 	m_sCtLibLastError.clear();
+
+	if (m_iConnectionID)
+	{
+		// a previous connection is replaced (F_AutoReset logs in for each query): drop
+		// its mark, and query the process ID of the new connection when it is needed -
+		// a kill with the old ID could hit another session that reuses it
+		GetCanceledConnections().Remove(GetServerKey(), m_iConnectionID);
+		ResetConnectionID();
+	}
 
 	kDebug (KSQL2_CTDEBUG, "cs_ctx_alloc()");
 	if (cs_ctx_alloc (CS_VERSION_100, &m_pCtContext) != CS_SUCCEED)
@@ -9926,44 +9930,153 @@ bool KSQL::PingTest (KDuration Timeout)
 } // PingTest
 
 //-----------------------------------------------------------------------------
-void KSQL::ConnectionIDs::Add(ConnectionID iConnectionID)
-//-----------------------------------------------------------------------------
-{
-	m_Connections.unique()->insert(iConnectionID);
-
-} // ConnectionIDs::Add
-
-//-----------------------------------------------------------------------------
-bool KSQL::ConnectionIDs::Has(ConnectionID iConnectionID) const
-//-----------------------------------------------------------------------------
-{
-	auto Connections = m_Connections.shared();
-
-	return Connections->find(iConnectionID) != Connections->end();
-
-} // ConnectionIDs::Has
-
-//-----------------------------------------------------------------------------
-bool KSQL::ConnectionIDs::HasAndRemove(ConnectionID iConnectionID)
+void KSQL::CanceledConnections::Add(ServerKey Server, ConnectionID iConnectionID, CancelReason Reason, bool bQueryOnly)
 //-----------------------------------------------------------------------------
 {
 	auto Connections = m_Connections.unique();
 
-	auto it = Connections->find(iConnectionID);
+	auto it = Connections->find(CanceledConnection { Server, iConnectionID });
 
 	if (it != Connections->end())
 	{
-		Connections->erase(it);
-		return true;
+		// marked again before its statement failed: the latest reason counts, and a
+		// kill of the connection outweighs a kill of its statement
+		if (it->second.bQueryOnly && !bQueryOnly)
+		{
+			--m_iQueryKills;
+		}
+
+		it->second.Reason      = Reason;
+		it->second.bQueryOnly  = it->second.bQueryOnly && bQueryOnly;
 	}
 	else
 	{
-		return false;
+		Connections->insert({ CanceledConnection { Server, iConnectionID }, Mark { Reason, bQueryOnly } });
+
+		++m_iMarks;
+
+		if (bQueryOnly)
+		{
+			++m_iQueryKills;
+		}
 	}
 
-} // ConnectionIDs::HasAndRemove
+} // CanceledConnections::Add
 
-KSQL::ConnectionIDs KSQL::s_CanceledConnections;
+//-----------------------------------------------------------------------------
+KSQL::CancelReason KSQL::CanceledConnections::Take(ServerKey Server, ConnectionID iConnectionID)
+//-----------------------------------------------------------------------------
+{
+	if (m_iMarks == 0)
+	{
+		return CancelReason::None;
+	}
+
+	auto Connections = m_Connections.unique();
+
+	auto it = Connections->find(CanceledConnection { Server, iConnectionID });
+
+	if (it == Connections->end())
+	{
+		return CancelReason::None;
+	}
+
+	auto Reason = it->second.Reason;
+
+	--m_iMarks;
+
+	if (it->second.bQueryOnly)
+	{
+		--m_iQueryKills;
+	}
+
+	Connections->erase(it);
+
+	return Reason;
+
+} // CanceledConnections::Take
+
+//-----------------------------------------------------------------------------
+void KSQL::CanceledConnections::RemoveQueryKill(ServerKey Server, ConnectionID iConnectionID)
+//-----------------------------------------------------------------------------
+{
+	if (m_iQueryKills == 0)
+	{
+		return;
+	}
+
+	auto Connections = m_Connections.unique();
+
+	auto it = Connections->find(CanceledConnection { Server, iConnectionID });
+
+	if (it != Connections->end() && it->second.bQueryOnly)
+	{
+		--m_iMarks;
+		--m_iQueryKills;
+		Connections->erase(it);
+	}
+
+} // CanceledConnections::RemoveQueryKill
+
+//-----------------------------------------------------------------------------
+KSQL::CanceledConnections& KSQL::GetCanceledConnections()
+//-----------------------------------------------------------------------------
+{
+	// never destroyed: instances with static storage duration in other translation
+	// units may close their connections after the static objects of this file are gone
+	static auto* s_Canceled = new CanceledConnections;
+
+	return *s_Canceled;
+
+} // GetCanceledConnections
+
+//-----------------------------------------------------------------------------
+KSQL::QueryTimeoutGuard::QueryTimeoutGuard(KSQL& Instance, QueryType Type)
+//-----------------------------------------------------------------------------
+{
+	if (!Instance.m_bEnableQueryTimeout
+		|| Instance.m_QueryTimeout <= std::chrono::milliseconds(0)
+		|| (Instance.m_QueryTypeForTimeout & Type) != Type)
+	{
+		return;
+	}
+
+	// Make sure we have a connection ID. Querying it runs a statement through the
+	// same code, so the query timeout is disabled meanwhile - the code of the caller
+	// up to the construction of this guard must be safe for this recursion.
+	if (Instance.GetConnectionID(false) == 0)
+	{
+		Instance.DisableQueryTimeout();
+		auto sBackupSQL = Instance.m_sLastSQL;
+		Instance.GetConnectionID();
+		Instance.m_sLastSQL = sBackupSQL;
+		Instance.EnableQueryTimeout();
+	}
+
+	if (Instance.GetConnectionID(false) == 0)
+	{
+		kDebug(2, "no connection ID for {}, cannot watch the query timeout", TxDBType(Instance.GetDBType()));
+		return;
+	}
+
+	kDebug(2, "'{}' query will timeout after {}ms", SerializeOneQueryType(Type), Instance.m_QueryTimeout.count());
+
+	s_TimedConnections.Add(Instance);
+
+	m_pInstance = &Instance;
+
+} // QueryTimeoutGuard::ctor
+
+//-----------------------------------------------------------------------------
+KSQL::QueryTimeoutGuard::~QueryTimeoutGuard()
+//-----------------------------------------------------------------------------
+{
+	if (m_pInstance)
+	{
+		s_TimedConnections.Remove(*m_pInstance);
+	}
+
+} // QueryTimeoutGuard::dtor
 
 //-----------------------------------------------------------------------------
 KSQL::TimedConnectionIDs::TimedConnectionIDs()
@@ -10087,17 +10200,17 @@ void KSQL::TimedConnectionIDs::Watcher()
 		// now kill all found connections
 		for (const auto& Query : Queries)
 		{
-			kDebug(2, "killing timed out connection {} of server {}", Query.ID, Query.iServerHash);
 			auto Servers = m_DBs.unique();
 			auto pdb = Servers->find(Query.iServerHash);
 
 			if (pdb != Servers->end() && pdb->second != nullptr)
 			{
+				kDebug(1, "killing connection {} of {}: its query exceeded the query timeout", Query.ID, pdb->second->ConnectSummary());
 				// we have a connector - make sure it does not generate
 				// new timeout queries ..
 				pdb->second->SetQueryTimeout(std::chrono::milliseconds(0));
 				// and finally kill the connection ..
-				pdb->second->KillConnection(Query.ID);
+				pdb->second->Kill(Query.ID, CancelReason::Timeout, false);
 			}
 			else
 			{
@@ -10132,6 +10245,10 @@ KSQL::ConnectionID KSQL::GetConnectionID(bool bQueryIfUnknown)
 				iID = SingleIntQuery("select @@spid");
 				break;
 
+			case DBT::POSTGRESQL:
+				iID = SingleIntQuery("select pg_backend_pid()");
+				break;
+
 			default:
 				kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
 				return 0;
@@ -10150,7 +10267,7 @@ KSQL::ConnectionID KSQL::GetConnectionID(bool bQueryIfUnknown)
 } // GetConnectionID
 
 //-----------------------------------------------------------------------------
-bool KSQL::KillConnection(ConnectionID iConnectionID)
+bool KSQL::Kill(ConnectionID iConnectionID, CancelReason Reason, bool bQueryOnly)
 //-----------------------------------------------------------------------------
 {
 	if (iConnectionID == 0)
@@ -10159,68 +10276,110 @@ bool KSQL::KillConnection(ConnectionID iConnectionID)
 		return false;
 	}
 
-	// we have to add the ID to the static list _before_ actually
-	// canceling it, as otherwise it might become reconnected
-	// before we added it to the list
-	s_CanceledConnections.Add(iConnectionID);
+	auto Server = GetServerKey();
 
-	if (ExecSQL("kill {}", iConnectionID))
-	{
-		kDebug(2, "canceled connection ID {}", iConnectionID);
-		return true;
-	}
-	else
-	{
-		kDebug(2, "could not cancel connection ID {}", iConnectionID);
-		// remove from list if failed
-		s_CanceledConnections.HasAndRemove(iConnectionID);
-		return false;
-	}
+	// we have to mark the connection _before_ actually killing it, as otherwise
+	// its statement might fail and reconnect before the mark is set
+	GetCanceledConnections().Add(Server, iConnectionID, Reason, bQueryOnly);
 
-} // KillConnection
-
-//-----------------------------------------------------------------------------
-bool KSQL::KillQuery(ConnectionID iConnectionID)
-//-----------------------------------------------------------------------------
-{
-	if (iConnectionID == 0)
-	{
-		kDebug(2, "missing connection ID");
-		return false;
-	}
-
-	bool bRet { false };
-
-	// we have to add the ID to the static list _before_ actually
-	// canceling it, as otherwise it might become restarted
-	// before we added it to the list
-	s_CanceledConnections.Add(iConnectionID);
+	bool bKilled { false };
 
 	switch (GetDBType())
 	{
 		case DBT::MYSQL:
-			bRet = ExecSQL("kill query {}", iConnectionID);
+			bKilled = bQueryOnly ? ExecSQL("kill query {}", iConnectionID)
+			                     : ExecSQL("kill {}", iConnectionID);
+			break;
+
+		case DBT::POSTGRESQL:
+			// the functions return false if there is no backend with this process ID
+			bKilled = (bQueryOnly ? SingleIntQuery("select pg_cancel_backend({})::int", iConnectionID)
+			                      : SingleIntQuery("select pg_terminate_backend({})::int", iConnectionID)) == 1;
+			break;
+
+		case DBT::SQLSERVER:
+		case DBT::SQLSERVER_UTF8:
+		case DBT::SYBASE:
+			// KILL ends the session - there is no kill of a single statement
+			if (!bQueryOnly)
+			{
+				bKilled = ExecSQL("kill {}", iConnectionID);
+			}
 			break;
 
 		default:
-			kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
 			break;
 	}
 
-	if (bRet)
+	if (bKilled)
 	{
-		kDebug(2, "canceled query of connection ID {}", iConnectionID);
+		kDebug(2, "canceled {} ID {}", bQueryOnly ? "query of connection" : "connection", iConnectionID);
 		return true;
 	}
-	else
+
+	kDebug(2, "could not cancel {} ID {} on {}", bQueryOnly ? "query of connection" : "connection", iConnectionID, TxDBType(GetDBType()));
+	// remove the mark if the kill failed
+	GetCanceledConnections().Remove(Server, iConnectionID);
+
+	return false;
+
+} // Kill
+
+//-----------------------------------------------------------------------------
+bool KSQL::HandleCanceledConnection(KString* sError)
+//-----------------------------------------------------------------------------
+{
+	if (!m_iConnectionID)
 	{
-		kDebug(2, "could not cancel query of connection ID {}", iConnectionID);
-		// remove from list if failed
-		s_CanceledConnections.HasAndRemove(iConnectionID);
 		return false;
 	}
 
-} // KillQuery
+	auto Reason = GetCanceledConnections().Take(GetServerKey(), m_iConnectionID);
+
+	if (Reason == CancelReason::None)
+	{
+		return false;
+	}
+
+	kDebug(2, "connection {} was killed on purpose, no retry", m_iConnectionID);
+
+	// the connection is gone: reconnect, so that the next statement works. This
+	// clears the error and the cancel reason, so set them afterwards.
+	CloseConnection();
+	OpenConnection(m_ConnectionTimeout);
+
+	m_LastCancelReason = Reason;
+
+	if (sError)
+	{
+		if (Reason == CancelReason::Timeout)
+		{
+			auto iMilliseconds = m_QueryTimeout.count();
+
+			*sError = (iMilliseconds % 1000 == 0)
+			        ? kFormat("KSQL: query timed out after {}s", iMilliseconds / 1000)
+			        : kFormat("KSQL: query timed out after {}ms", iMilliseconds);
+		}
+		else
+		{
+			*sError = "KSQL: query canceled by the application";
+		}
+	}
+
+	return true;
+
+} // HandleCanceledConnection
+
+//-----------------------------------------------------------------------------
+void KSQL::ForgetQueryKill()
+//-----------------------------------------------------------------------------
+{
+	if (m_iConnectionID)
+	{
+		GetCanceledConnections().RemoveQueryKill(GetServerKey(), m_iConnectionID);
+	}
+
+} // ForgetQueryKill
 
 //-----------------------------------------------------------------------------
 KSQL::ConnectionInfo KSQL::GetConnectionInfo(ConnectionID iConnectionID)

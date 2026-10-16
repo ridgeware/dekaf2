@@ -43,7 +43,7 @@ TEST_CASE("KLog credential redaction") {
 	{
 		// a real-shaped JWT: three base64url runs, dot separated
 		auto sOut = LoggedText("got token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk");
-		CHECK ( sOut.contains("got token: [redacted]") );
+		CHECK ( sOut.contains("got token: eyJ...redacted...jXk") );
 		CHECK ( !sOut.contains("dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk") );
 		CHECK ( sOut.contains("got token:") );   // the surrounding prose survives
 	}
@@ -52,7 +52,7 @@ TEST_CASE("KLog credential redaction") {
 	{
 		auto sOut = LoggedText("sent header Authorization: Bearer sk-live-abcdef1234567890 to upstream");
 		CHECK ( !sOut.contains("sk-live-abcdef1234567890") );
-		CHECK ( sOut.contains("Bearer [redacted]") );   // "which auth did it try" still answerable
+		CHECK ( sOut.contains("Bearer sk-...redacted...890") );   // "which auth did it try" still answerable
 		CHECK ( sOut.contains("to upstream") );
 	}
 
@@ -60,7 +60,7 @@ TEST_CASE("KLog credential redaction") {
 	{
 		// the JWT pass runs first, then the Authorization pass finds its value
 		auto sOut = LoggedText("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.c2lnbmF0dXJlc2lnbmF0dXJl");
-		CHECK ( sOut.contains("Authorization: Bearer [redacted]") );
+		CHECK ( sOut.contains("Authorization: Bearer eyJ...redacted...XJl") );
 		CHECK ( !sOut.contains("c2lnbmF0dXJlc2lnbmF0dXJl") );
 	}
 
@@ -82,23 +82,23 @@ TEST_CASE("KLog credential redaction") {
 
 		// after a separator it is, and the text around it stays
 		sOut = LoggedText("callback id_token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.c2lnbmF0dXJlc2lnbmF0dXJl&state=xyz");
-		CHECK ( sOut.contains("id_token=[redacted]&state=xyz") );
+		CHECK ( sOut.contains("id_token=eyJ...redacted...XJl&state=xyz") );
 		CHECK ( !sOut.contains("c2lnbmF0dXJlc2lnbmF0dXJl") );
 	}
 
 	SECTION("Authorization and Bearer are recognised in any case")
 	{
 		auto sOut = LoggedText("AuTHoRiZaTiOn: BaSiC dXNlcjpzZWNyZXQ=");
-		CHECK ( sOut.contains("AuTHoRiZaTiOn: BaSiC [redacted]") );
+		CHECK ( sOut.contains("AuTHoRiZaTiOn: BaSiC dXN...redacted...XQ=") );
 		CHECK ( !sOut.contains("dXNlcjpzZWNyZXQ=") );
 
 		sOut = LoggedText("calling with BEARER sk-live-abcdef1234567890");
-		CHECK ( sOut.contains("BEARER [redacted]") );
+		CHECK ( sOut.contains("BEARER sk-...redacted...890") );
 		CHECK ( !sOut.contains("sk-live-abcdef1234567890") );
 
 		// the colon of the header may be followed by no white space at all
 		sOut = LoggedText("proxy-authorization:Bearer sk-live-0987654321fedcba");
-		CHECK ( sOut.contains("proxy-authorization:Bearer [redacted]") );
+		CHECK ( sOut.contains("proxy-authorization:Bearer sk-...redacted...cba") );
 		CHECK ( !sOut.contains("sk-live-0987654321fedcba") );
 	}
 
@@ -126,7 +126,7 @@ TEST_CASE("KLog credential redaction") {
 
 		// a JWT as the value is redacted by the JWT pass
 		sOut = LoggedText("redirect to /app#access_token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.c2lnbmF0dXJlc2lnbmF0dXJl");
-		CHECK ( sOut.contains("access_token=[redacted]") );
+		CHECK ( sOut.contains("access_token=eyJ...redacted...XJl") );
 	}
 
 	SECTION("short parameter names outside of a URL are untouched")

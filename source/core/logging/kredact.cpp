@@ -46,6 +46,63 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// the replacement for a credential that is too short to show anything of
+static constexpr KStringView REDACTED     { "[redacted]"     };
+/// what sits between the first and the last characters of a longer one
+static constexpr KStringView REDACTED_MID { "...redacted..." };
+/// how many characters survive at each end
+static constexpr KStringView::size_type REDACTED_KEEP { 3 };
+/// the shortest credential that keeps its ends - see kMaskSecret
+static constexpr KStringView::size_type REDACTED_MIN  { 16 };
+
+//---------------------------------------------------------------------------
+/// The text that replaces a credential.
+///
+/// A long credential KEEPS ITS FIRST AND LAST THREE CHARACTERS, because a log
+/// line that says only "[redacted]" cannot answer the two questions that are
+/// actually asked of it: which key is this, and is it still the same one as
+/// yesterday? Three characters at each end identify a key among the handful a
+/// service holds, and are no use to anyone trying to present one.
+///
+/// A SHORT ONE IS REPLACED WHOLE. Six characters of an eight character password
+/// is the password, and no amount of debugging convenience is worth that, so
+/// below REDACTED_MIN nothing of it survives.
+/// @param sSecret the credential to mask
+//---------------------------------------------------------------------------
+static KString kMaskSecret(KStringView sSecret)
+//---------------------------------------------------------------------------
+{
+	if (sSecret.size() < REDACTED_MIN)
+	{
+		return KString(REDACTED);
+	}
+
+	KString sMasked;
+
+	sMasked.reserve(REDACTED_KEEP * 2 + REDACTED_MID.size());
+	sMasked += sSecret.Left  (REDACTED_KEEP);
+	sMasked += REDACTED_MID;
+	sMasked += sSecret.Right (REDACTED_KEEP);
+
+	return sMasked;
+
+} // kMaskSecret
+
+//---------------------------------------------------------------------------
+/// Has this text already been through the redactor? The passes overlap by
+/// design, and a masked credential no longer starts with the marker - it starts
+/// with three characters of the credential - so the marker is looked for
+/// anywhere in it. No credential contains "...redacted...": base64url, hex and
+/// the alphabets of the services all exclude the '.' runs.
+/// @param sValue the value to test
+//---------------------------------------------------------------------------
+static bool kIsRedacted(KStringView sValue)
+//---------------------------------------------------------------------------
+{
+	return sValue.starts_with(REDACTED) || sValue.contains(REDACTED_MID);
+
+} // kIsRedacted
+
 //---------------------------------------------------------------------------
 /// Is this a character that can appear inside a base64url token body?
 //---------------------------------------------------------------------------
@@ -109,11 +166,14 @@ static KStringView::size_type kFindAnyCase(KStringView sText, KStringView sWord,
 } // kFindAnyCase
 
 //---------------------------------------------------------------------------
-/// Is this a character that ends a value in a log line - white space or a quote?
+/// Is this a character that ends a value in a log line - white space, a quote, or
+/// a backtick? The BACKTICK IS A DELIMITER AND NEVER PART OF A CREDENTIAL: slack
+/// and markdown wrap a value in them, and a span that swallows them ends up
+/// masking the formatting instead of the key, as "sk-...redacted...```".
 static inline bool kIsValueEnd(char ch)
 //---------------------------------------------------------------------------
 {
-	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '"' || ch == '\'';
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '"' || ch == '\'' || ch == '`';
 }
 
 //---------------------------------------------------------------------------
@@ -267,7 +327,7 @@ static KStringView kFindSecretParameter(KStringView sText, KStringView::size_typ
 		auto sValue = sText.substr(iHit + 1, iEnd - iHit - 1);
 
 		// never redact a redaction - "access_token=[redacted]" from the JWT pass
-		if (!sValue.empty() && !sValue.starts_with("[redacted]"))
+		if (!sValue.empty() && !kIsRedacted(sValue))
 		{
 			return sValue;
 		}
@@ -278,18 +338,158 @@ static KStringView kFindSecretParameter(KStringView sText, KStringView::size_typ
 } // kFindSecretParameter
 
 //---------------------------------------------------------------------------
-/// Finds the password in the userinfo of a URL, "user:password@host", from iPos
-/// on, also without a scheme. memchr scans for the '@', and only its hits read the
-/// text before it: back to white space, a quote, a bracket or a '/'. A '/' must be
-/// the one of a "//" after the scheme, else the '@' is part of a path. A ':' in
-/// that run separates the password - an e-mail address has none, and "mailto:"
-/// and "sip:" are schemes, not users.
+/// Does the name of a JSON field denote a credential?
+///
+/// THIS IS NARROWER THAN kEndsWithSecretName ON PURPOSE, and the difference is
+/// the whole reason it is a separate function: in a JSON body the name is a
+/// field name, and field names ending in "_key" are identifiers in every schema
+/// that has ever been written - project_key, brand_key, tenant_key. Accepting a
+/// bare "key" here would redact the identifier out of every error message that
+/// names a row, which costs far more than it saves.
+/// @param sName the field name, without its quotes
+static bool kIsSecretJSONName(KStringView sName)
+//---------------------------------------------------------------------------
+{
+	if (sName.empty())
+	{
+		return false;
+	}
+
+	switch (KASCII::kToLower(sName.back()))
+	{
+		case 'd': return kEndsWithAnyCase(sName, "password")    || kEndsWithAnyCase(sName, "passwd");
+		case 't': return kEndsWithAnyCase(sName, "secret");
+		case 'y': return kEndsWithAnyCase(sName, "apikey")      || kEndsWithAnyCase(sName, "api_key");
+		case 'n': return kEndsWithAnyCase(sName, "token");
+		case 'l': return kEndsWithAnyCase(sName, "credential");
+		case 's': return kEndsWithAnyCase(sName, "secrets")     || kEndsWithAnyCase(sName, "tokens")
+		              || kEndsWithAnyCase(sName, "apikeys")     || kEndsWithAnyCase(sName, "api_keys")
+		              || kEndsWithAnyCase(sName, "credentials");
+		default:  return false;
+	}
+
+} // kIsSecretJSONName
+
+//---------------------------------------------------------------------------
+/// Skips white space from iPos on
+static inline KStringView::size_type kSkipJSONSpace(KStringView sText, KStringView::size_type iPos)
+//---------------------------------------------------------------------------
+{
+	while (iPos < sText.size() && (sText[iPos] == ' ' || sText[iPos] == '\t' || sText[iPos] == '\n' || sText[iPos] == '\r'))
+	{
+		++iPos;
+	}
+
+	return iPos;
+}
+
+//---------------------------------------------------------------------------
+/// Finds the ':' of a JSON field '"name": "value"' whose name denotes a
+/// credential and whose value is a string, or an array whose first element is
+/// one, from iPos on.
+///
+/// MEMCHR SCANS FOR THE '"', NOT FOR THE ':', and the difference is measurable:
+/// klog redacts every message it writes, and an ordinary log line holds no quote
+/// at all but several colons - a timestamp alone has two. Anchoring on the colon
+/// cost 28ns on a 74 character line that had nothing to redact, which doubled
+/// what the whole function cost; anchoring on the quote is one failed memchr.
+///
+/// ONLY A STRING VALUE COUNTS, and that single rule is what makes this safe to
+/// run over anything: '"input_tokens": 1500' is a count, and a service that
+/// reports its usage is full of them, while a quoted value under the same name
+/// is a credential. On the XAPIS corpus the split is exact - every quoted
+/// token field is a credential, every numeric one is the token ledger.
+/// @return the index of the ':', or npos if there is none
+static KStringView::size_type kFindSecretJSONColon(KStringView sText, KStringView::size_type iPos = 0)
+//---------------------------------------------------------------------------
+{
+	for (auto iQuote = kFind(sText, '"', iPos); iQuote != KStringView::npos; iQuote = kFind(sText, '"', iQuote + 1))
+	{
+		// is this the closing quote of a field name - '"name"' with a ':' after it?
+		auto iHit = iQuote + 1;
+
+		while (iHit < sText.size() && (sText[iHit] == ' ' || sText[iHit] == '\t'))
+		{
+			++iHit;
+		}
+
+		if (iHit >= sText.size() || sText[iHit] != ':')
+		{
+			continue;
+		}
+
+		// the name runs back from the closing quote to its opening one
+		auto iStart = iQuote;
+
+		while (iStart > 0 && kIsNameChar(sText[iStart - 1]))
+		{
+			--iStart;
+		}
+
+		if (iStart == 0 || sText[iStart - 1] != '"' || !kIsSecretJSONName(sText.substr(iStart, iQuote - iStart)))
+		{
+			continue;
+		}
+
+		// the value: a string, or an array that starts with one
+		auto iValue = kSkipJSONSpace(sText, iHit + 1);
+
+		if (iValue < sText.size() && sText[iValue] == '[')
+		{
+			iValue = kSkipJSONSpace(sText, iValue + 1);
+		}
+
+		// a number, an object, null - not a credential we can recognise
+		if (iValue >= sText.size() || sText[iValue] != '"')
+		{
+			continue;
+		}
+
+		// an empty string holds no credential
+		if (iValue + 1 >= sText.size() || sText[iValue + 1] == '"')
+		{
+			continue;
+		}
+
+		// never redact a redaction - the passes overlap by design. The test is
+		// BOUNDED TO THIS VALUE: kIsRedacted looks for the marker anywhere, and
+		// over the rest of the text an already masked field further along would
+		// answer for this one and leave a live credential in place.
+		auto iEnd = iValue + 1;
+
+		while (iEnd < sText.size() && sText[iEnd] != '"')
+		{
+			iEnd += (sText[iEnd] == '\\') ? 2 : 1;
+		}
+
+		if (iEnd <= sText.size() && !kIsRedacted(sText.substr(iValue + 1, iEnd - iValue - 1)))
+		{
+			return iHit;
+		}
+	}
+
+	return KStringView::npos;
+
+} // kFindSecretJSONColon
+
+//---------------------------------------------------------------------------
+/// Finds the password in the userinfo of a URL, "scheme://user:password@host",
+/// from iPos on. memchr scans for the '@', and only its hits read the text before
+/// it: back to white space, a quote, a bracket or a '/'. A ':' in that run
+/// separates the password - an e-mail address has none.
+///
+/// WITHOUT THE "//" OF A SCHEME THE HOST HAS TO CARRY A PORT OR A PATH, and a
+/// false positive in production is why. A label before an address parses exactly
+/// like a user before a password, so "email:joe@example.com" became
+/// "email:[redacted]@example.com", and so did every "from:", "to:" and "contact:"
+/// in every line that klog redacts. What separates the two is what follows the
+/// host: a scheme-less connection string is "bob:pw@db1:3306/app" and an address
+/// is "joe@example.com," - a port or a path says authority, and an address has
+/// neither. "mailto:bob@example.com" falls out of the same rule.
 /// @return the password, or an empty view if there is none
 static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_type iPos = 0)
 //---------------------------------------------------------------------------
 {
-	static constexpr KStringView Schemes[] = { "mailto", "sip", "sips", "xmpp" };
-
 	for (auto iAt = kFind(sText, '@', iPos); iAt != KStringView::npos; iAt = kFind(sText, '@', iAt + 1))
 	{
 		auto iRun   = iAt;
@@ -326,31 +526,30 @@ static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_ty
 			continue;
 		}
 
-		auto sUser     = sText.substr(iRun, iColon - iRun);
-		auto sPassword = sText.substr(iColon + 1, iAt - iColon - 1);
-
-		if (sPassword.empty() || sPassword.starts_with("[redacted]"))
-		{
-			continue;
-		}
-
 		if (!bAfterScheme)
 		{
-			bool bIsScheme { false };
+			// no scheme: the host has to be followed by a port or a path
+			auto iHost = iAt + 1;
 
-			for (auto sScheme : Schemes)
+			while (iHost < sText.size() && kIsNameChar(sText[iHost]))
 			{
-				if (kCaselessEqualLeft(sUser, sScheme))
-				{
-					bIsScheme = true;
-					break;
-				}
+				++iHost;
 			}
 
-			if (bIsScheme)
+			if (iHost >= sText.size()
+			 || !(sText[iHost] == '/'
+			   || (sText[iHost] == ':' && iHost + 1 < sText.size()
+			    && sText[iHost + 1] >= '0' && sText[iHost + 1] <= '9')))
 			{
 				continue;
 			}
+		}
+
+		auto sPassword = sText.substr(iColon + 1, iAt - iColon - 1);
+
+		if (sPassword.empty() || kIsRedacted(sPassword))
+		{
+			continue;
 		}
 
 		return sPassword;
@@ -406,12 +605,13 @@ static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_ty
 bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 //---------------------------------------------------------------------------
 {
-	// the fast path: no copy, no allocation, no scan beyond these five - the anchors
-	// are the rare characters 'J', 'b', 'z', '=' and '@'
+	// the fast path: no copy, no allocation, no scan beyond these six - the anchors
+	// are the rare characters 'J', 'b', 'z', '=', '"' and '@'
 	if (DEKAF2_LIKELY(kFindJWT(sMessage)                            == KStringView::npos
 	               && kFindAnyCase(sMessage, "bearer ",        'b') == KStringView::npos
 	               && kFindAnyCase(sMessage, "authorization:", 'z') == KStringView::npos
 	               && kFindSecretParameter(sMessage).empty()
+	               && kFindSecretJSONColon(sMessage)                == KStringView::npos
 	               && kFindUserinfoPassword(sMessage).empty()))
 	{
 		return false;
@@ -451,10 +651,14 @@ bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 			++iRun;
 		}
 
-		if (iDots >= 2 && (iRun - iPos) > 20)
+		// a masked JWT still begins with "eyJ" and still holds dots, so it would
+		// match again on a second call - the marker is what tells them apart
+		if (iDots >= 2 && (iRun - iPos) > 20 && !kIsRedacted(KStringView(sBuffer).substr(iPos, iRun - iPos)))
 		{
-			sBuffer.replace(iPos, iRun - iPos, "[redacted]");
-			iPos += 10;  // length of the replacement, so we do not rescan it
+			auto sMasked = kMaskSecret(KStringView(sBuffer).substr(iPos, iRun - iPos));
+
+			sBuffer.replace(iPos, iRun - iPos, sMasked);
+			iPos += sMasked.size();  // so we do not rescan the replacement
 		}
 		else
 		{
@@ -524,10 +728,10 @@ bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 		{
 			iPos += Prefix.sWord.size();
 
-			// the value runs to the end of the line or to a quote
+			// the value runs to the end of the line, to a quote or to a backtick
 			KStringView sValue(sBuffer);
 			sValue.remove_prefix(iPos);
-			sValue = sValue.substr(0, sValue.find_first_of("\n\r\"'"));
+			sValue = sValue.substr(0, sValue.find_first_of("\n\r\"'`"));
 
 			auto sSecret = kGetWord(sValue);
 			auto sNext   = kFirstWord(sValue);
@@ -548,15 +752,17 @@ bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 			}
 
 			// never redact a redaction -- the passes overlap by design
-			if (sSecret.empty() || sSecret.starts_with("[redacted]"))
+			if (sSecret.empty() || kIsRedacted(sSecret))
 			{
 				continue;
 			}
 
 			auto iSecret = static_cast<KString::size_type>(sSecret.data() - sBuffer.data());
 
-			sBuffer.replace(iSecret, sSecret.size(), "[redacted]");
-			iPos = iSecret + 10;  // length of "[redacted]"
+			auto sMasked = kMaskSecret(sSecret);
+
+			sBuffer.replace(iSecret, sSecret.size(), sMasked);
+			iPos = iSecret + sMasked.size();
 		}
 	}
 
@@ -574,13 +780,102 @@ bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 			}
 
 			auto iStart = static_cast<KString::size_type>(sSecret.data() - sBuffer.data());
-			sBuffer.replace(iStart, sSecret.size(), "[redacted]");
-			iPos = iStart + 10;  // length of "[redacted]"
+			auto sMasked = kMaskSecret(sSecret);
+
+			sBuffer.replace(iStart, sSecret.size(), sMasked);
+
+			// FORWARD PROGRESS IS NOT OPTIONAL HERE. kFindUserinfoPassword anchors
+			// on the '@' that FOLLOWS the password, so the position just past the
+			// replacement is that '@' - and resuming there hands the next call the
+			// same match again. Only the already-redacted test inside the finder
+			// then ends the loop, which makes a logging path that runs on every
+			// line depend on it for termination rather than for correctness. One
+			// character of forced progress removes that dependency.
+			auto iNext = iStart + sMasked.size();
+
+			iPos = (iNext > iPos) ? iNext : iPos + 1;
+
+			if (iPos >= sBuffer.size())
+			{
+				break;
+			}
 		}
 	};
 
 	RedactAll(kFindSecretParameter);
 	RedactAll(kFindUserinfoPassword);
+
+	// - - - '"name": "value"' in a JSON body - - -
+	// The passes above all key off a character that a JSON body does not use to
+	// separate a name from its value, so a service that answers in JSON - which is
+	// to say every service - got through them untouched. A body like
+	// {"ApiTokens":["..."]} is exactly what an error from a provider carries, and
+	// exactly what gets pasted into a ticket.
+	//
+	// This one does not go through RedactAll: a value here can be an ARRAY of
+	// strings, and all of its elements belong to one name, so the whole value is
+	// walked at the colon that introduces it.
+	for (KString::size_type iPos = 0;;)
+	{
+		auto iColon = kFindSecretJSONColon(sBuffer, iPos);
+
+		if (iColon == KString::npos)
+		{
+			break;
+		}
+
+		auto iValue  = kSkipJSONSpace(sBuffer, iColon + 1);
+		bool bArray  = sBuffer[iValue] == '[';
+
+		if (bArray)
+		{
+			iValue = kSkipJSONSpace(sBuffer, iValue + 1);
+		}
+
+		while (iValue < sBuffer.size() && sBuffer[iValue] == '"')
+		{
+			// the closing quote of the value, with backslash escapes stepped over
+			auto iEnd = iValue + 1;
+
+			while (iEnd < sBuffer.size() && sBuffer[iEnd] != '"')
+			{
+				iEnd += (sBuffer[iEnd] == '\\') ? 2 : 1;
+			}
+
+			if (iEnd >= sBuffer.size())
+			{
+				break;
+			}
+
+			auto iLen = iEnd - iValue - 1;
+
+			if (iLen > 0 && !kIsRedacted(KStringView(sBuffer).substr(iValue + 1, iLen)))
+			{
+				auto sMasked = kMaskSecret(KStringView(sBuffer).substr(iValue + 1, iLen));
+
+				sBuffer.replace(iValue + 1, iLen, sMasked);
+				iEnd = iValue + 1 + sMasked.size();
+			}
+
+			iValue = iEnd + 1;  // past the closing quote
+
+			if (!bArray)
+			{
+				break;
+			}
+
+			iValue = kSkipJSONSpace(sBuffer, iValue);
+
+			if (iValue >= sBuffer.size() || sBuffer[iValue] != ',')
+			{
+				break;
+			}
+
+			iValue = kSkipJSONSpace(sBuffer, iValue + 1);
+		}
+
+		iPos = iValue;
+	}
 
 	return true;
 

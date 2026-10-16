@@ -56,15 +56,25 @@ DEKAF2_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 /// Redacts credentials in a text: a JWT, the value after "Bearer " and after
 /// "Authorization:", the value of a parameter whose name denotes a credential
-/// (password, secret, api_key, ...), and the password in the userinfo of a URL.
-/// Each is replaced by "[redacted]", names and schemes (Bearer, Basic, a scheme
-/// that ends with "Key" or "Token", ...) are kept - after "Authorization:", any
-/// other first word is redacted together with the word after it, as it may be the
-/// scheme of the credentials that follow. KLog redacts
-/// every message with it, and it serves as well for a text that is stored or
-/// forwarded, such as the error body of a service. A text without credentials
-/// costs a few scans for rare characters and no allocation. Credentials in other
-/// shapes are not recognized.
+/// (password, secret, api_key, ...), the STRING value of a JSON field whose name
+/// does ("access_token", "ApiTokens", "client_secret", ...), and the password in
+/// the userinfo of a URL.
+/// A credential of 16 characters or more KEEPS ITS FIRST AND LAST THREE, as
+/// "sk-...redacted...890", so a line still answers which key it was and whether
+/// it changed; a shorter one is replaced by "[redacted]" entire, because six
+/// characters of an eight character password is the password. Names and schemes
+/// (Bearer, Basic, a scheme that ends with "Key" or "Token", ...) are kept - and
+/// after "Authorization:", any other first word is redacted together with the
+/// word after it, as it may be the scheme of the credentials that follow.
+///
+/// KLog redacts every message with it, and it serves as well for a text that is
+/// stored or forwarded, such as the error body of a service. A text without
+/// credentials costs a few scans for rare characters and no allocation.
+///
+/// Only a STRING value of a JSON field is a credential: '"input_tokens": 1500' is
+/// a count, and a name ending in "_key" is an identifier, so neither is touched.
+/// Credentials in other shapes are not recognized - notably a key quoted in prose
+/// by the service that rejected it ("Incorrect API key provided: sk-...").
 /// @param sMessage the text to redact
 /// @param sBuffer receives the redacted text, only if something was redacted
 /// @return true if sBuffer holds the redacted text, false if sMessage needs no

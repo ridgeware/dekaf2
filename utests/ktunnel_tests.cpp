@@ -7,6 +7,7 @@
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
 #include <dekaf2/core/format/kformat.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <array>
 #include <atomic>
@@ -246,8 +247,10 @@ public:
 		}
 	}
 
-	/// the running tunnel, or nullptr while none is established
-	KTunnel* GetTunnel() const { return m_pTunnel.load(std::memory_order_acquire); }
+	/// the running tunnel, or null while none is established. The forwarded
+	/// sessions keep their copy until Connect() returns, which can be after
+	/// this side's Run() ended
+	std::shared_ptr<KTunnel> GetTunnel() const { return *m_Tunnel.shared(); }
 
 protected:
 
@@ -257,24 +260,24 @@ protected:
 		Config.Secrets.insert(s_sTunnelSecret);
 
 		// neither node nor secret - this side waits for the peer to log in
-		KTunnel Tunnel(Config, std::move(Stream));
+		auto Tunnel = std::make_shared<KTunnel>(Config, std::move(Stream));
 
-		m_pTunnel.store(&Tunnel, std::memory_order_release);
+		*m_Tunnel.unique() = Tunnel;
 
 		try
 		{
-			Tunnel.Run();
+			Tunnel->Run();
 		}
 		catch (const std::exception& ex)
 		{
 			m_State.AddError(kFormat("exposed side: {}", ex.what()));
 		}
 
-		m_pTunnel.store(nullptr, std::memory_order_release);
+		m_Tunnel.unique()->reset();
 	}
 
-	EndToEndState&        m_State;
-	std::atomic<KTunnel*> m_pTunnel { nullptr };
+	EndToEndState&                        m_State;
+	KThreadSafe<std::shared_ptr<KTunnel>> m_Tunnel;
 
 }; // TunnelExposedServer
 
@@ -298,7 +301,7 @@ protected:
 
 	virtual void Session(std::unique_ptr<KIOStreamSocket>& Stream) override
 	{
-		auto* pTunnel = m_Exposed.GetTunnel();
+		auto pTunnel = m_Exposed.GetTunnel();
 
 		if (!pTunnel)
 		{

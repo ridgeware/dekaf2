@@ -609,5 +609,9 @@ KStringView KInHTTPRequest::GetCookie (KStringView sCookieName) const
 
 } // GetCookie
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr decltype(KInHTTPRequestLine::MAX_REQUESTLINELENGTH) KInHTTPRequestLine::MAX_REQUESTLINELENGTH;
+#endif
+
 DEKAF2_NAMESPACE_END
 

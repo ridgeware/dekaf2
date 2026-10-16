@@ -959,4 +959,9 @@ KAcmeClient::Certificate KAcmeClient::OrderCertificate(const std::vector<KString
 
 } // OrderCertificate
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringViewZ KAcmeClient::LetsEncrypt;
+constexpr KStringViewZ KAcmeClient::LetsEncryptStaging;
+#endif
+
 DEKAF2_NAMESPACE_END

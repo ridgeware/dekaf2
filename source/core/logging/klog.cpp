@@ -1048,6 +1048,8 @@ DEKAF2_NAMESPACE_END
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 DEKAF2_NAMESPACE_BEGIN
+constexpr KStringViewZ KLog::BAR;
+constexpr KStringViewZ KLog::DASH;
 constexpr KStringViewZ KLog::STDOUT;
 constexpr KStringViewZ KLog::STDERR;
 constexpr KStringViewZ KLog::SYSLOG;

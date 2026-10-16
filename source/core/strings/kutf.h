@@ -2028,7 +2028,12 @@ bool DecodeUnits(Iterator it, Iterator ie, bool bBigEndian, OutType& Output)
 
 	while (it != ie)
 	{
+#if __cplusplus >= 201703L
 		unsigned char Bytes[sizeof(Unit)];
+#else
+		// gcc 6 rejects uninitialized variables in constexpr functions
+		unsigned char Bytes[sizeof(Unit)] {};
+#endif
 
 		for (std::size_t i = 0; i < sizeof(Unit); ++i, ++it)
 		{

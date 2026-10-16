@@ -2493,6 +2493,10 @@ void KWebApp::Quit()
 
 } // Quit
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringView KWebApp::LanguagePath;
+#endif
+
 DEKAF2_NAMESPACE_END
 
 #endif // DEKAF2_HAS_WEBVIEW

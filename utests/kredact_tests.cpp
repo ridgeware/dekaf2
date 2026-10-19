@@ -135,7 +135,7 @@ TEST_CASE("kRedactCredentials")
 		CHECK ( kRedactCredentials(R"({"b_token":"ccc...redacted...ddd","a_token":"livesecret123456"})")
 		        ==                 R"({"b_token":"ccc...redacted...ddd","a_token":"liv...redacted...456"})" );
 		CHECK ( kRedactCredentials(R"({"a_token":"livesecret123456","b_token":"ccc...redacted...ddd"})")
-		        ==                ß R"({"a_token":"liv...redacted...456","b_token":"ccc...redacted...ddd"})" );
+		        ==                 R"({"a_token":"liv...redacted...456","b_token":"ccc...redacted...ddd"})" );
 	}
 
 	SECTION("a JSON body that holds no credential")

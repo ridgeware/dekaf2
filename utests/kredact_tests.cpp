@@ -58,24 +58,28 @@ TEST_CASE("kRedactCredentials")
 	{
 		// the shape an error from a service actually has
 		CHECK ( kRedactCredentials(R"({"access_token":"ya29.a0AfH6SMBxQQQQ","expires_in":3599})")
-		        ==                R"({"access_token":"ya2...redacted...QQQ","expires_in":3599})" );
+		        ==                 R"({"access_token":"ya2...redacted...QQQ","expires_in":3599})" );
 
 		CHECK ( kRedactCredentials(R"({"ApiTokens":["7f9c2b11-4a3e-4d55-9f10-abc123def456"],"Name":"sbemail"})")
-		        ==                R"({"ApiTokens":["7f9...redacted...456"],"Name":"sbemail"})" );
+		        ==                 R"({"ApiTokens":["7f9...redacted...456"],"Name":"sbemail"})" );
 
 		// every element of an array belongs to the name that introduces it
 		CHECK ( kRedactCredentials(R"({"ApiTokens":["aaaaaaaaaaaaaaaa","bbbbbbbbbbbbbbbb"]})")
-		        ==                R"({"ApiTokens":["aaa...redacted...aaa","bbb...redacted...bbb"]})" );
+		        ==                 R"({"ApiTokens":["aaa...redacted...aaa","bbb...redacted...bbb"]})" );
 
 		// white space around the colon, and a pretty-printed body
 		CHECK ( kRedactCredentials(R"({ "client_secret" : "s3crets3crets3cret" })")
-		        ==                R"({ "client_secret" : "s3c...redacted...ret" })" );
+		        ==                 R"({ "client_secret" : "s3c...redacted...ret" })" );
 		CHECK ( kRedactCredentials("{\n\t\"refresh_token\": \"abc123\"\n}")
-		        ==                "{\n\t\"refresh_token\": \"[redacted]\"\n}" );
+		        ==                 "{\n\t\"refresh_token\": \"[redacted]\"\n}" );
+
+		// a ':' before the body and inside values, ahead of the field
+		CHECK ( kRedactCredentials(R"(12:00:01 got {"url":"https://example.com/a","note":"a: b","api_key":"abc123"})")
+		        ==                 R"(12:00:01 got {"url":"https://example.com/a","note":"a: b","api_key":"[redacted]"})" );
 
 		// case does not matter, and neither does the vendor's spelling
 		CHECK ( kRedactCredentials(R"({"ApiKey":"abc123","X-Api-Token":"def456"})")
-		        ==                R"({"ApiKey":"[redacted]","X-Api-Token":"[redacted]"})" );
+		        ==                 R"({"ApiKey":"[redacted]","X-Api-Token":"[redacted]"})" );
 	}
 
 	SECTION("how much of a credential survives")
@@ -129,9 +133,9 @@ TEST_CASE("kRedactCredentials")
 		// AND THE TEST FOR IT IS BOUNDED TO ITS OWN VALUE: a masked field further
 		// along must not answer for a live one before it.
 		CHECK ( kRedactCredentials(R"({"b_token":"ccc...redacted...ddd","a_token":"livesecret123456"})")
-		        ==                R"({"b_token":"ccc...redacted...ddd","a_token":"liv...redacted...456"})" );
+		        ==                 R"({"b_token":"ccc...redacted...ddd","a_token":"liv...redacted...456"})" );
 		CHECK ( kRedactCredentials(R"({"a_token":"livesecret123456","b_token":"ccc...redacted...ddd"})")
-		        ==                R"({"a_token":"liv...redacted...456","b_token":"ccc...redacted...ddd"})" );
+		        ==                ß R"({"a_token":"liv...redacted...456","b_token":"ccc...redacted...ddd"})" );
 	}
 
 	SECTION("a JSON body that holds no credential")

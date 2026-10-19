@@ -346,7 +346,8 @@ static KStringView kFindSecretParameter(KStringView sText, KStringView::size_typ
 /// that has ever been written - project_key, brand_key, tenant_key. Accepting a
 /// bare "key" here would redact the identifier out of every error message that
 /// names a row, which costs far more than it saves.
-/// @param sName the field name, without its quotes
+/// @param sName the field name, or the text up to its closing quote - only the
+/// end is compared
 static bool kIsSecretJSONName(KStringView sName)
 //---------------------------------------------------------------------------
 {
@@ -383,16 +384,17 @@ static inline KStringView::size_type kSkipJSONSpace(KStringView sText, KStringVi
 	return iPos;
 }
 
+static KStringView::size_type kFindSecretJSONColonFromQuote(KStringView sText, KStringView::size_type iFirstQuote);
+
 //---------------------------------------------------------------------------
 /// Finds the ':' of a JSON field '"name": "value"' whose name denotes a
 /// credential and whose value is a string, or an array whose first element is
 /// one, from iPos on.
 ///
-/// MEMCHR SCANS FOR THE '"', NOT FOR THE ':', and the difference is measurable:
-/// klog redacts every message it writes, and an ordinary log line holds no quote
-/// at all but several colons - a timestamp alone has two. Anchoring on the colon
-/// cost 28ns on a 74 character line that had nothing to redact, which doubled
-/// what the whole function cost; anchoring on the quote is one failed memchr.
+/// Log messages often contain a ':', as in "host: example.com", but rarely a '"'.
+/// The search therefore starts with one memchr for the first '"' - without one
+/// there is no JSON field. This part is inlined, so that a message without a '"'
+/// costs no function call.
 ///
 /// ONLY A STRING VALUE COUNTS, and that single rule is what makes this safe to
 /// run over anything: '"input_tokens": 1500' is a count, and a service that
@@ -400,20 +402,47 @@ static inline KStringView::size_type kSkipJSONSpace(KStringView sText, KStringVi
 /// is a credential. On the XAPIS corpus the split is exact - every quoted
 /// token field is a credential, every numeric one is the token ledger.
 /// @return the index of the ':', or npos if there is none
-static KStringView::size_type kFindSecretJSONColon(KStringView sText, KStringView::size_type iPos = 0)
+static DEKAF2_ALWAYS_INLINE KStringView::size_type kFindSecretJSONColon(KStringView sText, KStringView::size_type iPos = 0)
 //---------------------------------------------------------------------------
 {
-	for (auto iQuote = kFind(sText, '"', iPos); iQuote != KStringView::npos; iQuote = kFind(sText, '"', iQuote + 1))
-	{
-		// is this the closing quote of a field name - '"name"' with a ':' after it?
-		auto iHit = iQuote + 1;
+	auto iFirstQuote = kFind(sText, '"', iPos);
 
-		while (iHit < sText.size() && (sText[iHit] == ' ' || sText[iHit] == '\t'))
+	if (iFirstQuote == KStringView::npos)
+	{
+		return KStringView::npos;
+	}
+
+	return kFindSecretJSONColonFromQuote(sText, iFirstQuote);
+
+} // kFindSecretJSONColon
+
+//---------------------------------------------------------------------------
+/// The search of kFindSecretJSONColon from the first '"' on. memchr searches for
+/// the ':', because a JSON field with a string value has four quotes but only one
+/// colon, and each hit checks whether the closing quote of a name precedes it.
+/// @param iFirstQuote the index of the first '"' at or after the start of the search
+/// @return the index of the ':', or npos if there is none
+static KStringView::size_type kFindSecretJSONColonFromQuote(KStringView sText, KStringView::size_type iFirstQuote)
+//---------------------------------------------------------------------------
+{
+	for (auto iHit = kFind(sText, ':', iFirstQuote + 1); iHit != KStringView::npos; iHit = kFind(sText, ':', iHit + 1))
+	{
+		// is the ':' preceded by the closing quote of a field name - '"name" :'?
+		auto iQuote = iHit - 1;
+
+		while (iQuote > iFirstQuote && (sText[iQuote] == ' ' || sText[iQuote] == '\t'))
 		{
-			++iHit;
+			--iQuote;
 		}
 
-		if (iHit >= sText.size() || sText[iHit] != ':')
+		if (sText[iQuote] != '"')
+		{
+			continue;
+		}
+
+		// the name test compares backwards from the closing quote, so the start
+		// of the name is only searched for names that end like a credential
+		if (!kIsSecretJSONName(sText.substr(0, iQuote)))
 		{
 			continue;
 		}
@@ -426,7 +455,7 @@ static KStringView::size_type kFindSecretJSONColon(KStringView sText, KStringVie
 			--iStart;
 		}
 
-		if (iStart == 0 || sText[iStart - 1] != '"' || !kIsSecretJSONName(sText.substr(iStart, iQuote - iStart)))
+		if (iStart == 0 || sText[iStart - 1] != '"')
 		{
 			continue;
 		}
@@ -470,7 +499,7 @@ static KStringView::size_type kFindSecretJSONColon(KStringView sText, KStringVie
 
 	return KStringView::npos;
 
-} // kFindSecretJSONColon
+} // kFindSecretJSONColonFromQuote
 
 //---------------------------------------------------------------------------
 /// Finds the password in the userinfo of a URL, "scheme://user:password@host",

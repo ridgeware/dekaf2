@@ -56,7 +56,8 @@ DEKAF2_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 /// Redacts credentials in a text: a JWT, the value after "Bearer " and after
 /// "Authorization:", the value of a parameter whose name denotes a credential
-/// (password, secret, api_key, ...), the STRING value of a JSON field whose name
+/// (password, secret, api_key, ...), also in quotes as in SQL ("set password =
+/// 'value'"), the STRING value of a JSON field whose name
 /// does ("access_token", "ApiTokens", "client_secret", ...), and the password in
 /// the userinfo of a URL.
 /// A credential of 16 characters or more KEEPS ITS FIRST AND LAST THREE, as

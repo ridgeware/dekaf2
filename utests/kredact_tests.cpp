@@ -82,6 +82,36 @@ TEST_CASE("kRedactCredentials")
 		        ==                 R"({"ApiKey":"[redacted]","X-Api-Token":"[redacted]"})" );
 	}
 
+	SECTION("a credential in SQL")
+	{
+		// the form of an update that KROW creates
+		CHECK ( kRedactCredentials("update USERS set\n\tname='bob'\n\t,password='hunter2'\nwhere id=1")
+		        ==                 "update USERS set\n\tname='bob'\n\t,password='[redacted]'\nwhere id=1" );
+
+		// white space around the '=', identifier quotes, a qualified name
+		CHECK ( kRedactCredentials("update USERS set `password` = 'hunter2' where id=1")
+		        ==                 "update USERS set `password` = '[redacted]' where id=1" );
+		CHECK ( kRedactCredentials("update [USERS] set [api_key] = N'abc123' where id=1")
+		        ==                 "update [USERS] set [api_key] = N'[redacted]' where id=1" );
+		CHECK ( kRedactCredentials("select * from USERS U where U.password = 'hunter2'")
+		        ==                 "select * from USERS U where U.password = '[redacted]'" );
+
+		// the escapes of SQL do not end the value
+		CHECK ( kRedactCredentials(R"(set client_secret='a''b\'c', name='bob')")
+		        ==                 R"(set client_secret='[redacted]', name='bob')" );
+
+		// double quotes, as in an attribute
+		CHECK ( kRedactCredentials(R"(<login user="bob" password="hunter2"/>)")
+		        ==                 R"(<login user="bob" password="[redacted]"/>)" );
+
+		// an empty value, and a value without quotes after white space, which in
+		// SQL is a column or a number
+		KString sBuffer = "unchanged";
+		CHECK ( kRedactCredentials("update USERS set password='' where id=1", sBuffer) == false );
+		CHECK ( kRedactCredentials("join KEYS K on K.api_key = U.api_key", sBuffer) == false );
+		CHECK ( sBuffer == "unchanged" );
+	}
+
 	SECTION("how much of a credential survives")
 	{
 		// A LONG ONE KEEPS THREE CHARACTERS AT EACH END, so a log line can still
@@ -113,6 +143,7 @@ TEST_CASE("kRedactCredentials")
 			KStringView("got token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.c2lnbmF0dXJlc2lnbmF0dXJl"),
 			KStringView("https://bob:hunter2hunter2hunter2@example.com/path"),
 			KStringView("GET /api?api_key=sk-proj-abcdefghijklmnop&x=1"),
+			KStringView("update USERS set password='sk-proj-abcdefghijklmnop' where id=1"),
 			KStringView(R"({"ApiTokens":["7f9c2b11-4a3e-4d55-9f10-abc123def456"]})"),
 		})
 		{

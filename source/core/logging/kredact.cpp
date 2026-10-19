@@ -233,11 +233,14 @@ static inline bool kIsNameChar(char ch)
 static bool kEndsWithSecretName(KStringView sBefore)
 //---------------------------------------------------------------------------
 {
-	// does sBefore end with sWord as a whole name?
+	// does sBefore end with sWord as a whole name? A '.' in front of it separates
+	// a qualifier, as in "U.password" in SQL or "db.password" in a configuration
 	auto IsName = [sBefore](KStringView sWord)
 	{
 		return kEndsWithAnyCase(sBefore, sWord)
-		    && (sBefore.size() == sWord.size() || !kIsNameChar(sBefore[sBefore.size() - sWord.size() - 1]));
+		    && (sBefore.size() == sWord.size()
+		     || !kIsNameChar(sBefore[sBefore.size() - sWord.size() - 1])
+		     || sBefore[sBefore.size() - sWord.size() - 1] == '.');
 	};
 
 	// does sBefore end with sWord as a whole name in a URL?
@@ -293,38 +296,119 @@ static bool kEndsWithSecretName(KStringView sBefore)
 } // kEndsWithSecretName
 
 //---------------------------------------------------------------------------
+/// Returns the content of a value in single or double quotes that starts at
+/// iPos, as in SQL. The escapes '' and \' are stepped over, and an N in front
+/// of the quote, which marks a unicode literal in SQL Server, is skipped. An
+/// unterminated value runs to the end of sText.
+///
+/// This is not inlined: it only runs for a name that denotes a credential, and
+/// inlined into kFindSecretParameter it made every call of that function slower.
+/// @return the content between the quotes, or an empty view if there is no
+/// quote at iPos
+static DEKAF2_NEVER_INLINE KStringView kGetQuotedValue(KStringView sText, KStringView::size_type iPos)
+//---------------------------------------------------------------------------
+{
+	if (iPos + 1 < sText.size() && (sText[iPos] == 'N' || sText[iPos] == 'n') && sText[iPos + 1] == '\'')
+	{
+		++iPos;
+	}
+
+	if (iPos >= sText.size() || (sText[iPos] != '\'' && sText[iPos] != '"'))
+	{
+		return {};
+	}
+
+	auto chQuote = sText[iPos];
+	auto iEnd    = iPos + 1;
+
+	while (iEnd < sText.size())
+	{
+		if (sText[iEnd] == '\\')
+		{
+			iEnd += 2;
+		}
+		else if (sText[iEnd] != chQuote)
+		{
+			++iEnd;
+		}
+		else if (iEnd + 1 < sText.size() && sText[iEnd + 1] == chQuote)
+		{
+			// a doubled quote is part of the value
+			iEnd += 2;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	return sText.substr(iPos + 1, iEnd - iPos - 1);
+
+} // kGetQuotedValue
+
+//---------------------------------------------------------------------------
 /// Finds the value of a parameter "name=value" whose name says that it holds a
 /// credential, from iPos on. memchr scans for the '=', and only its hits compare
 /// the name before it. The value runs to white space or a quote, and in a URL also
 /// to the next '&' or '#' - in other text these may be part of a password.
+///
+/// A value in single or double quotes runs to the closing quote. In this form
+/// white space may surround the '=', and the name may be in SQL identifier
+/// quotes, as in "set `password` = 'value'".
 /// @return the value, or an empty view if there is none
 static KStringView kFindSecretParameter(KStringView sText, KStringView::size_type iPos = 0)
 //---------------------------------------------------------------------------
 {
 	for (auto iHit = kFind(sText, '=', iPos); iHit != KStringView::npos; iHit = kFind(sText, '=', iHit + 1))
 	{
-		if (!kEndsWithSecretName(sText.substr(0, iHit)))
+		// white space and an identifier quote between the name and the '=' are
+		// only accepted in front of a quoted value
+		auto iNameEnd = iHit;
+
+		while (iNameEnd > 0 && (sText[iNameEnd - 1] == ' ' || sText[iNameEnd - 1] == '\t'))
+		{
+			--iNameEnd;
+		}
+
+		if (iNameEnd > 0 && (sText[iNameEnd - 1] == '`' || sText[iNameEnd - 1] == '"' || sText[iNameEnd - 1] == ']'))
+		{
+			--iNameEnd;
+		}
+
+		if (!kEndsWithSecretName(sText.substr(0, iNameEnd)))
 		{
 			continue;
 		}
 
-		// only now the start of the name, to see if it is in a URL
-		auto iName = iHit;
+		auto iValue = iHit + 1;
 
-		while (iName > 0 && kIsNameChar(sText[iName - 1]))
+		while (iValue < sText.size() && (sText[iValue] == ' ' || sText[iValue] == '\t'))
 		{
-			--iName;
+			++iValue;
 		}
 
-		bool bInURL = iName > 0 && (sText[iName - 1] == '?' || sText[iName - 1] == '&');
-		auto iEnd   = iHit + 1;
+		auto sValue = kGetQuotedValue(sText, iValue);
 
-		while (iEnd < sText.size() && !kIsValueEnd(sText[iEnd]) && !(bInURL && (sText[iEnd] == '&' || sText[iEnd] == '#')))
+		if (sValue.empty() && iNameEnd == iHit && iValue == iHit + 1)
 		{
-			++iEnd;
-		}
+			// only now the start of the name, to see if it is in a URL
+			auto iName = iHit;
 
-		auto sValue = sText.substr(iHit + 1, iEnd - iHit - 1);
+			while (iName > 0 && kIsNameChar(sText[iName - 1]))
+			{
+				--iName;
+			}
+
+			bool bInURL = iName > 0 && (sText[iName - 1] == '?' || sText[iName - 1] == '&');
+			auto iEnd   = iHit + 1;
+
+			while (iEnd < sText.size() && !kIsValueEnd(sText[iEnd]) && !(bInURL && (sText[iEnd] == '&' || sText[iEnd] == '#')))
+			{
+				++iEnd;
+			}
+
+			sValue = sText.substr(iHit + 1, iEnd - iHit - 1);
+		}
 
 		// never redact a redaction - "access_token=[redacted]" from the JWT pass
 		if (!sValue.empty() && !kIsRedacted(sValue))

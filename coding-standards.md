@@ -385,6 +385,47 @@ For large temporary blocks, especially JSON fixtures, you can also wrap the regi
 #endif
 ```
 
+### Language and Audience (K500)
+
+- Write comments, documentation, help texts and UI strings in English.
+- DEKAF2 is public. Comments, documentation, tests, test data and commit messages do not name unpublished projects or internal tools. Describe them generically, e.g. "a test runner that starts every listed test by its name".
+- A comment must make sense to a reader who knows only the code. Do not refer to plan or session steps such as "step 2", "(1.3)" or "phase 1"; describe what the code does and why.
+
+### Plain Sentences (K501)
+
+- Write complete sentences with explicit subjects and references. A comment that needs a second read has failed, however short it is.
+- Keep comments short by leaving things out, not by dropping words.
+- Name the function or file a comment refers to.
+- State the mechanism directly. Metaphors, personification and rhetorical contrasts make a comment harder to understand.
+- Avoid any form of prose. Stay technical.
+
+Examples:
+
+- ✓ "KWebApp takes care of that, the implementations do not have to check it"
+- ✗ "KWebApp sees to that"
+- ✓ "Hiding the control is not sufficient: the route must also be guarded with WindowOnlyPaths, because a network client can call any route"
+- ✗ "Hiding the control is politeness, WindowOnlyPaths is the guard"
+
+### Phrasing to Avoid (K502)
+
+These patterns add words without adding information. Used once, such a phrase may pass; used repeatedly, it makes the text read as machine-generated, and in general harder to read.
+
+- Closing sentences that restate what was just said: "the marker is what tells them apart", "that single rule is what makes this safe"
+- Cleft constructions: "X is what makes Y work"
+- Announcements before the facts: "and the difference is measurable:"
+- Capitalized words for emphasis
+
+State a fact once and stop.
+
+### API Documentation (K503)
+
+- A `@param` line says what the parameter is, not how it performs: `@param Escapables the set of chars to escape`.
+- Keep performance and implementation details, such as implicit constexpr conversions or prebuilt objects, out of API documentation. The interface should make the fast path the default without the documentation advertising it.
+- A class description starts with what the class does and a short `@code` example. User contracts such as ownership and lifetime follow in plain words. Internal mechanics are left out, moved to the internal header in `bits/`, or kept in one short paragraph labeled as an implementation note.
+- Explain behavior with a concrete example, not with a slogan.
+- Check each statement of the documentation against the code.
+- `@code` samples show the idiomatic DEKAF2 way, e.g. a `KInFile` passed to the stream overload instead of `Parse(kReadAll("file"))`.
+
 ## SQL Formatting (K300-K306)
 
 ### Keyword Case (K300)
@@ -703,3 +744,4 @@ if (!VerifyHashString(sUrlHash))
 - [ ] Use `auto` with descriptive names
 - [ ] Throw KHTTPError with brace initialization (space before `{`)
 - [ ] Use proper KJSON API patterns: `kjson::Parse()`, `Select()`, typed accessors, iterator pattern (K400-K403)
+- [ ] Write comments and documentation as plain, complete English sentences, without internal project names, plan steps, restating closers or capitalized emphasis (K500-K503)

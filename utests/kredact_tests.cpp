@@ -207,3 +207,41 @@ TEST_CASE("kRedactCredentials")
 		CHECK ( sBuffer == "unchanged" );
 	}
 }
+
+TEST_CASE("kRedactSQLCredentials")
+{
+	SECTION("the values of an insert statement")
+	{
+		// the form of an insert that KROW creates
+		CHECK ( kRedactSQLCredentials("insert into USERS (\n\tname\n\t,password\n\t,email\n) values (\n\t'bob'\n\t,'hunter2'\n\t,'bob@example.com'\n)")
+		        ==                    "insert into USERS (\n\tname\n\t,password\n\t,email\n) values (\n\t'bob'\n\t,'[redacted]'\n\t,'bob@example.com'\n)" );
+
+		// several rows, identifier quotes, a unicode literal, an escaped quote
+		CHECK ( kRedactSQLCredentials("INSERT INTO [USERS] ([name], [api_key]) VALUES ('bob', N'abc123'), ('ann', 'de''f456')")
+		        ==                    "INSERT INTO [USERS] ([name], [api_key]) VALUES ('bob', N'[redacted]'), ('ann', '[redacted]')" );
+
+		// a string in an expression, and null in a credential column
+		CHECK ( kRedactSQLCredentials("insert into T (`id`, `client_secret`) values (1, aes_encrypt('s3cret', @k)), (2, null)")
+		        ==                    "insert into T (`id`, `client_secret`) values (1, aes_encrypt('[redacted]', @k)), (2, null)" );
+
+		// numbers in a column named like a credential, and a column list without
+		// such a column
+		KString sBuffer = "unchanged";
+		CHECK ( kRedactSQLCredentials("insert into USAGE (input_tokens, output_tokens) values (1500, 820)", sBuffer) == false );
+		CHECK ( kRedactSQLCredentials("insert into T (a, b) values ('x', 'y') on duplicate key update b=values(b)", sBuffer) == false );
+		CHECK ( sBuffer == "unchanged" );
+	}
+
+	SECTION("the forms that kRedactCredentials recognizes")
+	{
+		CHECK ( kRedactSQLCredentials("update USERS set password='hunter2' where id=1")
+		        ==                    "update USERS set password='[redacted]' where id=1" );
+	}
+
+	SECTION("a second pass changes nothing")
+	{
+		auto sOnce = kRedactSQLCredentials("insert into USERS (name, password) values ('bob', 'sk-proj-abcdefghijklmnop')");
+		CHECK ( !sOnce.contains("defghijklm") );
+		CHECK ( kRedactSQLCredentials(sOnce) == sOnce );
+	}
+}

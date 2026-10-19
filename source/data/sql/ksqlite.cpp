@@ -48,6 +48,7 @@
 
 #ifdef DEKAF2
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/logging/kredact.h>
 DEKAF2_NAMESPACE_BEGIN
 #endif
 
@@ -302,7 +303,7 @@ sqlite3_stmt* KSQLite::detail::DBConnector::Compile(StringView sSQL)
 	{
 #ifdef DEKAF2
 		kDebug(1, "error: {}", sqlite3_errstr(ec));
-		kDebug(1, sSQL);
+		kDebug(1, kRedactSQLCredentials(sSQL));
 #endif
 		return nullptr;
 	}
@@ -710,7 +711,7 @@ void KSQLite::Cursor::SetError(StringView sSQL)
 
 #ifdef DEKAF2
 	kDebug(1, "error: {}", m_sError);
-	kDebug(1, sSQL);
+	kDebug(1, kRedactSQLCredentials(sSQL));
 #endif
 
 	if (m_Handle && m_Connector)
@@ -878,7 +879,7 @@ KSQLite::ExecResult KSQLite::PrepareError(StringView sSQL)
 
 #ifdef DEKAF2
 	kDebug(1, "error: {}", Result.m_sError);
-	kDebug(1, sSQL);
+	kDebug(1, kRedactSQLCredentials(sSQL));
 #endif
 
 	if (m_bMayThrow)
@@ -906,7 +907,7 @@ KSQLite::ExecResult KSQLite::BindError(StringView sSQL)
 
 #ifdef DEKAF2
 	kDebug(1, "error: {}", Result.m_sError);
-	kDebug(1, sSQL);
+	kDebug(1, kRedactSQLCredentials(sSQL));
 #endif
 
 	if (m_bMayThrow)
@@ -1007,7 +1008,7 @@ KSQLite::ExecResult KSQLite::IntExecSQL(StringView sSQL)
 			Result.m_sError     = m_Connector->LastError();
 #ifdef DEKAF2
 			kDebug(1, "error: {}", Result.m_sError);
-			kDebug(1, sSQL);
+			kDebug(1, kRedactSQLCredentials(sSQL));
 #endif
 			break;
 		}
@@ -1032,7 +1033,7 @@ KSQLite::ExecResult KSQLite::IntExecSQL(StringView sSQL)
 			Result.m_sError     = m_Connector->LastError();
 #ifdef DEKAF2
 			kDebug(1, "error: {}", Result.m_sError);
-			kDebug(1, sSQL);
+			kDebug(1, kRedactSQLCredentials(sSQL));
 #endif
 			break;
 		}

@@ -43,6 +43,7 @@
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/core/strings/kcaseless.h>
 #include <dekaf2/core/types/kctype.h>
+#include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -179,8 +180,9 @@ static inline bool kIsValueEnd(char ch)
 //---------------------------------------------------------------------------
 /// Does sName end with sWord, in any case? sWord is in lowercase. The comparison
 /// runs from the back, as the last characters already differ for nearly all names
-/// of parameters - this runs for each '=' of a line.
-static inline bool kEndsWithAnyCase(KStringView sName, KStringView sWord)
+/// of parameters - this runs for each '=' of a line, and is therefore always
+/// inlined.
+static DEKAF2_ALWAYS_INLINE bool kEndsWithAnyCase(KStringView sName, KStringView sWord)
 //---------------------------------------------------------------------------
 {
 	if (sWord.size() > sName.size())
@@ -422,7 +424,7 @@ static KStringView kFindSecretParameter(KStringView sText, KStringView::size_typ
 } // kFindSecretParameter
 
 //---------------------------------------------------------------------------
-/// Does the name of a JSON field denote a credential?
+/// Does the name of a JSON field, or of an SQL column, denote a credential?
 ///
 /// THIS IS NARROWER THAN kEndsWithSecretName ON PURPOSE, and the difference is
 /// the whole reason it is a separate function: in a JSON body the name is a
@@ -430,9 +432,12 @@ static KStringView kFindSecretParameter(KStringView sText, KStringView::size_typ
 /// that has ever been written - project_key, brand_key, tenant_key. Accepting a
 /// bare "key" here would redact the identifier out of every error message that
 /// names a row, which costs far more than it saves.
+///
+/// It is always inlined: it runs for each ':' after the first '"' of a message,
+/// and with the SQL search as a second caller the compiler made it a call.
 /// @param sName the field name, or the text up to its closing quote - only the
 /// end is compared
-static bool kIsSecretJSONName(KStringView sName)
+static DEKAF2_ALWAYS_INLINE bool kIsSecretJSONName(KStringView sName)
 //---------------------------------------------------------------------------
 {
 	if (sName.empty())
@@ -1009,5 +1014,213 @@ KString kRedactCredentials(KStringView sMessage)
 	return KString { sMessage };
 
 } // kRedactCredentials
+
+//---------------------------------------------------------------------------
+/// Finds from iPos on the column list of an insert statement, as in "(name,
+/// password) values", that holds a column whose name denotes a credential. Only
+/// a "values" after a ')' counts, so "on duplicate key update x=values(x)" does not.
+/// @param Secret receives for each column of the list whether its name denotes
+/// a credential
+/// @return the index after "values", or npos if there is no such column list
+static KStringView::size_type kFindSQLInsertWithSecret(KStringView sSQL, KStringView::size_type iPos, std::vector<bool>& Secret)
+//---------------------------------------------------------------------------
+{
+	static constexpr KStringView sKeyword { "values" };
+
+	for (;;)
+	{
+		auto iValues = kFindAnyCase(sSQL, sKeyword, 'v', iPos);
+
+		if (iValues == KStringView::npos)
+		{
+			return KStringView::npos;
+		}
+
+		iPos = iValues + sKeyword.size();
+
+		if ((iPos < sSQL.size() && kIsNameChar(sSQL[iPos])) || (iValues > 0 && kIsNameChar(sSQL[iValues - 1])))
+		{
+			// part of a longer word
+			continue;
+		}
+
+		auto iClose = iValues;
+
+		while (iClose > 0 && (sSQL[iClose - 1] == ' ' || sSQL[iClose - 1] == '\t' || sSQL[iClose - 1] == '\n' || sSQL[iClose - 1] == '\r'))
+		{
+			--iClose;
+		}
+
+		if (iClose == 0 || sSQL[iClose - 1] != ')')
+		{
+			continue;
+		}
+
+		--iClose;
+
+		auto iOpen = sSQL.rfind('(', iClose);
+
+		if (iOpen == KStringView::npos)
+		{
+			continue;
+		}
+
+		auto sColumns = sSQL.substr(iOpen + 1, iClose - iOpen - 1);
+		bool bSecret { false };
+
+		Secret.clear();
+
+		for (;;)
+		{
+			auto iComma  = sColumns.find(',');
+			auto sColumn = sColumns.substr(0, iComma);
+
+			sColumn.Trim(" \t\r\n`\"[]");
+
+			Secret.push_back(kIsSecretJSONName(sColumn));
+			bSecret |= Secret.back();
+
+			if (iComma == KStringView::npos)
+			{
+				break;
+			}
+
+			sColumns.remove_prefix(iComma + 1);
+		}
+
+		if (bSecret)
+		{
+			return iPos;
+		}
+	}
+
+} // kFindSQLInsertWithSecret
+
+//---------------------------------------------------------------------------
+/// Masks the strings in the columns that Secret marks, in the rows of an insert
+/// statement that start at iPos, as in "('bob', 'value'), ('ann', 'value')". In a
+/// value that is an expression, as in "aes_encrypt('value', @key)", every string
+/// is masked.
+/// @param bMasked is set to true if a string was masked
+/// @return the index after the last row
+static KString::size_type kMaskSQLRows(KString& sSQL, KString::size_type iPos, const std::vector<bool>& Secret, bool& bMasked)
+//---------------------------------------------------------------------------
+{
+	for (;;)
+	{
+		iPos = kSkipJSONSpace(sSQL, iPos);
+
+		if (iPos >= sSQL.size() || sSQL[iPos] != '(')
+		{
+			return iPos;
+		}
+
+		std::size_t iColumn { 0 };
+		std::size_t iDepth  { 0 };
+
+		for (++iPos; iPos < sSQL.size(); ++iPos)
+		{
+			auto ch = sSQL[iPos];
+
+			if (ch == '\'' || ch == '"')
+			{
+				auto sValue = kGetQuotedValue(sSQL, iPos);
+				auto iStart = iPos + 1;
+				auto iSize  = sValue.size();
+
+				if (iColumn < Secret.size() && Secret[iColumn] && !sValue.empty() && !kIsRedacted(sValue))
+				{
+					auto sMasked = kMaskSecret(sValue);
+
+					sSQL.replace(iStart, iSize, sMasked);
+					iSize   = sMasked.size();
+					bMasked = true;
+				}
+
+				// at the closing quote, the loop steps past it
+				iPos = iStart + iSize;
+			}
+			else if (ch == '(')
+			{
+				++iDepth;
+			}
+			else if (ch == ')')
+			{
+				if (iDepth == 0)
+				{
+					break;
+				}
+
+				--iDepth;
+			}
+			else if (ch == ',' && iDepth == 0)
+			{
+				++iColumn;
+			}
+		}
+
+		// past the ')' of the row, to a ',' and the next row
+		iPos = kSkipJSONSpace(sSQL, iPos + 1);
+
+		if (iPos >= sSQL.size() || sSQL[iPos] != ',')
+		{
+			return iPos;
+		}
+
+		++iPos;
+	}
+
+} // kMaskSQLRows
+
+//---------------------------------------------------------------------------
+bool kRedactSQLCredentials(KStringView sSQL, KString& sBuffer)
+//---------------------------------------------------------------------------
+{
+	std::vector<bool> Secret;
+
+	auto iPos = kFindSQLInsertWithSecret(sSQL, 0, Secret);
+
+	if (iPos == KStringView::npos)
+	{
+		return kRedactCredentials(sSQL, sBuffer);
+	}
+
+	KString sInsert { sSQL };
+	bool    bMasked { false };
+
+	while (iPos != KStringView::npos)
+	{
+		iPos = kMaskSQLRows(sInsert, iPos, Secret, bMasked);
+		iPos = kFindSQLInsertWithSecret(sInsert, iPos, Secret);
+	}
+
+	if (kRedactCredentials(sInsert, sBuffer))
+	{
+		return true;
+	}
+
+	if (bMasked)
+	{
+		sBuffer = std::move(sInsert);
+	}
+
+	return bMasked;
+
+} // kRedactSQLCredentials
+
+//---------------------------------------------------------------------------
+KString kRedactSQLCredentials(KStringView sSQL)
+//---------------------------------------------------------------------------
+{
+	KString sBuffer;
+
+	if (kRedactSQLCredentials(sSQL, sBuffer))
+	{
+		return sBuffer;
+	}
+
+	return KString { sSQL };
+
+} // kRedactSQLCredentials
 
 DEKAF2_NAMESPACE_END

@@ -56,6 +56,7 @@
 #include <dekaf2/containers/sequential/kstack.h>
 #include <dekaf2/core/strings/ksplit.h>
 #include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/logging/kredact.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/http/client/kwebclient.h>
 #include <dekaf2/crypto/hash/khash.h>
@@ -773,7 +774,7 @@ bool KSQL::SetError(KString sError, uint32_t iErrorNum/*=-1*/, bool bNoThrow/*=f
 
 	if (!bIgnore && !m_sLastSQL.empty())
 	{
-		kDebug (GetDebugLevel(), kLimitSize(m_sLastSQL.str(), 4096));
+		kDebug (GetDebugLevel(), kLimitSize(kRedactSQLCredentials(m_sLastSQL.str()), 4096));
 	}
 
 	if (m_TimingCallback)
@@ -2069,7 +2070,7 @@ bool KSQL::IsReadOnlyViolation (QueryType QueryType)
 	if (IsFlag(F_ReadOnlyMode) &&
 			(QueryType & ~(QueryType::Select | QueryType::Action | QueryType::Info)) != QueryType::None)
 	{
-		SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL));
+		SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", kRedactSQLCredentials(m_sLastSQL.str())));
 		return true;
 	}
 	return false;
@@ -2255,7 +2256,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, kLimitSize(m_sLastSQL.str(), 4096));
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, kLimitSize(kRedactSQLCredentials(m_sLastSQL.str()), 4096));
 	}
 
 	auto QueryType = GetQueryType(m_sLastSQL.str());
@@ -2304,7 +2305,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 						if (!m_dMYSQL)
 						{
-							kDebug (1, "failed.  aborting query or SQL:\n{}", kLimitSize(m_sLastSQL.str(), 4096));
+							kDebug (1, "failed.  aborting query or SQL:\n{}", kLimitSize(kRedactSQLCredentials(m_sLastSQL.str()), 4096));
 							break;
 						}
 					}
@@ -2435,7 +2436,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 					if (!ctlib_is_initialized())
 					{
-						kDebug (1, "failed.  aborting query or SQL:\n{}", kLimitSize(m_sLastSQL.str(), 4096));
+						kDebug (1, "failed.  aborting query or SQL:\n{}", kLimitSize(kRedactSQLCredentials(m_sLastSQL.str()), 4096));
 						break; // once
 					}
 				}
@@ -2464,7 +2465,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 					if (!m_SQLite)
 					{
-						kDebug (1, "failed.  aborting SQL:\n{}", kLimitSize(m_sLastSQL.str(), 4096));
+						kDebug (1, "failed.  aborting SQL:\n{}", kLimitSize(kRedactSQLCredentials(m_sLastSQL.str()), 4096));
 						break;
 					}
 				}
@@ -2511,7 +2512,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 					if (!m_PostgreSQL || !m_PostgreSQL->Connection)
 					{
-						kDebug (1, "failed.  aborting SQL:\n{}", kLimitSize(m_sLastSQL.str(), 4096));
+						kDebug (1, "failed.  aborting SQL:\n{}", kLimitSize(kRedactSQLCredentials(m_sLastSQL.str()), 4096));
 						break;
 					}
 				}
@@ -2637,7 +2638,7 @@ void KSQL::LogPerformance (KDuration iMilliseconds, bool bIsQuery)
 					kFormNumber(m_iWarnIfOverMilliseconds),
 					kFormNumber(iMilliseconds),
 					ConnectSummary(),
-					m_sLastSQL);
+					kRedactSQLCredentials(m_sLastSQL.str()));
 
 		if (m_TimingCallback)
 		{
@@ -2819,7 +2820,7 @@ bool KSQL::ParseRawSQL (KStringView sSQL, Flags iFlags/*=Flags::F_None*/, KStrin
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.contains("\n")) ? "\n" : "", sSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.contains("\n")) ? "\n" : "", kRedactSQLCredentials(sSQL));
 	}
 
 	if (IsReadOnlyViolation (m_sLastSQL))
@@ -3169,7 +3170,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 
 	SetErrorPrefix (sFilename, Parms.iLineNumStart);
 
-	kDebug (GetDebugLevel()+1, "{}: statement # {}:\n{}\n", sFilename, Parms.iStatement, kLimitSize(m_sLastSQL.str(), 4096));
+	kDebug (GetDebugLevel()+1, "{}: statement # {}:\n{}\n", sFilename, Parms.iStatement, kLimitSize(kRedactSQLCredentials(m_sLastSQL.str()), 4096));
 
 	if (m_sLastSQL.empty())
 	{
@@ -3177,7 +3178,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 	}
 	else if (m_sLastSQL == "exit\n"   || m_sLastSQL == "quit\n")
 	{
-		kDebug (GetDebugLevel()+1, "{}: statement # {} is '{}' (stopping).", sFilename, Parms.iStatement, kLimitSize(m_sLastSQL.str(), 4096));
+		kDebug (GetDebugLevel()+1, "{}: statement # {} is '{}' (stopping).", sFilename, Parms.iStatement, kLimitSize(kRedactSQLCredentials(m_sLastSQL.str()), 4096));
 		Parms.fOK = Parms.fDone = true;
 	}
 	else if (IsSelect(m_sLastSQL.str()))
@@ -3287,7 +3288,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.str().find('\n') != KString::npos) ? "\n" : "", kLimitSize(m_sLastSQL.str(), 4096));
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.str().find('\n') != KString::npos) ? "\n" : "", kLimitSize(kRedactSQLCredentials(m_sLastSQL.str()), 4096));
 	}
 
 	EndQuery();
@@ -3961,7 +3962,7 @@ bool KSQL::ParseRawQuery (KStringView sSQL, Flags iFlags/*=Flags::F_None*/, KStr
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.contains("\n")) ? "\n" : "", sSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.contains("\n")) ? "\n" : "", kRedactSQLCredentials(sSQL));
 	}
 
 	CopyIfNotSame(m_sLastSQL, sSQL);
@@ -5768,7 +5769,7 @@ void KSQL::DoTranslations (KSQLString& sSQL)
 	}
 	else
 	{
-		kDebug (4, "AFTER:\n{}", sSQL);
+		kDebug (4, "AFTER:\n{}", kRedactSQLCredentials(sSQL.str()));
 	}
 
 } // DoTranslations
@@ -7778,7 +7779,7 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 	CS_RETCODE iApiRtn;
 	CS_INT     iResultType;
 
-	kDebug (KSQL2_CTDEBUG, sSQL);
+	kDebug (KSQL2_CTDEBUG, kRedactSQLCredentials(sSQL));
 	kDebug (KSQL2_CTDEBUG, "ensuring that no dangling messages are in the ct queue...");
 	ctlib_flush_results ();
 	ctlib_clear_errors ();
@@ -7822,7 +7823,7 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 			case CS_PARAM_RESULT:
 			case CS_STATUS_RESULT:
 			case CS_ROW_RESULT:
-				kDebug (KSQL2_CTDEBUG, "receiving fetchable results on a non-query: {}", sSQL);
+				kDebug (KSQL2_CTDEBUG, "receiving fetchable results on a non-query: {}", kRedactSQLCredentials(sSQL));
 				ctlib_flush_results();
 				return true; // false would trigger a retry ...
 

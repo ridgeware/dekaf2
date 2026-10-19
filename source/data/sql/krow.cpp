@@ -42,6 +42,7 @@
 
 #include <dekaf2/data/sql/krow.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/logging/kredact.h>
 #include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/data/csv/kcsv.h>
 #include <dekaf2/crypto/encoding/khex.h>
@@ -679,7 +680,7 @@ KSQLString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool b
 	m_sLastError.clear(); // reset
 	KSQLString sSQL;
 
-	kDebug (3, "before: {}", sSQL);
+	kDebug (3, "before: {}", kRedactSQLCredentials(sSQL.str()));
 	
 	if (empty())
 	{
@@ -737,7 +738,7 @@ KSQLString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool b
 					, GetTablename(), sSQL, GetTablename());
 	}
 	
-	kDebug (3, "after: {}", sSQL);
+	kDebug (3, "after: {}", kRedactSQLCredentials(sSQL.str()));
 	
 	return sSQL;
 
@@ -758,7 +759,7 @@ bool KROW::AppendInsert (KSQLString& sSQL, DBT iDBType, bool bIdentityInsert/*=f
 
 	m_sLastError.clear(); // reset
 
-	kDebug (3, "before: {}", sSQL);
+	kDebug (3, "before: {}", kRedactSQLCredentials(sSQL.str()));
 
 	if (empty())
 	{
@@ -780,7 +781,7 @@ bool KROW::AppendInsert (KSQLString& sSQL, DBT iDBType, bool bIdentityInsert/*=f
 		return false;
 	}
 
-	kDebug (3, "after: {}", sSQL);
+	kDebug (3, "after: {}", kRedactSQLCredentials(sSQL.str()));
 
 	return (true);
 
@@ -1029,7 +1030,7 @@ KSQLString KROW::FormDelete (DBT iDBType) const
 	m_sLastError.clear(); // reset
 	KSQLString sSQL;
 
-	kDebug (3, "before: {}", sSQL);
+	kDebug (3, "before: {}", kRedactSQLCredentials(sSQL.str()));
 
 	if (empty())
 	{
@@ -1094,7 +1095,7 @@ KSQLString KROW::FormDelete (DBT iDBType) const
 		return sSQL;
 	}
 	
-	kDebug (3, "after: {}", sSQL);
+	kDebug (3, "after: {}", kRedactSQLCredentials(sSQL.str()));
 
 	return sSQL;
 

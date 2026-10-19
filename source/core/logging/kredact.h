@@ -93,6 +93,36 @@ DEKAF2_PUBLIC
 KString kRedactCredentials(KStringView sMessage);
 //-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
+/// Redacts credentials in an SQL statement: all that kRedactCredentials()
+/// redacts, and in an insert statement with a column list the strings in the
+/// columns whose name denotes a credential, in all rows of the statement, as in
+/// "insert into USERS (name, password) values ('bob', 'value')". The names are
+/// those of JSON fields that kRedactCredentials() recognizes ("password",
+/// "api_key", "access_token", ...).
+///
+/// KSQL, KROW and KSQLite redact each statement with it before they write it
+/// into a log or an error message. kRedactCredentials() does not look for insert
+/// statements, because KLog calls it for every message, and the search would make
+/// every message slower.
+/// @param sSQL the statement to redact
+/// @param sBuffer receives the redacted statement, only if something was redacted
+/// @return true if sBuffer holds the redacted statement, false if sSQL needs no
+/// change and sBuffer was left untouched
+DEKAF2_PUBLIC
+bool kRedactSQLCredentials(KStringView sSQL, KString& sBuffer);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Redacts credentials in an SQL statement, as
+/// kRedactSQLCredentials(KStringView, KString&) does, and returns a copy also if
+/// nothing was redacted
+/// @param sSQL the statement to redact
+/// @return the redacted statement
+DEKAF2_PUBLIC
+KString kRedactSQLCredentials(KStringView sSQL);
+//-----------------------------------------------------------------------------
+
 /// @}
 
 DEKAF2_NAMESPACE_END

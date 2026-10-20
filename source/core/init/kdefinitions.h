@@ -519,6 +519,14 @@
 	#define DEKAF2_NEVER_INLINE
 #endif
 
+// a function that is rarely called - the compiler optimizes it for size and
+// places it away from the frequently executed code
+#if DEKAF2_HAS_ATTRIBUTE(cold)
+	#define DEKAF2_COLD __attribute__((__cold__))
+#else
+	#define DEKAF2_COLD
+#endif
+
 #ifdef DEKAF2_IS_WINDOWS
 	#ifdef _M_X64
 		#ifndef __x86_64__

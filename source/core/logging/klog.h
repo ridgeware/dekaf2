@@ -53,8 +53,11 @@
 	#include <dekaf2/core/format/kformat.h>
 	#include <dekaf2/time/clock/ktime.h>
 	#include <atomic>
+	#include <cstddef>
 	#include <limits>
 	#include <memory>
+	#include <string>
+	#include <type_traits>
 	#include <exception>
 	#include <mutex>
 	#include <vector>
@@ -72,6 +75,7 @@ class KLogWriter;
 
 #ifdef DEKAF2_WITH_KLOG
 class KLogSerializer;
+namespace detail { class KLogMacros; }
 #endif
 
 #ifdef DEKAF2_KLOG_WITH_TCP
@@ -216,11 +220,11 @@ public:
 	//---------------------------------------------------------------------------
 	{
 #ifdef DEKAF2_WITH_KLOG
-		// the level of this thread is only read while any thread has one, because
-		// reading a thread_local costs more than reading a global variable, and on
-		// macOS it is a function call
+		// the level of this thread is only read while a thread has a level of its
+		// own that allows iLevel, because reading a thread_local costs more than
+		// reading a global variable, and on macOS it is a function call
 		return iLevel <= s_iLogLevel.load(std::memory_order_relaxed)
-		    || (DEKAF2_UNLIKELY(s_iThreadsWithOwnLevel.load(std::memory_order_relaxed) > 0)
+		    || (DEKAF2_UNLIKELY(iLevel <= s_iGateLevel.load(std::memory_order_relaxed))
 		        && iLevel <= s_iThreadLogLevel);
 #else
 		return false;
@@ -710,8 +714,13 @@ private:
 	// the log level that this thread has set for itself, or s_iNoThreadLevel
 	static thread_local int s_iThreadLogLevel;
 	static constexpr int s_iNoThreadLevel = std::numeric_limits<int>::min();
-	// the number of threads that have set a log level for themselves
-	static std::atomic<int> s_iThreadsWithOwnLevel;
+	// the highest level that any thread logs: s_iLogLevel, or the highest log level
+	// that a thread has set for itself - the logging macros compare with this one
+	static std::atomic<int> s_iGateLevel;
+	// the number of threads that have set a log level for themselves, and the
+	// highest of these levels - both are protected by the level mutex in klog.cpp
+	static int s_iThreadsWithOwnLevel;
+	static int s_iHighestThreadLevel;
 
 	// records whether this thread is counted in s_iThreadsWithOwnLevel, and removes
 	// it from the count when the thread ends with a log level of its own
@@ -725,6 +734,10 @@ private:
 
 	// sets or, with s_iNoThreadLevel, removes the log level of this thread
 	static void SetThreadLevel(int iLevel);
+	// recomputes s_iGateLevel - call it with the level mutex held
+	static void UpdateGateLevel();
+
+	friend class detail::KLogMacros;
 	static thread_local bool s_bShouldShowStackOnJsonError;
 #ifdef DEKAF2_KLOG_WITH_TCP
 	static thread_local bool s_bPrintTimeStampOnClose;
@@ -774,6 +787,96 @@ private:
 
 }; // KLog
 
+#ifdef DEKAF2_WITH_KLOG
+namespace detail {
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The functions that the logging macros call - not meant for other use.
+/// A call place only compares the level and calls a function that is not
+/// inlined, so that it takes few instructions, and no stack space for the
+/// arguments of the formatting.
+class KLogMacros
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	//---------------------------------------------------------------------------
+	/// Could a message of iLevel be logged by any thread? The logging functions
+	/// then decide for the calling thread.
+	DEKAF2_NODISCARD
+	static DEKAF2_ALWAYS_INLINE bool MayLog(int iLevel) noexcept
+	//---------------------------------------------------------------------------
+	{
+		return iLevel <= KLog::s_iGateLevel.load(std::memory_order_relaxed);
+	}
+
+	//---------------------------------------------------------------------------
+	/// Logs sMessage as it is, without formatting.
+	static DEKAF2_ALWAYS_INLINE void Log(int iLevel, KStringView sFunction, KStringView sMessage) noexcept
+	//---------------------------------------------------------------------------
+	{
+		LogMessage(iLevel, sFunction, sMessage);
+	}
+
+	//---------------------------------------------------------------------------
+	/// Formats and logs the arguments. Strings are passed on as views, small
+	/// trivially copyable arguments by value and all other arguments by
+	/// reference, so that the call place neither copies nor allocates. The format
+	/// string is checked against the types of the arguments at compile time.
+	template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+	static DEKAF2_ALWAYS_INLINE void Log(int iLevel, KStringView sFunction, KFormatString<Args...> sFormat, Args&&... args) noexcept
+	//---------------------------------------------------------------------------
+	{
+		LogFormatted<decltype(Pass(args))...>(iLevel, sFunction, KStringView(sFormat.get().data(), sFormat.get().size()), Pass(args)...);
+	}
+
+//----------
+private:
+//----------
+
+	template<class T>
+	struct IsPassedByValue
+	{
+		static constexpr bool value = std::is_trivially_copyable<T>::value
+		                           && !std::is_array<T>::value
+		                           && sizeof(T) <= 2 * sizeof(void*);
+	};
+
+	template<class T, typename std::enable_if<IsPassedByValue<T>::value, int>::type = 0>
+	static T Pass(const T& Arg) noexcept { return Arg; }
+
+	template<class T, typename std::enable_if<!IsPassedByValue<T>::value, int>::type = 0>
+	static const T& Pass(const T& Arg) noexcept { return Arg; }
+
+	static KStringView Pass(const KString& sArg) noexcept { return sArg; }
+	static KStringView Pass(const std::string& sArg) noexcept { return sArg; }
+
+	// a char array is a C string, which may end before the end of the array
+	template<std::size_t N>
+	static KStringView Pass(const char (&sArg)[N]) noexcept { return KStringView(static_cast<const char*>(sArg)); }
+
+	// logs the message if this thread logs iLevel
+	static DEKAF2_NEVER_INLINE DEKAF2_COLD void LogMessage(int iLevel, KStringView sFunction, KStringView sMessage) noexcept;
+
+	// formats and logs the message if this thread logs iLevel
+	static DEKAF2_NEVER_INLINE DEKAF2_COLD void LogFormatArgs(int iLevel, KStringView sFunction, KStringView sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& Args) noexcept;
+
+	// collects the arguments for LogFormatArgs() - one instance for each
+	// combination of argument types, shared by all call places
+	template<class... Args>
+	static DEKAF2_NEVER_INLINE DEKAF2_COLD void LogFormatted(int iLevel, KStringView sFunction, KStringView sFormat, Args... args) noexcept
+	{
+		LogFormatArgs(iLevel, sFunction, sFormat, DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
+	}
+
+}; // KLogMacros
+
+} // end of namespace detail
+#endif
+
 #ifndef DEKAF2_WITH_KLOG
 namespace detail {
 template <typename Arg, typename... Args>
@@ -817,11 +920,12 @@ DEKAF2_NAMESPACE_END
 // as we do not want to evaluate all input parameters before calling the function.
 // Therefore we resort to a macro here, and _only_ here (remember, macros are evil)
 //
-// From inside the macro we call .debug_fun() and not .warning() as we evaluate only the
-// global static KLog::s_kLogLevel, which is not guaranteed to be initialized before KLog()
-// has been called for the first time. .debug_fun() then re-evaluates the level and
-// outputs appropriately. The only bad thing that can happen is that we miss
-// a debug output in the initialization phase of the program.
+// The macro compares the level with the global static KLog::s_iGateLevel, which is
+// not guaranteed to be set before KLog() has been called for the first time, and
+// then calls a logging function that is not inlined. That function re-evaluates the
+// level for the calling thread, and only then formats and outputs the message. The
+// only bad thing that can happen is that we miss a debug output in the
+// initialization phase of the program.
 
 #ifdef kDebug
 #undef kDebug
@@ -831,9 +935,9 @@ DEKAF2_NAMESPACE_END
 /// log a debug message, automatically provide function name.
 #define kDebug(iLevel, ...) \
 { \
-	if (DEKAF2_UNLIKELY(DEKAF2_PREFIX KLog::WouldLog(iLevel))) \
+	if (DEKAF2_UNLIKELY(DEKAF2_PREFIX detail::KLogMacros::MayLog(iLevel))) \
 	{ \
-		DEKAF2_PREFIX KLog::getInstance().debug_fun(iLevel, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+		DEKAF2_PREFIX detail::KLogMacros::Log(iLevel, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 	} \
 }
 //---------------------------------------------------------------------------
@@ -849,9 +953,9 @@ DEKAF2_NAMESPACE_END
 /// log a debug message, do NOT automatically provide function name.
 #define kDebugLog(iLevel, ...) \
 { \
-	if (DEKAF2_UNLIKELY(DEKAF2_PREFIX KLog::WouldLog(iLevel))) \
+	if (DEKAF2_UNLIKELY(DEKAF2_PREFIX detail::KLogMacros::MayLog(iLevel))) \
 	{ \
-		DEKAF2_PREFIX KLog::getInstance().debug(iLevel, __VA_ARGS__); \
+		DEKAF2_PREFIX detail::KLogMacros::Log(iLevel, DEKAF2_PREFIX KStringView(), __VA_ARGS__); \
 	} \
 }
 //---------------------------------------------------------------------------
@@ -867,7 +971,7 @@ DEKAF2_NAMESPACE_END
 /// log a warning message, automatically provide function name.
 #define kWarning(...) \
 { \
-	DEKAF2_PREFIX KLog::getInstance().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	DEKAF2_PREFIX detail::KLogMacros::Log(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 #else
@@ -882,7 +986,7 @@ DEKAF2_NAMESPACE_END
 /// log a warning message, do NOT automatically provide function name.
 #define kWarningLog(...) \
 { \
-	DEKAF2_PREFIX KLog::getInstance().debug(-1, __VA_ARGS__); \
+	DEKAF2_PREFIX detail::KLogMacros::Log(-1, DEKAF2_PREFIX KStringView(), __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 #else
@@ -928,7 +1032,7 @@ DEKAF2_NAMESPACE_END
 /// force a stack trace, automatically provide function name.
 #define kDebugTrace(...) \
 { \
-	DEKAF2_PREFIX KLog::getInstance().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	DEKAF2_PREFIX detail::KLogMacros::Log(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 #else

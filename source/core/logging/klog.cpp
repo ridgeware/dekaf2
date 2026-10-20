@@ -97,8 +97,24 @@ std::atomic<int> KLog::s_iLogLevel;
 // a constant initializer, so that reading the variable from another translation
 // unit does not need a call of the initialization function of thread_locals
 thread_local int KLog::s_iThreadLogLevel { s_iNoThreadLevel };
-std::atomic<int> KLog::s_iThreadsWithOwnLevel { 0 };
+std::atomic<int> KLog::s_iGateLevel;
+int KLog::s_iThreadsWithOwnLevel { 0 };
+int KLog::s_iHighestThreadLevel { s_iNoThreadLevel };
 thread_local KLog::ThreadLevelGuard KLog::s_ThreadLevelGuard;
+
+namespace {
+
+//---------------------------------------------------------------------------
+// protects the bookkeeping of the thread log levels - it is never destroyed, as
+// a thread that ends after the static destruction may still remove its level
+std::mutex& LevelMutex()
+//---------------------------------------------------------------------------
+{
+	static auto* s_Mutex = new std::mutex;
+	return *s_Mutex;
+}
+
+} // end of anonymous namespace
 
 #if DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr int KLog::s_iNoThreadLevel;
@@ -232,18 +248,28 @@ void KLog::SetThreadLevel(int iLevel)
 {
 	bool bOwnLevel = iLevel != s_iNoThreadLevel;
 
-	if (bOwnLevel != s_ThreadLevelGuard.bCounted)
+	// a thread without a level of its own that keeps it that way changes
+	// nothing in the bookkeeping - this is the common call of SyncLevel()
+	if (bOwnLevel || s_ThreadLevelGuard.bCounted)
 	{
-		if (bOwnLevel)
+		std::lock_guard<std::mutex> Lock(LevelMutex());
+
+		if (bOwnLevel != s_ThreadLevelGuard.bCounted)
 		{
-			s_iThreadsWithOwnLevel.fetch_add(1, std::memory_order_relaxed);
-		}
-		else
-		{
-			s_iThreadsWithOwnLevel.fetch_sub(1, std::memory_order_relaxed);
+			s_iThreadsWithOwnLevel += bOwnLevel ? 1 : -1;
+			s_ThreadLevelGuard.bCounted = bOwnLevel;
 		}
 
-		s_ThreadLevelGuard.bCounted = bOwnLevel;
+		if (s_iThreadsWithOwnLevel == 0)
+		{
+			s_iHighestThreadLevel = s_iNoThreadLevel;
+		}
+		else if (iLevel > s_iHighestThreadLevel)
+		{
+			s_iHighestThreadLevel = iLevel;
+		}
+
+		UpdateGateLevel();
 	}
 
 	s_iThreadLogLevel = iLevel;
@@ -251,12 +277,27 @@ void KLog::SetThreadLevel(int iLevel)
 } // SetThreadLevel
 
 //---------------------------------------------------------------------------
+void KLog::UpdateGateLevel()
+//---------------------------------------------------------------------------
+{
+	auto iGate = s_iLogLevel.load(std::memory_order_relaxed);
+
+	if (s_iThreadsWithOwnLevel > 0 && s_iHighestThreadLevel > iGate)
+	{
+		iGate = s_iHighestThreadLevel;
+	}
+
+	s_iGateLevel.store(iGate, std::memory_order_relaxed);
+
+} // UpdateGateLevel
+
+//---------------------------------------------------------------------------
 KLog::ThreadLevelGuard::~ThreadLevelGuard()
 //---------------------------------------------------------------------------
 {
 	if (bCounted)
 	{
-		s_iThreadsWithOwnLevel.fetch_sub(1, std::memory_order_relaxed);
+		SetThreadLevel(s_iNoThreadLevel);
 	}
 
 } // ~ThreadLevelGuard
@@ -429,7 +470,11 @@ KLog& KLog::SetLevel(int iLevel)
 		IntDebug(0, DEKAF2_FUNCTION_NAME, kFormat("setting debug {} to {}", "level", iLevel));
 	}
 
-	s_iLogLevel = iLevel;
+	{
+		std::lock_guard<std::mutex> Lock(LevelMutex());
+		s_iLogLevel = iLevel;
+		UpdateGateLevel();
+	}
 
 /*
  * don't write anymore to the flag file - let this be done by external
@@ -1089,6 +1134,50 @@ void KLog::JSONTrace(KStringView sFunction)
 	}
 
 } // JSONTrace
+
+//---------------------------------------------------------------------------
+void detail::KLogMacros::LogMessage(int iLevel, KStringView sFunction, KStringView sMessage) noexcept
+//---------------------------------------------------------------------------
+{
+	DEKAF2_TRY
+	{
+		KLog::getInstance().IntDebug(iLevel, sFunction, sMessage);
+	}
+	DEKAF2_CATCH (...)
+	{
+		// a log message must not end the code that logs it
+	}
+
+} // LogMessage
+
+//---------------------------------------------------------------------------
+void detail::KLogMacros::LogFormatArgs(int iLevel, KStringView sFunction, KStringView sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& Args) noexcept
+//---------------------------------------------------------------------------
+{
+	if (KLog::WouldLog(iLevel))
+	{
+		DEKAF2_FORMAT_NAMESPACE::string_view svFormat(sFormat.data(), sFormat.size());
+
+#if !DEKAF2_FORMAT_INLINE || !DEKAF2_HAS_FORMAT_RUNTIME
+		LogMessage(iLevel, sFunction, kformat_detail::Format(svFormat, Args));
+#else
+		KString sMessage;
+
+		DEKAF2_TRY
+		{
+			sMessage = DEKAF2_FORMAT_NAMESPACE::vformat(svFormat, Args);
+		}
+		DEKAF2_CATCH (...)
+		{
+			sMessage = "bad format arguments for: ";
+			sMessage += sFormat;
+		}
+
+		LogMessage(iLevel, sFunction, sMessage);
+#endif
+	}
+
+} // LogFormatArgs
 
 DEKAF2_NAMESPACE_END
 

@@ -184,6 +184,82 @@ TEST_CASE("KLog") {
 	}
 }
 
+#ifdef DEKAF2_WITH_KLOG
+
+namespace {
+
+// an argument whose formatter logs a message itself
+struct SelfLoggingArg {};
+
+} // end of anonymous namespace
+
+namespace DEKAF2_FORMAT_NAMESPACE
+{
+
+template <>
+struct formatter<SelfLoggingArg> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const SelfLoggingArg&, FormatContext& ctx) const
+	{
+		kDebug(1, "message from inside the formatter");
+		return formatter<string_view>::format("argument", ctx);
+	}
+};
+
+} // end of namespace DEKAF2_FORMAT_NAMESPACE
+
+TEST_CASE("KLog message buffer")
+{
+	KTempDir TmpDir;
+	auto sLogFile = kFormat("{}/klog-buffer.log", TmpDir.Name());
+
+	auto Restore = KLog::getInstance().GetLevel();
+	KLog::getInstance().SetDebugLog(sLogFile);
+	KLog::getInstance().SetLevel(1);
+
+	SECTION("a log call from a formatter is dropped, the message stays intact")
+	{
+		kDebug(1, "outer message with an {} that logs itself", SelfLoggingArg{});
+		KString sOut;
+		kReadAll(sLogFile, sOut);
+		CHECK (  sOut.contains("outer message with an argument that logs itself") );
+		CHECK ( !sOut.contains("message from inside the formatter") );
+	}
+
+	SECTION("each message starts with an empty buffer")
+	{
+		kDebug(1, "first message {}", "with some more text");
+		kDebug(1, "second message {}", 2);
+		KString sOut;
+		kReadAll(sLogFile, sOut);
+		CHECK (  sOut.contains("first message with some more text") );
+		CHECK (  sOut.contains("second message 2") );
+		CHECK ( !sOut.contains("textsecond") );
+	}
+
+	SECTION("a message larger than the kept buffer, and a short one after it")
+	{
+		// KLog removes trailing spaces, so the text ends without one
+		KString sLarge = "large message";
+		for (int i = 0; i < 500; ++i)
+		{
+			sLarge += " large message";
+		}
+		kDebug(1, "{}", sLarge);
+		kDebug(1, "short message {}", 42);
+		KString sOut;
+		kReadAll(sLogFile, sOut);
+		CHECK ( sOut.contains(sLarge) );
+		CHECK ( sOut.contains("short message 42") );
+	}
+
+	KLog::getInstance().SetLevel(Restore);
+	KLog::getInstance().SetDebugLog("");
+}
+
+#endif // of DEKAF2_WITH_KLOG
+
 #if defined(DEKAF2_IS_WINDOWS) && defined(DEKAF2_WITH_KLOG)
 
 #include <dekaf2/core/logging/bits/klogwriter.h>

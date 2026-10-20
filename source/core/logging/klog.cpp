@@ -114,6 +114,49 @@ std::mutex& LevelMutex()
 	return *s_Mutex;
 }
 
+// set when the message buffer of the thread is destroyed - this flag is trivially
+// destructible and therefore still valid for log calls from destructors that run
+// after the thread_local objects of the thread, e.g. of static objects at program exit
+thread_local bool s_bMessageBufferDestroyed { false };
+
+//---------------------------------------------------------------------------
+/// the buffer of a thread for the formatted log message, reused for the next message
+struct MessageBuffer
+//---------------------------------------------------------------------------
+{
+	~MessageBuffer() { s_bMessageBufferDestroyed = true; }
+
+	KString sMessage;
+
+}; // MessageBuffer
+
+thread_local MessageBuffer s_MessageBuffer;
+
+// a message buffer with a larger capacity is released after the message was
+// logged, so that a thread does not keep the capacity of a large message
+constexpr std::size_t iMaxMessageBufferCapacity = 4 * 1024;
+
+//---------------------------------------------------------------------------
+/// formats the log message into the empty sMessage
+void FormatLogMessage(KString& sMessage, DEKAF2_FORMAT_NAMESPACE::string_view svFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& Args) noexcept
+//---------------------------------------------------------------------------
+{
+#if !DEKAF2_FORMAT_INLINE || !DEKAF2_HAS_FORMAT_RUNTIME
+	kformat_detail::FormatAppend(sMessage, svFormat, Args);
+#else
+	DEKAF2_TRY
+	{
+		DEKAF2_FORMAT_NAMESPACE::vformat_to(std::back_inserter(sMessage.str()), svFormat, Args);
+	}
+	DEKAF2_CATCH (...)
+	{
+		sMessage = "bad format arguments for: ";
+		sMessage.append(svFormat.data(), svFormat.size());
+	}
+#endif
+
+} // FormatLogMessage
+
 } // end of anonymous namespace
 
 #if DEKAF2_REPEAT_CONSTEXPR_VARIABLE
@@ -1158,23 +1201,41 @@ void detail::KLogMacros::LogFormatArgs(int iLevel, KStringView sFunction, KStrin
 	{
 		DEKAF2_FORMAT_NAMESPACE::string_view svFormat(sFormat.data(), sFormat.size());
 
-#if !DEKAF2_FORMAT_INLINE || !DEKAF2_HAS_FORMAT_RUNTIME
-		LogMessage(iLevel, sFunction, kformat_detail::Format(svFormat, Args));
-#else
-		KString sMessage;
-
-		DEKAF2_TRY
+		if (DEKAF2_UNLIKELY(s_bMessageBufferDestroyed))
 		{
-			sMessage = DEKAF2_FORMAT_NAMESPACE::vformat(svFormat, Args);
+			// the thread_local objects of this thread are already destroyed
+			KString sMessage;
+			FormatLogMessage(sMessage, svFormat, Args);
+			LogMessage(iLevel, sFunction, sMessage);
+			return;
 		}
-		DEKAF2_CATCH (...)
+
+		auto& sMessage = s_MessageBuffer.sMessage;
+
 		{
-			sMessage = "bad format arguments for: ";
-			sMessage += sFormat;
+			// a log call from the formatting, e.g. from the formatter of an argument,
+			// would overwrite the buffer while it is written - the recursion guard
+			// therefore covers the formatting as well, and drops such a call like
+			// any other log call from inside KLog
+			KLog::PreventRecursion PR;
+
+			if (PR.IsRecursive())
+			{
+				return;
+			}
+
+			sMessage.clear();
+			FormatLogMessage(sMessage, svFormat, Args);
 		}
 
 		LogMessage(iLevel, sFunction, sMessage);
-#endif
+
+		if (sMessage.capacity() > iMaxMessageBufferCapacity)
+		{
+			// release the buffer with a swap - assigning an empty string keeps the
+			// capacity, and shrink_to_fit() is non-binding
+			KString().swap(sMessage);
+		}
 	}
 
 } // LogFormatArgs

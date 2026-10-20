@@ -222,7 +222,10 @@ void KLogTTYSerializer::Serialize(bool bHiRes)
 	// HiRes:
 	// | 11:34:48.123456 | 55717 |     0 | +123µs | 123ms | KHTTPClient::Parse(): HTTP-200 OK
 
-	auto sPrefix = PrintStatus(bHiRes);
+	auto& sPrefix = m_sPrefix;
+
+	sPrefix.clear();
+	PrintStatus(sPrefix, bHiRes);
 
 	auto PrefixWithoutFunctionSize = sPrefix.size();
 
@@ -273,7 +276,7 @@ KString KLogTTYSerializer::LevelAsString()
 } // LevelAsString
 
 //---------------------------------------------------------------------------
-KString KLogTTYSerializer::PrintStatus(bool bHiRes)
+void KLogTTYSerializer::PrintStatus(KStringRef& sAppendTo, bool bHiRes)
 //---------------------------------------------------------------------------
 {
 	// desired formats (the thread column shows the thread name where set,
@@ -286,7 +289,7 @@ KString KLogTTYSerializer::PrintStatus(bool bHiRes)
 
 	if (!bHiRes)
 	{
-		return kFormat("| {:3.3s} | {:5.5s} | {:5d} | {:11.11s} | {:%Y-%m-%d %H:%M:%S} | ",
+		kFormatAppend(sAppendTo, "| {:3.3s} | {:5.5s} | {:5d} | {:11.11s} | {:%Y-%m-%d %H:%M:%S} | ",
 					   LevelAsString(), m_sShortName, m_Pid,
 					   m_sThreadName.empty() ? kFormat("{}", m_Tid) : m_sThreadName, m_Time);
 	}
@@ -323,7 +326,7 @@ KString KLogTTYSerializer::PrintStatus(bool bHiRes)
 		uint64_t iThread = m_Tid < s_iStartThread ? m_Tid + 65535 - s_iStartThread : m_Tid - s_iStartThread;
 #endif
 
-		return kFormat("|{:2}| {:%H:%M:%S}.{:06} | {:5d} | {:11.11s} | +{:>5.5s} | {:>5.5s} | ",
+		kFormatAppend(sAppendTo, "|{:2}| {:%H:%M:%S}.{:06} | {:5d} | {:11.11s} | +{:>5.5s} | {:>5.5s} | ",
 					   m_iLevel,
 					   m_Time,
 					   m_Time.subseconds().microseconds().count(),
@@ -375,14 +378,14 @@ KString KLogHTTPHeaderSerializer::GetTimeStamp(KStringView sWhat)
 } // GetTimeStamp
 
 //---------------------------------------------------------------------------
-KString KLogHTTPHeaderSerializer::PrintStatus(bool bHiRes)
+void KLogHTTPHeaderSerializer::PrintStatus(KStringRef& sAppendTo, bool bHiRes)
 //---------------------------------------------------------------------------
 {
 	// desired format:
 	// | WAR |      12345 |
 
 	auto sMicroseconds = kFormNumber(m_iElapsedMicroSeconds.count());
-	return kFormat("| {:3.3s} | {:>10.10s} | ", LevelAsString(), sMicroseconds);
+	kFormatAppend(sAppendTo, "| {:3.3s} | {:>10.10s} | ", LevelAsString(), sMicroseconds);
 
 } // Serialize
 

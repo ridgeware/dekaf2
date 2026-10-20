@@ -147,10 +147,15 @@ protected:
 //----------
 
 	virtual void Serialize(bool bHiRes) override;
-	virtual KString PrintStatus(bool bHiRes);
+	/// appends the status columns of the line to sAppendTo
+	virtual void PrintStatus(KStringRef& sAppendTo, bool bHiRes);
 	KString LevelAsString();
 
 	void AddMultiLineMessage(KStringView sPrefix, KStringView sMessage);
+
+	// the prefix of the current line - a member, so that the next message reuses
+	// its capacity instead of allocating
+	KString m_sPrefix;
 
 }; // KLogTTYSerializer
 
@@ -194,7 +199,7 @@ public:
 protected:
 //----------
 
-	virtual KString PrintStatus(bool bHiRes) override;
+	virtual void PrintStatus(KStringRef& sAppendTo, bool bHiRes) override;
 
 	KStopTime m_Clock;
 	std::chrono::microseconds m_iElapsedMicroSeconds { 0 };

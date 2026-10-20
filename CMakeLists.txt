@@ -1734,6 +1734,7 @@ set (BITS_HEADERS
 	source/core/strings/bits/kbyterarity.h
 	source/core/strings/bits/kfindsetofchars.h
 	source/core/strings/bits/kstring_view.h
+	source/core/strings/bits/kstringref.h
 	source/core/strings/bits/kstringviewz.h
 	source/core/types/bits/kmake_unique.h
 	source/core/types/bits/kunique_deleter.h

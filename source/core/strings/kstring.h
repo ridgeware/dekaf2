@@ -50,6 +50,7 @@
 
 #include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/strings/bits/kstring_view.h>
+#include <dekaf2/core/strings/bits/kstringref.h>
 #include <dekaf2/core/types/ktemplate.h>
 #include <dekaf2/core/types/kctype.h>
 #include <dekaf2/core/format/bits/kformat.h>
@@ -66,22 +67,6 @@ class KStringView;
 class KStringViewZ;
 class KFindSetOfChars;
 namespace kutf { template<typename Iterator> class CodepointRange; }
-
-#if defined(DEKAF2_IS_APPLE_CLANG) && DEKAF2_CLANG_VERSION < 120000
-/// A reference-compatible string type for use as output parameters.
-/// On older Apple Clang (< 12) this is KString itself; on all other
-/// compilers it is std::string, which converts to/from KString transparently.
-/// Use `KStringRef&` in function signatures that write into a caller-provided string.
-/// @ingroup core_strings
-using KStringRef = KString;
-#else
-/// A reference-compatible string type for use as output parameters.
-/// On older Apple Clang (< 12) this is KString itself; on all other
-/// compilers it is std::string, which converts to/from KString transparently.
-/// Use `KStringRef&` in function signatures that write into a caller-provided string.
-/// @ingroup core_strings
-using KStringRef = std::string;
-#endif
 
 namespace detail {
 

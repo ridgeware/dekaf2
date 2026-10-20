@@ -135,7 +135,7 @@ CONSTANTS:
 */
 enum {MAXOPTIONS =     19};	/* max number of menu items */
 #define DEFAULT_TITLE	"**  M E N U **"
-#define	DEFAULT_MSG	    "SELECTION:"
+#define DEFAULT_MSG	    "SELECTION:"
 
 /*
 GLOBALS:

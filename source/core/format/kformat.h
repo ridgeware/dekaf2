@@ -50,6 +50,7 @@
 #include <ostream>
 #include <locale>
 #include <cstdio>
+#include <iterator>
 
 #if DEKAF2_HAS_FMT_FORMAT
 // fmt v10.0 doesn't support enum to int conversion anymore - add a generic conversion
@@ -139,6 +140,10 @@ namespace kformat_detail {
 // (but its implementation is in kformat.cpp)
 DEKAF2_NODISCARD DEKAF2_PUBLIC KString Format(const std::locale& locale, DEKAF2_FORMAT_NAMESPACE::string_view sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept;
 
+// FormatAppend overloads - the implementation is in kformat.cpp
+DEKAF2_PUBLIC void FormatAppend(KStringRef& sAppendTo, DEKAF2_FORMAT_NAMESPACE::string_view sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept;
+DEKAF2_PUBLIC void FormatAppend(const std::locale& locale, KStringRef& sAppendTo, DEKAF2_FORMAT_NAMESPACE::string_view sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept;
+
 } // end of namespace kformat_detail
 
 #endif // of !DEKAF2_FORMAT_INLINE || !DEKAF2_HAS_FORMAT_RUNTIME
@@ -157,7 +162,7 @@ template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kFormat(KFormatString<Args...> sFormat, Args&&... args) noexcept
 {
-#if	DEKAF2_FORMAT_INLINE
+#if DEKAF2_FORMAT_INLINE
 	return DEKAF2_FORMAT_NAMESPACE::format(sFormat, std::forward<Args>(args)...);
 #else
 	return kformat_detail::Format(sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
@@ -169,7 +174,7 @@ template<class... Args>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kFormat(const std::locale& locale, KFormatString<Args...> sFormat, Args&&... args) noexcept
 {
-#if	DEKAF2_FORMAT_INLINE
+#if DEKAF2_FORMAT_INLINE
 	return DEKAF2_FORMAT_NAMESPACE::format(locale, sFormat, std::forward<Args>(args)...);
 #else
 	return kformat_detail::Format(locale, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
@@ -205,6 +210,72 @@ KString kFormat(const std::locale& locale, KRuntimeFormatString sFormat, Args&&.
 	return DEKAF2_FORMAT_NAMESPACE::vformat(locale, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
 #else
 	return kformat_detail::Format(locale, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
+#endif
+}
+#endif // of !DEKAF2_HAS_FORMAT_RUNTIME
+
+// ---------------------------- kFormatAppend() ---------------------------- //
+
+/// format no-op, appends sFormat to sAppendTo
+DEKAF2_PUBLIC inline
+void kFormatAppend(KStringRef& sAppendTo, KFormatString<> sFormat) noexcept
+{
+	sAppendTo.append(sFormat.get().data(), sFormat.get().size());
+}
+
+/// formats using Python syntax and appends the result to sAppendTo - sAppendTo must not be one of the arguments
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+DEKAF2_PUBLIC
+void kFormatAppend(KStringRef& sAppendTo, KFormatString<Args...> sFormat, Args&&... args) noexcept
+{
+#if DEKAF2_FORMAT_INLINE
+	DEKAF2_FORMAT_NAMESPACE::format_to(std::back_inserter(sAppendTo), sFormat, std::forward<Args>(args)...);
+#else
+	kformat_detail::FormatAppend(sAppendTo, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
+#endif
+}
+
+/// formats using Python syntax and appends the result to sAppendTo, using locale specification for decimal points and time formatting (month and day names) - sAppendTo must not be one of the arguments
+template<class... Args>
+DEKAF2_PUBLIC
+void kFormatAppend(const std::locale& locale, KStringRef& sAppendTo, KFormatString<Args...> sFormat, Args&&... args) noexcept
+{
+#if DEKAF2_FORMAT_INLINE
+	DEKAF2_FORMAT_NAMESPACE::format_to(std::back_inserter(sAppendTo), locale, sFormat, std::forward<Args>(args)...);
+#else
+	kformat_detail::FormatAppend(locale, sAppendTo, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
+#endif
+}
+
+#if !DEKAF2_HAS_FORMAT_RUNTIME
+/// format no-op, appends sFormat to sAppendTo
+DEKAF2_PUBLIC inline
+void kFormatAppend(KStringRef& sAppendTo, KRuntimeFormatString sFormat) noexcept
+{
+	sAppendTo.append(sFormat.get().data(), sFormat.get().size());
+}
+
+/// formats using Python syntax and appends the result to sAppendTo - sAppendTo must not be one of the arguments
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+DEKAF2_PUBLIC
+void kFormatAppend(KStringRef& sAppendTo, KRuntimeFormatString sFormat, Args&&... args) noexcept
+{
+#if DEKAF2_FORMAT_INLINE
+	DEKAF2_FORMAT_NAMESPACE::vformat_to(std::back_inserter(sAppendTo), sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
+#else
+	kformat_detail::FormatAppend(sAppendTo, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
+#endif
+}
+
+/// formats using Python syntax and appends the result to sAppendTo, using locale specification for decimal points and time formatting (month and day names) - sAppendTo must not be one of the arguments
+template<class... Args>
+DEKAF2_PUBLIC
+void kFormatAppend(const std::locale& locale, KStringRef& sAppendTo, KRuntimeFormatString sFormat, Args&&... args) noexcept
+{
+#if DEKAF2_FORMAT_INLINE
+	DEKAF2_FORMAT_NAMESPACE::vformat_to(std::back_inserter(sAppendTo), locale, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
+#else
+	kformat_detail::FormatAppend(locale, sAppendTo, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
 #endif
 }
 #endif // of !DEKAF2_HAS_FORMAT_RUNTIME

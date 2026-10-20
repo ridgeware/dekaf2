@@ -7,6 +7,7 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/core/init/kcompatibility.h>
+#include <locale>
 
 using namespace dekaf2;
 
@@ -91,5 +92,75 @@ TEST_CASE("kFormat")
 		auto s = kFormat(">| {:<3.3} | {:<5.5} | {:<5.5} | {:<19.19} | {:<7.7} | {}{}/p>",
 						 KString("1"), KString("2"), KString("3"), KString("4"), KString("5"), KString("6"), '<');
 		CHECK ( s == ">| 1   | 2     | 3     | 4                   | 5       | 6</p>" );
+	}
+}
+
+namespace {
+
+// a locale that groups thousands with '.', independent of the locales installed on the system
+struct DotGrouping : public std::numpunct<char>
+{
+	char        do_thousands_sep() const override { return '.';  }
+	std::string do_grouping()      const override { return "\3"; }
+};
+
+} // end of anonymous namespace
+
+TEST_CASE("kFormatAppend")
+{
+	SECTION("basics")
+	{
+		KString sOut = "start:";
+		kFormatAppend(sOut, " {} {}", "hello"_ksv, 42);
+		CHECK ( sOut == "start: hello 42" );
+		kFormatAppend(sOut, " no args");
+		CHECK ( sOut == "start: hello 42 no args" );
+	}
+
+	SECTION("std::string")
+	{
+		std::string sOut = "x";
+		kFormatAppend(sOut, "{:>5}", 7);
+		CHECK ( sOut == "x    7" );
+	}
+
+	SECTION("same output as kFormat")
+	{
+		KString sOut = ">";
+		kFormatAppend(sOut, "| {:<3.3} | {:<5.5} | {:>8} | {:x} | {} |", KString("1"), "2"_ksv, 3.5, 255, 'c');
+		CHECK ( sOut == ">" + kFormat("| {:<3.3} | {:<5.5} | {:>8} | {:x} | {} |", KString("1"), "2"_ksv, 3.5, 255, 'c') );
+	}
+
+	SECTION("long output")
+	{
+		KString sOut = "prefix";
+		KString sLong(1000, 'a');
+		kFormatAppend(sOut, "|{}|{}|", sLong, 123);
+		CHECK ( sOut == "prefix|" + sLong + "|123|" );
+	}
+
+	SECTION("locale")
+	{
+		std::locale Locale(std::locale::classic(), new DotGrouping);
+		KString sOut = "n=";
+		kFormatAppend(Locale, sOut, "{:L}", 1234567);
+		CHECK ( sOut == "n=1.234.567" );
+	}
+
+	SECTION("runtime format string")
+	{
+		KString sFormat = "{}-{}";
+		KString sOut = "a";
+		kFormatAppend(sOut, KRuntimeFormat(sFormat), 1, 2);
+		CHECK ( sOut == "a1-2" );
+	}
+
+	SECTION("bad format arguments append nothing")
+	{
+		// the first replacement field is written before the second one fails
+		KString sFormat = "{} {:d}";
+		KString sOut = "unchanged";
+		kFormatAppend(sOut, KRuntimeFormat(sFormat), "text", "not a number");
+		CHECK ( sOut == "unchanged" );
 	}
 }

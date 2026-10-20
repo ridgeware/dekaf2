@@ -118,7 +118,7 @@ void kJoin (Result& Out,
 
 		for (;;)
 		{
-			Out += kformat_detail::FormatElement(*it);
+			kformat_detail::AppendElement(Out, *it);
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{
@@ -196,9 +196,9 @@ void kJoin (Result& Out,
 
 		for (;;)
 		{
-			Out += kformat_detail::FormatElement(it->first);
+			kformat_detail::AppendElement(Out, it->first);
 			Out += svPairDelim;
-			Out += kformat_detail::FormatElement(it->second);
+			kformat_detail::AppendElement(Out, it->second);
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{

@@ -396,6 +396,49 @@ TEST_CASE("kJoin")
 		CHECK (sResult == "1=one,2=two,3=three,4=four" );
 	}
 
+	SECTION("vector/std::string/kFormat")
+	{
+		std::vector<uint64_t> vec {
+			1,
+			2,
+			3,
+			4
+		};
+
+		std::string sResult;
+		kJoin(sResult, vec);
+
+		CHECK (sResult == "1,2,3,4" );
+	}
+
+	SECTION("map/std::string/kFormat")
+	{
+		std::map<uint64_t, double> map {
+			{ 1 , 1.5  },
+			{ 2 , 2.25 }
+		};
+
+		std::string sResult;
+		kJoin(sResult, map);
+
+		CHECK (sResult == "1=1.5,2=2.25" );
+	}
+
+	SECTION("vector/string/kFormat/append")
+	{
+		std::vector<uint64_t> vec {
+			1,
+			2,
+			3,
+			4
+		};
+
+		KString sResult = "start:";
+		kJoin(sResult, vec, ",", "=", true);
+
+		CHECK (sResult == "start:1,2,3,4," );
+	}
+
 }
 
 TEST_CASE("kJoined")

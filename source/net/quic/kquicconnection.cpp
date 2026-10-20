@@ -929,14 +929,14 @@ bool KQuicConnection::Read()
 					switch (ccerr->type)
 					{
 						case NGTCP2_CCERR_TYPE_TRANSPORT:
-							sError += kFormat(", transport error 0x{:x}", ccerr->error_code);
+							kFormatAppend(sError, ", transport error 0x{:x}", ccerr->error_code);
 							if (ccerr->error_code >= NGTCP2_CRYPTO_ERROR && ccerr->error_code < NGTCP2_CRYPTO_ERROR + 0x100)
 							{
-								sError += kFormat(" (TLS alert {})", ccerr->error_code - NGTCP2_CRYPTO_ERROR);
+								kFormatAppend(sError, " (TLS alert {})", ccerr->error_code - NGTCP2_CRYPTO_ERROR);
 							}
 							break;
 						case NGTCP2_CCERR_TYPE_APPLICATION:
-							sError += kFormat(", application error 0x{:x}", ccerr->error_code);
+							kFormatAppend(sError, ", application error 0x{:x}", ccerr->error_code);
 							break;
 						default:
 							break;
@@ -944,7 +944,7 @@ bool KQuicConnection::Read()
 
 					if (ccerr->reasonlen)
 					{
-						sError += kFormat(": {}", KStringView(reinterpret_cast<const char*>(ccerr->reason), ccerr->reasonlen));
+						kFormatAppend(sError, ": {}", KStringView(reinterpret_cast<const char*>(ccerr->reason), ccerr->reasonlen));
 					}
 				}
 
@@ -1160,7 +1160,7 @@ bool KQuicConnection::Fail(int iError)
 
 			if (iVerify != X509_V_OK)
 			{
-				sError += kFormat(", verify error: {}", ::X509_verify_cert_error_string(iVerify));
+				kFormatAppend(sError, ", verify error: {}", ::X509_verify_cert_error_string(iVerify));
 			}
 		}
 

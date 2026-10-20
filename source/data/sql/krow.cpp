@@ -642,15 +642,15 @@ void KROW::PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const
 		if (it.second.sValue.empty() && !it.second.IsFlag (KCOL::NULL_IS_NOT_NIL))
 		{
 			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
-			sSQL.ref() += kFormat ("{}\n\tnull", (bComma) ? "," : "");
+			kFormatAppend (sSQL.ref(), "{}\n\tnull", (bComma) ? "," : "");
 		}
 		else if (it.second.HasFlag (KCOL::BINARY))
 		{
-			sSQL.ref() += kFormat ("{}\n\t{}", (bComma) ? "," : "", BinaryToSQL(it.second.sValue, iDBType));
+			kFormatAppend (sSQL.ref(), "{}\n\t{}", (bComma) ? "," : "", BinaryToSQL(it.second.sValue, iDBType));
 		}
 		else if (bHack || it.second.HasFlag (KCOL::NUMERIC | KCOL::MONEY | KCOL::BOOLEAN | KCOL::EXPRESSION))
 		{
-			sSQL.ref() += kFormat ("{}\n\t{}", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
+			kFormatAppend (sSQL.ref(), "{}\n\t{}", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
 		}
 		else
 		{
@@ -659,10 +659,10 @@ void KROW::PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const
 			// be placed into SQL as '' instead of SQL null.
 			// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
 			// will not properly decode them!
-			sSQL.ref() += kFormat ("{}\n\t{}'{}'",
-							 (bComma) ? "," : "",
-							 NeedsUnicodeLiterals(iDBType) ? "N" : "",
-							 EscapeChars (it, iDBType));
+			kFormatAppend (sSQL.ref(), "{}\n\t{}'{}'",
+			                           (bComma) ? "," : "",
+			                           NeedsUnicodeLiterals(iDBType) ? "N" : "",
+			                           EscapeChars (it, iDBType));
 		}
 		bComma = true;
 	}
@@ -698,15 +698,15 @@ KSQLString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool b
 
 	if (bIgnore && iDBType == DBT::SQLITE3)
 	{
-		sSQL.ref() += kFormat("insert or ignore into {} (", GetTablename());
+		kFormatAppend(sSQL.ref(), "insert or ignore into {} (", GetTablename());
 	}
 	else if (bIgnore && iDBType != DBT::POSTGRESQL)
 	{
-		sSQL.ref() += kFormat("insert ignore into {} (", GetTablename());
+		kFormatAppend(sSQL.ref(), "insert ignore into {} (", GetTablename());
 	}
 	else
 	{
-		sSQL.ref() += kFormat("insert into {} (", GetTablename());
+		kFormatAppend(sSQL.ref(), "insert into {} (", GetTablename());
 	}
 
 	kDebug (3, GetTablename());
@@ -722,7 +722,7 @@ KSQLString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool b
 			continue;
 		}
 		
-		sSQL.ref() += kFormat ("{}\n\t{}", (bComma) ? "," : "", it.first);
+		kFormatAppend (sSQL.ref(), "{}\n\t{}", (bComma) ? "," : "", it.first);
 		bComma = true;
 	}
 
@@ -812,7 +812,7 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 
 	KROW Keys;
 
-	sSQL.ref() += kFormat ("update {} set\n", GetTablename());
+	kFormatAppend (sSQL.ref(), "update {} set\n", GetTablename());
 
 	kDebug (3, m_sTablename);
 
@@ -831,14 +831,14 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 		}
 		else if (it.second.HasFlag (KCOL::EXPRESSION))
 		{
-			sSQL.ref() += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, it.second.sValue);
+			kFormatAppend (sSQL.ref(), "\t{}{}={}\n", (bComma) ? "," : "", it.first, it.second.sValue);
 			bComma = true;
 		}
 		else if (it.second.HasFlag (KCOL::BOOLEAN))
 		{
 			KString sValue = it.second.sValue;
 			sValue.Trim();
-			sSQL.ref() += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, sValue ? sValue : "false");
+			kFormatAppend (sSQL.ref(), "\t{}{}={}\n", (bComma) ? "," : "", it.first, sValue ? sValue : "false");
 			bComma = true;
 		}
 		else
@@ -851,33 +851,33 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 				}
 				else
 				{
-					sSQL.ref() += kFormat ("\t{}{}=null\n", (bComma) ? "," : "", it.first);
+					kFormatAppend (sSQL.ref(), "\t{}{}=null\n", (bComma) ? "," : "", it.first);
 				}
 			}
 			else
 			{
-				sSQL.ref() += kFormat ("\t{}{}=", (bComma) ? "," : "", it.first);
+				kFormatAppend (sSQL.ref(), "\t{}{}=", (bComma) ? "," : "", it.first);
 
 				if (it.second.HasFlag (KCOL::INCREMENT))
 				{
-					sSQL.ref() += kFormat ("{}+", it.first);
+					kFormatAppend (sSQL.ref(), "{}+", it.first);
 				}
 
 				if (it.second.HasFlag (KCOL::BINARY))
 				{
-					sSQL.ref() += kFormat ("{}\n", BinaryToSQL(it.second.sValue, iDBType));
+					kFormatAppend (sSQL.ref(), "{}\n", BinaryToSQL(it.second.sValue, iDBType));
 				}
 				else if (it.second.HasFlag (KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 				{
-					sSQL.ref() += kFormat ("{}\n", EscapeChars (it, iDBType));
+					kFormatAppend (sSQL.ref(), "{}\n", EscapeChars (it, iDBType));
 				}
 				else
 				{
 					// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
 					// will not properly decode them!
-					sSQL.ref() += kFormat ("{}'{}'\n",
-										   NeedsUnicodeLiterals(iDBType) ? "N" : "",
-										   EscapeChars (it, iDBType));
+					kFormatAppend (sSQL.ref(), "{}'{}'\n",
+					                           NeedsUnicodeLiterals(iDBType) ? "N" : "",
+					                           EscapeChars (it, iDBType));
 				}
 			}
 			bComma = true;
@@ -908,23 +908,23 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 			sPrefix = "   and ";
 		}
 		
-		sSQL.ref() += kFormat("{}{}=", sPrefix, it.first);
+		kFormatAppend(sSQL.ref(), "{}{}=", sPrefix, it.first);
 
 		if (it.second.HasFlag(KCOL::BINARY))
 		{
-			sSQL.ref() += kFormat("{}\n", BinaryToSQL(it.second.sValue, iDBType));
+			kFormatAppend(sSQL.ref(), "{}\n", BinaryToSQL(it.second.sValue, iDBType));
 		}
 		else if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
-			sSQL.ref() += kFormat("{}\n", EscapeChars (it, iDBType));
+			kFormatAppend(sSQL.ref(), "{}\n", EscapeChars (it, iDBType));
 		}
 		else
 		{
 			// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
 			// will not properly decode them!
-			sSQL.ref() += kFormat("{}'{}'\n",
-								  NeedsUnicodeLiterals(iDBType) ? "N" : "",
-								  EscapeChars (it, iDBType));
+			kFormatAppend(sSQL.ref(), "{}'{}'\n",
+			                          NeedsUnicodeLiterals(iDBType) ? "N" : "",
+			                          EscapeChars (it, iDBType));
 		}
 	}
 
@@ -967,7 +967,7 @@ KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 		{
 			if (!it.second.HasFlag (KCOL::NONCOLUMN | KCOL::PKEY))
 			{
-				sSQL.ref() += kFormat("\t{} {}\n", (iColumns++) ? "," : "", it.first);
+				kFormatAppend(sSQL.ref(), "\t{} {}\n", (iColumns++) ? "," : "", it.first);
 			}
 		}
 
@@ -984,7 +984,7 @@ KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 	}
 
 
-	sSQL.ref() += kFormat("  from {}\n", GetTablename());
+	kFormatAppend(sSQL.ref(), "  from {}\n", GetTablename());
 
 	std::size_t iKeys { 0 };
 
@@ -996,21 +996,21 @@ KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 
 			if (it.second.HasFlag(KCOL::BINARY))
 			{
-				sSQL.ref() += kFormat("{}{}={}\n", sPrefix, it.first, BinaryToSQL(it.second.sValue, iDBType));
+				kFormatAppend(sSQL.ref(), "{}{}={}\n", sPrefix, it.first, BinaryToSQL(it.second.sValue, iDBType));
 			}
 			else if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 			{
-				sSQL.ref() += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
+				kFormatAppend(sSQL.ref(), "{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
 			}
 			else
 			{
 				// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
 				// will not properly decode them!
-				sSQL.ref() += kFormat("{}{}={}'{}'\n",
-								sPrefix,
-								it.first,
-								NeedsUnicodeLiterals(iDBType) ? "N" : "",
-								EscapeChars (it, iDBType));
+				kFormatAppend(sSQL.ref(), "{}{}={}'{}'\n",
+				                          sPrefix,
+				                          it.first,
+				                          NeedsUnicodeLiterals(iDBType) ? "N" : "",
+				                          EscapeChars (it, iDBType));
 			}
 		}
 	}
@@ -1050,7 +1050,7 @@ KSQLString KROW::FormDelete (DBT iDBType) const
 
 	Index kk = 0;
 
-	sSQL.ref() += kFormat("delete from {}\n", GetTablename());
+	kFormatAppend(sSQL.ref(), "delete from {}\n", GetTablename());
 
 	kDebug (3, GetTablename());
 
@@ -1063,25 +1063,25 @@ KSQLString KROW::FormDelete (DBT iDBType) const
 
 		if (it.second.sValue.empty())
 		{
-			sSQL.ref() += kFormat(" {} {} is null\n",(!kk) ? "where" : "  and", it.first);
+			kFormatAppend(sSQL.ref(), " {} {} is null\n",(!kk) ? "where" : "  and", it.first);
 		}
 		else if (it.second.HasFlag(KCOL::BINARY))
 		{
-			sSQL.ref() += kFormat(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, BinaryToSQL(it.second.sValue, iDBType));
+			kFormatAppend(sSQL.ref(), " {} {}={}\n",     (!kk) ? "where" : "  and", it.first, BinaryToSQL(it.second.sValue, iDBType));
 		}
 		else if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
-			sSQL.ref() += kFormat(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, EscapeChars (it, iDBType));
+			kFormatAppend(sSQL.ref(), " {} {}={}\n",     (!kk) ? "where" : "  and", it.first, EscapeChars (it, iDBType));
 		}
 		else
 		{
 			// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
 			// will not properly decode them!
-			sSQL.ref() += kFormat(" {} {}={}'{}'\n",
-							(!kk) ? "where" : "  and",
-							it.first,
-							NeedsUnicodeLiterals(iDBType) ? "N" : "",
-							EscapeChars (it, iDBType));
+			kFormatAppend(sSQL.ref(), " {} {}={}'{}'\n",
+			                          (!kk) ? "where" : "  and",
+			                          it.first,
+			                          NeedsUnicodeLiterals(iDBType) ? "N" : "",
+			                          EscapeChars (it, iDBType));
 		}
 
 		++kk;

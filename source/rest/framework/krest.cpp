@@ -655,7 +655,7 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KR
 	KString sHeaders;
 	for (const auto& Header : Options.Simulate.AdditionalRequestHeaders)
 	{
-		sHeaders += kFormat("{}: {}\r\n", Header.first, Header.second);
+		kFormatAppend(sHeaders, "{}: {}\r\n", Header.first, Header.second);
 	}
 
 	KString sRequest;

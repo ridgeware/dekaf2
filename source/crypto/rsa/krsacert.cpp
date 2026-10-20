@@ -543,7 +543,7 @@ std::vector<KString> KRSACert::GetSANs() const
 				for (int b = 0; b < 16; b += 2)
 				{
 					if (!sIP.empty()) sIP += ':';
-					sIP += kFormat("{:02x}{:02x}", pIP[b], pIP[b + 1]);
+					kFormatAppend(sIP, "{:02x}{:02x}", pIP[b], pIP[b + 1]);
 				}
 				SANs.push_back(std::move(sIP));
 			}

@@ -477,12 +477,12 @@ KString KIPAddress6::ToString (bool bWithBraces, bool bUnabridged) const noexcep
 
 	if (bUnabridged)
 	{
-		sIP += kFormat("{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:"
-					   "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}",
-						m_IP[0],  m_IP[1],  m_IP[2],  m_IP[3],
-						m_IP[4],  m_IP[5],  m_IP[6],  m_IP[7],
-						m_IP[8],  m_IP[9],  m_IP[10], m_IP[11],
-						m_IP[12], m_IP[13], m_IP[14], m_IP[15]);
+		kFormatAppend(sIP, "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:"
+		                   "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}",
+		                    m_IP[0],  m_IP[1],  m_IP[2],  m_IP[3],
+		                    m_IP[4],  m_IP[5],  m_IP[6],  m_IP[7],
+		                    m_IP[8],  m_IP[9],  m_IP[10], m_IP[11],
+		                    m_IP[12], m_IP[13], m_IP[14], m_IP[15]);
 	}
 	else
 	{

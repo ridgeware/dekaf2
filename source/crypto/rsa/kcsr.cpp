@@ -168,11 +168,11 @@ bool KCSR::Create
 
 			if (kIsIPv4Address(sDomain) || kIsIPv6Address(sDomain, false))
 			{
-				sSAN += kFormat("IP:{}", sDomain);
+				kFormatAppend(sSAN, "IP:{}", sDomain);
 			}
 			else
 			{
-				sSAN += kFormat("DNS:{}", sDomain);
+				kFormatAppend(sSAN, "DNS:{}", sDomain);
 			}
 		}
 

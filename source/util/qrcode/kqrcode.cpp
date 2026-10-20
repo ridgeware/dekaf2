@@ -554,17 +554,17 @@ KString KQRCode::ToSVG(uint16_t iBorder, uint16_t iModulePixels) const
 			if (GetModule(x, y))
 			{
 				if (!sPath.empty()) sPath += ' ';
-				sPath += kFormat("M{} {}h1v1h-1z", x + iBorder, y + iBorder);
+				kFormatAppend(sPath, "M{} {}h1v1h-1z", x + iBorder, y + iBorder);
 			}
 		}
 	}
 
 	KString sOut;
 	sOut += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-	sOut += kFormat("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" "
-	                "viewBox=\"0 0 {} {}\" shape-rendering=\"crispEdges\">\n", px, px, dim, dim);
+	kFormatAppend(sOut, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" "
+	                    "viewBox=\"0 0 {} {}\" shape-rendering=\"crispEdges\">\n", px, px, dim, dim);
 	sOut += "<rect width=\"100%\" height=\"100%\" fill=\"#fff\"/>\n";
-	sOut += kFormat("<path d=\"{}\" fill=\"#000\"/>\n", sPath);
+	kFormatAppend(sOut, "<path d=\"{}\" fill=\"#000\"/>\n", sPath);
 	sOut += "</svg>\n";
 	return sOut;
 

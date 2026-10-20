@@ -1491,7 +1491,7 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout/*=30s*/, Transport Transp
 		m_sConnectString.Format ("DSN={};UID={};PWD={}", m_sDatabase, m_sUsername, m_sPassword);
 		if (!m_sHostname.empty())
 		{
-			m_sConnectString += kFormat (";HOST={}", m_sHostname);
+			kFormatAppend (m_sConnectString, ";HOST={}", m_sHostname);
 		}
 
 		// enum enumSQLDriverConnect {
@@ -1776,30 +1776,30 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout/*=30s*/, Transport Transp
 
 		if (!m_sHostname.empty())
 		{
-			sConnInfo += kFormat("host='{}' ", m_sHostname);
+			kFormatAppend(sConnInfo, "host='{}' ", m_sHostname);
 		}
 		if (m_iDBPortNum)
 		{
-			sConnInfo += kFormat("port='{}' ", m_iDBPortNum);
+			kFormatAppend(sConnInfo, "port='{}' ", m_iDBPortNum);
 		}
 		if (!m_sDatabase.empty())
 		{
-			sConnInfo += kFormat("dbname='{}' ", m_sDatabase);
+			kFormatAppend(sConnInfo, "dbname='{}' ", m_sDatabase);
 		}
 		if (!m_sUsername.empty())
 		{
-			sConnInfo += kFormat("user='{}' ", m_sUsername);
+			kFormatAppend(sConnInfo, "user='{}' ", m_sUsername);
 		}
 		if (!m_sPassword.empty())
 		{
-			sConnInfo += kFormat("password='{}' ", m_sPassword);
+			kFormatAppend(sConnInfo, "password='{}' ", m_sPassword);
 		}
 
 		auto iTimeoutSecs = chrono::duration_cast<chrono::seconds>(ConnectionTimeout).count();
 
 		if (iTimeoutSecs > 0)
 		{
-			sConnInfo += kFormat("connect_timeout='{}' ", iTimeoutSecs);
+			kFormatAppend(sConnInfo, "connect_timeout='{}' ", iTimeoutSecs);
 		}
 
 		kDebug (3, "PQconnectdb({})...", sConnInfo);
@@ -2623,7 +2623,7 @@ void KSQL::LogPerformance (KDuration iMilliseconds, bool bIsQuery)
 		KString sThreshold;
 		if (m_iWarnIfOverMilliseconds > chrono::milliseconds::zero())
 		{
-			sThreshold += kFormat (", warning set to {} ms", kFormNumber(m_iWarnIfOverMilliseconds));
+			kFormatAppend (sThreshold, ", warning set to {} ms", kFormNumber(m_iWarnIfOverMilliseconds));
 			kDebug (GetDebugLevel(), "took: {} ms{}", kFormNumber(iMilliseconds), sThreshold);
 		}
 	}
@@ -5491,7 +5491,7 @@ bool KSQL::WasOCICallOK (KStringView sContext, uint32_t iErrorNum, KStringRef& s
 		{
 			sError.erase(iPos/*, KStringRef::npos*/);
 		}
-		sError += kFormat(" [{}]", sContext);
+		kFormatAppend(sError, " [{}]", sContext);
 
 		if ( (iErrorNum == 0)    // ORA-00000: no error
 		  || (iErrorNum == 1405) // ORA-01405: fetched column value is nullptr
@@ -7974,7 +7974,7 @@ uint32_t KSQL::ctlib_check_errors ()
 		}
 		m_sCtLibLastError += m_sErrorPrefix;
 
-		m_sCtLibLastError += kFormat("CTLIB-{:05}: ", ClientMsg.msgnumber);
+		kFormatAppend(m_sCtLibLastError, "CTLIB-{:05}: ", ClientMsg.msgnumber);
 
 		int iLayer    = CS_LAYER(ClientMsg.msgnumber);
 		int iOrigin   = CS_ORIGIN(ClientMsg.msgnumber);
@@ -7982,24 +7982,24 @@ uint32_t KSQL::ctlib_check_errors ()
 
 		if (iLayer)
 		{
-			m_sCtLibLastError += kFormat("Layer {}, ", iLayer);
+			kFormatAppend(m_sCtLibLastError, "Layer {}, ", iLayer);
 		}
 
 		if (iOrigin)
 		{
-			m_sCtLibLastError += kFormat("Origin {}, ", iOrigin);
+			kFormatAppend(m_sCtLibLastError, "Origin {}, ", iOrigin);
 		}
 
 		if (iSeverity)
 		{
-			m_sCtLibLastError += kFormat("Severity {}, ", iSeverity);
+			kFormatAppend(m_sCtLibLastError, "Severity {}, ", iSeverity);
 		}
 
 		m_sCtLibLastError += ClientMsg.msgstring;
 
 		if (ClientMsg.osstringlen > 0)
 		{
-			m_sCtLibLastError += kFormat("OS-{:05}: {}", ClientMsg.osnumber, ClientMsg.osstring);
+			kFormatAppend(m_sCtLibLastError, "OS-{:05}: {}", ClientMsg.osnumber, ClientMsg.osstring);
 		}
 
 		++iNumErrors;
@@ -8060,7 +8060,7 @@ uint32_t KSQL::ctlib_check_errors ()
 		// TODO replace by smart insert after '\n' in SetError()
 		m_sCtLibLastError += m_sErrorPrefix;
 
-		m_sCtLibLastError += kFormat("SQL-{:05}: ", ServerMsg.msgnumber);
+		kFormatAppend(m_sCtLibLastError, "SQL-{:05}: ", ServerMsg.msgnumber);
 
 		if (ServerMsg.proclen)
 		{
@@ -8069,17 +8069,17 @@ uint32_t KSQL::ctlib_check_errors ()
 
 		if (ServerMsg.state)
 		{
-			m_sCtLibLastError += kFormat("State {}, ", ServerMsg.state);
+			kFormatAppend(m_sCtLibLastError, "State {}, ", ServerMsg.state);
 		}
 
 		if (ServerMsg.severity)
 		{
-			m_sCtLibLastError += kFormat("Severity {}, ", ServerMsg.severity);
+			kFormatAppend(m_sCtLibLastError, "Severity {}, ", ServerMsg.severity);
 		}
 
 		if (ServerMsg.line)
 		{
-			m_sCtLibLastError += kFormat("Line {}, ", ServerMsg.line);
+			kFormatAppend(m_sCtLibLastError, "Line {}, ", ServerMsg.line);
 		}
 
 		m_sCtLibLastError += ServerMsg.text;
@@ -9191,7 +9191,7 @@ KSQLString KSQL::FormGroupBy (uint8_t iNumCols)
 
 	for (uint8_t ii{1}; ii <= iNumCols; ++ii)
 	{
-		sGroupBy.ref() += kFormat ("{}{}", sGroupBy ? "," : " group by ", ii);
+		kFormatAppend (sGroupBy.ref(), "{}{}", sGroupBy ? "," : " group by ", ii);
 	}
 
 	if (sGroupBy)
@@ -11060,7 +11060,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 		if (jColumn.is_object() && !jColumn.empty())
 		{
 			auto it = jColumn.items().begin();
-			sResult += kFormat("{}{} {} {}\n",
+			kFormatAppend(sResult, "{}{} {} {}\n",
 				sDiffPrefix,
 				sPrefix,
 				it.key(),
@@ -11172,7 +11172,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	{
 		size_t iTableDiffs{0};
 
-		sSummary += kFormat ("{}{}", sDiffPrefix, sTablename); // <-- no newline on purpose
+		kFormatAppend (sSummary, "{}{}", sDiffPrefix, sTablename); // <-- no newline on purpose
 
 		int iCreateTable { 0 };
 		KSQLString sLeftCreate;
@@ -11180,14 +11180,14 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 
 		if (left.is_null())
 		{
-			sSummary += kFormat (" <-- table is only in {}\n", options[DIFF::right_schema]);
+			kFormatAppend (sSummary, " <-- table is only in {}\n", options[DIFF::right_schema]);
 			sRightCreate = FormatSQL ("drop table {}", sTablename);
 			iCreateTable = 'L'; // left
 			++iTableDiffs;
 		}
 		else if (right.is_null())
 		{
-			sSummary += kFormat (" <-- table is only in {}\n", options[DIFF::left_schema]);
+			kFormatAppend (sSummary, " <-- table is only in {}\n", options[DIFF::left_schema]);
 			sLeftCreate = FormatSQL ("drop table {}", sTablename);
 			iCreateTable = 'R'; // right
 			++iTableDiffs;
@@ -11347,8 +11347,8 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 
 			if (sLeftValue != sRightValue)
 			{
-				sSummary += kFormat ("{}{} {}: {} = {}\n", sDiffPrefix, sLeftPrefix,  sTablename, sLeftKey, sLeftValue);
-				sSummary += kFormat ("{}{} {}: {} = {}\n", sDiffPrefix, sRightPrefix, sTablename, sLeftKey, sRightValue);
+				kFormatAppend (sSummary, "{}{} {}: {} = {}\n", sDiffPrefix, sLeftPrefix,  sTablename, sLeftKey, sLeftValue);
+				kFormatAppend (sSummary, "{}{} {}: {} = {}\n", sDiffPrefix, sRightPrefix, sTablename, sLeftKey, sRightValue);
 				++iTableDiffs;
 			}
 		}

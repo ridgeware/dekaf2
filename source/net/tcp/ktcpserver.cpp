@@ -128,11 +128,11 @@ static KString BuildSANString(SelfSignedCertSANPolicy Policy, const std::vector<
 	{
 		if (kIsIPv4Address(sDomain) || kIsIPv6Address(sDomain, false))
 		{
-			sSANs += kFormat(",IP:{}", sDomain);
+			kFormatAppend(sSANs, ",IP:{}", sDomain);
 		}
 		else
 		{
-			sSANs += kFormat(",DNS:{}", sDomain);
+			kFormatAppend(sSANs, ",DNS:{}", sDomain);
 		}
 	}
 
@@ -140,7 +140,7 @@ static KString BuildSANString(SelfSignedCertSANPolicy Policy, const std::vector<
 	{
 		for (auto& net : KNetworkInterface::GetRoutableNetworks())
 		{
-			sSANs += kFormat(",IP:{}", net.ToString(false));
+			kFormatAppend(sSANs, ",IP:{}", net.ToString(false));
 		}
 	}
 

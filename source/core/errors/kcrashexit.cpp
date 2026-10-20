@@ -132,7 +132,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 
 	case SIGPIPE:
 		sVerb = "SIGPIPE";
-		sWarning += kFormat ("|       * * *  SIGPIPE  * * *\n");
+		kFormatAppend (sWarning, "|       * * *  SIGPIPE  * * *\n");
 		break;
 #endif
 
@@ -152,7 +152,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 		sWarning += '\n';
 		for (const auto sLine : g_tl_sCrashContext.Split("\n"))
 		{
-			sWarning += kFormat (">> {}: {}\n", sVerb, sLine);
+			kFormatAppend (sWarning, ">> {}: {}\n", sVerb, sLine);
 		}
 		for (int i = 0; i < 44; ++i)
 		{
@@ -162,13 +162,13 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	}
 	else
 	{
-		sWarning += kFormat ("|{:^17}\n",      '*');
-		sWarning += kFormat ("|{:^17}\n", "*    *    *");
-		sWarning += kFormat ("|{:^17}\n",   "*  *  *");
-		sWarning += kFormat ("|{:^17}\n",     sVerb);
-		sWarning += kFormat ("|{:^17}\n",   "*  *  *");
-		sWarning += kFormat ("|{:^17}\n", "*    *    *");
-		sWarning += kFormat ("|{:^17}\n",      '*');
+		kFormatAppend (sWarning, "|{:^17}\n",      '*');
+		kFormatAppend (sWarning, "|{:^17}\n", "*    *    *");
+		kFormatAppend (sWarning, "|{:^17}\n",   "*  *  *");
+		kFormatAppend (sWarning, "|{:^17}\n",     sVerb);
+		kFormatAppend (sWarning, "|{:^17}\n",   "*  *  *");
+		kFormatAppend (sWarning, "|{:^17}\n", "*    *    *");
+		kFormatAppend (sWarning, "|{:^17}\n",      '*');
 	}
 
 	// identify the crashing thread - klog prefixes each line with the thread name
@@ -178,11 +178,11 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 
 		if (sThreadName.empty())
 		{
-			sWarning += kFormat ("in thread {}\n", kGetTid());
+			kFormatAppend (sWarning, "in thread {}\n", kGetTid());
 		}
 		else
 		{
-			sWarning += kFormat ("in thread {} (tid {})\n", sThreadName, kGetTid());
+			kFormatAppend (sWarning, "in thread {} (tid {})\n", sThreadName, kGetTid());
 		}
 	}
 
@@ -192,25 +192,25 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	// self-detected crash conditions:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	case 0:
-		sWarning += kFormat ("CRASHCODE=0: self-detected crash condition\n");
+		kFormatAppend (sWarning, "CRASHCODE=0: self-detected crash condition\n");
 		break;
 	case CRASHCODE_MEMORY:
-		sWarning += kFormat ("CRASHCODE_MEMORY: self-detected dynamic allocation error\n");
+		kFormatAppend (sWarning, "CRASHCODE_MEMORY: self-detected dynamic allocation error\n");
 		break;
 	case CRASHCODE_TODO:
-		sWarning += kFormat ("CRASHCODE_TODO: feature not implemented yet\n");
+		kFormatAppend (sWarning, "CRASHCODE_TODO: feature not implemented yet\n");
 		break;
 	case CRASHCODE_DEKAFUSAGE:
-		sWarning += kFormat ("CRASHCODE_DEKAFUSAGE: invalid DEKAF framework usage\n");
+		kFormatAppend (sWarning, "CRASHCODE_DEKAFUSAGE: invalid DEKAF framework usage\n");
 		break;
 	case CRASHCODE_CORRUPT:
-		sWarning += kFormat ("CRASHCODE_CORRUPT: self-detected memory corruption\n");
+		kFormatAppend (sWarning, "CRASHCODE_CORRUPT: self-detected memory corruption\n");
 		break;
 	case CRASHCODE_DBERROR:
-		sWarning += kFormat ("CRASHCODE_DBERROR: self-detected fatal database error\n");
+		kFormatAppend (sWarning, "CRASHCODE_DBERROR: self-detected fatal database error\n");
 		break;
 	case CRASHCODE_DBINTEGRITY:
-		sWarning += kFormat ("CRASHCODE_DBINTEGRITY: self-detected database integrity problem\n");
+		kFormatAppend (sWarning, "CRASHCODE_DBINTEGRITY: self-detected database integrity problem\n");
 		break;
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// standard UNIX signals:
@@ -233,7 +233,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 				// try to isolate the crashing line
 				void* address = siginfo->si_addr;
 
-				sWarning += kFormat("\nerror at address {}:", address);
+				kFormatAppend(sWarning, "\nerror at address {}:", address);
 
 				if (address)
 				{
@@ -253,28 +253,28 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 		// from the exception filter: the exception, and the code that raised it
 		const auto* pRecord = static_cast<const EXCEPTION_POINTERS*>(context)->ExceptionRecord;
 
-		sWarning += kFormat("\nexception {:#x} ({}) at address {}: {}",
-		                    pRecord->ExceptionCode, ExceptionName(pRecord->ExceptionCode),
-		                    pRecord->ExceptionAddress, kGetAddress2Line(pRecord->ExceptionAddress));
+		kFormatAppend(sWarning, "\nexception {:#x} ({}) at address {}: {}",
+		                        pRecord->ExceptionCode, ExceptionName(pRecord->ExceptionCode),
+		                        pRecord->ExceptionAddress, kGetAddress2Line(pRecord->ExceptionAddress));
 
 		if (pRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && pRecord->NumberParameters >= 2)
 		{
 			auto iAccess = pRecord->ExceptionInformation[0];
 
-			sWarning += kFormat("\n{} of address {:#x}",
-			                    iAccess == 0 ? "read" : iAccess == 1 ? "write" : "execution",
-			                    pRecord->ExceptionInformation[1]);
+			kFormatAppend(sWarning, "\n{} of address {:#x}",
+			                        iAccess == 0 ? "read" : iAccess == 1 ? "write" : "execution",
+			                        pRecord->ExceptionInformation[1]);
 		}
 	}
 	#endif
 
 	if (iSignalNum != SIGINT)
 	{
-		sWarning += kFormat ("\nattempting to print a backtrace:\n");
+		kFormatAppend (sWarning, "\nattempting to print a backtrace:\n");
 		sWarning += kGetRuntimeStack(1);
 	}
 
-	sWarning += kFormat ("exiting program.");
+	kFormatAppend (sWarning, "exiting program.");
 
 	// only one thread can crash properly - others exit immediately
 	if (g_bCrashing.exchange(true))

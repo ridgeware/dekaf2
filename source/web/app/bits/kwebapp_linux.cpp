@@ -539,10 +539,10 @@ bool Notify(KStringView sTitle, KStringView sBody, KStringView /*sTag*/, KString
 
 	if (!sImagePath.empty())
 	{
-		sCommand += kFormat(" --icon={}", kEscapeForCommands(sImagePath));
+		kFormatAppend(sCommand, " --icon={}", kEscapeForCommands(sImagePath));
 	}
 
-	sCommand += kFormat(" {} {}", kEscapeForCommands(sTitle), kEscapeForCommands(sBody));
+	kFormatAppend(sCommand, " {} {}", kEscapeForCommands(sTitle), kEscapeForCommands(sBody));
 	std::thread([sCommand] { kSystem(sCommand); }).detach();
 	return true;
 

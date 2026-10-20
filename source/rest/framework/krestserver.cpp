@@ -2096,7 +2096,7 @@ void KRESTServer::RecordRequestForReplay ()
 			KString& sReferer = Request.Headers.Get(KHTTPHeader::REFERER);
 			if (!sReferer.empty())
 			{
-				sAdditionalHeader += kFormat(" -H {}", ShellQuote(kFormat("{}: {}", KHTTPHeader(KHTTPHeader::REFERER), sReferer)));
+				kFormatAppend(sAdditionalHeader, " -H {}", ShellQuote(kFormat("{}: {}", KHTTPHeader(KHTTPHeader::REFERER), sReferer)));
 			}
 		}
 

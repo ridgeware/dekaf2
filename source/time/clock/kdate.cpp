@@ -60,7 +60,7 @@ KString KDateDiff::to_string () const
 
 	if (years() > chrono::years(0))
 	{
-		sDateDiff += kFormat("{}y", years().count());
+		kFormatAppend(sDateDiff, "{}y", years().count());
 	}
 
 	if (months() > chrono::months(0))
@@ -70,7 +70,7 @@ KString KDateDiff::to_string () const
 			sDateDiff += ' ';
 		}
 
-		sDateDiff += kFormat("{}m", months().count());
+		kFormatAppend(sDateDiff, "{}m", months().count());
 	}
 
 	if (days() > chrono::days(0) || sDateDiff.size() < 2)
@@ -80,7 +80,7 @@ KString KDateDiff::to_string () const
 			sDateDiff += ' ';
 		}
 
-		sDateDiff += kFormat("{}d", days().count());
+		kFormatAppend(sDateDiff, "{}d", days().count());
 	}
 	
 	return sDateDiff;

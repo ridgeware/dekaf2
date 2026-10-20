@@ -553,7 +553,7 @@ KString KWebApp::Origin(KStringView sURL)
 
 	if (iPort != 0 && iPort != URL.Protocol.DefaultPort())
 	{
-		sOrigin += kFormat(":{}", iPort);
+		kFormatAppend(sOrigin, ":{}", iPort);
 	}
 
 	return sOrigin;

@@ -361,7 +361,7 @@ KString KSession::SerializeAttributes(KDuration MaxAge) const
 
 	if (!m_Config.sCookiePath.empty())
 	{
-		sAttrs += kFormat("; Path={}", m_Config.sCookiePath);
+		kFormatAppend(sAttrs, "; Path={}", m_Config.sCookiePath);
 	}
 
 	if (m_Config.bSecure)
@@ -376,7 +376,7 @@ KString KSession::SerializeAttributes(KDuration MaxAge) const
 
 	if (!m_Config.sSameSite.empty())
 	{
-		sAttrs += kFormat("; SameSite={}", m_Config.sSameSite);
+		kFormatAppend(sAttrs, "; SameSite={}", m_Config.sSameSite);
 	}
 
 	// Max-Age=0 tells the browser to delete the cookie immediately.
@@ -385,7 +385,7 @@ KString KSession::SerializeAttributes(KDuration MaxAge) const
 	// caller requests one (e.g. the cookie's absolute lifetime).
 	if (MaxAge > KDuration::zero() || MaxAge < KDuration::zero())
 	{
-		sAttrs += kFormat("; Max-Age={}", MaxAge.seconds().count());
+		kFormatAppend(sAttrs, "; Max-Age={}", MaxAge.seconds().count());
 	}
 
 	return sAttrs;

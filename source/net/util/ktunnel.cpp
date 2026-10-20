@@ -203,11 +203,11 @@ KString DescribeUnexpectedFrame(const KTunnel::Message& Frame)
 
 	if (!sSample.empty())
 	{
-		sInfo += kFormat(", starts with 0x{}", KEncode::Hex(sSample));
+		kFormatAppend(sInfo, ", starts with 0x{}", KEncode::Hex(sSample));
 
 		if (!kIsBinary(sSample))
 		{
-			sInfo += kFormat(" ('{}')", sSample);
+			kFormatAppend(sInfo, " ('{}')", sSample);
 		}
 	}
 

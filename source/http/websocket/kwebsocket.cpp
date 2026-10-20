@@ -301,9 +301,9 @@ KWebSocketPMCE::Parameters KWebSocketPMCE::NegotiateServer(KStringView sClientOf
 		sResponse = "permessage-deflate";
 		if (Params.bClientNoContextTakeover)              { sResponse += "; client_no_context_takeover"; }
 		if (Params.bServerNoContextTakeover)              { sResponse += "; server_no_context_takeover"; }
-		if (Params.iServerMaxWindowBits < 15)             { sResponse += kFormat("; server_max_window_bits={}", Params.iServerMaxWindowBits); }
+		if (Params.iServerMaxWindowBits < 15)             { kFormatAppend(sResponse, "; server_max_window_bits={}", Params.iServerMaxWindowBits); }
 		if (bOfferedClientMaxWindow && Params.iClientMaxWindowBits < 15)
-		                                                  { sResponse += kFormat("; client_max_window_bits={}", Params.iClientMaxWindowBits); }
+		                                                  { kFormatAppend(sResponse, "; client_max_window_bits={}", Params.iClientMaxWindowBits); }
 
 		return Params;
 	}

@@ -1169,7 +1169,7 @@ KMIME KMIMEPart::ContentType() const
 
 	if (IsMultiPart())
 	{
-		sContentType += kFormat("; boundary=\"{}\"", GetMultiPartBoundary(1));
+		kFormatAppend(sContentType, "; boundary=\"{}\"", GetMultiPartBoundary(1));
 	}
 
 	return KMIME(std::move(sContentType));

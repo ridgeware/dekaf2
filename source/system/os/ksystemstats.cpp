@@ -2482,7 +2482,7 @@ uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStr
 
 	if (true) // add unique tracker on the url
 	{
-		sURL += kFormat ("?uniq={}", kFormat ("{}|{}", time(nullptr), sMyUniqueIP).Hash());
+		kFormatAppend (sURL, "?uniq={}", kFormat ("{}|{}", time(nullptr), sMyUniqueIP).Hash());
 	}
 
 	for (const auto& it : m_Stats)
@@ -2564,7 +2564,7 @@ KString KSystemStats::Backtrace (pid_t iPID)
 
 		while (iPID != 0 && Seen.insert(iPID).second && ReadProcProcess(KString::to_string(iPID), Process))
 		{
-			sChain += kFormat("{}{}:{}", sChain.empty() ? "" : " <- ", iPID, Process.sFullCmd);
+			kFormatAppend(sChain, "{}{}:{}", sChain.empty() ? "" : " <- ", iPID, Process.sFullCmd);
 
 			iPID = Process.sPPID.Int32();
 		}
@@ -2592,7 +2592,7 @@ KString KSystemStats::Backtrace (pid_t iPID)
 			break;
 		}
 
-		sChain += kFormat("{}{}:{}", sChain.empty() ? "" : " <- ", iPID, it->second->sFullCmd);
+		kFormatAppend(sChain, "{}{}:{}", sChain.empty() ? "" : " <- ", iPID, it->second->sFullCmd);
 
 		iPID = it->second->sPPID.Int32();
 	}

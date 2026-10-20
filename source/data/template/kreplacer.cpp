@@ -243,7 +243,7 @@ void KReplacer::AddDebugToken (KStringView sTokenName/*="DEBUG"*/)
 	KString sBlock;
 	for (const auto& it : m_RepMap)
 	{
-		sBlock += kFormat ("{:{}.{}} = '{}'", it.first, iLongest, iLongest, it.second);
+		kFormatAppend (sBlock, "{:{}.{}} = '{}'", it.first, iLongest, iLongest, it.second);
 	}
 
 	insert (sTokenName, sBlock);

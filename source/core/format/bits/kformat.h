@@ -54,6 +54,10 @@
 /// try to work around it
 
 #include <dekaf2/core/init/kdefinitions.h>
+#include <dekaf2/core/strings/bits/kstringref.h>
+#include <iterator>
+#include <string>
+#include <type_traits>
 
 #undef DEKAF2_HAS_STD_FORMAT
 #undef DEKAF2_FORMAT_NAMESPACE
@@ -106,6 +110,9 @@ namespace kformat_detail {
 // non-locale Format overload - the locale variant is declared in kformat.h
 // the implementation is in kformat.cpp
 DEKAF2_NODISCARD DEKAF2_PUBLIC KString Format(DEKAF2_FORMAT_NAMESPACE::string_view svFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept;
+// non-locale FormatAppend overload - the locale variant is declared in kformat.h
+// the implementation is in kformat.cpp
+DEKAF2_PUBLIC void FormatAppend(KStringRef& sAppendTo, DEKAF2_FORMAT_NAMESPACE::string_view sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept;
 #endif
 
 /// format dispatcher for a single element - used by kjoin.h to avoid
@@ -120,6 +127,29 @@ std::string FormatElement(const Arg& arg) noexcept
 #else
 	return Format("{}", DEKAF2_FORMAT_NAMESPACE::make_format_args(arg));
 #endif
+}
+
+/// appends a single formatted element to a string output - used by kjoin.h,
+/// for the same reason as FormatElement()
+template<typename Result, typename Arg,
+         typename std::enable_if<std::is_convertible<Result&, KStringRef&>::value, int>::type = 0>
+void AppendElement(Result& Out, const Arg& arg) noexcept
+{
+	KStringRef& sOut = Out;
+#if DEKAF2_FORMAT_INLINE
+	DEKAF2_FORMAT_NAMESPACE::format_to(std::back_inserter(sOut), "{}", arg);
+#else
+	FormatAppend(sOut, "{}", DEKAF2_FORMAT_NAMESPACE::make_format_args(arg));
+#endif
+}
+
+/// appends a single formatted element to an output that is no string, e.g. a
+/// stream, through its operator+=
+template<typename Result, typename Arg,
+         typename std::enable_if<!std::is_convertible<Result&, KStringRef&>::value, int>::type = 0>
+void AppendElement(Result& Out, const Arg& arg)
+{
+	Out += FormatElement(arg);
 }
 
 } // end of namespace kformat_detail

@@ -140,8 +140,8 @@ namespace kformat_detail {
 // (but its implementation is in kformat.cpp)
 DEKAF2_NODISCARD DEKAF2_PUBLIC KString Format(const std::locale& locale, DEKAF2_FORMAT_NAMESPACE::string_view sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept;
 
-// FormatAppend overloads - the implementation is in kformat.cpp
-DEKAF2_PUBLIC void FormatAppend(KStringRef& sAppendTo, DEKAF2_FORMAT_NAMESPACE::string_view sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept;
+// locale FormatAppend overload - the non-locale variant is declared in bits/kformat.h
+// (but its implementation is in kformat.cpp)
 DEKAF2_PUBLIC void FormatAppend(const std::locale& locale, KStringRef& sAppendTo, DEKAF2_FORMAT_NAMESPACE::string_view sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept;
 
 } // end of namespace kformat_detail

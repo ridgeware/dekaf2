@@ -52,6 +52,8 @@
 	#include <dekaf2/core/strings/kstring.h>
 	#include <dekaf2/core/format/kformat.h>
 	#include <dekaf2/time/clock/ktime.h>
+	#include <atomic>
+	#include <limits>
 	#include <memory>
 	#include <exception>
 	#include <mutex>
@@ -206,6 +208,26 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// Would a message of iLevel be logged in this thread, by the global log
+	/// level or by a log level that this thread has set for itself? The logging
+	/// macros call this before they format a message.
+	DEKAF2_NODISCARD
+	static DEKAF2_ALWAYS_INLINE bool WouldLog(int iLevel) noexcept
+	//---------------------------------------------------------------------------
+	{
+#ifdef DEKAF2_WITH_KLOG
+		// the level of this thread is only read while any thread has one, because
+		// reading a thread_local costs more than reading a global variable, and on
+		// macOS it is a function call
+		return iLevel <= s_iLogLevel.load(std::memory_order_relaxed)
+		    || (DEKAF2_UNLIKELY(s_iThreadsWithOwnLevel.load(std::memory_order_relaxed) > 0)
+		        && iLevel <= s_iThreadLogLevel);
+#else
+		return false;
+#endif
+	}
+
+	//---------------------------------------------------------------------------
 	/// Sets a new log level.
 	self& SetLevel(int iLevel)
 	//---------------------------------------------------------------------------
@@ -228,15 +250,16 @@ public:
 #endif
 
 	//---------------------------------------------------------------------------
-	/// For long running threads, sync the per-thread log level to the global
-	/// log level (it may have changed through the Dekaf() timing thread)
+	/// Removes a log level that this thread has set for itself, so that the thread
+	/// follows the global log level again. A change of the global log level applies
+	/// to all threads at once.
 	static void SyncLevel()
 	//---------------------------------------------------------------------------
-	{
 #ifdef DEKAF2_WITH_KLOG
-		s_iThreadLogLevel = s_iLogLevel;
+	;
+#else
+	{}
 #endif
-	}
 
 	//---------------------------------------------------------------------------
 	/// display microsecond timestamps, and remove fields not needed for performance debugging like
@@ -613,7 +636,6 @@ public:
 
 #ifdef DEKAF2_WITH_KLOG
 	static KStringView s_sJSONSkipFiles;
-	static thread_local int s_iThreadLogLevel;
 #endif
 
 //----------
@@ -684,7 +706,25 @@ private:
 	static thread_local std::unique_ptr<KLogSerializer> s_PerThreadSerializer;
 	static thread_local std::unique_ptr<KLogWriter> s_PerThreadWriter;
 	static thread_local KString s_sPerThreadGrepExpression;
-	static int s_iLogLevel;
+	static std::atomic<int> s_iLogLevel;
+	// the log level that this thread has set for itself, or s_iNoThreadLevel
+	static thread_local int s_iThreadLogLevel;
+	static constexpr int s_iNoThreadLevel = std::numeric_limits<int>::min();
+	// the number of threads that have set a log level for themselves
+	static std::atomic<int> s_iThreadsWithOwnLevel;
+
+	// records whether this thread is counted in s_iThreadsWithOwnLevel, and removes
+	// it from the count when the thread ends with a log level of its own
+	struct ThreadLevelGuard
+	{
+		~ThreadLevelGuard();
+		bool bCounted { false };
+	};
+
+	static thread_local ThreadLevelGuard s_ThreadLevelGuard;
+
+	// sets or, with s_iNoThreadLevel, removes the log level of this thread
+	static void SetThreadLevel(int iLevel);
 	static thread_local bool s_bShouldShowStackOnJsonError;
 #ifdef DEKAF2_KLOG_WITH_TCP
 	static thread_local bool s_bPrintTimeStampOnClose;
@@ -791,7 +831,7 @@ DEKAF2_NAMESPACE_END
 /// log a debug message, automatically provide function name.
 #define kDebug(iLevel, ...) \
 { \
-	if (DEKAF2_UNLIKELY(iLevel <= DEKAF2_PREFIX KLog::s_iThreadLogLevel)) \
+	if (DEKAF2_UNLIKELY(DEKAF2_PREFIX KLog::WouldLog(iLevel))) \
 	{ \
 		DEKAF2_PREFIX KLog::getInstance().debug_fun(iLevel, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 	} \
@@ -809,7 +849,7 @@ DEKAF2_NAMESPACE_END
 /// log a debug message, do NOT automatically provide function name.
 #define kDebugLog(iLevel, ...) \
 { \
-	if (DEKAF2_UNLIKELY(iLevel <= DEKAF2_PREFIX KLog::s_iThreadLogLevel)) \
+	if (DEKAF2_UNLIKELY(DEKAF2_PREFIX KLog::WouldLog(iLevel))) \
 	{ \
 		DEKAF2_PREFIX KLog::getInstance().debug(iLevel, __VA_ARGS__); \
 	} \
@@ -931,7 +971,7 @@ DEKAF2_NAMESPACE_END
 #ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// test if a given log level would create output
-#define kWouldLog(iLevel) (DEKAF2_UNLIKELY(iLevel <= DEKAF2_PREFIX KLog::s_iThreadLogLevel))
+#define kWouldLog(iLevel) (DEKAF2_UNLIKELY(DEKAF2_PREFIX KLog::WouldLog(iLevel)))
 //---------------------------------------------------------------------------
 #else
 #define kWouldLog(iLevel) (false)

@@ -92,11 +92,17 @@ thread_local bool KLog::PreventRecursion::s_bCalledFromInsideKlog { false };
 
 // do not initialize this static var - it risks to override a value set by KLog()'s
 // initialization before..
-int KLog::s_iLogLevel;
+std::atomic<int> KLog::s_iLogLevel;
 
-// this one however has to be initialized for every new thread to the value of
-// the current global log level
-thread_local int KLog::s_iThreadLogLevel { s_iLogLevel };
+// a constant initializer, so that reading the variable from another translation
+// unit does not need a call of the initialization function of thread_locals
+thread_local int KLog::s_iThreadLogLevel { s_iNoThreadLevel };
+std::atomic<int> KLog::s_iThreadsWithOwnLevel { 0 };
+thread_local KLog::ThreadLevelGuard KLog::s_ThreadLevelGuard;
+
+#if DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr int KLog::s_iNoThreadLevel;
+#endif
 
 //---------------------------------------------------------------------------
 KLog::KLog()
@@ -221,16 +227,59 @@ KLog& KLog::SetDefaults()
 } // SetDefaults
 
 //---------------------------------------------------------------------------
+void KLog::SetThreadLevel(int iLevel)
+//---------------------------------------------------------------------------
+{
+	bool bOwnLevel = iLevel != s_iNoThreadLevel;
+
+	if (bOwnLevel != s_ThreadLevelGuard.bCounted)
+	{
+		if (bOwnLevel)
+		{
+			s_iThreadsWithOwnLevel.fetch_add(1, std::memory_order_relaxed);
+		}
+		else
+		{
+			s_iThreadsWithOwnLevel.fetch_sub(1, std::memory_order_relaxed);
+		}
+
+		s_ThreadLevelGuard.bCounted = bOwnLevel;
+	}
+
+	s_iThreadLogLevel = iLevel;
+
+} // SetThreadLevel
+
+//---------------------------------------------------------------------------
+KLog::ThreadLevelGuard::~ThreadLevelGuard()
+//---------------------------------------------------------------------------
+{
+	if (bCounted)
+	{
+		s_iThreadsWithOwnLevel.fetch_sub(1, std::memory_order_relaxed);
+	}
+
+} // ~ThreadLevelGuard
+
+//---------------------------------------------------------------------------
+void KLog::SyncLevel()
+//---------------------------------------------------------------------------
+{
+	SetThreadLevel(s_iNoThreadLevel);
+
+} // SyncLevel
+
+//---------------------------------------------------------------------------
 KLog& KLog::LogThisThreadToKLog(int iLevel)
 //---------------------------------------------------------------------------
 {
 	if (iLevel > 0)
 	{
-		s_iThreadLogLevel = iLevel;
+		SetThreadLevel(iLevel);
 	}
 	else
 	{
-		s_iThreadLogLevel = s_iLogLevel;
+		SetThreadLevel(s_iNoThreadLevel);
 	}
 
 #ifdef DEKAF2_KLOG_WITH_TCP
@@ -260,7 +309,7 @@ KLog& KLog::LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, K
 {
 	if (iLevel > 0)
 	{
-		s_iThreadLogLevel = iLevel;
+		SetThreadLevel(iLevel);
 		s_PerThreadWriter = std::make_unique<KLogHTTPHeaderWriter>(Response, sHeader);
 		s_PerThreadSerializer = std::make_unique<KLogHTTPHeaderSerializer>();
 		auto pSerializerInstance = static_cast<KLogHTTPHeaderSerializer*>(s_PerThreadSerializer.get());
@@ -270,7 +319,7 @@ KLog& KLog::LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, K
 	}
 	else
 	{
-		s_iThreadLogLevel = s_iLogLevel;
+		SetThreadLevel(s_iNoThreadLevel);
 		s_PerThreadWriter.reset();
 		s_PerThreadSerializer.reset();
 	}
@@ -286,13 +335,13 @@ KLog& KLog::LogThisThreadToJSON(int iLevel, void* pjson)
 	if (iLevel > 0 && pjson)
 	{
 		KJSON* json = static_cast<KJSON*>(pjson);
-		s_iThreadLogLevel = iLevel;
+		SetThreadLevel(iLevel);
 		s_PerThreadWriter = std::make_unique<KLogNullWriter>();
 		s_PerThreadSerializer = std::make_unique<KLogJSONArraySerializer>(*json);
 	}
 	else
 	{
-		s_iThreadLogLevel = s_iLogLevel;
+		SetThreadLevel(s_iNoThreadLevel);
 		s_PerThreadWriter.reset();
 		s_PerThreadSerializer.reset();
 	}
@@ -381,7 +430,6 @@ KLog& KLog::SetLevel(int iLevel)
 	}
 
 	s_iLogLevel = iLevel;
-	s_iThreadLogLevel = iLevel;
 
 /*
  * don't write anymore to the flag file - let this be done by external
@@ -836,7 +884,7 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 		return false;
 	}
 
-	if (DEKAF2_UNLIKELY(iLevel > s_iLogLevel && iLevel > s_iThreadLogLevel))
+	if (DEKAF2_UNLIKELY(!WouldLog(iLevel)))
 	{
 		// bail out early if this method was called without checking the
 		// log levels before (which should be really rare thanks to the
@@ -869,7 +917,9 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 	// protect multiple entry points that eventually call this function.
 	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
 
-	if (DEKAF2_LIKELY(iLevel <= s_iLogLevel))
+	// a thread with a level of its own and without a writer of its own logs into
+	// the regular log, see LogThisThreadToKLog()
+	if (DEKAF2_LIKELY(iLevel <= s_iLogLevel) || (iLevel <= s_iThreadLogLevel && !s_PerThreadWriter))
 	{
 		// this is the regular logging
 

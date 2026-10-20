@@ -72,13 +72,15 @@ bool KErrorBase::SetError(const KErrorBase& Error) const
 bool KErrorBase::SetError(KStringViewZ sError, uint16_t iErrorCode, KStringView sFunction) const
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_WITH_KLOG
 	if (!sError.empty())
 	{
-		if (DEKAF2_UNLIKELY(1 <= KLog::s_iThreadLogLevel))
+		if (kWouldLog(1))
 		{
 			KLog::getInstance().debug_fun(1, sFunction, sError);
 		}
 	}
+#endif
 
 	SetError(KErrorBase(sError, iErrorCode));
 

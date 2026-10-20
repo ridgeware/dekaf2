@@ -59,6 +59,24 @@ DEKAF2_NAMESPACE_BEGIN
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kNormalizeFunctionName(KStringView sFunctionName);
 
+/// strips a fully qualified function name down to a minimum, and appends it to sAppendTo
+/// @param sAppendTo the string to append the name to
+/// @param sFunctionName the function name, e.g. from __PRETTY_FUNCTION__
+DEKAF2_PUBLIC
+void kNormalizeFunctionName(KStringRef& sAppendTo, KStringView sFunctionName);
+
+namespace detail {
+
+/// appends sSignature to sAppendTo without the words "dekaf2::", "::self_type",
+/// "::self" and, with bRemoveStd, "std::", where they are whole names - used by
+/// kNormalizeFunctionName() without bRemoveStd, so that the frames of the standard
+/// library stay recognizable in a stack trace, and by KLog with bRemoveStd for the
+/// signature of a warning, where "string" tells the overload as well as "std::string".
+/// sSignature must not point into sAppendTo.
+void AppendWithoutNoise(KStringRef& sAppendTo, KStringView sSignature, bool bRemoveStd);
+
+} // end of namespace detail
+
 /// get a full runtime stack trace (uses gdb if possible). The output
 /// of this function is as detailed as possible, and intended for crash
 /// situations.

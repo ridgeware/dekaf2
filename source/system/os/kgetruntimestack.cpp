@@ -851,6 +851,100 @@ KStringView RemoveFunctionParms(KStringView sFunction)
 } // RemoveFunctionParms
 
 } // end of namespace bt
+
+//-----------------------------------------------------------------------------
+void AppendWithoutNoise(KStringRef& sAppendTo, KStringView sSignature, bool bRemoveStd)
+//-----------------------------------------------------------------------------
+{
+	// is this a character of a name? The bytes of UTF-8 sequences count as such
+	auto IsNameChar = [](char ch)
+	{
+		auto c = static_cast<unsigned char>(ch);
+
+		return static_cast<unsigned char>((c | 0x20) - 'a') < 26
+		    || static_cast<unsigned char>(c - '0') < 10
+		    || c == '_'
+		    || c >= 0x80;
+	};
+
+	// all removed words contain a "::" - "dekaf2::" and "std::" end with it,
+	// "::self" and "::self_type" start with it - so memchr scans for the ':', and
+	// only a "::" is compared with the words. A word is only removed as a whole
+	// name, so "notdekaf2::" and "::selfTest" stay.
+	KStringView::size_type iCopied { 0 };
+	KStringView::size_type iColon  { 0 };
+
+	// is the "::" at iColon the end of the namespace sName?
+	auto IsNamespace = [&](KStringView sName)
+	{
+		auto iSize = sName.size();
+
+		return iColon >= iCopied + iSize
+		    && sSignature.substr(iColon - iSize, iSize) == sName
+		    && (iColon == iSize || !IsNameChar(sSignature[iColon - iSize - 1]));
+	};
+
+	while ((iColon = sSignature.find(':', iColon)) != KStringView::npos)
+	{
+		KStringView::size_type iFrom { 0 };
+		KStringView::size_type iTo   { 0 };
+		bool bDouble = iColon + 1 < sSignature.size() && sSignature[iColon + 1] == ':';
+
+		if (bDouble)
+		{
+			// most "::" separate a class from a member - one character before or
+			// after the "::" decides if a word can start there at all
+			auto chBefore = iColon > 0                     ? sSignature[iColon - 1] : '\0';
+			auto chAfter  = iColon + 2 < sSignature.size() ? sSignature[iColon + 2] : '\0';
+
+			if (chBefore == '2' && IsNamespace("dekaf2"))
+			{
+				iFrom = iColon - 6;
+				iTo   = iColon + 2;
+			}
+			else if (chBefore == 'd' && bRemoveStd && IsNamespace("std"))
+			{
+				iFrom = iColon - 3;
+				iTo   = iColon + 2;
+			}
+			else if (chAfter == 's')
+			{
+				auto sRest = sSignature.substr(iColon);
+				KStringView::size_type iWord { 0 };
+
+				if (sRest.starts_with("::self_type"))
+				{
+					iWord = 11;
+				}
+				else if (sRest.starts_with("::self"))
+				{
+					iWord = 6;
+				}
+
+				if (iWord && (iWord == sRest.size() || !IsNameChar(sRest[iWord])))
+				{
+					iFrom = iColon;
+					iTo   = iColon + iWord;
+				}
+			}
+		}
+
+		if (iTo)
+		{
+			sAppendTo.append(sSignature.data() + iCopied, iFrom - iCopied);
+			iCopied = iColon = iTo;
+		}
+		else
+		{
+			// past both colons of a "::", so that memchr does not stop at the second
+			iColon += bDouble ? 2 : 1;
+		}
+	}
+
+	sAppendTo.append(sSignature.data() + iCopied, sSignature.size() - iCopied);
+
+} // AppendWithoutNoise
+
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------
@@ -859,66 +953,102 @@ KString kNormalizeFunctionName(KStringView sFunctionName)
 {
 	KString sReturn;
 
-	sFunctionName = detail::bt::RemoveFunctionParms(sFunctionName);
+	kNormalizeFunctionName(sReturn, sFunctionName);
 
-	// now scan back until first space, but take care to skip template types (<xyz<abc> >)
-	int iTLevel { 0 };
+	return sReturn;
+
+} // kNormalizeFunctionName
+
+//-----------------------------------------------------------------------------
+void kNormalizeFunctionName(KStringRef& sAppendTo, KStringView sFunctionName)
+//-----------------------------------------------------------------------------
+{
+	// the parameters start at the first '(' on template level 0, and the name
+	// after the last space on template level 0 before them. Without a '<' or '>'
+	// in front of the first '(', which is the common case, there are no template
+	// levels, and these are simply the first '(' and the last space before it.
+	auto iParms = sFunctionName.find('(');
+	KStringView::size_type iSig   { 0 };
 	KStringView::size_type iTStart { 0 };
-	KStringView::size_type iTEnd { 0 };
-	bool bFound { false };
-	auto iSig { sFunctionName.size() };
+	KStringView::size_type iTEnd   { 0 };
 
-	while (iSig && !bFound)
+	auto sHead  = sFunctionName.substr(0, iParms);
+
+	if (sHead.find('<') == KStringView::npos && sHead.find('>') == KStringView::npos)
 	{
-		switch (sFunctionName[--iSig])
+		sFunctionName = sHead;
+
+		auto iSpace = sFunctionName.rfind(' ');
+
+		if (iSpace != KStringView::npos)
 		{
-			case '<':
-				--iTLevel;
-				if (!iTLevel && iTEnd)
-				{
-					iTStart = iSig;
-				}
-				break;
-
-			case '>':
-				if (!iTLevel && !iTStart)
-				{
-					iTEnd = iSig;
-				}
-				++iTLevel;
-				break;
-
-			case ' ':
-				if (!iTLevel)
-				{
-					++iSig;
-					bFound = true;
-					// this ends the while loop
-				}
-				break;
-
+			iSig = iSpace + 1;
 		}
-	}
-
-	if (iTStart && iTEnd)
-	{
-		sReturn = sFunctionName.Mid(iSig, iTStart - iSig);
-		sFunctionName.remove_prefix(iTEnd + 1);
 	}
 	else
 	{
-		sFunctionName.remove_prefix(iSig);
+		sFunctionName = detail::bt::RemoveFunctionParms(sFunctionName);
+
+		// now scan back until first space, but take care to skip template types (<xyz<abc> >)
+		int iTLevel { 0 };
+		bool bFound { false };
+		iSig = sFunctionName.size();
+
+		while (iSig && !bFound)
+		{
+			switch (sFunctionName[--iSig])
+			{
+				case '<':
+					--iTLevel;
+					if (!iTLevel && iTEnd)
+					{
+						iTStart = iSig;
+					}
+					break;
+
+				case '>':
+					if (!iTLevel && !iTStart)
+					{
+						iTEnd = iSig;
+					}
+					++iTLevel;
+					break;
+
+				case ' ':
+					if (!iTLevel)
+					{
+						++iSig;
+						bFound = true;
+						// this ends the while loop
+					}
+					break;
+
+			}
+		}
 	}
 
-	sReturn += sFunctionName;
+	auto iStart = sAppendTo.size();
 
-	sReturn.Replace("dekaf2::", "");
-	sReturn.Replace("::self_type", "");
-	sReturn.Replace("::self", "");
-	sReturn.remove_prefix('&');
-	sReturn.remove_prefix('*');
+	if (iTStart && iTEnd)
+	{
+		detail::AppendWithoutNoise(sAppendTo, sFunctionName.substr(iSig, iTStart - iSig), false);
+		detail::AppendWithoutNoise(sAppendTo, sFunctionName.substr(iTEnd + 1), false);
+	}
+	else
+	{
+		detail::AppendWithoutNoise(sAppendTo, sFunctionName.substr(iSig), false);
+	}
 
-	return sReturn;
+	// a '&' and then a '*' in front of the name belong to the return type
+	if (sAppendTo.size() > iStart && sAppendTo[iStart] == '&')
+	{
+		sAppendTo.erase(iStart, 1);
+	}
+
+	if (sAppendTo.size() > iStart && sAppendTo[iStart] == '*')
+	{
+		sAppendTo.erase(iStart, 1);
+	}
 
 } // kNormalizeFunctionName
 

@@ -231,17 +231,14 @@ void KLogTTYSerializer::Serialize(bool bHiRes)
 		if (m_iLevel < 0)
 		{
 			// print the full function signature only if this is a warning or exception
-			sPrefix += m_sFunctionName;
+			detail::AppendWithoutNoise(sPrefix, m_sFunctionName, true);
 			sPrefix += ": ";
-			sPrefix.Replace("dekaf2::", "");
-			sPrefix.Replace("::self_type", "");
-			sPrefix.Replace("::self", "");
 		}
 		else
 		{
 			// print shortened function name only, no signature
 			// - this is an intentional debug message that does not need the full signature
-			sPrefix += kNormalizeFunctionName(m_sFunctionName);
+			kNormalizeFunctionName(sPrefix, m_sFunctionName);
 			sPrefix += "(): ";
 		}
 	}

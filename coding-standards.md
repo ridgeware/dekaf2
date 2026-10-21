@@ -296,6 +296,7 @@ Variables carry a succinct prefix to hint at type and intent.
 | `n`    | floating-point      | `nPrice`            |
 | `s`    | string              | `sName`             |
 | `o`    | object wrapper      | `oJSON`             |
+| `j`    | KJSON (like `o`)    | `jConfig`           |
 | `fn`   | function / callable | `fnComplete`        |
 | `p`    | pointer / smart ptr | `pdb`, `pParms`     |
 | `m_`   | member field        | `m_sUserKey`        |
@@ -306,6 +307,7 @@ Variables carry a succinct prefix to hint at type and intent.
 | `kk`   | looping variable    | `kk`                |
 
 Keep the existing boolean, integer, string, and pointer examples consistent with these prefixes.
+KJSON variables take `o` or `j`, both are accepted - use the prefix of the surrounding code.
 
 ## Spacing
 
@@ -643,7 +645,7 @@ HTTP.json.tx["totals"]["blocks"]             = blocks_count;
 HTTP.json.tx["totals"]["words"]["total"]     = words_total;
 ```
 
-### KJSON API Patterns (K400-K403)
+### KJSON API Patterns (K400-K405)
 
 **K400: Use kjson::Parse() helper instead of KJSON::Parse() template**
 
@@ -655,11 +657,23 @@ KJSON json = kjson::Parse(sContent);
 KJSON json = KJSON::Parse(sContent);
 ```
 
-**K401: Use Select() method for field access instead of get<T>()**
+**K401: Read with the call operator or ConstSelect(), write with operator[] or Select()**
+
+On a non-const KJSON, `operator[]` and `Select()` insert a null element for a missing key, and the
+non-const `String()` converts a number into a string in place (K405 lists all such changes). A read
+through them can therefore change the object: a response built from it gains `"key": null`, and
+references into the object can become invalid. The call operator exists only as a const overload,
+and `ConstSelect()` never changes the object either. `Select()` and `ConstSelect()` also accept a path: a json pointer
+(`"/address/city"`) or a dotted path (`".address.city"`). `get<T>()` is private in KJSON2.
 
 ```cpp
-// ✓ Correct - Select() returns KString directly
-KString sName = json.Select("collection_name");
+// ✓ Correct - reads without changing json
+const auto& sName = json("collection_name").String();
+const auto& sCity = json.ConstSelect("/address/city").String();
+auto        iItem = json("list")(2).UInt64();
+
+// ✗ Incorrect on a non-const json - inserts "collection_name": null when the key is missing
+const auto& sName = json["collection_name"].String();
 
 // ✗ Incorrect - get<T>() is private in KJSON2
 KString sName = json["collection_name"].get<KString>();
@@ -667,35 +681,98 @@ KString sName = json["collection_name"].get<KString>();
 
 **K402: Use typed accessors for numeric values**
 
+The accessor determines the type, so `auto` is fine for numeric values. The precision exception of
+the `auto` rule applies to literals only. Numbers are returned by value, a reference is not needed.
+
 ```cpp
-// ✓ Correct - use typed accessors
-std::int64_t iSize = json.Select("size_bytes").Int64();
-bool bActive = json.Select("is_active").Bool();
-std::size_t iLength = json.Select("max_length").UInt64();
+// ✓ Correct - use typed accessors, with auto
+auto iSize   = json("size_bytes").Int64();
+auto bActive = json("is_active").Bool();
+auto iLength = json("max_length").UInt64();
+
+// ✓ Correct - use typed accessors, with named types
+std::int64_t iSize   = json("size_bytes").Int64();
+bool         bActive = json("is_active").Bool();
+std::size_t  iLength = json("max_length").UInt64();
 
 // ✗ Incorrect - get<T>() is private
-std::int64_t iSize = json["size_bytes"].get<std::int64_t>();
-bool bActive = json["is_active"].get<bool>();
+std::int64_t iSize   = json("size_bytes").get<std::int64_t>();
+bool         bActive = json("is_active").get<bool>();
 ```
 
 **K403: Use proper iteration pattern for KJSON objects**
 
 ```cpp
 // ✓ Correct - use iterator with key()/value() methods
-for (const auto& it : json["table_schemas"].items())
+for (const auto& it : json("table_schemas").items())
 {
-	auto sTableName = it.key();
-	auto oTableData = it.value();
+	const auto& sTableName = it.key();
+	const auto& oTableData = it.value();
 	
 	// Process sTableName and oTableData...
 }
 
 // ✗ Incorrect - structured bindings fail with private members
-for (const auto& [tableName, tableData] : json["table_schemas"].items())
+for (const auto& [tableName, tableData] : json("table_schemas").items())
 {
 	// This will not compile due to private member access
 }
 ```
+
+**K404: Read a string as a reference, not as a copy**
+
+`String()` returns a reference to the string in the json, and KJSON converts implicitly to
+`const KString&`, `KStringView` and `const std::string&`. Bind the string to a reference or a view,
+either with the explicit conversion `String()` and `auto`, or with a named type, which needs no
+`String()`. Copy the string only where a copy is needed: when the code changes the string and the
+json value shall stay as it is, or when the json is changed or destroyed while the string is still
+in use.
+
+```cpp
+// ✓ Correct - the explicit conversion shows the intent, the preferred form
+const auto&    sName = json("name").String();
+
+// ✓ Correct - a named type, the conversion is implicit
+const KString& sName = json("name");
+KStringView    sName = json("name");
+
+// ✗ Incorrect - copies the string without need
+auto           sName = json("name").String();
+KString        sName = json("name");
+
+// ✗ Incorrect - a named type and String() together, and a copy
+const KString  sName = json("name").String();
+
+// ✓ Correct - the copy is changed, the json value stays as it is
+auto           sStatus = json("status").String();
+sStatus.MakeUpper();
+```
+
+A reference or view stays valid as long as the json is neither changed nor destroyed.
+
+**K405: Know what an access to a non-const KJSON changes**
+
+The non-const accessors adapt the json to the access, which is what a write needs:
+`json["a"]["b"] = 1` creates the objects, `json["list"][3] = 1` expands the array. A read through
+them changes the json the same way. For `{"count": 5, "list": [1, 2], "name": "abc"}`:
+
+| Read on a non-const json         | Change of the json                                              |
+|----------------------------------|-----------------------------------------------------------------|
+| `json["missing"]`                | inserts `"missing": null`                                       |
+| `json["list"]["x"]`              | replaces the array with `{"x": null}`                           |
+| `json["name"][3]`                | replaces the string with `[null, null, null, null]`             |
+| `json["list"][3]`                | expands the array to `[1, 2, null, null]`                       |
+| `json["count"].String()`         | replaces the number with the string `"5"`, also bool and float  |
+| `json["list"].String()`          | replaces the array with `""`, also objects and null             |
+| `KStringView s = json["count"]`  | the implicit conversion to a string converts like `String()`    |
+
+`Select()` makes the same changes along a path. The implicit conversions convert in place while
+`DEKAF2_KJSON_ALLOW_IMPLICIT_CONVERSION_IN_PLACE` is set, which is the default.
+
+The call operator and the const accessors change nothing. For an element of another type, the
+const `String()` returns an empty string, also for a number, and the numeric accessors return their
+default value. To read a number as text without changing the json, use `CopyString()` (a copy,
+`"5"`), or `Print()`, which also serializes arrays and objects.
 
 ## Error Handling
 
@@ -743,5 +820,5 @@ if (!VerifyHashString(sUrlHash))
 - [ ] Space around binary operators and after commas
 - [ ] Use `auto` with descriptive names
 - [ ] Throw KHTTPError with brace initialization (space before `{`)
-- [ ] Use proper KJSON API patterns: `kjson::Parse()`, `Select()`, typed accessors, iterator pattern (K400-K403)
+- [ ] Use proper KJSON API patterns: `kjson::Parse()`, reading with `json("key")` or `ConstSelect()`, typed accessors, iterator pattern, strings as references, no reads through a non-const accessor (K400-K405)
 - [ ] Write comments and documentation as plain, complete English sentences, without internal project names, plan steps, restating closers or capitalized emphasis (K500-K503)

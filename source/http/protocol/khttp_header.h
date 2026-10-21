@@ -971,7 +971,7 @@ public:
 	/// apply to HTTP/1.1, HTTP/2 and HTTP/3 alike: on HTTP/2 and HTTP/3 the pseudo
 	/// header fields count as fields, and each block of a response - an interim
 	/// response, the final response - is counted on its own.
-	/// @see @ref http_header_limits
+	/// @see @ref http_header_limits "HTTP Header Limits"
 	struct Limits
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{

@@ -146,7 +146,7 @@ public:
 	/// KHTTPHeaders::DefaultRequestLimits: 8 KiB, 500, 64 KiB). A value of 0 means
 	/// unlimited. GetParseErrorStatus() returns 431 for a request above a limit.
 	/// @param Limits the limits
-	/// @see @ref http_header_limits
+	/// @see @ref http_header_limits "HTTP Header Limits"
 	void SetRequestHeaderLimits(const KHTTPHeaders::Limits& Limits)
 	//-----------------------------------------------------------------------------
 	{

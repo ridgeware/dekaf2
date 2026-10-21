@@ -1,10 +1,12 @@
-/// @page http_header_limits HTTP Header Limits
+/// @page http_header_limits_page HTTP Header Limits
+/// @ingroup http_protocol
 ///
+/// @anchor http_header_limits
 /// %dekaf2 limits the header blocks it receives: the requests a server receives and
 /// the responses a client receives. The two directions have separate limits with
 /// separate defaults, and the same limits apply to HTTP/1.1, HTTP/2 and HTTP/3.
 ///
-/// @section hhl_limits Limits and Defaults
+/// #### Limits and Defaults
 ///
 /// @ref dekaf2::KHTTPHeaders::Limits "KHTTPHeaders::Limits" holds three values. A
 /// value of 0 means unlimited.
@@ -21,7 +23,7 @@
 /// @ref dekaf2::KHTTPHeaders::DefaultResponseLimits "KHTTPHeaders::DefaultResponseLimits"
 /// for clients.
 ///
-/// @section hhl_counting Counting
+/// #### Counting
 ///
 /// - The length of a field is the length of its name plus the length of its value.
 ///   On HTTP/1.1 it is the length of the line as read, continuation lines included.
@@ -37,7 +39,7 @@
 /// - The status line of a response is limited by `iMaxFieldLength`, the request line
 ///   of a request by 65535 bytes.
 ///
-/// @section hhl_server Server
+/// #### Server
 ///
 /// A server sets the limits with
 /// @ref dekaf2::KRESTServer::Options::RequestHeaderLimits "KRESTServer::Options::RequestHeaderLimits",
@@ -54,7 +56,7 @@
 /// token, whitespace between a name and its colon or before the first field, and
 /// continuation lines make a request malformed.
 ///
-/// @section hhl_client Client
+/// #### Client
 ///
 /// A client sets the limits with
 /// @ref dekaf2::KHTTPClient::SetResponseHeaderLimits "KHTTPClient::SetResponseHeaderLimits()",
@@ -92,21 +94,3 @@
 /// @ref dekaf2::KHTTPClient::HttpSuccess "KHTTPClient::HttpSuccess()" is true if there
 /// was no transport error and the status is 2xx. KRestClient throws 502 Bad Gateway
 /// for a transport error.
-///
-/// @section hhl_changes Changes for Existing Code
-///
-/// The limits are new in %dekaf2 2.1.35. Before, HTTP/1.1 limited a header line to
-/// 8 KiB and a header block to 500 fields in both directions, and HTTP/2 and HTTP/3
-/// responses were not limited.
-///
-/// - Responses over HTTP/2 and HTTP/3 are limited to 256 KiB per header block. A
-///   client that receives larger header blocks has to raise the limit.
-
-/// - A server rejects a request whose header block exceeds 64 KiB. Before, a header
-///   block could reach 4 MiB, for example with nine cookie lines of 8 KiB each.
-/// - A server answers a request above a header limit with 431, and one with a request
-///   line above its limit with 414. Both were answered with 400 before.
-/// - A client failure was reported as status 598. During a transition period, a
-///   transport error other than `TransportError::Connect` still replaces a missing or
-///   a 2xx status with 598. This will be removed: test HttpSuccess() or
-///   GetTransportError() instead of status 598.

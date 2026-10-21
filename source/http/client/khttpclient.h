@@ -484,7 +484,7 @@ public:
 	/// block is also announced to the server, with the limits that are set when the
 	/// connection is established.
 	/// @param Limits the limits
-	/// @see @ref http_header_limits
+	/// @see @ref http_header_limits "HTTP Header Limits"
 	self& SetResponseHeaderLimits(const KHTTPHeaders::Limits& Limits)
 	//-----------------------------------------------------------------------------
 	{

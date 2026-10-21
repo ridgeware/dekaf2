@@ -13,6 +13,7 @@ FILE_PATTERNS          = *.h   \
                          *.cpp \
                          *.dox
 EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/benchmarks/*  \
+                         @PROJECT_SOURCE_DIR@/build/*       \
                          @PROJECT_SOURCE_DIR@/cmake/*       \
                          @PROJECT_SOURCE_DIR@/compat/*      \
                          @PROJECT_SOURCE_DIR@/debug/*       \

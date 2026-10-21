@@ -224,8 +224,9 @@ static inline bool kIsNameChar(char ch)
 
 //---------------------------------------------------------------------------
 /// Does the text before a '=' end with the name of a parameter that holds a
-/// credential? Short names like "pass" or "key" count only in a URL, after a '?'
-/// or '&', as "pass=3 fail=0" or "key=..." are ordinary output elsewhere.
+/// credential? Short names like "pass", "key" or "sid" count only in a
+/// URL, after a '?' or '&', as "pass=3 fail=0" or "sid=..." are ordinary output
+/// elsewhere.
 ///
 /// This runs for each '=' of a line, so it compares from the '=' backwards and
 /// never reads the whole name: the last character selects the few candidates,
@@ -271,7 +272,7 @@ static bool kEndsWithSecretName(KStringView sBefore)
 	switch (KASCII::kToLower(sBefore.back()))
 	{
 		case 'd':
-			return IsName("password") || IsName("passwd") || EndsWith("_password") || IsNameInURL("pwd");
+			return IsName("password") || IsName("passwd") || EndsWith("_password") || IsNameInURL("pwd") || IsNameInURL("sid");
 
 		case 't':
 			return IsName("secret") || EndsWith("_secret");
@@ -352,7 +353,9 @@ static DEKAF2_NEVER_INLINE KStringView kGetQuotedValue(KStringView sText, KStrin
 /// Finds the value of a parameter "name=value" whose name says that it holds a
 /// credential, from iPos on. memchr scans for the '=', and only its hits compare
 /// the name before it. The value runs to white space or a quote, and in a URL also
-/// to the next '&' or '#' - in other text these may be part of a password.
+/// to the next '&', '#' or '<' - in other text these may be part of a password.
+/// A '<' is never part of a URL, but ends one inside XML or HTML text, as in
+/// "<Path>/list?sid=...</Path>".
 ///
 /// A value in single or double quotes runs to the closing quote. In this form
 /// white space may surround the '=', and the name may be in SQL identifier
@@ -404,7 +407,7 @@ static KStringView kFindSecretParameter(KStringView sText, KStringView::size_typ
 			bool bInURL = iName > 0 && (sText[iName - 1] == '?' || sText[iName - 1] == '&');
 			auto iEnd   = iHit + 1;
 
-			while (iEnd < sText.size() && !kIsValueEnd(sText[iEnd]) && !(bInURL && (sText[iEnd] == '&' || sText[iEnd] == '#')))
+			while (iEnd < sText.size() && !kIsValueEnd(sText[iEnd]) && !(bInURL && (sText[iEnd] == '&' || sText[iEnd] == '#' || sText[iEnd] == '<')))
 			{
 				++iEnd;
 			}

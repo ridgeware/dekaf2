@@ -12,6 +12,9 @@ TEST_CASE("kRedactCredentials")
 		CHECK ( kRedactCredentials("pass=3 fail=0 key=value", sBuffer) == false );
 		CHECK ( sBuffer == "unchanged" );
 		CHECK ( kRedactCredentials("pass=3 fail=0 key=value") == "pass=3 fail=0 key=value" );
+		// a session id outside a URL, and a name that only ends with "sid"
+		CHECK ( kRedactCredentials("pid=12 sid=34 uid=0")       == "pid=12 sid=34 uid=0" );
+		CHECK ( kRedactCredentials("GET /wlan?ssid=HomeWifi")   == "GET /wlan?ssid=HomeWifi" );
 	}
 
 	SECTION("the shapes of credentials")
@@ -23,6 +26,14 @@ TEST_CASE("kRedactCredentials")
 		CHECK ( kRedactCredentials("https://user:secret@example.com/path") == "https://user:[redacted]@example.com/path" );
 		CHECK ( kRedactCredentials("login with password=hunter2 done")     == "login with password=[redacted] done" );
 		CHECK ( kRedactCredentials("GET /api?api_key=abc123&x=1")          == "GET /api?api_key=[redacted]&x=1" );
+		CHECK ( kRedactCredentials("GET /x.lua?a=1&sid=deadbeef&b=2")      == "GET /x.lua?a=1&sid=[redacted]&b=2" );
+		CHECK ( kRedactCredentials("GET /list?sid=0123456789abcdef")
+		        ==                 "GET /list?sid=012...redacted...def" );
+		// in XML text a '<' ends the URL - outside a URL it may be part of a password
+		CHECK ( kRedactCredentials("<Path>/list?sid=0123456789abcdef</Path>")
+		        ==                 "<Path>/list?sid=012...redacted...def</Path>" );
+		CHECK ( kRedactCredentials("<Url>/api?token=abc123</Url>") == "<Url>/api?token=[redacted]</Url>" );
+		CHECK ( kRedactCredentials("login with password=a<b>c done")  == "login with password=[redacted] done" );
 		CHECK ( kRedactCredentials("token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl end") == "token eyJ...redacted...XJl end" );
 	}
 

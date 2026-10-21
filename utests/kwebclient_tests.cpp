@@ -204,11 +204,7 @@ TEST_CASE("KWebClient") {
 		CHECK( sRet.empty() );
 		CHECK( HTTP.GetStatusCode() == 598 );
 		CHECK( HTTP.GetTransportError() == KHTTPClient::TransportError::Timeout );
-#ifndef DEKAF2_IS_WINDOWS
-		// on Windows the error is the system text of ERROR_OPERATION_ABORTED, in the
-		// language of the system
-		CHECK( HTTP.Error().contains("Operation canceled") );
-#endif
+		CHECK( HTTP.Error().contains("read timeout") );
 //		HTTP.Disconnect();
 		// leave connection untouched to test reconnect feature
 		// it is difficult to know when the TCP server is done
@@ -436,11 +432,7 @@ TEST_CASE("KWebClient") {
 		CHECK( sRet.empty() );
 		CHECK( HTTP.GetStatusCode() == 598 );
 		CHECK( HTTP.GetTransportError() == KHTTPClient::TransportError::Timeout );
-#ifndef DEKAF2_IS_WINDOWS
-		// on Windows the error is the system text of ERROR_OPERATION_ABORTED, in the
-		// language of the system
-		CHECK( HTTP.Error().contains("Operation canceled") );
-#endif
+		CHECK( HTTP.Error().contains("read timeout") );
 		sRet.clear();
 		// leave connection untouched to test reconnect feature
 		// it is difficult to know when the TCP server is done

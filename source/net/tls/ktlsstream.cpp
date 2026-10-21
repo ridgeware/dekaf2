@@ -299,6 +299,14 @@ std::streamsize KTLSStream::direct_read_some(void* sBuffer, std::streamsize iCou
 		return 0;
 	}
 
+	// If the timeout of a previous operation closed the connection, a read on the
+	// closed socket would fail with EBADF and replace the timeout as the cause of
+	// the failure. Return 0 instead, and keep the state of the stream.
+	if (m_Stream.IsClosedByTimeout())
+	{
+		return 0;
+	}
+
 	std::streamsize iRead { 0 };
 
 	if (!m_Stream.bManualHandshake)
@@ -349,6 +357,12 @@ std::streamsize KTLSStream::direct_write_some(const void* sBuffer, std::streamsi
 		{
 			return -1;
 		}
+	}
+
+	// see direct_read_some()
+	if (m_Stream.IsClosedByTimeout())
+	{
+		return 0;
 	}
 
 	std::streamsize iWrote { 0 };

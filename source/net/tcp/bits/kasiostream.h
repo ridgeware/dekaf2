@@ -186,6 +186,16 @@ struct KAsioStream
 	} // IsDisconnected
 
 	//-----------------------------------------------------------------------------
+	/// returns true if the timeout of the last operation closed the connection - a
+	/// further operation on the closed socket would fail with EBADF, and replace the
+	/// timeout as the cause of the failure
+	bool IsClosedByTimeout()
+	//-----------------------------------------------------------------------------
+	{
+		return bTimedOut && !Traits::SocketIsOpen(Socket);
+	}
+
+	//-----------------------------------------------------------------------------
 	void ResetTimer()
 	//-----------------------------------------------------------------------------
 	{

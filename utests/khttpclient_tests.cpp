@@ -13,6 +13,8 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/io/streams/koutstringstream.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
+#include <dekaf2/crypto/rsa/krsacert.h>
+#include <dekaf2/crypto/rsa/krsakey.h>
 #include <atomic>
 
 
@@ -442,8 +444,8 @@ class KScriptedHTTPServer : public KTCPServer
 
 public:
 
-	KScriptedHTTPServer(uint16_t iPort)
-	: KTCPServer(iPort, false, 5)
+	KScriptedHTTPServer(uint16_t iPort, bool bTLS = false)
+	: KTCPServer(iPort, bTLS, 5)
 	{
 	}
 
@@ -573,6 +575,32 @@ TEST_CASE("KHTTPClient transport errors")
 		CHECK ( HTTP.HttpSuccess() == false );
 	}
 
+	SECTION("a timeout after a part of the body")
+	{
+		// the timeout closes the connection - the reads after it must not replace
+		// the timeout as the cause of the failure
+		Server.Respond("HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n0123456789", "", chrono::milliseconds(1500));
+		KWebClient HTTP;
+		HTTP.SetTimeout(chrono::milliseconds(300));
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::Timeout );
+		CHECK ( HTTP.Error().contains("timeout") );
+		CHECK ( HTTP.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
+	SECTION("a timeout within the response header")
+	{
+		Server.Respond("HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n", "", chrono::milliseconds(1500));
+		KWebClient HTTP;
+		HTTP.SetTimeout(chrono::milliseconds(300));
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::Timeout );
+		CHECK ( HTTP.Error().contains("timeout") );
+		CHECK ( HTTP.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT );
+		CHECK ( HTTP.HttpSuccess() == false );
+	}
+
 	SECTION("a response header above the limit")
 	{
 		Server.Respond("HTTP/1.1 200 OK\r\nX: " + KString(64 * 1024, 'a') + "\r\nContent-Length: 0\r\n\r\n");
@@ -616,6 +644,43 @@ TEST_CASE("KHTTPClient transport errors")
 		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::None );
 		CHECK ( HTTP.HttpSuccess() == true );
 		CHECK ( Server.m_iConnections == 2 );
+	}
+
+	Server.Stop();
+}
+
+TEST_CASE("KHTTPClient transport errors over TLS")
+{
+	// a server cert for the loopback address
+	KRSAKey  Key(2048);
+	KRSACert Cert;
+	REQUIRE ( Cert.Create(Key, "localhost", "US", "", "DNS:localhost,IP:127.0.0.1") );
+
+	KScriptedHTTPServer Server(7659, true);
+	REQUIRE ( Server.SetTLSCertificates(Cert.GetPEM(), Key.GetPEM(true)) );
+	Server.Start(chrono::seconds(2), false);
+
+	KStringViewZ sURL = "https://127.0.0.1:7659/path";
+
+	SECTION("a complete response")
+	{
+		Server.Respond("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n", "hello");
+		KWebClient HTTP;
+		CHECK ( HTTP.Get(sURL) == "hello" );
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::None );
+		CHECK ( HTTP.HttpSuccess() == true );
+	}
+
+	SECTION("a timeout after a part of the body")
+	{
+		Server.Respond("HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n0123456789", "", chrono::milliseconds(1500));
+		KWebClient HTTP;
+		HTTP.SetTimeout(chrono::milliseconds(300));
+		HTTP.Get(sURL);
+		CHECK ( HTTP.GetTransportError() == KHTTPClient::TransportError::Timeout );
+		CHECK ( HTTP.Error().contains("timeout") );
+		CHECK ( HTTP.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT );
+		CHECK ( HTTP.HttpSuccess() == false );
 	}
 
 	Server.Stop();

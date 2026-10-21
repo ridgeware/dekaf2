@@ -61,6 +61,14 @@ std::streamsize KTCPStream::direct_read_some(void* sBuffer, std::streamsize iCou
 		return 0;
 	}
 
+	// If the timeout of a previous operation closed the connection, a read on the
+	// closed socket would fail with EBADF and replace the timeout as the cause of
+	// the failure. Return 0 instead, and keep the state of the stream.
+	if (m_Stream.IsClosedByTimeout())
+	{
+		return 0;
+	}
+
 	std::streamsize iRead { 0 };
 
 	GetAsioSocket().async_read_some(boost::asio::buffer(sBuffer, iCount),
@@ -72,6 +80,17 @@ std::streamsize KTCPStream::direct_read_some(void* sBuffer, std::streamsize iCou
 
 	m_Stream.RunTimed();
 
+	if (m_Stream.ec && m_Stream.ec != boost::asio::error::eof)
+	{
+		// record the cause for the callers - a timeout closes the socket, and the
+		// read itself then only reports "Operation canceled". The non-logging
+		// overload of SetError() is used, the callers report the error.
+		SetError(KErrorBase(m_Stream.bTimedOut
+		                    ? kFormat("read timeout ({}) from {}", m_Stream.Timeout, m_Stream.sEndpoint)
+		                    : kFormat("cannot read from {} stream: {}", "tcp", m_Stream.ec.message()),
+		                    m_Stream.ec.value()));
+	}
+
 	return iRead;
 
 } // direct_read_some
@@ -80,6 +99,12 @@ std::streamsize KTCPStream::direct_read_some(void* sBuffer, std::streamsize iCou
 std::streamsize KTCPStream::direct_write_some(const void* sBuffer, std::streamsize iCount)
 //-----------------------------------------------------------------------------
 {
+	// see direct_read_some()
+	if (m_Stream.IsClosedByTimeout())
+	{
+		return 0;
+	}
+
 	std::streamsize iWrote { 0 };
 
 	// one write_some, no loop - a partial write is a valid result here
@@ -109,33 +134,33 @@ std::streamsize KTCPStream::TCPStreamReader(void* sBuffer, std::streamsize iCoun
 	{
 		auto& IOStream = *static_cast<KTCPStream*>(stream_);
 
+		// direct_read_some() records the error, here it is only logged
 		iRead = IOStream.direct_read_some(sBuffer, iCount);
 
 #ifdef DEKAF2_WITH_KLOG
-		if (iRead == 0 || IOStream.m_Stream.ec.value() != 0 || !IOStream.m_Stream.Socket.is_open())
+		if (DEKAF2_UNLIKELY(kWouldLog(1)))
 		{
-			if (IOStream.m_Stream.ec.value() == boost::asio::error::eof)
+			if (iRead == 0 || IOStream.m_Stream.ec.value() != 0 || !IOStream.m_Stream.Socket.is_open())
 			{
-				kDebug(2, "input stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
-			}
-			else if (IOStream.m_Stream.ec == boost::asio::error::operation_aborted)
-			{
-				// benign -- typically a client-side timeout or graceful cancel.
-				// We still record the error so callers see it via Error() (e.g. the
-				// HTTP client reports a timeout as "Operation canceled" / 598), but
-				// we set it through the non-logging SetError overload so the klog
-				// chatter is demoted from SetError's built-in kDebug(1) to kDebug(3).
-				kDebug(3, "{} read canceled at endpoint {}: {}",
-				       "tcp",
-				       IOStream.m_Stream.sEndpoint,
-				       IOStream.m_Stream.ec.message());
-				IOStream.SetError(KErrorBase(IOStream.m_Stream.ec.message(), IOStream.m_Stream.ec.value()));
-			}
-			else
-			{
-				IOStream.SetError(kFormat("cannot read from {} stream: {}",
-										  "tcp",
-										  IOStream.m_Stream.ec.message()));
+				if (IOStream.m_Stream.ec.value() == boost::asio::error::eof)
+				{
+					kDebug(2, "input stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
+				}
+				else if (IOStream.m_Stream.ec == boost::asio::error::operation_aborted)
+				{
+					// benign -- typically a client-side timeout or graceful cancel
+					kDebug(3, "{} read canceled at endpoint {}: {}",
+					       "tcp",
+					       IOStream.m_Stream.sEndpoint,
+					       IOStream.m_Stream.ec.message());
+				}
+				else
+				{
+					kDebug(1, "cannot read from {} stream with endpoint {}: {}",
+					       "tcp",
+					       IOStream.m_Stream.sEndpoint,
+					       IOStream.m_Stream.ec.message());
+				}
 			}
 		}
 #endif
@@ -182,17 +207,23 @@ std::streamsize KTCPStream::TCPStreamWriter(const void* sBuffer, std::streamsize
 
 			if (iWrotePart == 0 || IOStream.m_Stream.ec.value() != 0 || !IOStream.m_Stream.Socket.is_open())
 			{
-#ifdef DEKAF2_WITH_KLOG
+				// a timeout or a cancel is recorded through the non-logging overload of
+				// SetError(), so that the callers see it with Error(), while the log
+				// shows it only at level 3 instead of SetError()'s built-in level 1
 				if (IOStream.m_Stream.ec.value() == boost::asio::error::eof)
 				{
 					kDebug(2, "output stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
 				}
+				else if (IOStream.m_Stream.bTimedOut)
+				{
+					kDebug(3, "{} write timeout at endpoint {}",
+					       "tcp",
+					       IOStream.m_Stream.sEndpoint);
+					IOStream.SetError(KErrorBase(kFormat("write timeout ({}) to {}", IOStream.m_Stream.Timeout, IOStream.m_Stream.sEndpoint),
+					                             IOStream.m_Stream.ec.value()));
+				}
 				else if (IOStream.m_Stream.ec == boost::asio::error::operation_aborted)
 				{
-					// same rationale as the reader path above -- record the error via
-					// the non-logging SetError overload so callers still see it via
-					// Error(), while the klog chatter is demoted from kDebug(1) to
-					// kDebug(3).
 					kDebug(3, "{} write canceled at endpoint {}: {}",
 					       "tcp",
 					       IOStream.m_Stream.sEndpoint,
@@ -205,7 +236,6 @@ std::streamsize KTCPStream::TCPStreamWriter(const void* sBuffer, std::streamsize
 											  "tcp",
 											  IOStream.m_Stream.ec.message()));
 				}
-#endif
 				break;
 			}
 		}

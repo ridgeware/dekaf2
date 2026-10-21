@@ -662,13 +662,14 @@ public:
 	DEKAF2_NODISCARD_PEDANTIC
 	const StringT&  ConstString () const noexcept;
 
-	/// Returns a const string reference to this json element. Will return reference to an empty string if this element is not a string.
+	/// Returns a const string reference to this json element. Will return reference to an empty string if this element is not a string, also for a number - to read a number as text use CopyString() or Print().
 	DEKAF2_NODISCARD
 	const StringT&  String    () const noexcept { return ConstString(); }
 
 	/// Returns a string reference to this json element. If the element is a number, float, or boolean, the value will be converted to string and
-	/// stored in place of the previous element. Arrays and objects will be converted to the empty string. To instead return a value for all
-	/// json types, use Print() (which is non-destructive).
+	/// stored in place of the previous element. Arrays, objects and null are replaced by sDefault, the empty string by default. As this is the
+	/// overload a read on a non-const object calls, read through a const reference or operator() to leave the json unchanged. To instead return
+	/// a value for all json types, use Print() (which is non-destructive).
 	DEKAF2_NODISCARD
 	StringT&        String    (StringViewT sDefault = StringViewT{}) ;
 
@@ -720,6 +721,9 @@ public:
 	// (checked) implicit conversions to value types that do not throw - if the
 	// json value does not match it is default constructed
 	// - together with the throwless Select() this is all the magic
+	// - on a non-const object, the conversions to a string reference or view call
+	//   the non-const String() if DEKAF2_KJSON_ALLOW_IMPLICIT_CONVERSION_IN_PLACE
+	//   is set (the default), and convert the element in place
 
 	operator const StringT&    () const noexcept { return ConstString(); }
 #if DEKAF2_KJSON_ALLOW_IMPLICIT_CONVERSION_IN_PLACE
@@ -815,7 +819,7 @@ public:
 	DEKAF2_NODISCARD
 	const_reference	Element    (StringViewT sElement)  const noexcept { return ConstElement(sElement); }
 
-	/// Selects the element in sElement, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Does not throw.
+	/// Selects the element in sElement, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. If this json element is not an object (but an array, a primitive or null), it is replaced by an empty object first. Does not throw.
 	DEKAF2_NODISCARD
 	reference       Element    (StringViewT sElement)        noexcept;
 
@@ -823,31 +827,31 @@ public:
 	DEKAF2_NODISCARD
 	const_reference Element    (size_type   iElement)  const noexcept { return ConstElement(iElement); }
 
-	/// Selects the array index iSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
+	/// Selects the array index iElement, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. If this json element is not an array, it is replaced by an empty array first. Does not throw.
 	DEKAF2_NODISCARD
 	reference       Element    (size_type   iElement)        noexcept;
 
-	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. A selector starting with '/' is a json pointer ("/address/city"), one starting with '.' a dotted path (".address.city"), any other a key. This method never changes the json, also when called on a non-const object - use it to read. Does not throw.
 	DEKAF2_NODISCARD
 	const_reference	ConstSelect(StringViewT sSelector) const noexcept;
 
-	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. This method never changes the json, also when called on a non-const object - use it to read. Does not throw.
 	DEKAF2_NODISCARD
 	const_reference	ConstSelect(size_type   iSelector) const noexcept { return ConstElement(iSelector); }
 
-	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Same as ConstSelect(). Does not throw.
 	DEKAF2_NODISCARD
 	const_reference	Select     (StringViewT sSelector) const noexcept { return ConstSelect(sSelector); }
 
-	/// Selects the key or path in sSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
+	/// Selects the key or path in sSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Creates missing objects and arrays along a path, and replaces json elements of another type, see Element(). A selector starting with '/' is a json pointer ("/address/city"), one starting with '.' a dotted path (".address.city"), any other a key. On a non-const object a read also calls this overload, and inserts missing elements - read with ConstSelect() or operator() instead. Does not throw.
 	DEKAF2_NODISCARD
 	reference       Select     (StringViewT sSelector)       noexcept;
 
-	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Same as ConstSelect(). Does not throw.
 	DEKAF2_NODISCARD
 	const_reference Select     (size_type   iSelector) const noexcept { return ConstSelect(iSelector); }
 
-	/// Selects the array index iSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
+	/// Selects the array index iSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. If this json element is not an array, it is replaced by an empty array first. On a non-const object a read also calls this overload, and inserts missing elements - read with ConstSelect() or operator() instead. Does not throw.
 	DEKAF2_NODISCARD
 	reference       Select     (size_type   iSelector)       noexcept { return Element(iSelector);     }
 
@@ -855,7 +859,7 @@ public:
 	DEKAF2_NODISCARD
 	const_reference operator[] (StringViewT sElement)  const noexcept { return ConstElement(sElement); }
 
-	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the element in sElement, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. If this json element is not an object (but an array, a primitive or null), it is replaced by an empty object first. On a non-const object a read also calls this overload, and inserts missing elements - read with operator() instead. Does not throw.
 	DEKAF2_NODISCARD
 	reference       operator[] (StringViewT sElement)        noexcept { return Element(sElement);      }
 
@@ -863,23 +867,23 @@ public:
 	DEKAF2_FORCE_CHAR_PTR DEKAF2_NODISCARD
 	const_reference operator[] (T&& sElement)          const noexcept { return ConstElement(sElement); }
 
-	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the element in sElement, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. If this json element is not an object (but an array, a primitive or null), it is replaced by an empty object first. On a non-const object a read also calls this overload, and inserts missing elements - read with operator() instead. Does not throw.
 	DEKAF2_FORCE_CHAR_PTR DEKAF2_NODISCARD
 	reference       operator[] (T&& sElement)                noexcept { return Element(sElement);      }
 
-	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the array index iElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
 	DEKAF2_NODISCARD
 	const_reference operator[] (size_type   iElement)  const noexcept { return ConstElement(iElement); }
 
-	/// Selects the array index iSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
+	/// Selects the array index iElement, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. If this json element is not an array, it is replaced by an empty array first. On a non-const object a read also calls this overload, and inserts missing elements - read with operator() instead. Does not throw.
 	DEKAF2_NODISCARD
 	reference       operator[] (size_type   iElement)        noexcept { return Element(iElement);      }
 
-	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. There is only this const overload, so a read never changes the json, also on a non-const object - use it to read. Does not throw.
 	DEKAF2_NODISCARD
 	const_reference	operator() (StringViewT sElement)  const noexcept { return ConstElement(sElement); }
 
-	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the array index iElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. There is only this const overload, so a read never changes the json, also on a non-const object - use it to read. Does not throw.
 	DEKAF2_NODISCARD
 	const_reference	operator() (size_type   iElement)  const noexcept { return ConstElement(iElement); }
 

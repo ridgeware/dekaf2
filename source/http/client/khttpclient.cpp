@@ -1591,6 +1591,26 @@ bool KHTTPClient::SetTransportError(TransportError Error, KStringViewZ sError)
 } // SetTransportError
 
 //-----------------------------------------------------------------------------
+KStringView KHTTPClient::ToString(TransportError Error)
+//-----------------------------------------------------------------------------
+{
+	switch (Error)
+	{
+		case TransportError::None:              return "none";
+		case TransportError::Connect:           return "connect";
+		case TransportError::Write:             return "write";
+		case TransportError::Timeout:           return "timeout";
+		case TransportError::Read:              return "read";
+		case TransportError::IncompleteBody:    return "incomplete body";
+		case TransportError::HeaderLimit:       return "header limit";
+		case TransportError::MalformedResponse: return "malformed response";
+	}
+
+	return "unknown";
+
+} // ToString
+
+//-----------------------------------------------------------------------------
 const KTCPEndPoint& KHTTPClient::GetConnectedEndpoint() const
 //-----------------------------------------------------------------------------
 {

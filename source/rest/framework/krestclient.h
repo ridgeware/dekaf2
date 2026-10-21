@@ -159,6 +159,7 @@ public:
 	using base::GetStatusString;
 	using base::TransportError;
 	using base::GetTransportError;
+	using base::ToString;
 	using base::GetLastError;
 	using base::HasError;
 	using base::Authentication;

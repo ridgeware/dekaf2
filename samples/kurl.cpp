@@ -925,7 +925,14 @@ void kurl::ServerQuery ()
 		{
 			// no connection, or no response - during the transition of the status
 			// to what the server sent, a missing response still shows as 598
-			KErr.FormatLine("{}: {}", RequestURL, HTTP.Error());
+			if (HTTP.GetTransportError() != KHTTPClient::TransportError::None)
+			{
+				KErr.FormatLine("{}: {}: {}", RequestURL, KHTTPClient::ToString(HTTP.GetTransportError()), HTTP.Error());
+			}
+			else
+			{
+				KErr.FormatLine("{}: {}", RequestURL, HTTP.Error());
+			}
 			continue;
 		}
 
@@ -989,7 +996,7 @@ void kurl::ServerQuery ()
 		{
 			// the status line above is what the server sent, but the response did not
 			// arrive complete
-			KErr.FormatLine("{}: {}", RequestURL, HTTP.Error());
+			KErr.FormatLine("{}: {}: {}", RequestURL, KHTTPClient::ToString(HTTP.GetTransportError()), HTTP.Error());
 		}
 
 		if (RQ->Config.HasFlag(Flags::CONNECTION_CLOSE))

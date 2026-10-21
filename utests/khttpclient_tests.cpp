@@ -497,6 +497,18 @@ TEST_CASE("KHTTPClient transport errors")
 
 	KStringViewZ sURL = "http://127.0.0.1:7656/path";
 
+	SECTION("names")
+	{
+		CHECK ( KHTTPClient::ToString(KHTTPClient::TransportError::None)              == "none"               );
+		CHECK ( KHTTPClient::ToString(KHTTPClient::TransportError::Connect)           == "connect"            );
+		CHECK ( KHTTPClient::ToString(KHTTPClient::TransportError::Write)             == "write"              );
+		CHECK ( KHTTPClient::ToString(KHTTPClient::TransportError::Timeout)           == "timeout"            );
+		CHECK ( KHTTPClient::ToString(KHTTPClient::TransportError::Read)              == "read"               );
+		CHECK ( KHTTPClient::ToString(KHTTPClient::TransportError::IncompleteBody)    == "incomplete body"    );
+		CHECK ( KHTTPClient::ToString(KHTTPClient::TransportError::HeaderLimit)       == "header limit"       );
+		CHECK ( KHTTPClient::ToString(KHTTPClient::TransportError::MalformedResponse) == "malformed response" );
+	}
+
 	SECTION("no connection")
 	{
 		// nothing listens on port 1

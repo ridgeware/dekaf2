@@ -418,6 +418,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns the name of a transport error for logs and messages, like "timeout"
+	/// or "incomplete body" - "none" for TransportError::None
+	static KStringView ToString(TransportError Error);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Return HTTP status code from last request - what the server sent, 0 if no
 	/// status arrived. During the transition period, a transport error replaces a missing or a
 	/// 2xx status with 598, see GetTransportError().

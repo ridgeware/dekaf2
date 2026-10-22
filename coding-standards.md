@@ -622,6 +622,50 @@ auto iCount {0};        // <-- no precision information
 auto iNumItems {100};   // <-- no precision information
 ```
 
+## Strings (K600-K601)
+
+**K600: Pass strings as they are**
+
+The string types convert implicitly into each other: `KString`, `KStringView`, `KStringViewZ`,
+`std::string` and `std::string_view`, and a `const char*` converts into each of them. Do not wrap an
+argument in `KString(...)`, `KStringView(...)` or `.ToView()`. An explicit `KString(...)` builds a
+copy that a `KStringView` or `const KString&` parameter does not need, and a view initialized from
+it points to a destroyed temporary. Construct a `KString` only where the code needs its own copy.
+
+```cpp
+void Lookup (KStringView sKey);
+void Store  (const KString& sValue);
+
+// ✓ Correct
+Lookup (sName);                         // sName is a KString
+Store  (sView);                         // the conversion builds the KString the parameter needs
+
+// ✗ Incorrect
+Lookup (KStringView(sName));            // not needed
+Lookup (KString(sView));                // a copy that nobody needs
+KStringView sView = KString(sName);     // a view on a destroyed temporary
+```
+
+**K601: Call string methods on the view**
+
+`KStringView` has nearly all methods of `KString` that do not change the string: `ToUpper()`,
+`ToLower()`, `Left()`, `Mid()`, `Right()`, `Split()`, `Trim()`, `contains()`, `starts_with()`,
+`ends_with()`, `Int64()`, `UInt32()`, `Double()`, `Bool()`, `MatchRegex()`, `Hash()`, and
+`remove_prefix()` / `remove_suffix()` for a character or a string. Call them on the view. A `KString`
+constructed only to call one of them copies the string for nothing. Only methods that change the
+string, like `Replace()`, `MakeUpper()` or `+=`, need a `KString`.
+
+```cpp
+// ✓ Correct
+auto sUpper = sView.ToUpper();          // the new string is the result
+auto iCount = sView.UInt32();
+auto sFirst = sView.Left(10);           // a view, no copy at all
+
+// ✗ Incorrect - copies the string, and then builds the upper case string
+auto sUpper = KString(sView).ToUpper();
+auto iCount = KString(sView).UInt32();
+```
+
 ## JSON Handling
 
 ### KJSON Object Construction
@@ -744,8 +788,8 @@ KString        sName = json("name");
 const KString  sName = json("name").String();
 
 // ✓ Correct - the copy is changed, the json value stays as it is
-auto           sStatus = json("status").String();
-sStatus.MakeUpper();
+auto           sPath = json("path").String();
+sPath.Replace('\\', '/');
 ```
 
 A reference or view stays valid as long as the json is neither changed nor destroyed.
@@ -820,5 +864,6 @@ if (!VerifyHashString(sUrlHash))
 - [ ] Space around binary operators and after commas
 - [ ] Use `auto` with descriptive names
 - [ ] Throw KHTTPError with brace initialization (space before `{`)
+- [ ] Pass strings as they are, and call string methods on the view instead of a KString copy (K600-K601)
 - [ ] Use proper KJSON API patterns: `kjson::Parse()`, reading with `json("key")` or `ConstSelect()`, typed accessors, iterator pattern, strings as references, no reads through a non-const accessor (K400-K405)
 - [ ] Write comments and documentation as plain, complete English sentences, without internal project names, plan steps, restating closers or capitalized emphasis (K500-K503)

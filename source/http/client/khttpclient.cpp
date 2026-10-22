@@ -489,6 +489,13 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 				kDebug(1, "creating new connection to {} with HTTP/1.1 - consider disabling HTTP/2", Endpoint.Domain);
 				return Connect(KIOStreamSocket::Create(url, true, m_StreamOptions));
 			}
+			else
+			{
+				// the handshake failed for good: report its cause as the connect
+				// error - the connection is unusable, and the first request would
+				// otherwise only find "no stream"
+				return SetTransportError(TransportError::Connect, m_Connection->HasError() ? m_Connection->GetLastError() : KStringViewZ("TLS handshake failed"));
+			}
 		}
 		else if (m_StreamOptions.IsSet(KHTTPStreamOptions::FallBackToHTTP1) == false)
 		{
@@ -879,7 +886,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 } // SetHostHeader
 
 //-----------------------------------------------------------------------------
-/// Adds a request header for the next request
+/// Adds a request header - it stays set until clear()
 KHTTPClient& KHTTPClient::AddHeader(KHTTPHeader Header, KString sValue)
 //-----------------------------------------------------------------------------
 {
@@ -1005,7 +1012,8 @@ bool KHTTPClient::SetupAutomaticHeaders(KStringView* svPostData, KInStream* Post
 
 	if (!m_Connection || !m_Connection->Good())
 	{
-		return SetTransportError(TransportError::Connect, "no stream");
+		// a connection that went bad knows why
+		return SetTransportError(TransportError::Connect, (m_Connection && m_Connection->HasError()) ? m_Connection->GetLastError() : KStringViewZ("no stream"));
 	}
 
 	if (Request.Method != KHTTPMethod::HEAD &&

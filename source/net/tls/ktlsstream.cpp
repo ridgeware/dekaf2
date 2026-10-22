@@ -90,9 +90,20 @@ bool KTLSStream::Handshake()
 	if (m_Stream.ec.value() != 0 || !m_Stream.Socket.lowest_layer().is_open())
 	{
 		auto sMessage = m_Stream.ec.message();
-		kDebug(1, "TLS handshake failed with {}: {}",
-		       m_Stream.sEndpoint,
-		       sMessage);
+
+		// record the cause on the stream: the clients only see a stream that is
+		// not Good() and used to report "no stream" (or a write error) instead of
+		// e.g. a certificate that does not verify. The reason of a failed
+		// verification is more telling than "certificate verify failed" alone.
+		// No error code: the asio value does not fit the 16 bit code, and one
+		// truncated to 0 would read as "no error"
+		auto iVerify = ::SSL_get_verify_result(GetNativeTLSHandle());
+
+		SetError(kFormat("TLS handshake with {} failed: {}{}{}",
+		                 m_Stream.sEndpoint,
+		                 sMessage,
+		                 (iVerify != X509_V_OK) ? " - " : "",
+		                 (iVerify != X509_V_OK) ? ::X509_verify_cert_error_string(iVerify) : ""));
 
 		if ((m_StreamOptions & KStreamOptions::RequestHTTP2) == KStreamOptions::RequestHTTP2
 		    && sMessage.find("bad extension") != std::string::npos)

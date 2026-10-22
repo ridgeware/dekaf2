@@ -294,7 +294,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Adds a request header for the next request
+	/// Adds a request header. It stays set for all following requests of this client until
+	/// clear() is called - a client that is reused for requests on behalf of different callers
+	/// must call clear() before each one (KRestClient does that itself after each request)
 	KHTTPClient& AddHeader(KHTTPHeader Header, KString sValue);
 	//-----------------------------------------------------------------------------
 

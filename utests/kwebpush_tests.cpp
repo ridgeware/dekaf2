@@ -2,7 +2,11 @@
 
 #include <dekaf2/web/push/kwebpush.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/crypto/ec/keckey.h>
+#include <dekaf2/crypto/random/krandom.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <atomic>
 
 using namespace dekaf2;
 
@@ -250,3 +254,168 @@ TEST_CASE("KWebPush")
 		CHECK       ( Push.Send(KJSON{}) == 0 );
 	}
 }
+
+#if DEKAF2_HAS_SQLITE3
+namespace {
+
+// a push service that answers every request with m_iStatus, and with m_sLocation if set
+class KPushTestService : public KTCPServer
+{
+
+public:
+
+	KPushTestService(uint16_t iPort)
+	: KTCPServer(iPort, false, 5)
+	{
+	}
+
+	std::atomic<int> m_iStatus   { 201 };
+	std::atomic<int> m_iRequests { 0 };
+	KString          m_sLocation;
+
+protected:
+
+	virtual void Session(std::unique_ptr<KIOStreamSocket>& stream) override
+	{
+		stream->SetReaderRightTrim("\r\n");
+
+		KString  sLine;
+		uint64_t iLength { 0 };
+
+		while (stream->ReadLine(sLine) && !sLine.empty())
+		{
+			if (sLine.ToLowerASCII().starts_with("content-length:"))
+			{
+				iLength = KStringView(sLine).Mid(15).Trim().UInt64();
+			}
+		}
+
+		KString sBody;
+		stream->Read(sBody, iLength);
+
+		++m_iRequests;
+
+		KString sLocation = m_sLocation.empty() ? KString{} : kFormat("Location: {}\r\n", m_sLocation);
+		stream->Write(kFormat("HTTP/1.1 {} Push\r\n{}Content-Length: 0\r\nConnection: close\r\n\r\n", m_iStatus.load(), sLocation)).Flush();
+	}
+
+}; // KPushTestService
+
+} // end of anonymous namespace
+
+TEST_CASE("KWebPush MaxRedirects")
+{
+	// push services on ports picked by the OS: the endpoint, and redirect targets
+	KPushTestService Service(0);
+	KPushTestService Elsewhere(0);
+	KPushTestService Third(0);
+	KPushTestService Second(0);
+
+	for (auto* pService : { &Service, &Elsewhere, &Third, &Second })
+	{
+		pService->SetBindAddress("127.0.0.1");
+		REQUIRE ( pService->Start(chrono::seconds(2), false) );
+		REQUIRE ( pService->GetPort() != 0 );
+	}
+
+	auto URL = [](const KPushTestService& Target, KStringView sPath)
+	{
+		return kFormat("http://127.0.0.1:{}{}", Target.GetPort(), sPath);
+	};
+
+	// the push service redirects to a second listener
+	Service.m_iStatus   = 307;
+	Service.m_sLocation = URL(Elsewhere, "/elsewhere");
+
+	KTempDir TempDir;
+	KString sDB = kFormat("{}/push_test.db", TempDir.Name());
+
+	KWebPush Push(KStringViewZ{sDB});
+	REQUIRE_FALSE ( Push.HasError() );
+
+	auto Subscription = [](KString sEndpoint)
+	{
+		KECKey UAKey(true);
+
+		KWebPush::Subscription sub;
+		sub.sUser     = "ada";
+		sub.sEndpoint = std::move(sEndpoint);
+		sub.sP256dh   = KBase64Url::Encode(UAKey.GetPublicKeyRaw());
+		sub.sAuth     = KBase64Url::Encode(kGetRandom(16));
+		return sub;
+	};
+
+	REQUIRE ( Push.Subscribe(Subscription(URL(Service, "/send/ada"))) );
+
+	SECTION("MaxRedirects 0: the redirect is not followed, the send fails, the subscription stays")
+	{
+		KWebPush::SendOptions Options;
+		Options.MaxRedirects = 0;
+		CHECK ( Push.Send(KJSON{ { "title", "x" } }, "ada", Options) == 0 );
+		CHECK ( Service.m_iRequests == 1 );
+		CHECK ( Elsewhere.m_iRequests == 0 );
+		CHECK ( Push.ListSubscriptions("ada").size() == 1 );
+	}
+
+	SECTION("the default follows the redirect")
+	{
+		KWebPush::SendOptions Options;
+		CHECK ( Options.MaxRedirects == 20 );
+		CHECK ( Push.Send(KJSON{ { "title", "x" } }, "ada", Options) == 1 );
+		CHECK ( Service.m_iRequests == 1 );
+		CHECK ( Elsewhere.m_iRequests == 1 );
+		CHECK ( Push.ListSubscriptions("ada").size() == 1 );
+	}
+
+	SECTION("a chain of two redirects: MaxRedirects 1 fails, MaxRedirects 2 delivers")
+	{
+		Elsewhere.m_iStatus   = 307;
+		Elsewhere.m_sLocation = URL(Third, "/third");
+
+		KWebPush::SendOptions Options;
+		Options.MaxRedirects = 1;
+		CHECK ( Push.Send(KJSON{ { "title", "x" } }, "ada", Options) == 0 );
+		CHECK ( Service.m_iRequests == 1 );
+		CHECK ( Elsewhere.m_iRequests == 1 );
+		CHECK ( Third.m_iRequests == 0 );
+		CHECK ( Push.ListSubscriptions("ada").size() == 1 );
+
+		Options.MaxRedirects = 2;
+		CHECK ( Push.Send(KJSON{ { "title", "x" } }, "ada", Options) == 1 );
+		CHECK ( Third.m_iRequests == 1 );
+	}
+
+	SECTION("a redirect loop stops after the default 20 redirects")
+	{
+		Elsewhere.m_iStatus   = 307;
+		Elsewhere.m_sLocation = URL(Service, "/send/ada");
+
+		KWebPush::SendOptions Options;
+		CHECK ( Push.Send(KJSON{ { "title", "x" } }, "ada", Options) == 0 );
+		CHECK ( Service.m_iRequests + Elsewhere.m_iRequests == 21 );
+		CHECK ( Push.ListSubscriptions("ada").size() == 1 );
+	}
+
+	SECTION("MaxRedirects 0: a failed redirect on one subscription does not affect the next")
+	{
+		REQUIRE ( Push.Subscribe(Subscription(URL(Second, "/send/ada2"))) );
+
+		KWebPush::SendOptions Options;
+		Options.MaxRedirects = 0;
+		CHECK ( Push.Send(KJSON{ { "title", "x" } }, "ada", Options) == 1 );
+		CHECK ( Elsewhere.m_iRequests == 0 );
+		CHECK ( Second.m_iRequests == 1 );
+		CHECK ( Push.ListSubscriptions("ada").size() == 2 );
+	}
+
+	SECTION("the default: after a redirect the next subscription goes to its own endpoint")
+	{
+		REQUIRE ( Push.Subscribe(Subscription(URL(Second, "/send/ada2"))) );
+
+		KWebPush::SendOptions Options;
+		CHECK ( Push.Send(KJSON{ { "title", "x" } }, "ada", Options) == 2 );
+		CHECK ( Elsewhere.m_iRequests == 1 );
+		CHECK ( Second.m_iRequests == 1 );
+	}
+}
+#endif // DEKAF2_HAS_SQLITE3

@@ -343,6 +343,7 @@ std::size_t KWebPush::Send(const KJSON& jPayload, KStringView sUser, SendOptions
 	{
 		// reuse the KWebClient object across subscriptions
 		KWebClient Client;
+		Client.AllowRedirects(Options.MaxRedirects);
 		// dump the messaage payload
 		KString sPayload = jPayload.dump();
 

@@ -193,6 +193,9 @@ public:
 		: Urgency(urgency), TTL(ttl) {}
 		eUrgency  Urgency;
 		KDuration TTL;
+		/// count of redirects a push request may follow (default 20, as KWebClient's), 0 disables
+		/// redirects - a redirect answer then counts as a failed send
+		uint16_t  MaxRedirects { 20 };
 	};
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

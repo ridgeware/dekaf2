@@ -610,18 +610,19 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 {
 	// Ownership model for the pre-allocated stream:
 	//
-	// C++14+ : the stream is init-captured into the async_accept handler
-	//          as a std::unique_ptr. The handler closure itself owns the
-	//          stream, so it is destroyed whether or not the handler body
-	//          runs (e.g. when io_context::stop() discards pending handlers
-	//          during shutdown) — no leak.
+	// C++14+ and Boost >= 1.66 : the stream is init-captured into the
+	//          async_accept handler as a std::unique_ptr. The handler closure
+	//          itself owns the stream, so it is destroyed whether or not the
+	//          handler body runs (e.g. when io_context::stop() discards pending
+	//          handlers during shutdown) — no leak.
 	//
-	// C++11  : init-capture does not exist, so we smuggle ownership through
-	//          a raw pointer and reclaim it into a std::unique_ptr at the
-	//          top of the handler body. If io_context::stop() discards a
-	//          pending handler, that raw pointer leaks — but stop() only
-	//          happens at shutdown which is followed by exit, so the OS
-	//          reclaims the memory.
+	// C++11 or Boost < 1.66 (DEKAF2_CLASSIC_ASIO) : C++11 has no init-capture,
+	//          and the classic asio requires copyable handlers, which a closure
+	//          owning a std::unique_ptr is not. So we smuggle ownership through
+	//          a raw pointer and reclaim it into a std::unique_ptr at the top of
+	//          the handler body. If io_context::stop() discards a pending
+	//          handler, that raw pointer leaks — but stop() only happens at
+	//          shutdown which is followed by exit, so the OS reclaims the memory.
 	if (IsTLS())
 	{
 		auto tlsstream = CreateKTLSServer(*m_TLSContext, m_Timeout);
@@ -688,6 +689,13 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 					RunSession(moved_stream);
 				});
 #endif
+			}
+
+			// a handler left over from a run that Stop() ended gets here after a restart,
+			// with the acceptor that Stop() closed
+			if (!acceptor->is_open())
+			{
+				return;
 			}
 
 			// chain the next accept
@@ -762,6 +770,13 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 #endif
 			}
 
+			// a handler left over from a run that Stop() ended gets here after a restart,
+			// with the acceptor that Stop() closed
+			if (!acceptor->is_open())
+			{
+				return;
+			}
+
 			// chain the next accept
 			StartTCPAccept(acceptor);
 		});
@@ -813,11 +828,9 @@ void KTCPServer::StartUnixAccept(std::shared_ptr<boost::asio::local::stream_prot
 //-----------------------------------------------------------------------------
 {
 	// The acceptor travels as a shared_ptr parameter and is captured in the
-	// handler, exactly like in StartTCPAccept - Stop() resetting m_UnixAcceptor
-	// concurrently can therefore neither null out nor destroy the acceptor this
-	// accept chain works on. Stop() closes the acceptor before resetting the
-	// member, so a chained accept on it completes immediately with an error and
-	// the handler bails out via IsShuttingDown().
+	// handler, exactly like in StartTCPAccept. Stop() closes and resets it only
+	// after the IO thread has ended, so no handler of this accept chain runs at
+	// that time.
 
 	// Ownership model: see StartTCPAccept.
 	auto unixstream = CreateKUnixStream(m_Timeout);
@@ -873,6 +886,13 @@ void KTCPServer::StartUnixAccept(std::shared_ptr<boost::asio::local::stream_prot
 				RunSession(moved_stream);
 			});
 #endif
+		}
+
+		// a handler left over from a run that Stop() ended gets here after a restart,
+		// with the acceptor that Stop() closed
+		if (!acceptor->is_open())
+		{
+			return;
 		}
 
 		// chain the next accept
@@ -1129,10 +1149,24 @@ bool KTCPServer::Stop()
 
 	KLog::getInstance().SyncLevel();
 
+	// Stop the io_context and wait for the IO thread before the acceptors are touched:
+	// the asio objects are not thread safe, and an accept handler that is running in the
+	// IO thread chains the next async_accept on its acceptor. Closing that acceptor from
+	// this thread at the same time frees the reactor data that the chaining uses.
+	// stop() lets a running handler finish, then run() returns, on every backend - also on
+	// Windows/IOCP, where a cancelled accept may not be woken quickly enough for a service
+	// that is asked to stop.
+	m_asio.stop();
+
+	if (m_IOThread && m_IOThread->joinable())
+	{
+		m_IOThread->join();
+	}
+	m_IOThread.reset();
+
 	kDebug(2, "closing listeners");
 
-	// cancel and close all TCP acceptors - pending async_accept handlers
-	// will be called with operation_aborted
+	// cancel and close all TCP acceptors - no other thread uses them any longer
 	for (auto& Acceptor : m_TCPAcceptors)
 	{
 		if (Acceptor && Acceptor->is_open())
@@ -1181,31 +1215,6 @@ bool KTCPServer::Stop()
 	}
 
 #endif
-
-	// Belt-and-suspenders: explicitly stop the io_context. Cancelling the
-	// acceptor(s) above normally drains run() by itself (the chained
-	// async_accept handlers short-circuit via IsShuttingDown()), but on
-	// Windows/IOCP a pending accept may not be woken quickly enough when
-	// the service is asked to stop — the process can then sit in
-	// SERVICE_STOP_PENDING for the full SCM grace period. stop() unblocks
-	// run() immediately on every backend.
-	//
-	// On C++14+ builds this is leak-safe: the async_accept handlers own
-	// their pre-allocated stream via init-capture, so the stream is freed
-	// when the handler closure is destroyed regardless of whether it runs.
-	// On the C++11 fallback path the handler captures a raw pointer and
-	// would leak one pre-allocated stream per stopped acceptor — but since
-	// stop() is only called at shutdown and the process exits right after,
-	// the OS reclaims that memory anyway.
-	m_asio.stop();
-
-	// join the IO thread - run() will return naturally once all
-	// cancelled async_accept handlers have completed without chaining
-	if (m_IOThread && m_IOThread->joinable())
-	{
-		m_IOThread->join();
-	}
-	m_IOThread.reset();
 
 	// release the TLS context
 	m_TLSContext.reset();

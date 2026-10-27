@@ -3,6 +3,7 @@
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/core/format/kformat.h>
+#include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <thread>
 
@@ -104,6 +105,57 @@ TEST_CASE("KTCPServer ephemeral port")
 
 		Server.Stop();
 	}
+}
+
+TEST_CASE("KTCPServer stop while accepting", "[.stress]")
+{
+	// Stop() must not close the acceptor while the IO thread chains the next accept for a
+	// connection that just came in. Every round connects and stops after a short busy
+	// wait, which runs from 0 to 63 microseconds over the rounds: the accept handler of
+	// the connection runs only for a few microseconds, at a time that depends on the
+	// machine, and the waits move the stop across it. It takes about a thousand rounds
+	// to meet that window reliably, so the test is hidden as a stress test - run it
+	// with dekaf2-utests "[stress]".
+	for (int iRound = 0; iRound < 1000; ++iRound)
+	{
+		EchoServer Server(0);
+		REQUIRE ( Server.Start(chrono::seconds(2), false) == true );
+
+		KTCPStream Stream(KTCPEndPoint(kFormat("127.0.0.1:{}", Server.GetPort())),
+		                  KStreamOptions(chrono::seconds(2)));
+		REQUIRE ( Stream.Good() == true );
+
+		KStopTime Wait;
+
+		while (Wait.elapsed() < chrono::microseconds(iRound % 64))
+		{
+		}
+
+		Server.Stop();
+	}
+}
+
+TEST_CASE("KTCPServer restart after stop while accepting")
+{
+	// after a restart, Start() runs the accept handlers that a stop left pending, with
+	// the acceptors that the stop closed - they have to return, and the restarted server
+	// has to accept again
+	EchoServer Server(0);
+
+	for (int iRound = 0; iRound < 5; ++iRound)
+	{
+		REQUIRE ( Server.Start(chrono::seconds(2), false) == true );
+
+		KTCPStream Stream(KTCPEndPoint(kFormat("127.0.0.1:{}", Server.GetPort())),
+		                  KStreamOptions(chrono::seconds(2)));
+		REQUIRE ( Stream.Good() == true );
+
+		Server.Stop();
+	}
+
+	REQUIRE ( Server.Start(chrono::seconds(2), false) == true );
+	CHECK   ( Echo(kFormat("127.0.0.1:{}", Server.GetPort())) == true );
+	Server.Stop();
 }
 
 #ifdef DEKAF2_ENABLE_KTCPSERVER_TEST

@@ -488,9 +488,10 @@ else()
 	message(STATUS "simdutf: ${DEKAF2_WITH_SIMDUTF}")
 endif()
 
-# simdutf: vendored (the from/simdutf amalgamation is #included + compiled into bits/simd/kutf.cpp),
-# or find_package(simdutf) -> link simdutf::simdutf and let the sources include the system <simdutf.h>.
-# DEKAF2_USE_SYSTEM_SIMDUTF (in kconfiguration.h) switches the includes in kutf.cpp / kbase64.cpp.
+# simdutf: vendored (the from/simdutf amalgamation is #included + compiled into bits/simd/kutf.cpp,
+# in the namespace dekaf2::simdutf), or find_package(simdutf) -> link simdutf::simdutf and let the
+# sources include the system <simdutf.h>. DEKAF2_USE_SYSTEM_SIMDUTF (in kconfiguration.h) switches
+# the includes in bits/simd/ksimdutf.h, which kutf.cpp and kbase64.cpp include.
 if (DEKAF2_WITH_SIMDUTF AND NOT DEKAF2_USE_VENDORED_SIMDUTF)
 	find_package(simdutf CONFIG REQUIRED)
 	set(DEKAF2_SIMDUTF_TARGET simdutf::simdutf)
@@ -2023,6 +2024,7 @@ if (DEKAF2_HAS_LIBZIP)
 endif()
 
 set(PRIVATE_HEADERS
+	source/core/strings/bits/simd/ksimdutf.h
 	source/time/scheduler/bits/kron_utils.h
 )
 
@@ -3195,8 +3197,9 @@ endif()
 if (DEKAF2_INSTALL_INCLUDE)
 
 	# install hierarchical headers (preserves source/ directory structure under dekaf2/)
-	# web/app/strings holds only string catalogs, which are compiled in - it would stay empty
-	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/source/" DESTINATION "${dekaf2_include_dest}/dekaf2" FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" REGEX "/web/app/strings$" EXCLUDE)
+	# web/app/strings holds only string catalogs, which are compiled in - it would stay empty.
+	# ksimdutf.h includes the vendored simdutf sources, which are not installed.
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/source/" DESTINATION "${dekaf2_include_dest}/dekaf2" FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" REGEX "/web/app/strings$" EXCLUDE REGEX "/bits/simd/ksimdutf\\.h$" EXCLUDE)
 
 	# install flat backward-compatible header stubs
 	if (DEKAF2_INSTALL_FLAT_HEADERS)

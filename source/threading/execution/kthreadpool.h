@@ -90,6 +90,20 @@
  *     may touch the pool again); break the futures of a coalesced run that a
  *     bounded tag rejects, instead of leaving them pending forever; clamp a
  *     tag weight of 0 to 1; avoid a hash lookup per tag in the DRR scan
+ *
+ *  October 2026, Joachim Schurig
+ *   - the task queue now holds a move-only Task with inline storage for small
+ *     callables instead of a std::packaged_task, which saves the shared
+ *     state and its allocation for every task
+ *   - Post() and PostTagged() push a task without a future, and return
+ *     false when a bounded tag rejects it
+ *   - push() and PushTagged() no longer need separate versions for void
+ *     and non-void callables, because the queue now holds the new Task
+ *     type, which takes a packaged_task of any result type as it is. A
+ *     task with a return value is no longer wrapped into a second
+ *     packaged_task<void()>
+ *   - grow() is only called while the pool can still grow, and a push only
+ *     notifies when a worker is idle
 
  *********************************************************/
 
@@ -111,6 +125,9 @@
 #include <unordered_map>
 #include <utility>
 #include <cstdint>
+#include <cstddef>
+#include <new>
+#include <type_traits>
 
 /// @file kthreadpool.h
 /// thread pool to run user's tasks (all types of callables) with signature
@@ -137,6 +154,15 @@ DEKAF2_NAMESPACE_BEGIN
 /// KThreadPool Pool(8);        // 8 worker threads (0 = hardware concurrency)
 /// auto future = Pool.push([](int a, int b){ return a + b; }, 2, 3);
 /// int  iSum   = future.get(); // 5
+/// @endcode
+///
+/// ### Push without a future
+/// Post() runs a callable like push(), but returns no future: neither the result nor an exception
+/// reaches the caller (an exception is logged). It needs no shared state for a future and stores
+/// small callables without a heap allocation, which makes it the cheaper choice for work whose
+/// completion nobody waits for.
+/// @code
+/// Pool.Post([sLine = std::move(sLine)]() { Write(sLine); });
 /// @endcode
 ///
 /// ### Fair scheduling with tags (opt-in)
@@ -363,64 +389,16 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Push a class member function for asynchronous execution with arbitrary args. Receive result in returned future,
-	/// or ignore..
-	// SFINAE version for decltype(Function()) == void
+	/// or ignore (in which case Post() is cheaper)
 	template<typename Function, typename Object, typename... Args>
 	auto push(Function&& f, Object&& o, Args&&... args)
-	-> typename std::enable_if<std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
-	                             std::future<void>>::type
-	//-----------------------------------------------------------------------------
-	{
-		auto task = std::packaged_task<void()>(
-			std::bind(std::forward<Function>(f), std::forward<Object>(o), std::forward<Args>(args)...)
-		);
-
-		auto future = task.get_future();
-
-		push_packaged_task(std::move(task));
-
-		return future;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Push a class member function for asynchronous execution with arbitrary args. Receive result in returned future,
-	/// or ignore..
-	// SFINAE version for decltype(Function()) different than void
-	template<typename Function, typename Object, typename... Args>
-	auto push(Function&& f, Object&& o, Args&&... args)
-	-> typename std::enable_if<!std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
-	                             std::future<decltype((o->*f)(std::forward<Args>(args)...))>>::type
+	-> std::future<decltype((o->*f)(std::forward<Args>(args)...))>
 	//-----------------------------------------------------------------------------
 	{
 		using FutureType = decltype((o->*f)(std::forward<Args>(args)...));
 
-		auto InnerTask = std::packaged_task<FutureType()>(
+		auto task = std::packaged_task<FutureType()>(
 			std::bind(std::forward<Function>(f), std::forward<Object>(o), std::forward<Args>(args)...)
-		);
-
-		auto future = InnerTask.get_future();
-
-		auto task = std::packaged_task<void()>(
-			std::move(InnerTask)
-		);
-
-		push_packaged_task(std::move(task));
-
-		return future;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Push a non-class callable for asynchronous execution with arbitrary args. Receive result in returned future,
-	/// or ignore..
-	// SFINAE version for decltype(Function()) == void
-	template<typename Function, typename... Args>
-	auto push(Function&& f, Args&&... args)
-	-> typename std::enable_if<std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
-	                             std::future<void>>::type
-	//-----------------------------------------------------------------------------
-	{
-		auto task = std::packaged_task<void()>(
-			std::bind(std::forward<Function>(f), std::forward<Args>(args)...)
 		);
 
 		auto future = task.get_future();
@@ -432,25 +410,19 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Push a non-class callable for asynchronous execution with arbitrary args. Receive result in returned future,
-	/// or ignore (in which case you should better use void as function return type)
-	// SFINAE version for decltype(Function()) different than void
+	/// or ignore (in which case Post() is cheaper)
 	template<typename Function, typename... Args>
 	auto push(Function&& f, Args&&... args)
-	-> typename std::enable_if<!std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
-	                             std::future<decltype(f(std::forward<Args>(args)...))>>::type
+	-> std::future<decltype(f(std::forward<Args>(args)...))>
 	//-----------------------------------------------------------------------------
 	{
 		using FutureType = decltype(f(std::forward<Args>(args)...));
 
-		auto InnerTask = std::packaged_task<FutureType()>(
+		auto task = std::packaged_task<FutureType()>(
 			std::bind(std::forward<Function>(f), std::forward<Args>(args)...)
 		);
 
-		auto future = InnerTask.get_future();
-
-		auto task = std::packaged_task<void()>(
-			std::move(InnerTask)
-		);
+		auto future = task.get_future();
 
 		push_packaged_task(std::move(task));
 
@@ -499,59 +471,17 @@ public:
 	/// it accepts free functions, lambdas and functors, as well as a class member function with its
 	/// object (PushTagged(tag, &Class::Method, &obj, args...)). If the tag's queue is full and the
 	/// policy rejects, the task is dropped and the future becomes broken (future::get() throws
-	/// std::future_error / broken_promise). For void callables a single packaged_task is built (no
-	/// extra wrapping); non-void callables wrap an inner packaged_task<R()> to carry the result.
-	/// member function, void return - one packaged_task, no extra wrapping
+	/// std::future_error / broken_promise). A packaged_task carries the result to the future.
+	/// member function
 	template<typename Function, typename Object, typename... Args>
 	auto PushTagged(Tag tag, Function&& f, Object&& o, Args&&... args)
-	-> typename std::enable_if<std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
-	                             std::future<void>>::type
-	//-----------------------------------------------------------------------------
-	{
-		auto task = std::packaged_task<void()>(
-			std::bind(std::forward<Function>(f), std::forward<Object>(o), std::forward<Args>(args)...)
-		);
-
-		auto future = task.get_future();
-
-		push_to_tag(std::move(task), tag);
-
-		return future;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// member function, non-void return
-	template<typename Function, typename Object, typename... Args>
-	auto PushTagged(Tag tag, Function&& f, Object&& o, Args&&... args)
-	-> typename std::enable_if<!std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
-	                             std::future<decltype((o->*f)(std::forward<Args>(args)...))>>::type
+	-> std::future<decltype((o->*f)(std::forward<Args>(args)...))>
 	//-----------------------------------------------------------------------------
 	{
 		using FutureType = decltype((o->*f)(std::forward<Args>(args)...));
 
-		auto InnerTask = std::packaged_task<FutureType()>(
+		auto task = std::packaged_task<FutureType()>(
 			std::bind(std::forward<Function>(f), std::forward<Object>(o), std::forward<Args>(args)...)
-		);
-
-		auto future = InnerTask.get_future();
-
-		auto task = std::packaged_task<void()>(std::move(InnerTask));
-
-		push_to_tag(std::move(task), tag);
-
-		return future;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// non-class callable, void return - one packaged_task, no extra wrapping
-	template<typename Function, typename... Args>
-	auto PushTagged(Tag tag, Function&& f, Args&&... args)
-	-> typename std::enable_if<std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
-	                             std::future<void>>::type
-	//-----------------------------------------------------------------------------
-	{
-		auto task = std::packaged_task<void()>(
-			std::bind(std::forward<Function>(f), std::forward<Args>(args)...)
 		);
 
 		auto future = task.get_future();
@@ -562,22 +492,19 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// non-class callable, non-void return
+	/// non-class callable
 	template<typename Function, typename... Args>
 	auto PushTagged(Tag tag, Function&& f, Args&&... args)
-	-> typename std::enable_if<!std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
-	                             std::future<decltype(f(std::forward<Args>(args)...))>>::type
+	-> std::future<decltype(f(std::forward<Args>(args)...))>
 	//-----------------------------------------------------------------------------
 	{
 		using FutureType = decltype(f(std::forward<Args>(args)...));
 
-		auto InnerTask = std::packaged_task<FutureType()>(
+		auto task = std::packaged_task<FutureType()>(
 			std::bind(std::forward<Function>(f), std::forward<Args>(args)...)
 		);
 
-		auto future = InnerTask.get_future();
-
-		auto task = std::packaged_task<void()>(std::move(InnerTask));
+		auto future = task.get_future();
 
 		push_to_tag(std::move(task), tag);
 
@@ -606,9 +533,209 @@ public:
 		           std::bind(std::forward<Function>(f), std::forward<Args>(args)...));
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Push a callable without a future: neither its result nor an exception it throws is returned
+	/// to the caller (an exception is logged). Accepts the same callables as push(). As no shared
+	/// state for a future is created and small callables are stored without a heap allocation, this
+	/// is cheaper than push().
+	/// @return false if the queue of DefaultTag is bounded and rejected the task
+	template<typename Function, typename... Args>
+	bool Post(Function&& f, Args&&... args)
+	//-----------------------------------------------------------------------------
+	{
+		return push_to_tag(MakeTask(std::forward<Function>(f), std::forward<Args>(args)...), DefaultTag);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Push a callable without a future under a work-class tag, see Post() and PushTagged()
+	/// @return false if the tag's queue is bounded and rejected the task
+	template<typename Function, typename... Args>
+	bool PostTagged(Tag tag, Function&& f, Args&&... args)
+	//-----------------------------------------------------------------------------
+	{
+		return push_to_tag(MakeTask(std::forward<Function>(f), std::forward<Args>(args)...), tag);
+	}
+
 //------
 private:
 //------
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// a move-only callable with the signature void(), the element type of the task queues -
+	/// unlike std::packaged_task it has no shared state for a future, and it stores callables
+	/// of up to StorageSize bytes without a heap allocation
+	class Task
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//------
+	public:
+	//------
+
+		Task() = default;
+
+		template<class Callable,
+		         typename std::enable_if<!std::is_same<typename std::decay<Callable>::type, Task>::value, int>::type = 0>
+		Task(Callable&& f)
+		{
+			using F = typename std::decay<Callable>::type;
+			Construct<F>(std::forward<Callable>(f), std::integral_constant<bool, IsInline<F>()>());
+		}
+
+		Task(Task&& other) noexcept
+		{
+			MoveFrom(other);
+		}
+
+		Task& operator=(Task&& other) noexcept
+		{
+			if (this != &other)
+			{
+				Reset();
+				MoveFrom(other);
+			}
+
+			return *this;
+		}
+
+		~Task()
+		{
+			Reset();
+		}
+
+		void operator()()
+		{
+			m_Invoker(m_Storage);
+		}
+
+		explicit operator bool() const noexcept
+		{
+			return m_Manager != nullptr;
+		}
+
+	//------
+	private:
+	//------
+
+		/// room for a std::bind or a lambda with a few captures, like a pointer and a string
+		static constexpr std::size_t StorageSize = 6 * sizeof(void*);
+
+		enum Operation { MoveTo, Destroy };
+
+		template<class F>
+		static constexpr bool IsInline()
+		{
+			return sizeof(F)  <= StorageSize
+			    && alignof(F) <= alignof(std::max_align_t)
+			    && std::is_nothrow_move_constructible<F>::value;
+		}
+
+		template<class F, class Callable>
+		void Construct(Callable&& f, std::true_type /* inline */)
+		{
+			::new (static_cast<void*>(m_Storage)) F(std::forward<Callable>(f));
+			m_Invoker = &InvokeInline<F>;
+			m_Manager = &ManageInline<F>;
+		}
+
+		template<class F, class Callable>
+		void Construct(Callable&& f, std::false_type /* on the heap */)
+		{
+			::new (static_cast<void*>(m_Storage)) F*(new F(std::forward<Callable>(f)));
+			m_Invoker = &InvokeHeap<F>;
+			m_Manager = &ManageHeap<F>;
+		}
+
+		template<class F>
+		static void InvokeInline(void* pStorage)
+		{
+			(*static_cast<F*>(pStorage))();
+		}
+
+		template<class F>
+		static void InvokeHeap(void* pStorage)
+		{
+			(**static_cast<F**>(pStorage))();
+		}
+
+		/// MoveTo moves the callable into pTo and destroys it in pStorage
+		template<class F>
+		static void ManageInline(Operation Op, void* pStorage, void* pTo) noexcept
+		{
+			auto* pCallable = static_cast<F*>(pStorage);
+
+			switch (Op)
+			{
+				case MoveTo:
+					::new (pTo) F(std::move(*pCallable));
+					pCallable->~F();
+					break;
+
+				case Destroy:
+					pCallable->~F();
+					break;
+			}
+		}
+
+		/// MoveTo moves the pointer to the callable into pTo
+		template<class F>
+		static void ManageHeap(Operation Op, void* pStorage, void* pTo) noexcept
+		{
+			auto* pCallable = *static_cast<F**>(pStorage);
+
+			switch (Op)
+			{
+				case MoveTo:
+					::new (pTo) F*(pCallable);
+					break;
+
+				case Destroy:
+					delete pCallable;
+					break;
+			}
+		}
+
+		void MoveFrom(Task& other) noexcept
+		{
+			if (other.m_Manager)
+			{
+				other.m_Manager(MoveTo, other.m_Storage, m_Storage);
+				m_Invoker       = other.m_Invoker;
+				m_Manager       = other.m_Manager;
+				other.m_Invoker = nullptr;
+				other.m_Manager = nullptr;
+			}
+		}
+
+		void Reset() noexcept
+		{
+			if (m_Manager)
+			{
+				m_Manager(Destroy, m_Storage, nullptr);
+				m_Invoker = nullptr;
+				m_Manager = nullptr;
+			}
+		}
+
+		alignas(std::max_align_t) unsigned char m_Storage[StorageSize];
+		void (*m_Invoker)(void* pStorage)                            { nullptr };
+		void (*m_Manager)(Operation Op, void* pStorage, void* pTo)   { nullptr };
+
+	}; // Task
+
+	/// a task for a callable without arguments takes the callable as it is
+	template<typename Function>
+	static Task MakeTask(Function&& f)
+	{
+		return Task(std::forward<Function>(f));
+	}
+
+	/// a task for a callable with arguments binds them, like push()
+	template<typename Function, typename Arg, typename... Args>
+	static Task MakeTask(Function&& f, Arg&& arg, Args&&... args)
+	{
+		return Task(std::bind(std::forward<Function>(f), std::forward<Arg>(arg), std::forward<Args>(args)...));
+	}
 
 	enum eAbort
 	{
@@ -617,7 +744,7 @@ private:
 		Stop
 	};
 
-	void push_packaged_task(std::packaged_task<void()> task);
+	void push_packaged_task(Task task);
 	std::size_t calc_shrink(std::size_t iHaveIdle) const;
 
 	// --- fair scheduler (all sched_* assume m_cond_mutex is held by the caller) ---
@@ -636,7 +763,7 @@ private:
 	struct TagState
 	{
 		TagConfig                                    Config;
-		std::queue<std::packaged_task<void()>>       Queue;
+		std::queue<Task>                             Queue;
 		std::unordered_map<uint64_t, CoalesceState>  Coalesce;        ///< active coalesce keys for this tag
 		std::int64_t                                 iDeficit { 0 };  ///< DRR deficit counter
 		std::size_t                                  iRunning { 0 };  ///< tasks of this tag currently executing
@@ -647,16 +774,16 @@ private:
 	/// enqueue under a tag respecting its bound/overflow; sets bAccepted, returns total queued.
 	/// A task evicted by DropOldest is returned in dropped: the caller must destroy it only
 	/// after releasing m_cond_mutex (destructors of captured user objects may touch the pool)
-	std::size_t sched_enqueue(Tag tag, std::packaged_task<void()>&& task, bool& bAccepted,
-	                          std::packaged_task<void()>& dropped);
+	std::size_t sched_enqueue(Tag tag, Task&& task, bool& bAccepted, Task& dropped);
 	/// dequeue the next task by weighted DRR honoring per-tag concurrency caps; on success sets
 	/// task and tag (and bumps that tag's running count); returns false if nothing runnable
-	bool        sched_dequeue(std::packaged_task<void()>& task, Tag& tag);
+	bool        sched_dequeue(Task& task, Tag& tag);
 	/// account for a finished task of a tag (decrements its running count); returns true if a
 	/// concurrency slot was freed for a tag that still has queued work (a waiting worker should be woken)
 	bool        sched_task_done(Tag tag);
-	/// enqueue a task under a tag and wake/grow as needed (the public push paths funnel here)
-	void        push_to_tag  (std::packaged_task<void()> task, Tag tag);
+	/// enqueue a task under a tag and wake/grow as needed (the public push paths funnel here),
+	/// returns false if the tag's bounded queue rejected the task
+	bool        push_to_tag  (Task task, Tag tag);
 	/// stats and pool growth/shrink bookkeeping after a successful enqueue - call with
 	/// m_cond_mutex held, passing the total queue count returned by sched_enqueue()
 	void        bookkeep_enqueue(std::size_t iWaiting);
@@ -664,7 +791,7 @@ private:
 	/// implementation of PushCoalesced (callable already bound to its args)
 	std::shared_future<void>   push_coalesced_task(Tag tag, uint64_t iKey, std::function<void()> callable);
 	/// build the trampoline task that runs the current callable for a coalesce key
-	std::packaged_task<void()> make_coalesce_task (Tag tag, uint64_t iKey);
+	Task                       make_coalesce_task (Tag tag, uint64_t iKey);
 	/// trampoline body: claim the latest callable+promise for the key, run it, and re-run once
 	/// more if triggers arrived during the run
 	void                       run_coalesce       (Tag tag, uint64_t iKey);

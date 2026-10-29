@@ -84,6 +84,20 @@
  *     bounded tag rejects, instead of leaving them pending forever; clamp a
  *     tag weight of 0 to 1; avoid a hash lookup per tag in the DRR scan
  *
+ *  October 2026, Joachim Schurig
+ *   - the task queue now holds a move-only Task with inline storage for small
+ *     callables instead of a std::packaged_task, which saves the shared
+ *     state and its allocation for every task
+ *   - Post() and PostTagged() push a task without a future, and return
+ *     false when a bounded tag rejects it
+ *   - push() and PushTagged() no longer need separate versions for void
+ *     and non-void callables, because the queue now holds the new Task
+ *     type, which takes a packaged_task of any result type as it is. A
+ *     task with a return value is no longer wrapped into a second
+ *     packaged_task<void()>
+ *   - grow() is only called while the pool can still grow, and a push only
+ *     notifies when a worker is idle
+ *
  *********************************************************/
 
 
@@ -451,9 +465,9 @@ void KThreadPool::clear()
 	// Note: the queues are collected in a std::deque, not a std::vector - libstdc++'s
 	// std::deque has a throwing move constructor, so vector growth (or reserve) falls
 	// back to copy construction for the strong exception guarantee, which does not
-	// compile for queues of move-only std::packaged_task. A deque as outer container
+	// compile for queues of move-only tasks. A deque as outer container
 	// never relocates its elements and therefore needs neither copy nor move.
-	std::deque<std::queue<std::packaged_task<void()>>>       DroppedQueues;
+	std::deque<std::queue<Task>>                             DroppedQueues;
 	std::vector<std::unordered_map<uint64_t, CoalesceState>> DroppedCoalesce;
 
 	{
@@ -565,7 +579,7 @@ bool KThreadPool::run_thread(std::size_t i)
 		// kSetupThreadSignalHandling() is done by kMakeThread() below - no
 		// need to call it explicitly here.
 		std::atomic<eAbort>& abort = *abort_ptr;
-		std::packaged_task<void()> _f;
+		Task                       _f;
 		Tag                        _tag { DefaultTag };  // work-class of the task in _f
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
 
@@ -600,12 +614,12 @@ bool KThreadPool::run_thread(std::size_t i)
 					kUnknownException();
 				}
 
-				// A packaged_task keeps its callable after the call - drop it now, and with it
+				// A task keeps its callable after the call - drop it now, and with it
 				// all that the task captured: kept until this worker runs its next task, which
 				// on a quiet pool may be hours away, a captured connection would keep its
 				// socket open that long. Outside of the mutex, the destructors of the captured
 				// objects may touch this pool again (e.g. push).
-				_f = std::packaged_task<void()>();
+				_f = Task();
 
 				lock.lock();
 
@@ -736,8 +750,7 @@ KThreadPool::TagState& KThreadPool::sched_tag(Tag tag)
 } // sched_tag
 
 //-----------------------------------------------------------------------------
-std::size_t KThreadPool::sched_enqueue(Tag tag, std::packaged_task<void()>&& task, bool& bAccepted,
-                                       std::packaged_task<void()>& dropped)
+std::size_t KThreadPool::sched_enqueue(Tag tag, Task&& task, bool& bAccepted, Task& dropped)
 //-----------------------------------------------------------------------------
 {
 	bAccepted = true;
@@ -770,7 +783,7 @@ std::size_t KThreadPool::sched_enqueue(Tag tag, std::packaged_task<void()>&& tas
 } // sched_enqueue
 
 //-----------------------------------------------------------------------------
-bool KThreadPool::sched_dequeue(std::packaged_task<void()>& task, Tag& tag)
+bool KThreadPool::sched_dequeue(Task& task, Tag& tag)
 //-----------------------------------------------------------------------------
 {
 	if (m_bQueuePaused || m_iTotalQueued == 0)
@@ -893,7 +906,13 @@ void KThreadPool::bookkeep_enqueue(std::size_t iWaiting)
 	{
 		if (ma_n_idle == 0)
 		{
-			grow(iWaiting);
+			// grow() takes m_resize_mutex only to find out that the pool is at its maximum
+			// size - check that before (m_threads changes only under m_cond_mutex as long
+			// as the pool is not interrupted)
+			if (m_threads.size() < ma_iMaxThreads)
+			{
+				grow(iWaiting);
+			}
 		}
 		else if (iWaiting <= 1 && ++ma_iShrinkCounter % 25 == 0)
 		{
@@ -904,12 +923,12 @@ void KThreadPool::bookkeep_enqueue(std::size_t iWaiting)
 } // bookkeep_enqueue
 
 //-----------------------------------------------------------------------------
-void KThreadPool::push_to_tag(std::packaged_task<void()> task, Tag tag)
+bool KThreadPool::push_to_tag(Task task, Tag tag)
 //-----------------------------------------------------------------------------
 {
 	// a task evicted by DropOldest lives here so that it is destroyed only after the
 	// unlock (the destructors of its captured user objects may touch this pool again)
-	std::packaged_task<void()> dropped;
+	Task                       dropped;
 
 	std::unique_lock<std::mutex> lock(m_cond_mutex);
 
@@ -921,20 +940,30 @@ void KThreadPool::push_to_tag(std::packaged_task<void()> task, Tag tag)
 		// rejected (queue full) - the task is destroyed when this function returns (after
 		// the unlock, it still sits in the task parameter), breaking its future; no wakeup
 		// or growth needed
-		return;
+		return false;
 	}
 
 	bookkeep_enqueue(iWaiting);
 
+	// A worker counts itself idle under m_cond_mutex before it waits, and checks the queue
+	// under the same mutex before it counts itself idle - so with no idle worker, every
+	// worker will find this task without a notification
+	bool bNotify = ma_n_idle > 0;
+
 	lock.unlock();
 
-	// notify in the unlocked state!
-	m_cond_var.notify_one();
+	if (bNotify)
+	{
+		// notify in the unlocked state!
+		m_cond_var.notify_one();
+	}
+
+	return true;
 
 } // push_to_tag
 
 //-----------------------------------------------------------------------------
-void KThreadPool::push_packaged_task(std::packaged_task<void()> task)
+void KThreadPool::push_packaged_task(Task task)
 //-----------------------------------------------------------------------------
 {
 	// untagged tasks run on the default work-class (weight 1, unbounded) - same as before
@@ -943,10 +972,10 @@ void KThreadPool::push_packaged_task(std::packaged_task<void()> task)
 } // push_packaged_task
 
 //-----------------------------------------------------------------------------
-std::packaged_task<void()> KThreadPool::make_coalesce_task(Tag tag, uint64_t iKey)
+KThreadPool::Task KThreadPool::make_coalesce_task(Tag tag, uint64_t iKey)
 //-----------------------------------------------------------------------------
 {
-	return std::packaged_task<void()>([this, tag, iKey]() { run_coalesce(tag, iKey); });
+	return Task([this, tag, iKey]() { run_coalesce(tag, iKey); });
 
 } // make_coalesce_task
 
@@ -960,7 +989,7 @@ std::shared_future<void> KThreadPool::push_coalesced_task(Tag tag, uint64_t iKey
 	// abandoned generation's callable) must not happen under m_cond_mutex, and destroying an
 	// abandoned generation's promise breaks the waiters' futures (broken_promise)
 	CoalesceState              Abandoned;
-	std::packaged_task<void()> dropped;
+	Task                       dropped;
 
 	{
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
@@ -1063,7 +1092,7 @@ void KThreadPool::run_coalesce(Tag tag, uint64_t iKey)
 	bool bNotify { false };
 	// both live until after the unlock - see push_coalesced_task for the rationale
 	CoalesceState              Abandoned;
-	std::packaged_task<void()> dropped;
+	Task                       dropped;
 	{
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
 

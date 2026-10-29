@@ -10,6 +10,8 @@
 #include <chrono>
 #include <thread>
 #include <algorithm>
+#include <array>
+#include <stdexcept>
 
 using namespace dekaf2;
 
@@ -25,6 +27,13 @@ bool WaitUntil(Pred pred, int iMaxMillis = 5000)
 	}
 	return pred();
 }
+
+struct PostTarget
+{
+	void Add(int i) { iSum += i; }
+
+	std::atomic<int> iSum { 0 };
+};
 
 } // anonymous namespace
 
@@ -625,5 +634,119 @@ TEST_CASE("KThreadPool fair scheduling")
 		Pool.pause(false);
 
 		REQUIRE ( WaitUntil([&]() { return iRan.load() == 8; }) );
+	}
+}
+
+TEST_CASE("KThreadPool Post")
+{
+	SECTION("callables with and without arguments, in the order of the calls")
+	{
+		KThreadPool Pool(1);
+
+		// only the one worker writes to Order
+		std::vector<int> Order;
+		PostTarget       Target;
+
+		CHECK ( Pool.Post([&Order]() { Order.push_back(1); })         );
+		CHECK ( Pool.Post([&Order](int i) { Order.push_back(i); }, 2) );
+		CHECK ( Pool.Post(&PostTarget::Add, &Target, 5)               );
+
+		// a move-only capture
+		auto pValue = std::make_unique<int>(3);
+		CHECK ( Pool.Post([&Order, pValue = std::move(pValue)]() { Order.push_back(*pValue); }) );
+
+		// a capture larger than the storage of a task, which goes to the heap
+		std::array<int, 64> Large {};
+		Large[63] = 4;
+		CHECK ( Pool.Post([&Order, Large]() { Order.push_back(Large[63]); }) );
+
+		// the one worker runs the tasks in order - when this one is done, all are
+		Pool.push([]() {}).get();
+
+		CHECK ( Order == (std::vector<int>{ 1, 2, 3, 4 }) );
+		CHECK ( Target.iSum == 5 );
+	}
+
+	SECTION("an exception does not stop the worker")
+	{
+		KThreadPool Pool(1);
+		std::atomic<int> iRan { 0 };
+
+		Pool.Post([]() { throw std::runtime_error("posted task throws"); });
+		Pool.Post([&iRan]() { ++iRan; });
+
+		CHECK ( WaitUntil([&]() { return iRan.load() == 1; }) );
+	}
+
+	SECTION("a finished task releases its captured objects")
+	{
+		KThreadPool Pool(1);
+
+		auto pCaptured = std::make_shared<int>(42);
+		std::weak_ptr<int> wCaptured = pCaptured;
+
+		Pool.Post([pCaptured]() {});
+		pCaptured.reset();
+
+		CHECK ( WaitUntil([&]() { return wCaptured.expired(); }) );
+	}
+
+	SECTION("a bounded tag rejects")
+	{
+		KThreadPool Pool(1);
+
+		KThreadPool::TagConfig Cfg;
+		Cfg.iMaxQueue      = 2;
+		Cfg.OverflowPolicy = KThreadPool::Overflow::Reject;
+		Pool.ConfigureTag(1, Cfg);
+
+		std::atomic<int> iRan { 0 };
+
+		Pool.pause(true);
+		CHECK       ( Pool.PostTagged(1, [&iRan]() { ++iRan; }) );
+		CHECK       ( Pool.PostTagged(1, [&iRan]() { ++iRan; }) );
+		CHECK_FALSE ( Pool.PostTagged(1, [&iRan]() { ++iRan; }) );
+		Pool.pause(false);
+
+		CHECK ( WaitUntil([&]() { return iRan.load() == 2; }) );
+	}
+
+	SECTION("an idle pool wakes up for a task")
+	{
+		KThreadPool Pool(2);
+		std::atomic<int> iRan { 0 };
+
+		for (int i = 1; i <= 3; ++i)
+		{
+			// let the workers become idle
+			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			Pool.Post([&iRan]() { ++iRan; });
+			CHECK ( WaitUntil([&]() { return iRan.load() == i; }) );
+		}
+	}
+
+	SECTION("all tasks of several producers run on several workers")
+	{
+		KThreadPool Pool(4);
+		std::atomic<int> iRan { 0 };
+		std::vector<std::thread> Producers;
+
+		for (int p = 0; p < 4; ++p)
+		{
+			Producers.emplace_back([&Pool, &iRan]()
+			{
+				for (int i = 0; i < 10000; ++i)
+				{
+					Pool.Post([&iRan]() { ++iRan; });
+				}
+			});
+		}
+
+		for (auto& Producer : Producers)
+		{
+			Producer.join();
+		}
+
+		CHECK ( WaitUntil([&]() { return iRan.load() == 40000; }) );
 	}
 }

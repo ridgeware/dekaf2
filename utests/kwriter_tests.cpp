@@ -9,6 +9,8 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/core/logging/kdatedlogfile.h>
 #include <thread>
 #include <vector>
 
@@ -501,6 +503,23 @@ TEST_CASE("kLogger")
 
 		CHECK ( WaitForFile(kFormat("{}/klogger-first.txt" , TempDir.Name()), sFirst.size())  == sFirst  );
 		CHECK ( WaitForFile(kFormat("{}/klogger-second.txt", TempDir.Name()), sSecond.size()) == sSecond );
+	}
+
+	SECTION("a dated log file")
+	{
+		// a line of each day, and a line for a stream between them
+		static KDatedLogFile Dated (kFormat("{}/klogger-dated.log", TempDir.Name()));
+		static KOutFile      Stream(kFormat("{}/klogger-plain.txt", TempDir.Name()));
+
+		auto tMidnight = KUnixTime(chrono::system_clock::time_point(chrono::sys_days(chrono::year(2026) / chrono::month(10) / chrono::day(30))));
+
+		kLogger(Dated , "last of the 29th" , tMidnight - chrono::milliseconds(1), false);
+		kLogger(Stream, "plain line");
+		kLogger(Dated , "first of the 30th", tMidnight);
+
+		CHECK ( WaitForFile(kFormat("{}/klogger-dated.log"         , TempDir.Name()), 18) == "first of the 30th\n" );
+		CHECK ( kReadAll   (kFormat("{}/klogger-dated.log-20261029", TempDir.Name())    ) == "last of the 29th\n"  );
+		CHECK ( WaitForFile(kFormat("{}/klogger-plain.txt"         , TempDir.Name()), 11) == "plain line\n"        );
 	}
 
 	SECTION("lines from several threads")

@@ -60,7 +60,9 @@ DEKAF2_NAMESPACE_BEGIN
 /// @addtogroup io_readwrite
 /// @{
 
-class KInStream; // fwd decl
+class KInStream;     // fwd decl
+class KDatedLogFile; // fwd decl
+class KUnixTime;     // fwd decl
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The standalone writer abstraction for dekaf2. Can be constructed around any
@@ -611,6 +613,17 @@ extern DEKAF2_PUBLIC std::unique_ptr<KOutStream> kOpenOutStream(KStringViewZ sSc
 //-----------------------------------------------------------------------------
 /// universal logger implemented with an output queue - make sure the Stream is valid until the program ends
 extern DEKAF2_PUBLIC void kLogger(KOutStream& Stream, KString sMessage, bool bFlush = true);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// universal logger implemented with an output queue, for a log file with a file per day - the
+/// time stamp of the record decides about the output file. Make sure the File is valid
+/// until the program ends.
+/// @param File the dated log file to write into, see KDatedLogFile in kdatedlogfile.h
+/// @param sMessage the line to write, a line feed is appended
+/// @param tRecord the time stamp of the record
+/// @param bFlush flush the file after this line (and the other lines that are written with it)
+extern DEKAF2_PUBLIC void kLogger(KDatedLogFile& File, KString sMessage, KUnixTime tRecord, bool bFlush = true);
 //-----------------------------------------------------------------------------
 
 

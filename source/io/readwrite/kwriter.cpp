@@ -42,6 +42,7 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/logging/kdatedlogfile.h>
 #include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/web/url/kurl.h>
@@ -298,11 +299,42 @@ public:
 	void Push(KOutStream& Stream, KString sMessage, bool bFlush)
 	//-----------------------------------------------------------------------------
 	{
+		Push({ &Stream, nullptr, std::move(sMessage), KUnixTime(), bFlush });
+
+	} // Push
+
+	//-----------------------------------------------------------------------------
+	void Push(KDatedLogFile& File, KString sMessage, KUnixTime tRecord, bool bFlush)
+	//-----------------------------------------------------------------------------
+	{
+		Push({ nullptr, &File, std::move(sMessage), tRecord, bFlush });
+
+	} // Push
+
+//------
+private:
+//------
+
+	/// a line for either a stream or a dated log file
+	struct Line
+	{
+		KOutStream*    Stream;
+		KDatedLogFile* File;
+		KString        sMessage;
+		/// the time stamp of the record, only used for a dated log file
+		KUnixTime      tRecord;
+		bool           bFlush;
+	};
+
+	//-----------------------------------------------------------------------------
+	void Push(Line line)
+	//-----------------------------------------------------------------------------
+	{
 		bool bWakeup;
 
 		{
 			std::lock_guard<std::mutex> Lock(m_Mutex);
-			m_Lines.push_back({ &Stream, std::move(sMessage), bFlush });
+			m_Lines.push_back(std::move(line));
 			// only a sleeping writer needs a notification
 			bWakeup    = m_bWaiting;
 			m_bWaiting = false;
@@ -314,17 +346,6 @@ public:
 		}
 
 	} // Push
-
-//------
-private:
-//------
-
-	struct Line
-	{
-		KOutStream* Stream;
-		KString     sMessage;
-		bool        bFlush;
-	};
 
 	//-----------------------------------------------------------------------------
 	void Write()
@@ -361,14 +382,29 @@ private:
 
 			for (auto it = Lines.begin(); it != Lines.end(); ++it)
 			{
-				it->Stream->WriteLine(it->sMessage);
+				if (it->File != nullptr)
+				{
+					it->File->WriteLine(it->sMessage, it->tRecord);
+				}
+				else
+				{
+					it->Stream->WriteLine(it->sMessage);
+				}
 
-				// flush once after the last of a series of lines for the same stream
+				// flush once after the last of a series of lines for the same target
 				bFlush |= it->bFlush;
 
-				if (bFlush && (it + 1 == Lines.end() || (it + 1)->Stream != it->Stream))
+				if (bFlush && (it + 1 == Lines.end() || (it + 1)->Stream != it->Stream || (it + 1)->File != it->File))
 				{
-					it->Stream->Flush();
+					if (it->File != nullptr)
+					{
+						it->File->Flush();
+					}
+					else
+					{
+						it->Stream->Flush();
+					}
+
 					bFlush = false;
 				}
 			}
@@ -388,15 +424,33 @@ private:
 
 }; // KLoggerQueue
 
+//-----------------------------------------------------------------------------
+/// the single queue for both kLogger() variants, so that one writer thread writes all lines in the
+/// order of the calls
+KLoggerQueue& GetLoggerQueue()
+//-----------------------------------------------------------------------------
+{
+	static KLoggerQueue Queue;
+
+	return Queue;
+
+} // GetLoggerQueue
+
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 void kLogger(KOutStream& Stream, KString sMessage, bool bFlush)
 //-----------------------------------------------------------------------------
 {
-	static KLoggerQueue Queue;
+	GetLoggerQueue().Push(Stream, std::move(sMessage), bFlush);
 
-	Queue.Push(Stream, std::move(sMessage), bFlush);
+} // kLogger
+
+//-----------------------------------------------------------------------------
+void kLogger(KDatedLogFile& File, KString sMessage, KUnixTime tRecord, bool bFlush)
+//-----------------------------------------------------------------------------
+{
+	GetLoggerQueue().Push(File, std::move(sMessage), tRecord, bFlush);
 
 } // kLogger
 

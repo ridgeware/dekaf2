@@ -435,7 +435,7 @@ public:
 		~RouteBuilder();
 
 		/// add a callback for all request methods
-		self& Any   (KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod{},       std::move(Callback)); }
+		self& Any   (KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod::ALL,    std::move(Callback)); }
 		/// add a callback for a GET request
 		self& Get   (KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod::GET,    std::move(Callback)); }
 		/// add a callback for a POST request

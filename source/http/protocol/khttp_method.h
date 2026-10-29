@@ -86,7 +86,9 @@ public:
         MOVE,
         LOCK,
         UNLOCK,
-        INVALID
+        INVALID,
+        /// a route wildcard that matches every request method - Parse() never returns it
+        ALL
    };
 
     //-----------------------------------------------------------------------------

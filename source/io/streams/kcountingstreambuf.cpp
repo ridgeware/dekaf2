@@ -72,7 +72,8 @@ KCountingInputStreamBuf::int_type KCountingInputStreamBuf::Inspect(char_type ch)
 //-----------------------------------------------------------------------------
 {
 	++m_iCount;
-	return ch;
+	// a char of 0xff must not become eof
+	return traits_type::to_int_type(ch);
 }
 
 //-----------------------------------------------------------------------------

@@ -116,6 +116,9 @@ struct MockIdP
 	KString sAud { "test-client" }; ///< audience to mint into the next id_token (default = our client_id)
 	KString sAzp;           ///< authorized party (azp) to mint; empty = omit the claim
 	bool    bOmitExpiresIn { false }; ///< drop "expires_in" from the token response
+	int     iExpiresIn        { 3600 }; ///< "expires_in" of the code exchange
+	int     iRefreshExpiresIn { 3600 }; ///< "expires_in" of a refresh
+	int     iRefreshes        { 0 };    ///< count of refresh_token requests
 };
 
 //-----------------------------------------------------------------------------
@@ -311,13 +314,14 @@ TEST_CASE("KOpenIDClient")
 	{
 		bool bRefresh = http.GetRequestBody().contains("grant_type=refresh_token");
 		// (route parsed as WWWFORM below, so GetRequestBody() holds the raw form)
+		if (bRefresh) ++Mock.iRefreshes;
 		http.json.tx = {
 			{ "access_token",  bRefresh ? "access-2"  : "access-1"  },
 			{ "refresh_token", bRefresh ? "refresh-2" : "refresh-1" },
 			{ "id_token",      MakeES256JWT(Mock.Key, Mock.sBase, "alice", Mock.sNonce, 3600, Mock.sAud, Mock.sAzp) },
 			{ "token_type",    "Bearer" }
 		};
-		if (!Mock.bOmitExpiresIn) http.json.tx["expires_in"] = 3600;
+		if (!Mock.bOmitExpiresIn) http.json.tx["expires_in"] = bRefresh ? Mock.iRefreshExpiresIn : Mock.iExpiresIn;
 	}, KRESTRoute::WWWFORM });
 
 	KREST::Options MockOpt;
@@ -427,7 +431,7 @@ TEST_CASE("KOpenIDClient")
 	SECTION("missing expires_in defaults to Config::DefaultAccessTTL (no spurious refresh)")
 	{
 		// A provider that omits the OPTIONAL "expires_in" must not make the
-		// session look expired-on-arrival. With the default leeway (5 min) and
+		// session look expired-on-arrival. With the default leeway (30 s) and
 		// DefaultAccessTTL (1 h) the token is comfortably valid, so the protected
 		// request serves the original access-1 without a refresh_token exchange.
 		// (Before the fix the expiry collapsed to "now" and this returned access-2.)
@@ -447,6 +451,124 @@ TEST_CASE("KOpenIDClient")
 
 		KString sProtected = Drive(AppRoutes, "GET", "/protected", Cookies.Header());
 		CHECK ( sProtected.contains("alice|access-1") );
+	}
+
+	SECTION("default leeway with a 5 minute access token: no refresh on every request")
+	{
+		// KOpenIDServer issues access tokens for 5 minutes (AccessTTL). With the
+		// default leeway a fresh token of that lifetime is used as it is, and a
+		// token within 30 s of its expiry is renewed once.
+		auto Login = [&](CookieJar& Cookies)
+		{
+			KString sLogin = Drive(AppRoutes, "GET", "/auth/login", Cookies.Header());
+			Cookies.Apply(sLogin);
+			Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+			KString sState = URLParam(ResponseBody(sLogin), "state");
+			KString sCallback = Drive(AppRoutes, "GET",
+				kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+			Cookies.Apply(sCallback);
+			REQUIRE ( Cookies.Has("session") );
+		};
+
+		Mock.iExpiresIn        = 300;
+		Mock.iRefreshExpiresIn = 300;
+		Mock.iRefreshes        = 0;
+		{
+			CookieJar Cookies;
+			Login(Cookies);
+			CHECK ( Drive(AppRoutes, "GET", "/protected", Cookies.Header()).contains("alice|access-1") );
+			CHECK ( Drive(AppRoutes, "GET", "/protected", Cookies.Header()).contains("alice|access-1") );
+			CHECK ( Mock.iRefreshes == 0 );
+		}
+
+		Mock.iExpiresIn        = 20;
+		Mock.iRefreshes        = 0;
+		{
+			CookieJar Cookies;
+			Login(Cookies);
+			CHECK ( Drive(AppRoutes, "GET", "/protected", Cookies.Header()).contains("alice|access-2") );
+			CHECK ( Drive(AppRoutes, "GET", "/protected", Cookies.Header()).contains("alice|access-2") );
+			CHECK ( Mock.iRefreshes == 1 );
+		}
+	}
+
+	SECTION("default leeway: the 30 second boundary")
+	{
+		CHECK ( KOpenIDClient::Config{}.ExpiryLeeway == chrono::seconds(30) );
+
+		auto Login = [&](CookieJar& Cookies)
+		{
+			KString sLogin = Drive(AppRoutes, "GET", "/auth/login", Cookies.Header());
+			Cookies.Apply(sLogin);
+			Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+			KString sState = URLParam(ResponseBody(sLogin), "state");
+			KString sCallback = Drive(AppRoutes, "GET",
+				kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+			Cookies.Apply(sCallback);
+			REQUIRE ( Cookies.Has("session") );
+		};
+
+		Mock.iRefreshExpiresIn = 3600;
+
+		// a token that expires within the leeway, or exactly at it, is renewed
+		Mock.iExpiresIn        = 30;
+		Mock.iRefreshes        = 0;
+		{
+			CookieJar Cookies;
+			Login(Cookies);
+			CHECK ( Drive(AppRoutes, "GET", "/protected", Cookies.Header()).contains("alice|access-2") );
+			CHECK ( Mock.iRefreshes == 1 );
+		}
+
+		// a token that lives longer than the leeway is used as it is
+		for (int iExpiresIn : { 32, 45 })
+		{
+			INFO ( iExpiresIn );
+			Mock.iExpiresIn = iExpiresIn;
+			Mock.iRefreshes = 0;
+			CookieJar Cookies;
+			Login(Cookies);
+			CHECK ( Drive(AppRoutes, "GET", "/protected", Cookies.Header()).contains("alice|access-1") );
+			CHECK ( Mock.iRefreshes == 0 );
+		}
+
+		// a provider that issues tokens shorter than the leeway on refresh as well: every request refreshes
+		Mock.iExpiresIn        = 20;
+		Mock.iRefreshExpiresIn = 20;
+		Mock.iRefreshes        = 0;
+		{
+			CookieJar Cookies;
+			Login(Cookies);
+			for (int i = 0; i < 3; ++i)
+			{
+				CHECK ( Drive(AppRoutes, "GET", "/protected", Cookies.Header()).contains("alice|access-2") );
+			}
+			CHECK ( Mock.iRefreshes == 3 );
+		}
+	}
+
+	SECTION("an application that sets the former 5 minute leeway")
+	{
+		// 5 minute tokens count as expiring at once, so every request refreshes
+		Mock.iExpiresIn        = 300;
+		Mock.iRefreshExpiresIn = 300;
+		Mock.iRefreshes        = 0;
+
+		KOpenIDClient::Config cfg5 = cfg;
+		cfg5.ExpiryLeeway = chrono::minutes(5);
+		KOpenIDClient OIDC5(cfg5, kGenerateTempPath(".sqlite"));
+		KRESTRoutes AppRoutes5 = BuildAppRoutes(OIDC5);
+
+		CookieJar Cookies;
+		KString sLogin = Drive(AppRoutes5, "GET", "/auth/login", Cookies.Header());
+		Cookies.Apply(sLogin);
+		Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+		KString sState = URLParam(ResponseBody(sLogin), "state");
+		Cookies.Apply(Drive(AppRoutes5, "GET", kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header()));
+		REQUIRE ( Cookies.Has("session") );
+		Drive(AppRoutes5, "GET", "/protected", Cookies.Header());
+		Drive(AppRoutes5, "GET", "/protected", Cookies.Header());
+		CHECK ( Mock.iRefreshes == 2 );
 	}
 
 	SECTION("callback is rejected on id_token nonce mismatch")

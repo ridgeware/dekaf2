@@ -120,7 +120,7 @@ public:
 		KDuration IdleTimeout        { chrono::minutes(30) };
 		KDuration AbsoluteTimeout    { chrono::hours(8)    };
 		KDuration DiscoveryRefresh   { chrono::hours(24)   }; ///< how long discovery + JWKS are cached
-		KDuration ExpiryLeeway       { chrono::minutes(5)  }; ///< treat the access token as expired this long before its real expiry
+		KDuration ExpiryLeeway       { chrono::seconds(30) }; ///< treat the access token as expired this long before its real expiry
 		/// Assumed access-token lifetime when the token response omits "expires_in"
 		/// (RFC 6749 marks it OPTIONAL). Without a fallback a missing value would
 		/// collapse the expiry to "now", forcing a silent refresh — or, with no

@@ -42,11 +42,16 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/core/logging/klog.h>
-#include <dekaf2/threading/execution/kthreadpool.h>
+#include <dekaf2/threading/execution/kthreads.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/io/streams/kstreambuf.h>
 #include <iostream>
 #include <fstream>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
+#include <vector>
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <io.h>
@@ -256,22 +261,142 @@ std::unique_ptr<KOutStream> kOpenOutStream(KStringViewZ sSchema, std::ios::openm
 
 } // kOpenOutStream
 
+namespace {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// the output queue of kLogger(): one thread writes the queued lines in the order of the calls
+class KLoggerQueue
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	KLoggerQueue()
+	//-----------------------------------------------------------------------------
+	: m_Writer(kMakeThread([this]() { Write(); }))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// writes all queued lines before it returns
+	~KLoggerQueue()
+	//-----------------------------------------------------------------------------
+	{
+		{
+			std::lock_guard<std::mutex> Lock(m_Mutex);
+			m_bStop = true;
+		}
+
+		m_Wakeup.notify_one();
+		m_Writer.join();
+	}
+
+	//-----------------------------------------------------------------------------
+	void Push(KOutStream& Stream, KString sMessage, bool bFlush)
+	//-----------------------------------------------------------------------------
+	{
+		bool bWakeup;
+
+		{
+			std::lock_guard<std::mutex> Lock(m_Mutex);
+			m_Lines.push_back({ &Stream, std::move(sMessage), bFlush });
+			// only a sleeping writer needs a notification
+			bWakeup    = m_bWaiting;
+			m_bWaiting = false;
+		}
+
+		if (bWakeup)
+		{
+			m_Wakeup.notify_one();
+		}
+
+	} // Push
+
+//------
+private:
+//------
+
+	struct Line
+	{
+		KOutStream* Stream;
+		KString     sMessage;
+		bool        bFlush;
+	};
+
+	//-----------------------------------------------------------------------------
+	void Write()
+	//-----------------------------------------------------------------------------
+	{
+		kSetThreadName("kLogger");
+
+		// swapped with m_Lines, so that both vectors keep their capacity
+		std::vector<Line> Lines;
+
+		for (;;)
+		{
+			{
+				std::unique_lock<std::mutex> Lock(m_Mutex);
+
+				while (m_Lines.empty() && !m_bStop)
+				{
+					m_bWaiting = true;
+					m_Wakeup.wait(Lock);
+				}
+
+				m_bWaiting = false;
+
+				if (m_Lines.empty())
+				{
+					// stopped, and all lines are written
+					return;
+				}
+
+				Lines.swap(m_Lines);
+			}
+
+			bool bFlush { false };
+
+			for (auto it = Lines.begin(); it != Lines.end(); ++it)
+			{
+				it->Stream->WriteLine(it->sMessage);
+
+				// flush once after the last of a series of lines for the same stream
+				bFlush |= it->bFlush;
+
+				if (bFlush && (it + 1 == Lines.end() || (it + 1)->Stream != it->Stream))
+				{
+					it->Stream->Flush();
+					bFlush = false;
+				}
+			}
+
+			Lines.clear();
+		}
+
+	} // Write
+
+	std::mutex              m_Mutex;
+	std::condition_variable m_Wakeup;
+	std::vector<Line>       m_Lines;
+	bool                    m_bWaiting { false };
+	bool                    m_bStop    { false };
+	// the last member, as the thread uses all the others
+	std::thread             m_Writer;
+
+}; // KLoggerQueue
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 void kLogger(KOutStream& Stream, KString sMessage, bool bFlush)
 //-----------------------------------------------------------------------------
 {
-	static KThreadPool LogWriter(1);
+	static KLoggerQueue Queue;
 
-	LogWriter.push([](KOutStream* Stream, KString sMessage, bool bFlush)
-	{
-		Stream->WriteLine(sMessage);
-
-		if (bFlush)
-		{
-			Stream->Flush();
-		}
-
-	}, &Stream, std::move(sMessage), bFlush);
+	Queue.Push(Stream, std::move(sMessage), bFlush);
 
 } // kLogger
 

@@ -7,6 +7,10 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <thread>
+#include <vector>
 
 
 using namespace dekaf2;
@@ -450,5 +454,99 @@ TEST_CASE("KWriter") {
 			sBuffer = kReadAll(sFile);
 			CHECK ( sBuffer == "\0\0\0\0\0" "01234567890123456789\0\0\0\0\0" "01234567890123456789"_ks );
 		}
+	}
+}
+
+namespace {
+
+// waits until the file has iSize bytes, which the background writer of kLogger() writes
+KString WaitForFile(KStringViewZ sFile, std::size_t iSize)
+{
+	KString sContent;
+	KStopTime Timeout;
+
+	while (sContent.size() < iSize && Timeout.elapsed() < chrono::seconds(10))
+	{
+		kSleep(chrono::milliseconds(1));
+		sContent = kReadAll(sFile);
+	}
+
+	return sContent;
+}
+
+} // end of anonymous namespace
+
+TEST_CASE("kLogger")
+{
+	SECTION("order and flush with two streams")
+	{
+		// kLogger() needs streams that are valid until the program ends
+		static KOutFile First (kFormat("{}/klogger-first.txt" , TempDir.Name()));
+		static KOutFile Second(kFormat("{}/klogger-second.txt", TempDir.Name()));
+
+		KString sFirst, sSecond;
+
+		for (int i = 0; i < 1000; ++i)
+		{
+			// lines with and without flush, alternating between the streams in series
+			// of different length - the last line of each stream requests a flush
+			auto& Stream   = (i % 7 < 4) ? First  : Second;
+			auto& sContent = (i % 7 < 4) ? sFirst : sSecond;
+			auto  sLine    = kFormat("line {}", i);
+			sContent      += sLine;
+			sContent      += '\n';
+			kLogger(Stream, sLine, i % 3 == 0 || i >= 998);
+		}
+
+		CHECK ( WaitForFile(kFormat("{}/klogger-first.txt" , TempDir.Name()), sFirst.size())  == sFirst  );
+		CHECK ( WaitForFile(kFormat("{}/klogger-second.txt", TempDir.Name()), sSecond.size()) == sSecond );
+	}
+
+	SECTION("lines from several threads")
+	{
+		static KOutFile Stream(kFormat("{}/klogger-threads.txt", TempDir.Name()));
+
+		static constexpr int iThreads = 4;
+		static constexpr int iLines   = 1000;
+
+		std::vector<std::thread> Threads;
+
+		for (int t = 0; t < iThreads; ++t)
+		{
+			Threads.emplace_back([t]()
+			{
+				for (int i = 0; i < iLines; ++i)
+				{
+					kLogger(Stream, kFormat("{} {:04}", t, i));
+				}
+			});
+		}
+
+		for (auto& Thread : Threads)
+		{
+			Thread.join();
+		}
+
+		// every line has 7 characters including the line feed
+		auto sContent = WaitForFile(kFormat("{}/klogger-threads.txt", TempDir.Name()), iThreads * iLines * 7);
+		REQUIRE ( sContent.size() == iThreads * iLines * 7 );
+
+		// all lines arrive, the lines of each thread in the order of the calls
+		std::vector<int> Next(iThreads, 0);
+
+		for (auto sLine : sContent.Split("\n"))
+		{
+			if (sLine.empty())
+			{
+				continue;
+			}
+
+			auto t = sLine.Left(1).UInt16();
+			REQUIRE ( t < iThreads );
+			CHECK   ( sLine.Mid(2).UInt16() == Next[t] );
+			++Next[t];
+		}
+
+		CHECK ( Next == std::vector<int>(iThreads, iLines) );
 	}
 }

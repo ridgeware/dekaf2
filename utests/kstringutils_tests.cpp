@@ -2657,6 +2657,38 @@ TEST_CASE("KStringUtils") {
 		CHECK ( sLog == "prefix \\\"appended\\\"" );
 	}
 
+	SECTION("kUnescapeFromLogging")
+	{
+		CHECK ( kUnescapeFromLogging("hello") == "hello" );
+		CHECK ( kUnescapeFromLogging("") == "" );
+		CHECK ( kUnescapeFromLogging("hello\\nworld") == "hello\nworld" );
+		CHECK ( kUnescapeFromLogging("\\r\\n\\t\\v\\f") == "\r\n\t\v\f" );
+		CHECK ( kUnescapeFromLogging("quote\\\"here back\\\\slash") == "quote\"here back\\slash" );
+		CHECK ( kUnescapeFromLogging("nul\\x00here") == KStringView("nul\0here", 8) );
+		CHECK ( kUnescapeFromLogging("\\x7F\\x7f\\x1b") == "\x7f\x7f\x1b" );
+		// any other escaped character stands for itself
+		CHECK ( kUnescapeFromLogging("\\a\\'") == "a'" );
+		// an incomplete hex escape and a trailing backslash stay
+		CHECK ( kUnescapeFromLogging("\\xg1 \\x1") == "\\xg1 \\x1" );
+		CHECK ( kUnescapeFromLogging("end\\") == "end\\" );
+		KString sOutput("prefix ");
+		kUnescapeFromLogging(sOutput, "\\\"appended\\\"");
+		CHECK ( sOutput == "prefix \"appended\"" );
+
+		// the round trip gives the original for every single byte
+		for (int i = 0; i < 256; ++i)
+		{
+			auto ch = static_cast<char>(i);
+			KString sOriginal("a");
+			sOriginal += ch;
+			sOriginal += "b";
+			CHECK ( kUnescapeFromLogging(kEscapeForLogging(sOriginal)) == sOriginal );
+		}
+
+		KStringView sMixed("\"GET /path?a=b\\c HTTP/1.1\"\r\n\tcaf\xc3\xa9\x00\x7f end\\", 41);
+		CHECK ( kUnescapeFromLogging(kEscapeForLogging(sMixed)) == sMixed );
+	}
+
 	SECTION("kResizeUninitialized")
 	{
 		// -- KString overload --

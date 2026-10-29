@@ -1736,6 +1736,29 @@ inline KString kEscapeForLogging(KStringView sInput)
 } // kEscapeForLogging
 
 //-----------------------------------------------------------------------------
+/// Reverse kEscapeForLogging(): \" \\ \r \n \t \v \f and \xNN, append to sOutput. Any other
+/// escaped character stands for itself, an incomplete \x escape and a trailing backslash stay as they are
+/// @param sOutput a reference for the output string
+/// @param sInput the escaped input string
+DEKAF2_PUBLIC
+void kUnescapeFromLogging(KStringRef& sOutput, KStringView sInput);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Reverse kEscapeForLogging(), return the unescaped string
+/// @param sInput the escaped input string
+/// @returns the unescaped string
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+inline KString kUnescapeFromLogging(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	KString sOutput;
+	kUnescapeFromLogging(sOutput, sInput);
+	return sOutput;
+
+} // kUnescapeFromLogging
+
+//-----------------------------------------------------------------------------
 /// returns true if iterator at_iter points to start of word in iterator start_iter (start_iter is either lower or equal with at_iter)
 template<class Iterator,
 		 typename std::enable_if<detail::is_cpp_str<Iterator>::value == false, int>::type = 0>

@@ -844,6 +844,81 @@ void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 
 } // kEscapeForLogging
 
+//-----------------------------------------------------------------------------
+void kUnescapeFromLogging(KStringRef& sOutput, KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	// an unescaped string is never longer than the escaped one
+	sOutput.reserve(sOutput.size() + sInput.size());
+
+	for (KStringView::size_type iPos; (iPos = sInput.find('\\')) != KStringView::npos; )
+	{
+		// copy the characters before the backslash in one go
+		sOutput.append(sInput.data(), iPos);
+		sInput.remove_prefix(iPos + 1);
+
+		if (sInput.empty())
+		{
+			// a backslash at the end stays
+			sOutput += '\\';
+			break;
+		}
+
+		auto ch = sInput.front();
+		sInput.remove_prefix(1);
+
+		switch (ch)
+		{
+			case 'r':
+				sOutput += '\r';
+				break;
+
+			case 'n':
+				sOutput += '\n';
+				break;
+
+			case 't':
+				sOutput += '\t';
+				break;
+
+			case 'v':
+				sOutput += '\v';
+				break;
+
+			case 'f':
+				sOutput += '\f';
+				break;
+
+			case 'x':
+			{
+				auto iHigh = (sInput.size() >= 2) ? kFromHexChar(sInput[0]) : 16;
+				auto iLow  = (sInput.size() >= 2) ? kFromHexChar(sInput[1]) : 16;
+
+				if (iHigh < 16 && iLow < 16)
+				{
+					sOutput += static_cast<char>(iHigh << 4 | iLow);
+					sInput.remove_prefix(2);
+				}
+				else
+				{
+					// not a hex escape, keep it as it is
+					sOutput += "\\x";
+				}
+				break;
+			}
+
+			default:
+				// \" \\ and any other escaped character stand for the character itself
+				sOutput += ch;
+				break;
+		}
+	}
+
+	// add the remainder of the input string
+	sOutput.append(sInput.data(), sInput.size());
+
+} // kUnescapeFromLogging
+
 #ifndef DEKAF2_KSTRING_IS_STD_STRING
 //-----------------------------------------------------------------------------
 void kResizeUninitialized(KString& sStr, KString::size_type iNewSize)

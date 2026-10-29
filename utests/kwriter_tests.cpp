@@ -489,13 +489,14 @@ TEST_CASE("kLogger")
 		for (int i = 0; i < 1000; ++i)
 		{
 			// lines with and without flush, alternating between the streams in series
-			// of different length - the last line of each stream requests a flush
+			// of different length - the last line of each stream requests a flush (997 is
+			// the last line of the first stream, 999 the last of the second)
 			auto& Stream   = (i % 7 < 4) ? First  : Second;
 			auto& sContent = (i % 7 < 4) ? sFirst : sSecond;
 			auto  sLine    = kFormat("line {}", i);
 			sContent      += sLine;
 			sContent      += '\n';
-			kLogger(Stream, sLine, i % 3 == 0 || i >= 998);
+			kLogger(Stream, sLine, i % 3 == 0 || i >= 997);
 		}
 
 		CHECK ( WaitForFile(kFormat("{}/klogger-first.txt" , TempDir.Name()), sFirst.size())  == sFirst  );

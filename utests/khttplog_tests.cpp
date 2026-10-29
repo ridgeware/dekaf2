@@ -107,6 +107,9 @@ KStringView sRequest =
 // sLogname, appends the response to sResponse, and returns the log line
 KString LogRequest(KRESTServer::Options& Options, KStringViewZ sLogname, KString& sResponse)
 {
+	// a debug build always prints the json with indentation, a release build only with bPrettyPrint
+	Options.bPrettyPrint = true;
+
 	KInStringStream iss(sRequest);
 	KOutStringStream oss(sResponse);
 	KStream stream(iss, oss);
@@ -177,11 +180,11 @@ TEST_CASE("KHTTPLog output")
 		return sLine;
 	};
 
-	// the response body is {"response":"hello"} with a line feed
-	CHECK ( Normalize(sCommon)   == R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 21)" "\n" );
-	CHECK ( Normalize(sCombined) == R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 21 "https://host.testdomain.org/page1/" "Mozilla/5.0 \"quoted\" back\\slash")" "\n" );
+	// the response body is {"response":"hello"}, printed with indentation and a line feed
+	CHECK ( Normalize(sCommon)   == R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 25)" "\n" );
+	CHECK ( Normalize(sCombined) == R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 25 "https://host.testdomain.org/page1/" "Mozilla/5.0 \"quoted\" back\\slash")" "\n" );
 	// the request is executed in this thread
-	CHECK ( Normalize(sExtended) == kFormat(R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 21 "https://host.testdomain.org/page1/" "Mozilla/5.0 \"quoted\" back\\slash" "other.testdomain.org" {} {} {} duration; "192.168.1.1")" "\n",
+	CHECK ( Normalize(sExtended) == kFormat(R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 25 "https://host.testdomain.org/page1/" "Mozilla/5.0 \"quoted\" back\\slash" "other.testdomain.org" {} {} {} duration; "192.168.1.1")" "\n",
 	                                        sRequest.size(), sResponse.size(), kGetTid()) );
 	// the user without spaces, and the durations in seconds and milliseconds as numbers, also
 	// when they are 0
@@ -190,8 +193,8 @@ TEST_CASE("KHTTPLog output")
 	CHECK ( Fields[0] == "firstlast" );
 	CHECK ( kIsInteger(Fields[1]) );
 	CHECK ( kIsInteger(Fields[2]) );
-	CHECK ( Fields[3] == "21" );
-	CHECK ( Fields[4] == "21" );
+	CHECK ( Fields[3] == "25" );
+	CHECK ( Fields[4] == "25" );
 
 	// the parser reads the EXTENDED line back
 	{

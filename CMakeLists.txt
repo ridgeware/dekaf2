@@ -1796,6 +1796,7 @@ set(PUBLIC_HEADERS
 	source/core/init/dekaf2.h
 	source/core/init/kcompatibility.h
 	source/core/init/kdefinitions.h
+	source/core/logging/kdatedlogfile.h
 	source/core/logging/klog.h
 	source/core/logging/kredact.h
 	source/core/logging/klogrotate.h
@@ -2097,6 +2098,7 @@ set (SOURCES
 	source/core/init/kcompatibility.cpp
 	source/core/logging/bits/klogserializer.cpp
 	source/core/logging/bits/klogwriter.cpp
+	source/core/logging/kdatedlogfile.cpp
 	source/core/logging/klog.cpp
 	source/core/logging/kredact.cpp
 	source/core/logging/klogrotate.cpp

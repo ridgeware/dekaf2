@@ -57,6 +57,7 @@ set (USOURCES
 	kcsr_tests.cpp
 	kcsv_tests.cpp
 	kdate_tests.cpp
+	kdatedlogfile_tests.cpp
 	kdiff_tests.cpp
 	kduration_tests.cpp
 	kencode_tests.cpp

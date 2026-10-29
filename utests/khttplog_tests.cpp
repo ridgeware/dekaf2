@@ -3,6 +3,11 @@
 #include <dekaf2/http/server/khttplog.h>
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kduration.h>
 
 using namespace dekaf2;
 
@@ -84,6 +89,132 @@ TEST_CASE("KHTTPLog")
 		CHECK ( Logger.Open(KHTTPLog::LOG_FORMAT::COMMON, sLogname) == false );
 	}
 
+}
+
+namespace {
+
+KStringView sRequest =
+	"POST /page3/subpage?query=value HTTP/1.1\r\n"
+	"Host: other.testdomain.org\r\n"
+	"Referer: https://host.testdomain.org/page1/\r\n"
+	"User-Agent: Mozilla/5.0 \"quoted\" back\\slash\r\n"
+	"X-Forwarded-For: 192.168.1.1\r\n"
+	"Content-Length: 0\r\n"
+	"Connection: close\r\n"
+	"\r\n";
+
+// runs sRequest through a KRESTServer that writes its access log with Options.Logger into
+// sLogname, appends the response to sResponse, and returns the log line
+KString LogRequest(KRESTServer::Options& Options, KStringViewZ sLogname, KString& sResponse)
+{
+	KInStringStream iss(sRequest);
+	KOutStringStream oss(sResponse);
+	KStream stream(iss, oss);
+	KRESTRoutes Routes;
+	Routes.AddRoute({ KHTTPMethod::POST, false, "/page3/subpage", [](KRESTServer& http)
+	{
+		// a user name with a space, which the unquoted %u field must not contain
+		http.SetAuthenticatedUser("first last");
+		http.json.tx["response"] = "hello";
+	}});
+	KRESTServer HTTP(stream, "172.31.71.1:52044", url::KProtocol::HTTP, 80, Routes, Options);
+	HTTP.Execute();
+
+	// the log line is written by a background thread
+	KString sLine;
+	KStopTime Timeout;
+
+	while (!sLine.ends_with('\n') && Timeout.elapsed() < chrono::seconds(5))
+	{
+		kSleep(chrono::milliseconds(1));
+		sLine = kReadAll(sLogname);
+	}
+
+	return sLine;
+}
+
+} // end of anonymous namespace
+
+TEST_CASE("KHTTPLog output")
+{
+	// the loggers write in a background thread, and must outlive their last line
+	KRESTServer::Options Common;
+	KRESTServer::Options Combined;
+	KRESTServer::Options Extended;
+	KRESTServer::Options Parsed;
+
+	auto sCommonLog   = kFormat("{}/httplog-common.log"  , TempDir.Name());
+	auto sCombinedLog = kFormat("{}/httplog-combined.log", TempDir.Name());
+	auto sExtendedLog = kFormat("{}/httplog-extended.log", TempDir.Name());
+	auto sParsedLog   = kFormat("{}/httplog-parsed.log"  , TempDir.Name());
+
+	REQUIRE ( Common.Logger.Open(KHTTPLog::LOG_FORMAT::COMMON, sCommonLog) );
+	REQUIRE ( Combined.Logger.Open(KHTTPLog::LOG_FORMAT::COMBINED, sCombinedLog) );
+	REQUIRE ( Extended.Logger.Open(KHTTPLog::LOG_FORMAT::EXTENDED, sExtendedLog) );
+	REQUIRE ( Parsed.Logger.Open(KHTTPLog::LOG_FORMAT::PARSED, sParsedLog, "%u|%T|%{ms}T|%b|%B") );
+
+	KString sResponse;
+
+	auto sCommon   = LogRequest(Common  , sCommonLog  , sResponse);
+	auto sCombined = LogRequest(Combined, sCombinedLog, sResponse);
+	auto sParsed   = LogRequest(Parsed  , sParsedLog  , sResponse);
+	sResponse.clear();
+	auto sExtended = LogRequest(Extended, sExtendedLog, sResponse);
+
+	// the time stamp and the duration differ from request to request
+	auto Normalize = [](KString sLine)
+	{
+		auto iStart = sLine.find('[');
+		sLine.replace(iStart, sLine.find(']') - iStart + 1, "[time]");
+		auto iEnd = sLine.find(';');
+
+		if (iEnd != KString::npos)
+		{
+			iStart = sLine.rfind(' ', iEnd) + 1;
+			sLine.replace(iStart, iEnd - iStart, "duration");
+		}
+
+		return sLine;
+	};
+
+	// the response body is {"response":"hello"} with a line feed
+	CHECK ( Normalize(sCommon)   == R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 21)" "\n" );
+	CHECK ( Normalize(sCombined) == R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 21 "https://host.testdomain.org/page1/" "Mozilla/5.0 \"quoted\" back\\slash")" "\n" );
+	// the request is executed in this thread
+	CHECK ( Normalize(sExtended) == kFormat(R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 21 "https://host.testdomain.org/page1/" "Mozilla/5.0 \"quoted\" back\\slash" "other.testdomain.org" {} {} {} duration; "192.168.1.1")" "\n",
+	                                        sRequest.size(), sResponse.size(), kGetTid()) );
+	// the user without spaces, and the durations in seconds and milliseconds as numbers, also
+	// when they are 0
+	auto Fields = sParsed.Split("|");
+	REQUIRE ( Fields.size() == 5 );
+	CHECK ( Fields[0] == "firstlast" );
+	CHECK ( kIsInteger(Fields[1]) );
+	CHECK ( kIsInteger(Fields[2]) );
+	CHECK ( Fields[3] == "21" );
+	CHECK ( Fields[4] == "21" );
+
+	// the parser reads the EXTENDED line back
+	{
+		KHTTPLogParser Log(sExtendedLog);
+		auto log = Log.Next();
+		CHECK ( log.IsValid() );
+		CHECK ( log.sRemoteIP            == "172.31.71.1" );
+		CHECK ( log.Method.Serialize()   == "POST" );
+		CHECK ( log.Resource.Serialize() == "/page3/subpage?query=value" );
+		CHECK ( log.iHTTPStatus          == 200 );
+		CHECK ( log.sReferrer            == "https://host.testdomain.org/page1/" );
+		CHECK ( log.sUserAgent           == "Mozilla/5.0 \"quoted\" back\\slash" );
+		CHECK ( log.sHost                == "other.testdomain.org" );
+		CHECK ( log.sForwardedFor        == "192.168.1.1" );
+		// the time stamp has the form of kFormCommonLogTimestamp()
+		CHECK ( sExtended.contains(kFormCommonLogTimestamp(KUTCTime(log.Timestamp))) );
+	}
+
+	// %D is a plain number of microseconds
+	KStringView sTTLB = sExtended;
+	sTTLB = sTTLB.Left(sTTLB.rfind(';'));
+	sTTLB.remove_prefix(sTTLB.rfind(' ') + 1);
+	CHECK ( kIsInteger(sTTLB) );
 }
 
 TEST_CASE("KHTTPLogParser")
@@ -179,6 +310,41 @@ TEST_CASE("KHTTPLogParser")
 		// "-" in quotes is parsed as literal dash, not converted to empty
 		CHECK ( log.sReferrer            == "-" );
 		CHECK ( log.sForwardedFor        == "-" );
+	}
+
+	SECTION("Parse escaped fields")
+	{
+		// the writer escapes quotes, backslashes and control characters with a backslash
+		KString sInput(R"(10.0.0.5 - us\"er [08/May/2025:10:00:00 +0000] "GET /a\"b HTTP/1.1" 200 12 )"
+		               R"("https://example.com/\"quoted\"" "agent \"x\" back\\slash\ttab\x01ctl \xZZ" )"
+		               R"("api.example.com" 100 200 99 500; "192.168.1.1")");
+		KHTTPLogParser::Data log(sInput);
+
+		CHECK ( log.IsValid() );
+		CHECK ( log.sUser                == "us\"er" );
+		CHECK ( log.Method.Serialize()   == "GET" );
+		CHECK ( log.Resource.Serialize() == "/a%22b" );
+		CHECK ( log.iHTTPStatus          == 200 );
+		CHECK ( log.iContentLength       == 12 );
+		CHECK ( log.sReferrer            == "https://example.com/\"quoted\"" );
+		CHECK ( log.sUserAgent           == "agent \"x\" back\\slash\ttab\x01" "ctl \\xZZ" );
+		// the fields after the escaped ones
+		CHECK ( log.sHost                == "api.example.com" );
+		CHECK ( log.iRXBytes             == 100 );
+		CHECK ( log.iTXBytes             == 200 );
+		CHECK ( log.TotalTime.microseconds().count() == 500 );
+		CHECK ( log.sForwardedFor        == "192.168.1.1" );
+		// the log line itself stays as it was
+		CHECK ( log.GetLogLine()         == sInput );
+	}
+
+	SECTION("Parse unterminated quote")
+	{
+		KHTTPLogParser::Data log(KString(R"(10.0.0.5 - - [08/May/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 12 "ref" "agent \" end\)"));
+
+		CHECK ( log.sReferrer  == "ref" );
+		// without a closing quote the field takes the rest of the line
+		CHECK ( log.sUserAgent == "agent \" end\\" );
 	}
 
 	SECTION("Parse invalid line")

@@ -48,6 +48,7 @@
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/io/readwrite/kread.h>
+#include <algorithm>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -147,6 +148,14 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
+	PrintParsedLog()
+	//-----------------------------------------------------------------------------
+	{
+		// room for a typical log line, so that the line does not have to grow several times
+		m_sLogline.reserve(512);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// escape any evil characters (basically, double quotes, backslashes, spaces, control characters)
 	void Escape(KStringView sInput)
 	//-----------------------------------------------------------------------------
@@ -182,8 +191,27 @@ public:
 	void Raw(uint64_t iInteger)
 	//-----------------------------------------------------------------------------
 	{
-		// we want to display npos etc. as negative values, hence the cast
-		m_sLogline += KString::to_string(static_cast<int64_t>(iInteger));
+		// we want to display npos etc. as negative values
+		if (DEKAF2_UNLIKELY(static_cast<int64_t>(iInteger) < 0))
+		{
+			m_sLogline += '-';
+			// the two's complement is the absolute value, also for the smallest int64_t
+			iInteger = ~iInteger + 1;
+		}
+
+		// the digits are written backwards from the end of the buffer, which has room
+		// for the 20 digits of the largest uint64_t
+		char  sBuffer[20];
+		char* pEnd   = sBuffer + sizeof(sBuffer);
+		char* pDigit = pEnd;
+
+		do
+		{
+			*--pDigit = static_cast<char>('0' + iInteger % 10);
+		}
+		while (iInteger /= 10);
+
+		m_sLogline.append(pDigit, static_cast<std::size_t>(pEnd - pDigit));
 
 	} // Raw
 
@@ -203,13 +231,6 @@ public:
 	} // Write
 
 	//-----------------------------------------------------------------------------
-	void operator+=(KStringView sInput)
-	//-----------------------------------------------------------------------------
-	{
-		Write(sInput);
-	}
-
-	//-----------------------------------------------------------------------------
 	/// print integer, and set to - if 0
 	void Write(uint64_t iInteger)
 	//-----------------------------------------------------------------------------
@@ -226,18 +247,38 @@ public:
 	} // Write
 
 	//-----------------------------------------------------------------------------
-	void operator+=(uint64_t iInteger)
+	/// escape like Escape(), and remove the spaces, for a field that is not framed in quotes
+	void EscapeWithoutSpaces(KStringView sInput)
 	//-----------------------------------------------------------------------------
 	{
-		Write(iInteger);
-	}
+		auto iStart = m_sLogline.size();
+
+		kEscapeForLogging(m_sLogline, sInput);
+
+		m_sLogline.erase(std::remove(m_sLogline.begin() + iStart, m_sLogline.end(), ' '), m_sLogline.end());
+
+		if (m_sLogline.size() == iStart)
+		{
+			m_sLogline += '-';
+		}
+
+	} // EscapeWithoutSpaces
 
 	//-----------------------------------------------------------------------------
-	/// get log line
-	const KString& Get()
+	/// append the current time in the common log format, like [18/Sep/2011:19:18:28 +0000]
+	void Timestamp()
 	//-----------------------------------------------------------------------------
 	{
-		return m_sLogline;
+		detail::AppendCommonLogTimestamp(m_sLogline, KUTCTime::now());
+
+	} // Timestamp
+
+	//-----------------------------------------------------------------------------
+	/// move the log line out
+	KString Get() &&
+	//-----------------------------------------------------------------------------
+	{
+		return std::move(m_sLogline);
 	}
 
 //------
@@ -248,62 +289,13 @@ protected:
 
 }; // PrintParsedLog
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class PrintLog : public PrintParsedLog
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	using Parent = PrintParsedLog;
-
-	//-----------------------------------------------------------------------------
-	/// frame sInput in double quotes and escape any evil characters (basically, double quotes and backslashes..)
-	void Quote(KStringView sInput)
-	//-----------------------------------------------------------------------------
-	{
-		RawChar ('"');
-		Escape  (sInput);
-		Raw     ("\" ");
-
-	} // Quote
-
-	//-----------------------------------------------------------------------------
-	void Write(KStringView sInput)
-	//-----------------------------------------------------------------------------
-	{
-		Parent::Write(sInput);
-		RawChar(' ');
-
-	} // Write
-
-	//-----------------------------------------------------------------------------
-	void operator+=(KStringView sInput)
-	//-----------------------------------------------------------------------------
-	{
-		Write(sInput);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// print integer, and set to - if 0
-	void Write(uint64_t iInteger)
-	//-----------------------------------------------------------------------------
-	{
-		Parent::Write(iInteger);
-		RawChar(' ');
-
-	} // Write
-
-	//-----------------------------------------------------------------------------
-	void operator+=(uint64_t iInteger)
-	//-----------------------------------------------------------------------------
-	{
-		Write(iInteger);
-	}
-
-}; // PrintLog
+// the fixed formats, written like the PARSED format
+// https://httpd.apache.org/docs/current/mod/mod_log_config.html
+constexpr KStringView s_sCommonFormat   = R"(%h %l %u %t "%r" %>s %b)";
+constexpr KStringView s_sCombinedFormat = R"(%h %l %u %t "%r" %>s %b "%{Referer}i" "%{User-Agent}i")";
+// in addition: the host, the received and the sent bytes, the thread ID, the time to the last byte
+// in microseconds, and the X-Forwarded-For header
+constexpr KStringView s_sExtendedFormat = R"(%h %l %u %t "%r" %>s %b "%{Referer}i" "%{User-Agent}i" "%V" %I %O %{tid}P %D; "%{X-Forwarded-For}i")";
 
 } // end of anonymous namespace
 
@@ -336,76 +328,33 @@ void KHTTPLog::WriteJSONAccessLog(const KRESTServer& HTTP) const
 } // WriteJSONAccessLog
 
 //-----------------------------------------------------------------------------
-void KHTTPLog::WriteAccessLog(const KRESTServer& HTTP) const
-//-----------------------------------------------------------------------------
-{
-	PrintLog Log;
-
-	// LogFormat "%h %l %u %t \"%r\" %>s %b" common
-	// LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
-	// LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %V %I %O %P %D; \"%{X-Forwarded-For}i\"" extended
-
-	// %h - remote IP / hostname
-	Log += HTTP.GetRemoteIP();
-	// %l Remote logname (from identd, if supplied). This will return a dash unless mod_ident is present and IdentityCheck is set On.
-	Log += "";
-	// %u Remote user if the request was authenticated
-	auto sUser = kEscapeForLogging(HTTP.GetAuthenticatedUser());
-	// remove all spaces
-	sUser.RemoveChars(" ");
-	// finally append (without quotes, hence the filtering above)
-	Log += sUser;
-	// %t Time the request was received, in the format [18/Sep/2011:19:18:28 -0400]. The last number indicates the timezone offset from GMT
-	Log += kFormCommonLogTimestamp();
-	// \"%r\" First line of request
-	Log.Quote(HTTP.Request.RequestLine.Get());
-	// %>s final http status
-	Log += HTTP.Response.GetStatusCode();
-	// %b content-length, uncompressed
-	Log += HTTP.GetContentLength();
-
-	if (m_LogFormat != LOG_FORMAT::COMMON)
-	{
-		// \"%{Referer}i\"
-		Log.Quote(HTTP.Request.Headers.Get(KHTTPHeader::REFERER));
-		// \"%{User-Agent}i\"
-		Log.Quote(HTTP.Request.Headers.Get(KHTTPHeader::USER_AGENT));
-
-		if (m_LogFormat != LOG_FORMAT::COMBINED)
-		{
-			// %V host
-			Log.Quote(HTTP.Request.Headers.Get(KHTTPHeader::HOST));
-			// %I true input byte count before uncompressing
-			Log += HTTP.GetReceivedBytes();
-			// %O true output byte count after compression and chunking
-			Log += HTTP.GetSentBytes();
-			// %P The process ID of the child that serviced the request - we take the thread id
-			Log += kGetTid();
-			// %D The time taken to serve the request, in microseconds
-			Log += kFormat("{};", HTTP.GetTimeToLastByte().microseconds());
-			// \"%{X-Forwarded-For}i\"
-			Log.Quote(HTTP.Request.Headers.Get(KHTTPHeader::X_FORWARDED_FOR));
-		}
-	}
-
-	kLogger(*m_LogStream, Log.Get());
-
-} // WriteAccessLog
-
-//-----------------------------------------------------------------------------
-void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
+void KHTTPLog::CompileFormat(KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
 	// https://httpd.apache.org/docs/current/mod/mod_log_config.html
 
 	enum LOGSTATE { Raw, Flag, Variable, VariableType };
 
-	KString        sVariable;
-	PrintParsedLog Log;
-	LOGSTATE       state { Raw };
-//	char           chModifier { 0 };
+	KString  sText;
+	KString  sVariable;
+	LOGSTATE state { Raw };
+//	char     chModifier { 0 };
 
-	for (auto ch : m_sFormat)
+	m_Fields.clear();
+
+	// adds a field, after the literal text that precedes it
+	auto Add = [this, &sText](FieldType Type, KString sValue = KString{}, KHTTPHeader Header = KHTTPHeader{})
+	{
+		if (!sText.empty())
+		{
+			m_Fields.push_back({ Text, std::move(sText), KHTTPHeader{} });
+			sText.clear();
+		}
+
+		m_Fields.push_back({ Type, std::move(sValue), std::move(Header) });
+	};
+
+	for (auto ch : sFormat)
 	{
 		switch (state)
 		{
@@ -416,7 +365,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 				}
 				else
 				{
-					Log.RawChar(ch);
+					sText += ch;
 				}
 				break;
 
@@ -429,7 +378,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						continue;
 
 					case '%':
-						Log.RawChar('%');
+						sText += '%';
 						state = Raw;
 						continue;
 
@@ -440,90 +389,79 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 
 					case 'a': // remote IP
 					case 'h': // remote hostname - we log the IP
-						Log.Write(HTTP.GetRemoteIP());
+						Add(RemoteIP);
 						break;
 
-					case 'A': // local IP address (interface)
-						Log.Write(""); // TBD
-						break;
-
-					case 'b': // content length with -
-						Log.Write(HTTP.GetContentLength());
-						break;
-
-					case 'B': // content length with 0
-						Log.Raw(HTTP.GetContentLength());
-						break;
-
-					case 'D': // TTLB in usecs
-						Log.Write(chrono::duration_cast<chrono::microseconds>(HTTP.GetTimeToLastByte()).count());
-						break;
-
+					case 'A': // local IP address (interface) - TBD
 					case 'f': // filename?
 					case 'l': // remote log name
 					case 'L': // error log ID
-						Log.Write("");
+						Add(Empty);
+						break;
+
+					case 'b': // content length with -
+						Add(ContentLength);
+						break;
+
+					case 'B': // content length with 0
+						Add(ContentLengthZero);
+						break;
+
+					case 'D': // TTLB in usecs
+						Add(MicroSeconds);
 						break;
 
 					case 'H': // protocol (HTTP or HTTPS)
-						Log.Write(HTTP.Protocol.Serialize());
+						Add(Protocol);
 						break;
 
 					case 'k': // keepalive round, 0 based
-						Log.Raw(HTTP.GetKeepaliveRound());
+						Add(KeepaliveRound);
 						break;
 
 					case 'm': // request method
-						Log.Write(HTTP.Request.RequestLine.GetMethod());
+						Add(Method);
 						break;
 
 					case 'p': // canonical port
-						Log.Write(HTTP.Port);
+						Add(Port);
 						break;
 
 					case 'P': // pid
-						Log.Write(kGetPid());
+						Add(ProcessID);
 						break;
 
 					case 'q': // query string (prepended with a ? if a query string exists, otherwise an empty string)
-						if (HTTP.Request.RequestLine.GetQuery().empty())
-						{
-							Log.Raw("");
-						}
-						else
-						{
-							Log.RawChar('?');
-							Log.Escape(HTTP.Request.RequestLine.GetQuery());
-						}
+						Add(Query);
 						break;
 
 					case 'r': // "first line" - the request line
-						Log.Escape(HTTP.Request.RequestLine.Get());
+						Add(RequestLine);
 						break;
 
 					case 's':
-						Log.Write(HTTP.Response.GetStatusCode());
+						Add(Status);
 						break;
 
 					case 't':
-						Log.Write(kFormCommonLogTimestamp());
+						Add(Timestamp);
 						break;
 
 					case 'T': // TTLB in seconds..
-						Log.Write(HTTP.GetTimeToLastByte().seconds().count());
+						Add(Seconds);
 						break;
 
 					case 'u': // remote user
-						Log.Escape(HTTP.GetAuthenticatedUser());
+						Add(User);
 						break;
 
 					case 'U': // URL path, without query
-						Log.Escape(HTTP.Request.Resource.Path.Serialize());
+						Add(Path);
 						break;
 
 					case 'v': // canonical server name
 					case 'V': // server name
-						Log.Escape(HTTP.Request.Headers.Get(KHTTPHeader::HOST));
+						Add(Host);
 						break;
 
 					case 'X':
@@ -531,25 +469,25 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						//	X =	Connection aborted before the response completed.
 						//	+ =	Connection may be kept alive after the response is sent.
 						//	- =	Connection will be closed after the response is sent
-						Log.RawChar(HTTP.GetLostConnection() ? 'X' : HTTP.GetKeepalive() ? '+' : '-');
+						Add(ConnectionStatus);
 						break;
 
 					case 'I': // rx bytes
-						Log.Write(HTTP.GetReceivedBytes());
+						Add(ReceivedBytes);
 						break;
 
-					case 'O': // rx bytes
-						Log.Write(HTTP.GetSentBytes());
+					case 'O': // tx bytes
+						Add(SentBytes);
 						break;
 
 					case 'S': // rx + tx bytes
-						Log.Write(HTTP.GetReceivedBytes() + HTTP.GetSentBytes());
+						Add(TransferredBytes);
 						break;
 
 					case 'R': // "handler"
 					default:
 						kDebug(1, "selection '{}' not handled", ch);
-						Log.Write("");
+						Add(Empty);
 						break;
 				}
 				state = Raw;
@@ -574,97 +512,92 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 					case 'h': // {c}h direct peer hostname
 						if (sVariable == "c")
 						{
-							Log.Write(HTTP.GetConnectedClientIP());
+							Add(ConnectedClientIP);
 						}
 						else
 						{
 							kDebug(1, "bad variable '{{{}}}{}'", sVariable, ch);
-							Log.Write("");
+							Add(Empty);
 						}
 						break;
 
 					case 'i': // request header
-						Log.Escape(HTTP.Request.Headers.Get(sVariable));
+						Add(RequestHeader, KString{}, KHTTPHeader(sVariable));
 						break;
 
 					case 'o': // response header
-						Log.Escape(HTTP.Response.Headers.Get(sVariable));
+						Add(ResponseHeader, KString{}, KHTTPHeader(sVariable));
 						break;
 
 					case 'e': // Environment
-						Log.Escape(kGetEnv(sVariable));
+						Add(Environment, sVariable);
 						break;
 
 					case 'C': // Cookie
-						Log.Escape(HTTP.Request.GetCookie(sVariable));
+						Add(Cookie, sVariable);
 						break;
 
 					case 'p': // port
-						if (sVariable == "canonical")
+						if (sVariable == "canonical" || sVariable == "local")
 						{
-							Log.Write(HTTP.Port);
-						}
-						else if (sVariable == "local")
-						{
-							Log.Write(HTTP.Port);
+							Add(Port);
 						}
 						else if (sVariable == "remote")
 						{
-							Log.Write(HTTP.GetRemotePort());
+							Add(RemotePort);
 						}
 						else
 						{
 							kDebug(1, "bad variable '{{{}}}{}'", sVariable, ch);
-							Log.Write(0);
+							Add(Empty);
 						}
 						break;
 
 					case 'P': // pid or tid
 						if (sVariable == "pid")
 						{
-							Log.Write(kGetPid());
+							Add(ProcessID);
 						}
 						else if (sVariable == "tid")
 						{
-							Log.Write(kGetTid());
+							Add(ThreadID);
 						}
 						else if (sVariable == "hextid")
 						{
-							Log.Write(KString::to_string(kGetTid(), 16, true, false));
+							Add(HexThreadID);
 						}
 						else
 						{
 							kDebug(1, "bad variable '{{{}}}{}'", sVariable, ch);
-							Log.Write(0);
+							Add(Empty);
 						}
 						break;
 
 					case 'T': // used time in various formats
 						if (sVariable == "us" || sVariable == "µs")
 						{
-							Log.Write(HTTP.GetTimeToLastByte().microseconds().count());
+							Add(MicroSeconds);
 						}
 						else if (sVariable == "ms")
 						{
-							Log.Write(HTTP.GetTimeToLastByte().milliseconds().count());
+							Add(MilliSeconds);
 						}
 						else if (sVariable == "s")
 						{
-							Log.Write(HTTP.GetTimeToLastByte().seconds().count());
+							Add(Seconds);
 						}
 						else
 						{
 							kDebug(1, "bad variable '{{{}}}{}'", sVariable, ch);
-							Log.Write(0);
+							Add(Empty);
 						}
-
 						break;
 
 					case 't': // time in various formats
 					case 'n': // other module
 					default:  // not supported
 						kDebug(1, "selection '{{{}}}{}' not handled", sVariable, ch);
-						Log.Write(0);
+						Add(Empty);
 						break;
 				}
 				state = Raw;
@@ -672,7 +605,160 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 		}
 	}
 
-	kLogger(*m_LogStream, Log.Get());
+	if (!sText.empty())
+	{
+		m_Fields.push_back({ Text, std::move(sText), KHTTPHeader{} });
+	}
+
+} // CompileFormat
+
+//-----------------------------------------------------------------------------
+void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
+//-----------------------------------------------------------------------------
+{
+	PrintParsedLog Log;
+
+	for (const auto& Entry : m_Fields)
+	{
+		switch (Entry.Type)
+		{
+			case Text:
+				Log.Raw(Entry.sValue);
+				break;
+
+			case Empty:
+				Log.Write("");
+				break;
+
+			case RemoteIP:
+				Log.Write(HTTP.GetRemoteIP());
+				break;
+
+			case ConnectedClientIP:
+				Log.Write(HTTP.GetConnectedClientIP());
+				break;
+
+			case ContentLength:
+				Log.Write(HTTP.GetContentLength());
+				break;
+
+			case ContentLengthZero:
+				Log.Raw(HTTP.GetContentLength());
+				break;
+
+			case Protocol:
+				Log.Write(HTTP.Protocol.Serialize());
+				break;
+
+			case KeepaliveRound:
+				Log.Raw(HTTP.GetKeepaliveRound());
+				break;
+
+			case Method:
+				Log.Write(HTTP.Request.RequestLine.GetMethod());
+				break;
+
+			case Port:
+				Log.Write(HTTP.Port);
+				break;
+
+			case RemotePort:
+				Log.Write(HTTP.GetRemotePort());
+				break;
+
+			case ProcessID:
+				Log.Write(kGetPid());
+				break;
+
+			case ThreadID:
+				Log.Write(kGetTid());
+				break;
+
+			case HexThreadID:
+				Log.Write(KString::to_string(kGetTid(), 16, true, false));
+				break;
+
+			case Query:
+				if (!HTTP.Request.RequestLine.GetQuery().empty())
+				{
+					Log.RawChar('?');
+					Log.Escape(HTTP.Request.RequestLine.GetQuery());
+				}
+				break;
+
+			case RequestLine:
+				Log.Escape(HTTP.Request.RequestLine.Get());
+				break;
+
+			case Status:
+				Log.Write(HTTP.Response.GetStatusCode());
+				break;
+
+			case Timestamp:
+				Log.Timestamp();
+				break;
+
+			// the durations are written as numbers, also when they are 0
+			case Seconds:
+				Log.Raw(HTTP.GetTimeToLastByte().seconds().count());
+				break;
+
+			case MilliSeconds:
+				Log.Raw(HTTP.GetTimeToLastByte().milliseconds().count());
+				break;
+
+			case MicroSeconds:
+				Log.Raw(HTTP.GetTimeToLastByte().microseconds().count());
+				break;
+
+			case User:
+				// the user is not framed in quotes
+				Log.EscapeWithoutSpaces(HTTP.GetAuthenticatedUser());
+				break;
+
+			case Path:
+				Log.Escape(HTTP.Request.Resource.Path.Serialize());
+				break;
+
+			case Host:
+				Log.Escape(HTTP.Request.Headers.Get(KHTTPHeader::HOST));
+				break;
+
+			case ConnectionStatus:
+				Log.RawChar(HTTP.GetLostConnection() ? 'X' : HTTP.GetKeepalive() ? '+' : '-');
+				break;
+
+			case ReceivedBytes:
+				Log.Write(HTTP.GetReceivedBytes());
+				break;
+
+			case SentBytes:
+				Log.Write(HTTP.GetSentBytes());
+				break;
+
+			case TransferredBytes:
+				Log.Write(HTTP.GetReceivedBytes() + HTTP.GetSentBytes());
+				break;
+
+			case RequestHeader:
+				Log.Escape(HTTP.Request.Headers.Get(Entry.Header));
+				break;
+
+			case ResponseHeader:
+				Log.Escape(HTTP.Response.Headers.Get(Entry.Header));
+				break;
+
+			case Environment:
+				Log.Escape(kGetEnv(Entry.sValue));
+				break;
+
+			case Cookie:
+				Log.Escape(HTTP.Request.GetCookie(Entry.sValue));
+				break;
+		}
+	}
+
+	kLogger(*m_LogStream, std::move(Log).Get());
 
 } // WriteParsedAccessLog
 
@@ -690,11 +776,11 @@ void KHTTPLog::Log(const KRESTServer& HTTP) const
 			case LOG_FORMAT::JSON:
 				return WriteJSONAccessLog(HTTP);
 
+			case LOG_FORMAT::COMMON:
+			case LOG_FORMAT::COMBINED:
+			case LOG_FORMAT::EXTENDED:
 			case LOG_FORMAT::PARSED:
 				return WriteParsedAccessLog(HTTP);
-
-			default:
-				return WriteAccessLog(HTTP);
 		}
 	}
 
@@ -709,6 +795,29 @@ bool KHTTPLog::Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringVi
 		if (!SetFormat(LogFormat, sFormat))
 		{
 			return false;
+		}
+
+		switch (LogFormat)
+		{
+			case LOG_FORMAT::NONE:
+			case LOG_FORMAT::JSON:
+				break;
+
+			case LOG_FORMAT::COMMON:
+				CompileFormat(s_sCommonFormat);
+				break;
+
+			case LOG_FORMAT::COMBINED:
+				CompileFormat(s_sCombinedFormat);
+				break;
+
+			case LOG_FORMAT::EXTENDED:
+				CompileFormat(s_sExtendedFormat);
+				break;
+
+			case LOG_FORMAT::PARSED:
+				CompileFormat(m_sFormat);
+				break;
 		}
 
 		m_LogStream = kOpenOutStream(sAccessLogFile, std::ios::app);
@@ -768,6 +877,25 @@ bool KHTTPLogParser::Open(KInStream& InStream, KUnixTime StartDate)
 } // Open
 
 //-----------------------------------------------------------------------------
+KStringView KHTTPLogParser::Data::Unescape(KStringView sField)
+//-----------------------------------------------------------------------------
+{
+	if (m_sUnescaped.capacity() < m_sInput.size())
+	{
+		// an unescaped field is never longer than the escaped one, so the buffer never grows
+		// beyond the size of the input line, and the views on earlier fields stay valid
+		m_sUnescaped.reserve(m_sInput.size());
+	}
+
+	auto iStart = m_sUnescaped.size();
+
+	kUnescapeFromLogging(m_sUnescaped, sField);
+
+	return KStringView(m_sUnescaped).substr(iStart);
+
+} // Unescape
+
+//-----------------------------------------------------------------------------
 KStringView KHTTPLogParser::Data::GetString(bool bNoQuotes)
 //-----------------------------------------------------------------------------
 {
@@ -779,9 +907,25 @@ KStringView KHTTPLogParser::Data::GetString(bool bNoQuotes)
 	{
 		if (!bNoQuotes && m_sLine.front() == '"')
 		{
-			// KStringView::substr() has internal checks for overflow
-			sField = m_sLine.substr(1, m_sLine.find('"', 1) - 1);
-			m_sLine.remove_prefix(sField.size() + 2);
+			// the field ends at the first quote that is not escaped with a backslash
+			auto iEnd = kFindUnescaped(m_sLine, '"', '\\', 1);
+
+			if (iEnd == KStringView::npos)
+			{
+				// no closing quote, the field takes the rest of the line
+				sField = m_sLine.substr(1);
+				m_sLine.clear();
+			}
+			else
+			{
+				sField = m_sLine.substr(1, iEnd - 1);
+				m_sLine.remove_prefix(iEnd + 1);
+			}
+
+			if (sField.contains('\\'))
+			{
+				sField = Unescape(sField);
+			}
 		}
 		else
 		{
@@ -791,6 +935,10 @@ KStringView KHTTPLogParser::Data::GetString(bool bNoQuotes)
 			if (sField.size() == 1 && *(sField.begin()) == '-')
 			{
 				sField.clear();
+			}
+			else if (sField.contains('\\'))
+			{
+				sField = Unescape(sField);
 			}
 		}
 	}

@@ -48,10 +48,12 @@
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/http/protocol/khttp_header.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/http/protocol/khttp_version.h>
+#include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -139,9 +141,60 @@ private:
 	void WriteJSONAccessLog   (const KRESTServer& HTTP) const;
 	DEKAF2_PRIVATE
 	void WriteParsedAccessLog (const KRESTServer& HTTP) const;
-	DEKAF2_PRIVATE
-	void WriteAccessLog       (const KRESTServer& HTTP) const;
 
+	/// the fields of the PARSED format
+	enum FieldType : uint8_t
+	{
+		Text,              ///< literal text
+		Empty,             ///< a field that is not supported, written as -
+		RemoteIP,          ///< %a %h
+		ConnectedClientIP, ///< %{c}a %{c}h
+		ContentLength,     ///< %b
+		ContentLengthZero, ///< %B
+		Protocol,          ///< %H
+		KeepaliveRound,    ///< %k
+		Method,            ///< %m
+		Port,              ///< %p %{canonical}p %{local}p
+		RemotePort,        ///< %{remote}p
+		ProcessID,         ///< %P %{pid}P
+		ThreadID,          ///< %{tid}P
+		HexThreadID,       ///< %{hextid}P
+		Query,             ///< %q
+		RequestLine,       ///< %r
+		Status,            ///< %s
+		Timestamp,         ///< %t
+		Seconds,           ///< %T %{s}T
+		MilliSeconds,      ///< %{ms}T
+		MicroSeconds,      ///< %D %{us}T
+		User,              ///< %u
+		Path,              ///< %U
+		Host,              ///< %v %V
+		ConnectionStatus,  ///< %X
+		ReceivedBytes,     ///< %I
+		SentBytes,         ///< %O
+		TransferredBytes,  ///< %S
+		RequestHeader,     ///< %{name}i
+		ResponseHeader,    ///< %{name}o
+		Environment,       ///< %{name}e
+		Cookie             ///< %{name}C
+	};
+
+	/// one field of the PARSED format
+	struct Field
+	{
+		FieldType   Type;
+		/// the literal text, or the name of the environment variable or the cookie
+		KString     sValue;
+		/// the header of a RequestHeader or ResponseHeader
+		KHTTPHeader Header;
+	};
+
+	/// translates a format string into m_Fields - the COMMON, COMBINED and EXTENDED formats are
+	/// written with their fixed format strings
+	DEKAF2_PRIVATE
+	void CompileFormat(KStringView sFormat);
+
+	std::vector<Field>                  m_Fields;
 	mutable std::unique_ptr<KOutStream> m_LogStream;
 
 }; // KHTTPLog
@@ -198,8 +251,11 @@ public:
 		KStringView GetString(bool bNoQuotes = false);
 		uint64_t    GetNumber()  { return GetString(true).UInt64();    }
 		void        SkipSpaces() { while (m_sLine.remove_prefix(' ')); }
+		KStringView Unescape(KStringView sField);
 
 		KString     m_sInput;
+		/// the fields that contained escapes, without the escapes
+		KString     m_sUnescaped;
 		KStringView m_sLine;
 		bool        m_bValid { false };
 

@@ -670,7 +670,8 @@ bool KLog::IntOpenLog()
 //---------------------------------------------------------------------------
 {
 	m_bLogIsRegularFile = false;
-	
+	m_iLogInode         = 0;
+
 #ifdef DEKAF2_KLOG_WITH_TCP
 	KURL url(m_sLogName);
 	if (url.IsHttpURL())
@@ -706,6 +707,7 @@ bool KLog::IntOpenLog()
 		{
 			SetWriter(CreateWriter(Writer::FILE, m_sLogName));
 			m_bLogIsRegularFile = true;
+			m_iLogInode         = KFileStat(m_sLogName).Inode();
 		}
 		SetSerializer(CreateSerializer(Serializer::TTY));
 	}
@@ -786,16 +788,21 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 	std::lock_guard<std::mutex> Lock(s_DebugFlagMutex);
 
 	// we periodically check if our log file was removed (e.g. by the klog cli),
-	// in which case we have to close and reopen it, as otherwise we would
-	// continue to write into a deleted file descriptor.
+	// or replaced by another file (e.g. by a log rotation that renamed it and
+	// created a new one), in which case we have to close and reopen it, as
+	// otherwise we would continue to write into a deleted or renamed file.
 	if (m_bLogIsRegularFile)
 	{
 		KFileStat File(m_sLogName);
 
-		if (!File.Exists())
+		if (!File.Exists() || (m_iLogInode != 0 && File.Inode() != 0 && File.Inode() != m_iLogInode))
 		{
-			// file was removed.. reopen
+			// file was removed or replaced.. reopen, with the log mutex, as other
+			// threads write through the current writer
+			std::lock_guard<std::recursive_mutex> LogLock(m_LogMutex);
+
 			SetWriter(CreateWriter(Writer::FILE, m_sLogName));
+			m_iLogInode = KFileStat(m_sLogName).Inode();
 		}
 		// check if file grew too big
 		else if (File.Size() > 10 * 1024 * 1024)

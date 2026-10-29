@@ -756,6 +756,8 @@ private:
 	std::recursive_mutex m_LogMutex;
 
 	int m_iBackTrace { -2 };
+	// the inode of the log file when it was opened, 0 if it is no regular file or unknown
+	uint64_t m_iLogInode { 0 };
 	KUnixTime m_sTimestampFlagfile;
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;

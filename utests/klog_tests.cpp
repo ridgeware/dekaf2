@@ -258,6 +258,49 @@ TEST_CASE("KLog message buffer")
 	KLog::getInstance().SetDebugLog("");
 }
 
+#ifndef DEKAF2_IS_WINDOWS
+// on Windows, the runtime opens file streams without FILE_SHARE_DELETE, so that the log
+// file cannot be renamed while KLog has it open
+TEST_CASE("KLog follows a replaced log file")
+{
+	// a log rotation renames the log file and creates a new, empty one with the same
+	// name - the periodic check has to notice that and reopen the log
+	KTempDir TmpDir;
+	auto sLogFile  = kFormat("{}/klog-replaced.log"  , TmpDir.Name());
+	auto sRotated  = kFormat("{}/klog-replaced.log.1", TmpDir.Name());
+	// a flag file that does not exist, so that the check does not change the level
+	auto sFlagFile = kFormat("{}/klog-replaced.dbg"  , TmpDir.Name());
+
+	auto&   Log          = KLog::getInstance();
+	auto    RestoreMode  = Log.GetMode();
+	auto    RestoreLevel = Log.GetLevel();
+	KString sRestoreLog  = Log.GetDebugLog();
+	KString sRestoreFlag = Log.GetDebugFlag();
+
+	// the check only runs in server mode - with KeepCLIMode(true), which the unit
+	// tests set, SetMode() neither opens the default log nor reads the default flag file
+	Log.SetMode(KLog::SERVER);
+	Log.SetDebugFlag(sFlagFile);
+	Log.SetDebugLog(sLogFile);
+	Log.SetLevel(1);
+
+	kDebug(1, "line before the rotation");
+	REQUIRE ( kRename(sLogFile, sRotated) );
+	REQUIRE ( kTouchFile(sLogFile) );
+	Log.CheckDebugFlag(true);
+	kDebug(1, "line after the rotation");
+
+	CHECK (  kReadAll(sRotated).contains("line before the rotation") );
+	CHECK ( !kReadAll(sRotated).contains("line after the rotation") );
+	CHECK (  kReadAll(sLogFile).contains("line after the rotation") );
+
+	Log.SetMode(RestoreMode);
+	Log.SetDebugFlag(sRestoreFlag);
+	Log.SetDebugLog(sRestoreLog);
+	Log.SetLevel(RestoreLevel);
+}
+#endif
+
 #endif // of DEKAF2_WITH_KLOG
 
 #if defined(DEKAF2_IS_WINDOWS) && defined(DEKAF2_WITH_KLOG)

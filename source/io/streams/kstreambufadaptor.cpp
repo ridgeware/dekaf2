@@ -229,12 +229,15 @@ std::streamsize KInStreamBufAdaptor::Inspect(char* sBuffer, std::streamsize iSiz
 
 	for (; it < ie; ++it)
 	{
-		*it = Inspect(*it);
+		// compare the int_type result, a char of 0xff is not eof
+		auto ch = Inspect(*it);
 
-		if (traits_type::eq_int_type(traits_type::eof(), *it))
+		if (traits_type::eq_int_type(traits_type::eof(), ch))
 		{
 			break;
 		}
+
+		*it = traits_type::to_char_type(ch);
 	}
 
 	return it - sBuffer;

@@ -158,6 +158,7 @@ set (USOURCES
 	kstring_tests.cpp
 	kstringcatalog_tests.cpp
 	kstreambuf_tests.cpp
+	kstreambufadaptor_tests.cpp
 	kstringstream_tests.cpp
 	kstringutils_tests.cpp
 	kstringview_tests.cpp

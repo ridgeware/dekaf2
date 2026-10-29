@@ -16,11 +16,15 @@ using namespace dekaf2;
 namespace {
 
 //-----------------------------------------------------------------------------
-// ASN1_STRING_get0_data() only exists from OpenSSL 1.1.0 on
+// ASN1_STRING_get0_data() only exists from OpenSSL 1.1.0 on, ASN1_STRING_get_length() from
+// OpenSSL 4.1 on, which deprecates ASN1_STRING_length()
 KStringView Asn1View(const ASN1_STRING* String)
 //-----------------------------------------------------------------------------
 {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if OPENSSL_VERSION_NUMBER >= 0x40100000L
+	return { reinterpret_cast<const char*>(::ASN1_STRING_get0_data(String)),
+	         ::ASN1_STRING_get_length(String) };
+#elif OPENSSL_VERSION_NUMBER >= 0x10100000L
 	return { reinterpret_cast<const char*>(::ASN1_STRING_get0_data(String)),
 	         static_cast<std::size_t>(::ASN1_STRING_length(String)) };
 #else

@@ -76,9 +76,22 @@ KStringView from_ASN1_string(const ASN1_STRING* asn1_string)
 #else
 	auto asn1_data   = asn1_string->data;
 #endif
+#if OPENSSL_VERSION_NUMBER >= 0x40100000L
+	// ASN1_STRING_length() is deprecated since OpenSSL 4.1
+	auto asn1_length = ::ASN1_STRING_get_length(asn1_string);
+
+	if (!asn1_data)
+	{
+		return {};
+	}
+#else
 	auto asn1_length = ::ASN1_STRING_length(asn1_string);
 
-	if (!asn1_data || asn1_length < 0) return {};
+	if (!asn1_data || asn1_length < 0)
+	{
+		return {};
+	}
+#endif
 
 	return { reinterpret_cast<const char*>(asn1_data), static_cast<std::size_t>(asn1_length) };
 

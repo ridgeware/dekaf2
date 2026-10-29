@@ -130,7 +130,11 @@ PeerInfo GetPeerInfo(uint16_t iPort, KStringView sSNI)
 	Info.sIssuer = szBuffer;
 
 	auto* Serial = ::X509_get_serialNumber(Peer);
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if OPENSSL_VERSION_NUMBER >= 0x40100000L
+	// ASN1_STRING_length() is deprecated since OpenSSL 4.1
+	Info.sSerial.assign(reinterpret_cast<const char*>(::ASN1_STRING_get0_data(Serial)),
+	                    ::ASN1_STRING_get_length(Serial));
+#elif OPENSSL_VERSION_NUMBER >= 0x10100000L
 	Info.sSerial.assign(reinterpret_cast<const char*>(::ASN1_STRING_get0_data(Serial)),
 	                    static_cast<std::size_t>(::ASN1_STRING_length(Serial)));
 #else

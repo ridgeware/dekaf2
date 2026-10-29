@@ -123,6 +123,7 @@ KStringViewZ KHTTPMethod::Serialize() const
     switch (m_method)
     {
         case INVALID:
+        case ALL:
             return "";
         case GET:
             return "GET";

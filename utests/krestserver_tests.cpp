@@ -1033,6 +1033,67 @@ x-klog: -level 1
 		}
 	}
 
+	SECTION("a route added with RouteBuilder::Any answers every method")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute("/any").Any([](KRESTServer& http)
+		{
+			http.SetRawOutput(http.Request.Method.Serialize());
+		});
+
+		for (auto sMethod : { "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE" })
+		{
+			auto sResponse = RunRequest(kFormat("{} /any HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n", sMethod), Routes, Options);
+			INFO ( sMethod );
+			CHECK ( sResponse.starts_with("HTTP/1.1 200") );
+			CHECK ( sResponse.ends_with(kFormat("\r\n\r\n{}", sMethod)) );
+		}
+
+		// HEAD gets the headers of the GET answer, without the body
+		{
+			auto sResponse = RunRequest("HEAD /any HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+			CHECK ( sResponse.starts_with("HTTP/1.1 200") );
+			CHECK ( sResponse.ends_with("\r\n\r\n") );
+		}
+
+		// WebDAV methods match an Any route only with the WEBDAV option, as they match a route
+		// with an empty method - without it they answer 404
+		Routes.AddRoute("/dav").Any([](KRESTServer& http)
+		{
+			http.SetRawOutput(http.Request.Method.Serialize());
+		}).Options(KRESTRoute::Options{KRESTRoute::Options::WEBDAV});
+		Routes.AddRoute({ KHTTPMethod{KHTTPMethod::INVALID}, false, "/empty", [](KRESTServer& http)
+		{
+			http.SetRawOutput("empty");
+		}});
+
+		for (auto sPath : { "/any", "/empty" })
+		{
+			auto sResponse = RunRequest(kFormat("PROPFIND {} HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n", sPath), Routes, Options);
+			INFO ( sPath );
+			CHECK ( sResponse.starts_with("HTTP/1.1 404") );
+		}
+
+		{
+			auto sResponse = RunRequest("PROPFIND /dav HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n", Routes, Options);
+			CHECK ( sResponse.starts_with("HTTP/1.1 200") );
+			CHECK ( sResponse.ends_with("\r\n\r\nPROPFIND") );
+		}
+
+		// options set after Any() apply to the same, single route
+		KRESTRoutes OptionRoutes;
+		OptionRoutes.AddRoute("/any").Any([](KRESTServer&) {}).Options(KRESTRoute::Options{KRESTRoute::Options::NO_REPEAT_LOG});
+		OptionRoutes.AddRoute("/other").Get([](KRESTServer&) {});
+
+		KRESTRoutes::Parameters Params;
+		const auto& Route = OptionRoutes.FindRoute(KRESTPath(KHTTPMethod::POST, "/any"), Params, false, false);
+		CHECK ( OptionRoutes.GetRouteIndex(Route) == 0 );
+		CHECK ( Route.Method == KHTTPMethod::ALL );
+		CHECK ( Route.Option.Has(KRESTRoute::Options::NO_REPEAT_LOG) );
+		CHECK ( OptionRoutes.GetRouteIndex(OptionRoutes.FindRoute(KRESTPath(KHTTPMethod::GET, "/other"), Params, false, false)) == 1 );
+	}
+
 	SECTION("Transfer-Encoding other than a single chunked is rejected")
 	{
 		KRESTServer::Options Options;

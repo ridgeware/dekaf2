@@ -365,7 +365,7 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompar
 	if ((!bCompareMethods || bIsWebSocket == Option.Has(Options::WEBSOCKET)) &&
 		(!bCompareMethods 
 		 || Method == Path.Method
-		 || (Method.empty() && (!Path.Method.IsWebDAV() || Option.Has(Options::WEBDAV)))
+		 || ((Method == KHTTPMethod::ALL || Method.empty()) && (!Path.Method.IsWebDAV() || Option.Has(Options::WEBDAV)))
 		 || (Path.Method == KHTTPMethod::HEAD && Method == KHTTPMethod::GET)) &&
 		(bCheckWebservers || sDocumentRoot.empty()))
 	{
@@ -742,8 +742,8 @@ bool KRESTRoutes::CheckForWrongMethod(const KRESTPath& Path) const
 	// check if we only missed a route because of a wrong request method
 	for (const auto& it : m_Routes)
 	{
-		// do not test if method was empty (= all would have matched) or OPTIONS
-		if (!it.Method.empty() && (it.Method != KHTTPMethod::OPTIONS))
+		// do not test if method was empty or ALL (= all would have matched) or OPTIONS
+		if (!it.Method.empty() && it.Method != KHTTPMethod::ALL && it.Method != KHTTPMethod::OPTIONS)
 		{
 			if (it.Matches(Path, nullptr, false, false))
 			{

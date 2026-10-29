@@ -1652,6 +1652,22 @@ void KRESTServer::Output()
 
 				kDebug (2, "response has {} bytes", m_iContentLength);
 			}
+			else if (m_iContentLength == npos && m_Options.Out != CGI && Request.Method != KHTTPMethod::HEAD &&
+			         Response.Headers.Get(KHTTPHeader::CONTENT_LENGTH).empty())
+			{
+				// a stream of unknown length needs framing: chunks for HTTP/1.1, the
+				// closed connection for HTTP/1.0 (compression sets chunks as well).
+				// A HEAD answer sends no body, and a length set by the handler frames
+				// the stream already, so these get neither
+				if ((Request.GetHTTPVersion() & ~KHTTPVersion::http10) == KHTTPVersion::none)
+				{
+					m_bKeepAlive = false;
+				}
+				else
+				{
+					Response.Headers.Set(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+				}
+			}
 
 			WriteHeaders();
 

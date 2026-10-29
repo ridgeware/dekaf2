@@ -841,6 +841,198 @@ x-klog: -level 1
 		return sResponse;
 	};
 
+	SECTION("a stream of unknown length without compression is sent whole and framed")
+	{
+		KString sContent;
+		std::mt19937 Random(14);
+		for (std::size_t i = 0; i < 121270; ++i)
+		{
+			sContent += static_cast<char>(Random() & 0xff);
+		}
+
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/stream", [&](KRESTServer& http)
+		{
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::BINARY);
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_ENCODING, "gzip");
+			http.AllowCompression(false);
+			http.SetStreamToOutput(std::make_unique<KInStringStream>(sContent), npos, false);
+		}});
+
+		auto Split = [](KStringView sResponse, KStringView& sHead, KStringView& sBody)
+		{
+			auto iPos = sResponse.find("\r\n\r\n");
+			REQUIRE ( iPos != KStringView::npos );
+			sHead = sResponse.substr(0, iPos + 2);
+			sBody = sResponse.substr(iPos + 4);
+		};
+
+		auto Dechunk = [](KStringView sBody) -> KString
+		{
+			KString sDecoded;
+			for (;;)
+			{
+				auto iEnd = sBody.find("\r\n");
+				if (iEnd == KStringView::npos) return "<missing chunk size>";
+				auto iSize = kToInt<std::size_t>(sBody.substr(0, iEnd), 16);
+				sBody.remove_prefix(iEnd + 2);
+				if (!iSize) return sBody == "\r\n" ? sDecoded : KString("<bad last chunk>");
+				if (sBody.size() < iSize + 2) return "<short chunk>";
+				sDecoded += sBody.substr(0, iSize);
+				sBody.remove_prefix(iSize + 2);
+			}
+		};
+
+		// HTTP/1.1 keeps the connection and sends the stream chunked
+		auto sResponse = RunRequest("GET /stream HTTP/1.1\r\nHost: localhost\r\nAccept-Encoding: gzip\r\n\r\n", Routes, Options);
+		KStringView sHead, sBody;
+		Split(sResponse, sHead, sBody);
+		auto sLowerHead = sHead.ToLowerASCII();
+		CHECK ( sLowerHead.starts_with("http/1.1 200") );
+		CHECK ( sLowerHead.contains("transfer-encoding: chunked\r\n") );
+		CHECK_FALSE ( sLowerHead.contains("content-length:") );
+		CHECK ( sLowerHead.contains("content-encoding: gzip\r\n") );
+		CHECK ( sLowerHead.contains("connection: keep-alive\r\n") );
+		auto sDecoded = Dechunk(sBody);
+		CHECK ( sDecoded.size() == sContent.size() );
+		CHECK ( sDecoded == sContent );
+
+		// HTTP/1.0 has no chunked framing, the end of the stream is the closed connection
+		sResponse = RunRequest("GET /stream HTTP/1.0\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n", Routes, Options);
+		Split(sResponse, sHead, sBody);
+		sLowerHead = sHead.ToLowerASCII();
+		CHECK ( sLowerHead.contains(" 200 ") );
+		CHECK_FALSE ( sLowerHead.contains("transfer-encoding:") );
+		CHECK_FALSE ( sLowerHead.contains("content-length:") );
+		CHECK ( sLowerHead.contains("connection: close\r\n") );
+		CHECK ( sBody.size() == sContent.size() );
+		CHECK ( sBody == sContent );
+
+		// HEAD sends no body, so it is not framed: neither a length nor chunks; and a GET after it on the same
+		// connection gets its whole body
+		sResponse = RunRequest("HEAD /stream HTTP/1.1\r\nHost: localhost\r\n\r\n"
+		                       "GET /stream HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		Split(sResponse, sHead, sBody);
+		sLowerHead = sHead.ToLowerASCII();
+		CHECK ( sLowerHead.starts_with("http/1.1 200") );
+		CHECK_FALSE ( sLowerHead.contains("transfer-encoding:") );
+		CHECK_FALSE ( sLowerHead.contains("content-length:") );
+		CHECK ( sLowerHead.contains("connection: keep-alive\r\n") );
+		REQUIRE ( sBody.starts_with("HTTP/1.1 200") );
+		KStringView sGet = sBody;
+		Split(sGet, sHead, sBody);
+		CHECK ( sHead.ToLowerASCII().contains("transfer-encoding: chunked\r\n") );
+		sDecoded = Dechunk(sBody);
+		CHECK ( sDecoded.size() == sContent.size() );
+		CHECK ( sDecoded == sContent );
+
+		auto Count = [](KStringView sHay, KStringView sNeedle)
+		{
+			std::size_t iCount = 0;
+			for (auto iPos = sHay.find(sNeedle); iPos != KStringView::npos; iPos = sHay.find(sNeedle, iPos + 1)) ++iCount;
+			return iCount;
+		};
+
+		// a stream the output filter may compress
+		KString sText(5000, 'x');
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/compressible", [&](KRESTServer& http)
+		{
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::JSON);
+			http.SetStreamToOutput(std::make_unique<KInStringStream>(sText), npos, true);
+		}});
+
+		// HTTP/1.1 compresses it, framed by exactly one Transfer-Encoding header
+		sResponse = RunRequest("GET /compressible HTTP/1.1\r\nHost: localhost\r\nAccept-Encoding: gzip\r\n\r\n", Routes, Options);
+		Split(sResponse, sHead, sBody);
+		sLowerHead = sHead.ToLowerASCII();
+		CHECK ( sLowerHead.contains("content-encoding: gzip\r\n") );
+		CHECK ( Count(sLowerHead, "transfer-encoding:") == 1 );
+		CHECK ( sLowerHead.contains("transfer-encoding: chunked\r\n") );
+
+		// HTTP/1.0 does not compress, and has no chunks: the closed connection ends it
+		sResponse = RunRequest("GET /compressible HTTP/1.0\r\nHost: localhost\r\nAccept-Encoding: gzip\r\n\r\n", Routes, Options);
+		Split(sResponse, sHead, sBody);
+		sLowerHead = sHead.ToLowerASCII();
+		CHECK_FALSE ( sLowerHead.contains("content-encoding:") );
+		CHECK_FALSE ( sLowerHead.contains("transfer-encoding:") );
+		CHECK ( sLowerHead.contains("connection: close\r\n") );
+		CHECK ( sBody == sText );
+
+		// a length the handler set frames the stream: no chunks, and the connection stays open
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/length", [&](KRESTServer& http)
+		{
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::BINARY);
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, kFormat("{}", sContent.size()));
+			http.AllowCompression(false);
+			http.SetStreamToOutput(std::make_unique<KInStringStream>(sContent), npos, false);
+		}});
+
+		for (KStringView sVersion : { "HTTP/1.1", "HTTP/1.0" })
+		{
+			INFO ( sVersion );
+			sResponse = RunRequest(kFormat("GET /length {}\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n", sVersion), Routes, Options);
+			Split(sResponse, sHead, sBody);
+			sLowerHead = sHead.ToLowerASCII();
+			CHECK ( Count(sLowerHead, "content-length:") == 1 );
+			CHECK ( sLowerHead.contains(kFormat("content-length: {}\r\n", sContent.size())) );
+			CHECK_FALSE ( sLowerHead.contains("transfer-encoding:") );
+			CHECK ( sLowerHead.contains("connection: keep-alive\r\n") );
+			CHECK ( sBody == sContent );
+		}
+
+		// a stream of known length is framed by its length: no chunks, and the connection stays open
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/known", [&](KRESTServer& http)
+		{
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::BINARY);
+			http.AllowCompression(false);
+			http.SetStreamToOutput(std::make_unique<KInStringStream>(sContent), sContent.size(), false);
+		}});
+
+		for (KStringView sVersion : { "HTTP/1.1", "HTTP/1.0" })
+		{
+			INFO ( sVersion );
+			sResponse = RunRequest(kFormat("GET /known {}\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n", sVersion), Routes, Options);
+			Split(sResponse, sHead, sBody);
+			sLowerHead = sHead.ToLowerASCII();
+			CHECK ( sLowerHead.contains(kFormat("content-length: {}\r\n", sContent.size())) );
+			CHECK_FALSE ( sLowerHead.contains("transfer-encoding:") );
+			CHECK ( sLowerHead.contains("connection: keep-alive\r\n") );
+			CHECK ( sBody == sContent );
+		}
+
+		// CGI output: the web server frames the answer, so neither header
+		{
+			KRESTServer::Options CGIOptions;
+			CGIOptions.Out = KRESTServer::CGI;
+			sResponse = RunRequest("GET /stream HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, CGIOptions);
+			Split(sResponse, sHead, sBody);
+			sLowerHead = sHead.ToLowerASCII();
+			CHECK ( sLowerHead.starts_with("status: 200") );
+			CHECK_FALSE ( sLowerHead.contains("transfer-encoding:") );
+			CHECK_FALSE ( sLowerHead.contains("content-length:") );
+			CHECK ( sBody == sContent );
+		}
+
+		// NPH output is a complete HTTP response: chunks for HTTP/1.1, none for HTTP/1.0
+		{
+			KRESTServer::Options NPHOptions;
+			NPHOptions.Out = KRESTServer::NPH;
+			sResponse = RunRequest("GET /stream HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, NPHOptions);
+			Split(sResponse, sHead, sBody);
+			sLowerHead = sHead.ToLowerASCII();
+			CHECK ( sLowerHead.starts_with("http/1.1 200") );
+			CHECK ( sLowerHead.contains("transfer-encoding: chunked\r\n") );
+			CHECK ( Dechunk(sBody) == sContent );
+
+			sResponse = RunRequest("GET /stream HTTP/1.0\r\nHost: localhost\r\n\r\n", Routes, NPHOptions);
+			Split(sResponse, sHead, sBody);
+			sLowerHead = sHead.ToLowerASCII();
+			CHECK_FALSE ( sLowerHead.contains("transfer-encoding:") );
+			CHECK ( sBody == sContent );
+		}
+	}
+
 	SECTION("Transfer-Encoding other than a single chunked is rejected")
 	{
 		KRESTServer::Options Options;

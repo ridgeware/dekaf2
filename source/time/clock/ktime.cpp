@@ -480,6 +480,81 @@ const std::array<KString, 7>& GetDefaultLocalDayNames(bool bAbbreviated)
 
 } // kGetLocalDayNames
 
+namespace {
+
+//-----------------------------------------------------------------------------
+// writes the two lowest decimal digits of iValue to pBuffer
+void TwoDigits(char* pBuffer, unsigned iValue)
+//-----------------------------------------------------------------------------
+{
+	pBuffer[0] = static_cast<char>('0' + iValue / 10 % 10);
+	pBuffer[1] = static_cast<char>('0' + iValue % 10);
+
+} // TwoDigits
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+void AppendWebTimestamp(KStringRef& sAppendTo, const KUTCTime& time, KStringView sTimezoneDesignator)
+//-----------------------------------------------------------------------------
+{
+	auto iYear = static_cast<int>(time.year());
+
+	if (DEKAF2_UNLIKELY(iYear < 0 || iYear > 9999))
+	{
+		// the fixed layout below has room for a year with four digits
+		kFormatAppend(sAppendTo, "{:%a, %d %b %Y %H:%M:%S} {}", time, sTimezoneDesignator);
+		return;
+	}
+
+	char sStamp[] = "Ddd, DD Mon YYYY hh:mm:ss ";
+
+	auto sDay   = kGetDayName(time.weekday(), true);
+	auto sMonth = kGetMonthName(time.month(), true);
+
+	std::copy(sDay.begin(), sDay.end(), sStamp);
+	TwoDigits(sStamp +  5, static_cast<unsigned>(time.day()));
+	std::copy(sMonth.begin(), sMonth.end(), sStamp + 8);
+	TwoDigits(sStamp + 12, static_cast<unsigned>(iYear) / 100);
+	TwoDigits(sStamp + 14, static_cast<unsigned>(iYear) % 100);
+	TwoDigits(sStamp + 17, static_cast<unsigned>(time.hours().count()));
+	TwoDigits(sStamp + 20, static_cast<unsigned>(time.minutes().count()));
+	TwoDigits(sStamp + 23, static_cast<unsigned>(time.seconds().count()));
+
+	sAppendTo.append(sStamp, sizeof(sStamp) - 1);
+	sAppendTo.append(sTimezoneDesignator.data(), sTimezoneDesignator.size());
+
+} // AppendWebTimestamp
+
+//-----------------------------------------------------------------------------
+void AppendCommonLogTimestamp(KStringRef& sAppendTo, const KUTCTime& time)
+//-----------------------------------------------------------------------------
+{
+	auto iYear = static_cast<int>(time.year());
+
+	if (DEKAF2_UNLIKELY(iYear < 0 || iYear > 9999))
+	{
+		// the fixed layout below has room for a year with four digits
+		kFormatAppend(sAppendTo, "[{:%d/%b/%Y:%H:%M:%S +0000}]", time);
+		return;
+	}
+
+	char sStamp[] = "[DD/Mon/YYYY:hh:mm:ss +0000]";
+
+	auto sMonth = kGetMonthName(time.month(), true);
+
+	TwoDigits(sStamp +  1, static_cast<unsigned>(time.day()));
+	std::copy(sMonth.begin(), sMonth.end(), sStamp + 4);
+	TwoDigits(sStamp +  8, static_cast<unsigned>(iYear) / 100);
+	TwoDigits(sStamp + 10, static_cast<unsigned>(iYear) % 100);
+	TwoDigits(sStamp + 13, static_cast<unsigned>(time.hours().count()));
+	TwoDigits(sStamp + 16, static_cast<unsigned>(time.minutes().count()));
+	TwoDigits(sStamp + 19, static_cast<unsigned>(time.seconds().count()));
+
+	sAppendTo.append(sStamp, sizeof(sStamp) - 1);
+
+} // AppendCommonLogTimestamp
+
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------

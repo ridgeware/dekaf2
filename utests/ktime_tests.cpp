@@ -1266,6 +1266,46 @@ TEST_CASE("KTime") {
 
 		KUnixTime U = kParseTimestamp("12:34:56 16.08.2022");
 		CHECK ( kFormCommonLogTimestamp(U) == "[16/Aug/2022:12:34:56 +0000]" );
+		CHECK ( kFormCommonLogTimestamp(KUTCTime(U)) == "[16/Aug/2022:12:34:56 +0000]" );
+		// without fractions of a second
+		CHECK ( kFormCommonLogTimestamp(chrono::system_clock::time_point(U)) == "[16/Aug/2022:12:34:56 +0000]" );
+		// in UTC, also for a local time
+		auto tz = kFindTimezone("Europe/Berlin", false);
+
+		if (tz != nullptr)
+		{
+			CHECK ( kFormCommonLogTimestamp(KLocalTime(U, tz)) == "[16/Aug/2022:12:34:56 +0000]" );
+		}
+
+		// a year with less than four digits
+		CHECK ( kFormCommonLogTimestamp(KUTCTime(chrono::year(812)/1/2)) == "[02/Jan/0812:00:00:00 +0000]" );
+		// a year with more than four digits
+		CHECK ( kFormCommonLogTimestamp(KUTCTime(chrono::year(10000)/1/1)) == "[01/Jan/10000:00:00:00 +0000]" );
+		CHECK ( kFormCommonLogTimestamp(KUnixTime()) == "" );
+	}
+
+	SECTION("kFormHTTPTimestamp and kFormSMTPTimestamp")
+	{
+		KUnixTime U = kParseTimestamp("12:34:56 16.08.2022");
+		CHECK ( kFormHTTPTimestamp(U) == "Tue, 16 Aug 2022 12:34:56 GMT" );
+		CHECK ( kFormSMTPTimestamp(U) == "Tue, 16 Aug 2022 12:34:56 -0000" );
+		CHECK ( kFormHTTPTimestamp(KUTCTime(U)) == "Tue, 16 Aug 2022 12:34:56 GMT" );
+		// without fractions of a second
+		CHECK ( kFormHTTPTimestamp(chrono::system_clock::time_point(U) + chrono::microseconds(123456)) == "Tue, 16 Aug 2022 12:34:56 GMT" );
+		// in UTC, also for a local time
+		auto tz = kFindTimezone("Europe/Berlin", false);
+
+		if (tz != nullptr)
+		{
+			CHECK ( kFormHTTPTimestamp(KLocalTime(U, tz)) == "Tue, 16 Aug 2022 12:34:56 GMT" );
+			CHECK ( kFormSMTPTimestamp(KLocalTime(U, tz)) == "Tue, 16 Aug 2022 12:34:56 -0000" );
+		}
+
+		// a year with less than four digits
+		CHECK ( kFormHTTPTimestamp(KUTCTime(chrono::year(812)/1/2)) == "Mon, 02 Jan 0812 00:00:00 GMT" );
+		// a year with more than four digits
+		CHECK ( kFormHTTPTimestamp(KUTCTime(chrono::year(10000)/1/1)) == "Sat, 01 Jan 10000 00:00:00 GMT" );
+		CHECK ( kFormHTTPTimestamp(KUnixTime()) == "" );
 	}
 
 	SECTION("detail::KParsedTimestamp")

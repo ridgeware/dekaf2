@@ -1387,6 +1387,10 @@ KString FormTimestamp (const std::locale& locale, const DateTime& time, KFormatS
 	return DEKAF2_PREFIX kFormat(locale, KRuntimeFormat(BuildTimeFormatString(KStringView(sFormat.get().data(), sFormat.get().size()))), time);
 }
 
+/// appends a web time stamp, like Tue, 03 Aug 2021 10:23:42 GMT, with the given time zone designator
+DEKAF2_PUBLIC
+void AppendWebTimestamp(KStringRef& sAppendTo, const KUTCTime& time, KStringView sTimezoneDesignator);
+
 // "Tue, 03 Aug 2021 10:23:42 +0000"
 template<typename DateTime,
 	// defer old time_t type uses
@@ -1398,9 +1402,19 @@ template<typename DateTime,
 DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 KString FormWebTimestamp (const DateTime& time, KStringView sTimezoneDesignator)
 {
-	if (!detail::TimeIsValid(time)) return "";
-	return DEKAF2_PREFIX kFormat("{:%a, %d %b %Y %H:%M:%S} {}", time, sTimezoneDesignator);
+	KString sTimestamp;
+
+	if (detail::TimeIsValid(time))
+	{
+		detail::AppendWebTimestamp(sTimestamp, KUTCTime(time), sTimezoneDesignator);
+	}
+
+	return sTimestamp;
 }
+
+/// appends a common log format time stamp, like [18/Sep/2011:19:18:28 +0000]
+DEKAF2_PUBLIC
+void AppendCommonLogTimestamp(KStringRef& sAppendTo, const KUTCTime& time);
 
 } // end of namespace detail
 
@@ -1514,7 +1528,14 @@ template<typename DateTime = detail::ForFormat>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
                    KString kFormCommonLogTimestamp (const DateTime& time = DateTime::now())
 {
-	return detail::FormTimestamp(time, "[{:%d/%b/%Y:%H:%M:%S +0000}]");
+	KString sTimestamp;
+
+	if (detail::TimeIsValid(time))
+	{
+		detail::AppendCommonLogTimestamp(sTimestamp, KUTCTime(time));
+	}
+
+	return sTimestamp;
 }
 
 /// Parse any timestamp that matches a format string built from h m s D M Y, and a S z Z N ?

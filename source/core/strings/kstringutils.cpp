@@ -784,62 +784,63 @@ KString kEscapeChars(KStringView sInput, const KFindSetOfChars& Escapables, KStr
 void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 //-----------------------------------------------------------------------------
 {
+	// all control characters, the double quote and the backslash
+	static constexpr KFindSetOfChars Escapables(
+		"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+		"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
+		"\"\\\x7f"_ksv);
+
 	sLog.reserve(sLog.size() + sInput.size());
-	
-	for (auto ch : sInput)
+
+	for (KStringView::size_type iStart; (iStart = Escapables.find_first_in(sInput)) != KStringView::npos; )
 	{
-		auto ctype = KASCII::kCharType(ch);
+		// copy the characters before the escapable in one go
+		sLog.append(sInput.data(), iStart);
 
-		if (DEKAF2_UNLIKELY(KASCII::kIsSpace(ctype)))
+		auto ch = sInput[iStart];
+
+		switch (ch)
 		{
-			switch (ch)
-			{
-				case ' ':
-					sLog += ' ';
-					break;
+			case '\r':
+				sLog += "\\r";
+				break;
 
-				case '\r':
-					sLog += "\\r";
-					break;
+			case '\n':
+				sLog += "\\n";
+				break;
 
-				case '\n':
-					sLog += "\\n";
-					break;
+			case '\t':
+				sLog += "\\t";
+				break;
 
-				case '\t':
-					sLog += "\\t";
-					break;
+			case '\v':
+				sLog += "\\v";
+				break;
 
-				case '\b':
-					sLog += "\\b";
-					break;
+			case '\f':
+				sLog += "\\f";
+				break;
 
-				case '\v':
-					sLog += "\\v";
-					break;
+			case '\\':
+			case '"':
+				sLog += '\\';
+				sLog += ch;
+				break;
 
-				case '\f':
-					sLog += "\\f";
-					break;
-			}
+			default:
+				// escape the other control characters as hex
+				sLog += '\\';
+				sLog += 'x';
+				kHexAppend(sLog, ch);
+				break;
 		}
-		else if (DEKAF2_UNLIKELY(KASCII::kIsCntrl(ctype)))
-		{
-			// escape non-printable characters..
-			sLog += '\\';
-			sLog += 'x';
-			kHexAppend(sLog, ch);
-		}
-		else if (DEKAF2_UNLIKELY(ch == '\\' || ch == '"'))
-		{
-			sLog += '\\';
-			sLog += ch;
-		}
-		else
-		{
-			sLog += ch;
-		}
+
+		// prepare for next round
+		sInput.remove_prefix(++iStart);
 	}
+
+	// add the remainder of the input string
+	sLog.append(sInput.data(), sInput.size());
 
 } // kEscapeForLogging
 

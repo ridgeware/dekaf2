@@ -2645,6 +2645,16 @@ TEST_CASE("KStringUtils") {
 		CHECK ( kEscapeForLogging("quote\"here") == "quote\\\"here" );
 		CHECK ( kEscapeForLogging("back\\slash") == "back\\\\slash" );
 		CHECK ( kEscapeForLogging("") == "" );
+		CHECK ( kEscapeForLogging("bell\x07" "del\x7f") == "bell\\x07del\\x7f" );
+		CHECK ( kEscapeForLogging(KStringView("nul\0here", 8)) == "nul\\x00here" );
+		CHECK ( kEscapeForLogging("\b\v\f\x1f") == "\\x08\\v\\f\\x1f" );
+		CHECK ( kEscapeForLogging("caf\xc3\xa9 \xe2\x82\xac") == "caf\xc3\xa9 \xe2\x82\xac" );
+		// runs longer than one block of the SIMD search, with escapes at both ends
+		CHECK ( kEscapeForLogging("\"a run of more than sixteen characters\tand a second run of more than sixteen\\")
+		                      == "\\\"a run of more than sixteen characters\\tand a second run of more than sixteen\\\\" );
+		KString sLog("prefix ");
+		kEscapeForLogging(sLog, "\"appended\"");
+		CHECK ( sLog == "prefix \\\"appended\\\"" );
 	}
 
 	SECTION("kResizeUninitialized")

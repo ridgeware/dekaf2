@@ -941,9 +941,9 @@ bool KRESTRoutes::ServeFromCompressionCache(KRESTServer& HTTP, KWebServer& WebSe
 
 		case KCompressionCache::State::Aborted:
 			// the response is incomplete - closing the connection without the end of the
-			// chunked transfer tells the client
-			HTTP.Response.Headers.Set(KHTTPHeader::CONNECTION, "close");
-			return true;
+			// chunked transfer tells the client. The error ends the request before
+			// Output(), which would end the chunked transfer
+			throw KHTTPError { KHTTPError::H5xx_ERROR, "compression aborted, the response is incomplete" };
 
 		case KCompressionCache::State::Miss:
 			// a HEAD request, or a client without chunked transfer: no new entry

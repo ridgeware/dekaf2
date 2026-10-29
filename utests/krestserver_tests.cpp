@@ -1033,6 +1033,33 @@ x-klog: -level 1
 		}
 	}
 
+	SECTION("a streamed answer ends with the request, the next request gets its answer")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/stream", [](KRESTServer& http)
+		{
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_PLAIN);
+			http.Response.Headers.Set(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+			http.Stream(/*bAllowCompressionIfPossible=*/false);
+			http.Response.Write("hello");
+		}});
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/plain", [](KRESTServer& http)
+		{
+			http.SetRawOutput("ok");
+		}});
+
+		auto sResponse = RunRequest("GET /stream HTTP/1.1\r\nHost: localhost\r\n\r\n"
+		                            "GET /plain HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		INFO ( sResponse );
+		auto iSecond = sResponse.find("HTTP/1.1", 1);
+		REQUIRE ( iSecond != KString::npos );
+		KStringView sFirst = KStringView(sResponse).substr(0, iSecond);
+		CHECK ( sFirst.contains("\r\n\r\n05\r\nhello\r\n") );
+		CHECK ( sFirst.ends_with("\r\n0\r\n\r\n") );
+		CHECK ( sResponse.ends_with("\r\n\r\nok") );
+	}
+
 	SECTION("a route added with RouteBuilder::Any answers every method")
 	{
 		KRESTServer::Options Options;

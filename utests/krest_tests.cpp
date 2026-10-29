@@ -7,8 +7,14 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/net/util/kstreamoptions.h>
+#include <dekaf2/rest/serving/kcompressioncache.h>
+#include <dekaf2/rest/serving/kwebserverpermissions.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <algorithm>
 #include <atomic>
+#include <random>
 #include <thread>
+#include <vector>
 #ifndef DEKAF2_IS_WINDOWS
 	#include <sys/socket.h>
 #endif
@@ -942,3 +948,176 @@ TEST_CASE("KREST disconnect detection")
 	CHECK ( iCallbackThread != 0 );
 	CHECK ( iCallbackThread == iRouteThread );
 }
+
+TEST_CASE("KREST streamed answer without a body")
+{
+	// a handler that switches to streaming output and writes nothing (a HEAD
+	// answer, say) ends the request: its headers reach the client at once, not
+	// at the end of the keepalive wait, and the connection takes the next request
+
+	KRESTRoutes Routes;
+
+	Routes.AddRoute({ KHTTPMethod::GET, false, "/stream", [](KRESTServer& http)
+	{
+		http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_PLAIN);
+		http.Stream(/*bAllowCompressionIfPossible=*/false);
+	}});
+
+	Routes.AddRoute({ KHTTPMethod::GET, false, "/plain", [](KRESTServer& http)
+	{
+		http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_PLAIN);
+		http.SetRawOutput("ok");
+	}});
+
+	KREST::Options Options;
+	Options.Type                 = KREST::HTTP;
+	Options.iPort                = 0;
+	Options.sBindAddress         = "127.0.0.1";
+	Options.bBlocking            = false;
+	Options.bCreateEphemeralCert = false;
+	Options.iTimeout             = 5;   // the keepalive wait the headers must not wait for
+
+	KREST REST;
+	REQUIRE ( REST.Execute(Options, Routes) );
+
+	// the client gives up after 2 seconds
+	KTCPStream Stream(KTCPEndPoint(kFormat("127.0.0.1:{}", REST.GetPort())), KStreamOptions(chrono::seconds(2)));
+	REQUIRE ( Stream.is_open() );
+
+	// reads a status line and the headers up to the empty line
+	auto ReadHead = [&]() -> std::vector<KString>
+	{
+		std::vector<KString> Lines;
+		KString sLine;
+		while (Stream.ReadLine(sLine))
+		{
+			sLine.TrimRight();
+			if (sLine.empty()) break;
+			Lines.push_back(sLine.ToLowerASCII());
+		}
+		return Lines;
+	};
+
+	// the keepalive wait is longer than the client's, so headers that wait for it
+	// never arrive
+	Stream.Write("HEAD /stream HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").Flush();
+	auto Head = ReadHead();
+	REQUIRE_FALSE ( Head.empty() );
+	CHECK ( Head.front().starts_with("http/1.1 200") );
+	CHECK ( std::find(Head.begin(), Head.end(), "connection: keep-alive") != Head.end() );
+
+	// the same connection answers the next request
+	Stream.Write("GET /plain HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").Flush();
+	auto Plain = ReadHead();
+	REQUIRE_FALSE ( Plain.empty() );
+	CHECK ( Plain.front().starts_with("http/1.1 200") );
+	KString sBody;
+	Stream.Read(sBody, 2);
+	CHECK ( sBody == "ok" );
+}
+
+#ifndef DEKAF2_IS_WINDOWS
+TEST_CASE("KREST aborted compression cache pass")
+{
+	// a compression cache pass that fails after its transmission started leaves the
+	// chunked response without its end, so the client sees that it is incomplete, and
+	// the access log gets status 500. One that fails before its transmission started
+	// sends the file uncompressed
+
+	KTempDir WebRoot;
+	KTempDir CacheRoot;
+	KTempDir EarlyCacheRoot;
+
+	// half random, so the compressed data does not fit into the buffer of the entry file
+	KString sContent;
+	for (int i = 0; i < 2000; ++i)
+	{
+		sContent += kFormat("line {} of a file that compresses well\n", i);
+	}
+	std::mt19937 Random(7);
+	for (int i = 0; i < 64 * 1024; ++i)
+	{
+		sContent += static_cast<char>(Random() & 0xff);
+	}
+	auto sSource = kFormat("{}/abort.txt", WebRoot.Name());
+	REQUIRE ( kWriteFile(sSource, sContent) );
+
+	KRESTRoutes Routes;
+	Routes.AddWebServer(WebRoot.Name(), "/web/*", KWebServerPermissions(KJSON{{ "permissions", "read|browse" }}),
+	                    KJSON{{ "compression_cache", CacheRoot.Name() }, { "compression_deadline", 0 }});
+	// a deadline that is never reached: the pass ends before the transmission starts
+	Routes.AddWebServer(WebRoot.Name(), "/early/*", KWebServerPermissions(KJSON{{ "permissions", "read|browse" }}),
+	                    KJSON{{ "compression_cache", EarlyCacheRoot.Name() }, { "compression_deadline", 3600 }});
+
+	KREST::Options Options;
+	Options.Type                 = KREST::HTTP;
+	Options.iPort                = 0;
+	Options.sBindAddress         = "127.0.0.1";
+	Options.bBlocking            = false;
+	Options.bCreateEphemeralCert = false;
+	Options.iTimeout             = 5;
+
+	// the status the access log gets: the post response callback runs right before the
+	// log is written, and before the connection is closed
+	std::atomic<uint16_t> iLoggedStatus { 0 };
+	Options.PreRouteCallback = [&](KRESTServer& http)
+	{
+		http.SetPostResponseCallback([&](const KRESTServer& http) { iLoggedStatus = http.Response.GetStatusCode(); });
+	};
+
+	KREST REST;
+	REQUIRE ( REST.Execute(Options, Routes) );
+
+	// sends a request with Connection: close and reads the response up to the closed connection
+	auto Get = [&](KStringView sPath) -> KString
+	{
+		iLoggedStatus = 0;
+		KTCPStream Stream(KTCPEndPoint(kFormat("127.0.0.1:{}", REST.GetPort())), KStreamOptions(chrono::seconds(2)));
+		REQUIRE ( Stream.is_open() );
+		Stream.Write(kFormat("GET {} HTTP/1.1\r\nHost: 127.0.0.1\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n", sPath)).Flush();
+		return Stream.ReadRemaining();
+	};
+
+	// removes the entry, and redirects its temporary file to a device that fails every write
+	auto BreakEntry = [&](KCompressionCache& Probe)
+	{
+		auto Entry = Probe.Lookup(WebRoot.Name(), "abort.txt", KFileStat(sSource), KHTTPCompression::GZIP);
+		REQUIRE ( Entry.Status == KCompressionCache::State::Hit );
+		REQUIRE ( kRemoveFile(Entry.sPath) );
+		REQUIRE ( kCreateSymlink("/dev/full", kFormat("{}.tmp", Entry.sPath)) );
+	};
+
+	// a first pass creates the entry and ends the chunked transfer
+	auto sResponse = Get("/web/abort.txt");
+	CHECK ( sResponse.ToLowerASCII().contains("transfer-encoding: chunked\r\n") );
+	CHECK ( sResponse.ends_with("\r\n0\r\n\r\n") );
+	CHECK ( iLoggedStatus == 200 );
+
+	KCompressionCache Probe(CacheRoot.Name());
+	BreakEntry(Probe);
+
+	sResponse = Get("/web/abort.txt");
+	{
+		INFO ( sResponse.Left(300) );
+		CHECK ( sResponse.starts_with("HTTP/1.1 200") );
+		CHECK ( sResponse.ToLowerASCII().contains("transfer-encoding: chunked\r\n") );
+		CHECK_FALSE ( sResponse.contains("\r\n0\r\n\r\n") );
+		CHECK ( iLoggedStatus == 500 );
+	}
+	CHECK ( Probe.Lookup(WebRoot.Name(), "abort.txt", KFileStat(sSource), KHTTPCompression::GZIP).Status == KCompressionCache::State::Miss );
+
+	// the same failing write before the transmission started
+	sResponse = Get("/early/abort.txt");
+	CHECK ( sResponse.starts_with("HTTP/1.1 200") );
+	CHECK ( iLoggedStatus == 200 );
+
+	KCompressionCache EarlyProbe(EarlyCacheRoot.Name());
+	BreakEntry(EarlyProbe);
+
+	sResponse = Get("/early/abort.txt");
+	INFO ( sResponse.Left(300) );
+	CHECK ( sResponse.starts_with("HTTP/1.1 200") );
+	CHECK ( sResponse.ends_with(sContent) );
+	CHECK ( iLoggedStatus == 200 );
+}
+#endif

@@ -1530,7 +1530,8 @@ void KRESTServer::Output()
 {
 	if (m_bIsStreaming)
 	{
-		// nothing to do here, we are at end of stream apparently
+		// send what is still buffered
+		Response.Flush();
 		return;
 	}
 

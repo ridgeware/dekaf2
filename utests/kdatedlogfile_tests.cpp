@@ -303,3 +303,44 @@ TEST_CASE("KDatedLogFile")
 	}
 #endif
 }
+
+TEST_CASE("KDatedLogNames")
+{
+	auto Midnight = [](int iYear, unsigned iMonth, unsigned iDay)
+	{
+		return KUnixTime(chrono::system_clock::time_point(chrono::sys_days(chrono::year(iYear) / chrono::month(iMonth) / chrono::day(iDay))));
+	};
+
+	SECTION("the end of a period from its date")
+	{
+		CHECK ( detail::KDatedLogNames::GetEnd("20261029", nullptr) == Midnight(2026, 10, 30) );
+		CHECK ( detail::KDatedLogNames::GetEnd("20261231", nullptr) == Midnight(2027,  1,  1) );
+		CHECK ( detail::KDatedLogNames::GetEnd("2026W44" , nullptr) == Midnight(2026, 11,  2) );
+		// the first week of 2026 starts on 2025-12-29, the last one ends on 2027-01-04
+		CHECK ( detail::KDatedLogNames::GetEnd("2026W01" , nullptr) == Midnight(2026,  1,  5) );
+		CHECK ( detail::KDatedLogNames::GetEnd("2026W53" , nullptr) == Midnight(2027,  1,  4) );
+		CHECK ( detail::KDatedLogNames::GetEnd("202602"  , nullptr) == Midnight(2026,  3,  1) );
+		CHECK ( detail::KDatedLogNames::GetEnd("202612"  , nullptr) == Midnight(2027,  1,  1) );
+	}
+
+	SECTION("no end for a name that is no date")
+	{
+		CHECK ( detail::KDatedLogNames::GetEnd("20261032", nullptr).ok() == false );
+		CHECK ( detail::KDatedLogNames::GetEnd("2026W54" , nullptr).ok() == false );
+		CHECK ( detail::KDatedLogNames::GetEnd("202613"  , nullptr).ok() == false );
+		CHECK ( detail::KDatedLogNames::GetEnd("backup"  , nullptr).ok() == false );
+	}
+
+#if DEKAF2_HAS_TIMEZONES
+	SECTION("the end of a period in a time zone")
+	{
+		auto Zone = kFindTimezone("Europe/Berlin", false);
+
+		if (Zone != nullptr)
+		{
+			// in Berlin, 2026-10-25 ends at 2026-10-25 23:00 UTC, after the end of summer time
+			CHECK ( detail::KDatedLogNames::GetEnd("20261025", Zone) == Midnight(2026, 10, 25) + chrono::hours(23) );
+		}
+	}
+#endif
+}

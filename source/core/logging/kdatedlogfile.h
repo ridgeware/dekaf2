@@ -50,11 +50,28 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/time/duration/kduration.h>
+#include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
 
 /// @addtogroup core_logging
 /// @{
+
+namespace detail {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// one calendar period of a dated log file
+struct KDatedLogSpan
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KUnixTime tStart;
+	KUnixTime tEnd;
+	/// the date in the name, as YYYYMMDD, YYYYWww or YYYYMM, empty if the period is not known yet
+	KString   sDate;
+
+}; // KDatedLogSpan
+
+} // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A log file that holds the records of one calendar period: a day, an ISO week from Monday to
@@ -167,17 +184,8 @@ public:
 private:
 //------
 
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// one calendar period in the configured time zone
-	struct Span
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	{
-		KUnixTime tStart;
-		KUnixTime tEnd;
-		/// the date in the name, as YYYYMMDD, YYYYWww or YYYYMM, empty if the period is not known yet
-		KString   sDate;
-
-	}; // Span
+	using Span = detail::KDatedLogSpan;
 
 	DEKAF2_PRIVATE
 	Span      GetSpan      (KUnixTime tRecord) const;
@@ -185,8 +193,6 @@ private:
 	KOutFile& Select       (KUnixTime tRecord, std::size_t iSize);
 	DEKAF2_PRIVATE
 	void      Cut          (Span NewSpan, bool bNewSpan);
-	DEKAF2_PRIVATE
-	KString   NextFreeName (KStringView sDate) const;
 	DEKAF2_PRIVATE
 	bool      Open         ();
 
@@ -204,6 +210,63 @@ private:
 	KUnixTime   m_tNewest;
 
 }; // KDatedLogFile
+
+namespace detail {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// the periods of a dated log file and the names of its past files, for KDatedLogFile and
+/// KLogRotate
+class DEKAF2_PUBLIC KDatedLogNames
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// a file of a past period, like app.log-20261029.1.gz
+	struct PastFile
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		KString     sPath;
+		/// the date as YYYYMMDD, YYYYWww or YYYYMM
+		KString     sDate;
+		/// the counter of the part of the period, 0 for the first part
+		std::size_t iPart       { 0 };
+		/// true for a file with the suffix .gz, .zst or .zstd
+		bool        bCompressed { false };
+
+	}; // PastFile
+
+	/// returns the period that contains tTime
+	/// @param tTime the time
+	/// @param Period the length of the period
+	/// @param TimeZone the time zone whose midnight starts the periods, nullptr for UTC
+	static KDatedLogSpan GetSpan(KUnixTime tTime, KDatedLogFile::Interval Period, const chrono::time_zone* TimeZone);
+
+	/// returns the end of the period with the date sDate - the form of the date tells the length
+	/// of the period
+	/// @param sDate the date as YYYYMMDD, YYYYWww or YYYYMM
+	/// @param TimeZone the time zone whose midnight starts the periods, nullptr for UTC
+	/// @return the end of the period, or KUnixTime() if sDate is no date
+	static KUnixTime GetEnd(KStringView sDate, const chrono::time_zone* TimeZone);
+
+	/// returns the files of past periods of the log file sFilename, uncompressed and compressed,
+	/// the newest first - the date and the counter of the part order them
+	static std::vector<PastFile> GetPastFiles(KStringView sFilename);
+
+	/// returns the name for the next file of the period with the date sDate, with the counter
+	/// after the highest existing part, so that the counters keep the order of the parts also
+	/// when the oldest parts were removed
+	static KString GetNextName(KStringView sFilename, KStringView sDate);
+
+	/// removes the oldest files of past periods of the log file sFilename beyond iKeep
+	static void RemovePastFiles(KStringView sFilename, std::size_t iKeep);
+
+}; // KDatedLogNames
+
+} // end of namespace detail
 
 /// @}
 

@@ -158,23 +158,137 @@ bool IsDigits(KStringView sDigits)
 
 } // IsDigits
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a file of a past period, like app.log-20261029.1.gz
-struct PastFile
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//-----------------------------------------------------------------------------
+/// returns true if sDate is a date as YYYYMMDD, YYYYWww or YYYYMM
+bool IsDate(KStringView sDate)
+//-----------------------------------------------------------------------------
 {
-	KString     sPath;
-	/// the date as YYYYMMDD, YYYYWww or YYYYMM
-	KString     sDate;
-	/// the counter of a part of the period, 0 for the first part
-	std::size_t iPart;
+	switch (sDate.size())
+	{
+		case 6:
+		case 8:
+			return IsDigits(sDate);
 
-}; // PastFile
+		case 7:
+			return sDate[4] == 'W' && IsDigits(sDate.substr(0, 4)) && IsDigits(sDate.substr(5));
+	}
+
+	return false;
+
+} // IsDate
+
+} // end of anonymous namespace
+
+namespace detail {
 
 //-----------------------------------------------------------------------------
-/// returns the files of past periods of sFilename, in every form of the date, uncompressed and
-/// compressed
-std::vector<PastFile> GetPastFiles(KStringView sFilename)
+KDatedLogSpan KDatedLogNames::GetSpan(KUnixTime tTime, KDatedLogFile::Interval Period, const chrono::time_zone* TimeZone)
+//-----------------------------------------------------------------------------
+{
+	KDatedLogSpan Result;
+
+#if DEKAF2_HAS_TIMEZONES
+	if (TimeZone != nullptr)
+	{
+		auto LocalDay  = chrono::floor<chrono::days>(TimeZone->to_local(tTime.to_sys_time()));
+		auto Days      = GetPeriodDays(chrono::sys_days(LocalDay.time_since_epoch()), Period);
+
+		Result.tStart  = LocalMidnight(TimeZone, decltype(LocalDay)(Days.First.time_since_epoch()));
+		Result.tEnd    = LocalMidnight(TimeZone, decltype(LocalDay)(Days.Next.time_since_epoch()));
+		Result.sDate   = FormDate(Days.First, Period);
+
+		return Result;
+	}
+#endif
+
+	auto Days      = GetPeriodDays(chrono::floor<chrono::days>(tTime.to_sys_time()), Period);
+
+	Result.tStart  = KUnixTime(chrono::system_clock::time_point(Days.First));
+	Result.tEnd    = KUnixTime(chrono::system_clock::time_point(Days.Next));
+	Result.sDate   = FormDate(Days.First, Period);
+
+	return Result;
+
+} // GetSpan
+
+//-----------------------------------------------------------------------------
+KUnixTime KDatedLogNames::GetEnd(KStringView sDate, const chrono::time_zone* TimeZone)
+//-----------------------------------------------------------------------------
+{
+	if (!IsDate(sDate))
+	{
+		return KUnixTime();
+	}
+
+	auto                    Year = chrono::year(static_cast<int>(sDate.substr(0, 4).UInt16()));
+	chrono::sys_days        First;
+	KDatedLogFile::Interval Period;
+
+	switch (sDate.size())
+	{
+		case 8:
+		{
+			auto Date = Year / chrono::month(sDate.substr(4, 2).UInt16()) / chrono::day(sDate.substr(6, 2).UInt16());
+
+			if (!Date.ok())
+			{
+				return KUnixTime();
+			}
+
+			First  = chrono::sys_days(Date);
+			Period = KDatedLogFile::Day;
+			break;
+		}
+
+		case 7:
+		{
+			auto iWeek = sDate.substr(5).UInt16();
+
+			if (iWeek < 1 || iWeek > 53)
+			{
+				return KUnixTime();
+			}
+
+			// the first ISO week of a year is the one with January 4th
+			auto January4 = chrono::sys_days(Year / chrono::January / 4);
+
+			First  = January4 - (chrono::weekday(January4) - chrono::Monday) + chrono::days(7 * (iWeek - 1));
+			Period = KDatedLogFile::Week;
+			break;
+		}
+
+		default:
+		{
+			auto Month = chrono::month(sDate.substr(4, 2).UInt16());
+
+			if (!Month.ok())
+			{
+				return KUnixTime();
+			}
+
+			First  = chrono::sys_days(Year / Month / 1);
+			Period = KDatedLogFile::Month;
+			break;
+		}
+	}
+
+	auto Next = GetPeriodDays(First, Period).Next;
+
+#if DEKAF2_HAS_TIMEZONES
+	if (TimeZone != nullptr)
+	{
+		using LocalDays = decltype(chrono::floor<chrono::days>(TimeZone->to_local(chrono::system_clock::time_point())));
+
+		return LocalMidnight(TimeZone, LocalDays(Next.time_since_epoch()));
+	}
+#endif
+
+	return KUnixTime(chrono::system_clock::time_point(Next));
+
+} // GetEnd
+
+//-----------------------------------------------------------------------------
+std::vector<KDatedLogNames::PastFile> KDatedLogNames::GetPastFiles(KStringView sFilename)
 //-----------------------------------------------------------------------------
 {
 	std::vector<PastFile> PastFiles;
@@ -191,10 +305,13 @@ std::vector<PastFile> GetPastFiles(KStringView sFilename)
 			continue;
 		}
 
+		bool bCompressed { false };
+
 		for (auto sSuffix : { ".gz"_ksv, ".zst"_ksv, ".zstd"_ksv })
 		{
 			if (sName.remove_suffix(sSuffix))
 			{
+				bCompressed = true;
 				break;
 			}
 		}
@@ -203,42 +320,53 @@ std::vector<PastFile> GetPastFiles(KStringView sFilename)
 		auto sDate = sName.substr(0, iDot);
 		auto sPart = (iDot == KStringView::npos) ? KStringView{} : sName.substr(iDot + 1);
 
-		bool bIsDate = (sDate.size() == 8 || sDate.size() == 6)
-		             ? IsDigits(sDate)
-		             : sDate.size() == 7 && sDate[4] == 'W' && IsDigits(sDate.substr(0, 4)) && IsDigits(sDate.substr(5));
-
-		if (!bIsDate || (iDot != KStringView::npos && (sPart.empty() || !IsDigits(sPart))))
+		if (!IsDate(sDate) || (iDot != KStringView::npos && (sPart.empty() || !IsDigits(sPart))))
 		{
 			continue;
 		}
 
-		PastFiles.push_back({ Entry.Path(), KString(sDate), sPart.empty() ? 0 : sPart.UInt64() });
+		PastFiles.push_back({ Entry.Path(), KString(sDate), sPart.empty() ? 0 : sPart.UInt64(), bCompressed });
 	}
+
+	std::sort(PastFiles.begin(), PastFiles.end(), [](const PastFile& Left, const PastFile& Right)
+	{
+		return Left.sDate != Right.sDate ? Left.sDate > Right.sDate : Left.iPart > Right.iPart;
+	});
 
 	return PastFiles;
 
 } // GetPastFiles
 
 //-----------------------------------------------------------------------------
-/// removes the oldest files of past periods of sFilename beyond iKeep - the date and the counter
-/// of the part order them
-void RemovePastFiles(KStringView sFilename, std::size_t iKeep)
+KString KDatedLogNames::GetNextName(KStringView sFilename, KStringView sDate)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iNext { 0 };
+
+	for (const auto& Past : GetPastFiles(sFilename))
+	{
+		if (Past.sDate == sDate && Past.iPart >= iNext)
+		{
+			iNext = Past.iPart + 1;
+		}
+	}
+
+	if (iNext == 0)
+	{
+		return kFormat("{}-{}", sFilename, sDate);
+	}
+
+	return kFormat("{}-{}.{}", sFilename, sDate, iNext);
+
+} // GetNextName
+
+//-----------------------------------------------------------------------------
+void KDatedLogNames::RemovePastFiles(KStringView sFilename, std::size_t iKeep)
 //-----------------------------------------------------------------------------
 {
 	auto PastFiles = GetPastFiles(sFilename);
 
-	if (PastFiles.size() <= iKeep)
-	{
-		return;
-	}
-
-	// the newest first
-	std::sort(PastFiles.begin(), PastFiles.end(), [](const PastFile& Left, const PastFile& Right)
-	{
-		return Left.sDate != Right.sDate ? Left.sDate > Right.sDate : Left.iPart > Right.iPart;
-	});
-
-	for (auto it = PastFiles.begin() + iKeep; it != PastFiles.end(); ++it)
+	for (auto it = PastFiles.begin() + std::min(iKeep, PastFiles.size()); it != PastFiles.end(); ++it)
 	{
 		if (!kRemoveFile(it->sPath))
 		{
@@ -248,7 +376,7 @@ void RemovePastFiles(KStringView sFilename, std::size_t iKeep)
 
 } // RemovePastFiles
 
-} // end of anonymous namespace
+} // end of namespace detail
 
 //-----------------------------------------------------------------------------
 KDatedLogFile::KDatedLogFile(KString sFilename)
@@ -280,29 +408,7 @@ KDatedLogFile::KDatedLogFile(KString sFilename, Options options)
 KDatedLogFile::Span KDatedLogFile::GetSpan(KUnixTime tRecord) const
 //-----------------------------------------------------------------------------
 {
-	Span Result;
-
-#if DEKAF2_HAS_TIMEZONES
-	if (m_Options.TimeZone != nullptr)
-	{
-		auto LocalDay  = chrono::floor<chrono::days>(m_Options.TimeZone->to_local(tRecord.to_sys_time()));
-		auto Days      = GetPeriodDays(chrono::sys_days(LocalDay.time_since_epoch()), m_Options.Period);
-
-		Result.tStart  = LocalMidnight(m_Options.TimeZone, decltype(LocalDay)(Days.First.time_since_epoch()));
-		Result.tEnd    = LocalMidnight(m_Options.TimeZone, decltype(LocalDay)(Days.Next.time_since_epoch()));
-		Result.sDate   = FormDate(Days.First, m_Options.Period);
-
-		return Result;
-	}
-#endif
-
-	auto Days      = GetPeriodDays(chrono::floor<chrono::days>(tRecord.to_sys_time()), m_Options.Period);
-
-	Result.tStart  = KUnixTime(chrono::system_clock::time_point(Days.First));
-	Result.tEnd    = KUnixTime(chrono::system_clock::time_point(Days.Next));
-	Result.sDate   = FormDate(Days.First, m_Options.Period);
-
-	return Result;
+	return detail::KDatedLogNames::GetSpan(tRecord, m_Options.Period, m_Options.TimeZone);
 
 } // GetSpan
 
@@ -338,37 +444,12 @@ bool KDatedLogFile::Open()
 } // Open
 
 //-----------------------------------------------------------------------------
-KString KDatedLogFile::NextFreeName(KStringView sDate) const
-//-----------------------------------------------------------------------------
-{
-	// the counter after the highest existing part, so that the counters keep the order of the
-	// parts also when the oldest parts were removed
-	std::size_t iNext { 0 };
-
-	for (const auto& Past : GetPastFiles(m_sFilename))
-	{
-		if (Past.sDate == sDate && Past.iPart >= iNext)
-		{
-			iNext = Past.iPart + 1;
-		}
-	}
-
-	if (iNext == 0)
-	{
-		return kFormat("{}-{}", m_sFilename, sDate);
-	}
-
-	return kFormat("{}-{}.{}", m_sFilename, sDate, iNext);
-
-} // NextFreeName
-
-//-----------------------------------------------------------------------------
 void KDatedLogFile::Cut(Span NewSpan, bool bNewSpan)
 //-----------------------------------------------------------------------------
 {
 	m_File.close();
 
-	auto sTarget = NextFreeName(m_Span.sDate);
+	auto sTarget = detail::KDatedLogNames::GetNextName(m_sFilename, m_Span.sDate);
 
 	if (kRename(m_sFilename, sTarget))
 	{
@@ -382,7 +463,7 @@ void KDatedLogFile::Cut(Span NewSpan, bool bNewSpan)
 
 		if (m_Options.iRotations != npos)
 		{
-			RemovePastFiles(m_sFilename, m_Options.iRotations);
+			detail::KDatedLogNames::RemovePastFiles(m_sFilename, m_Options.iRotations);
 		}
 	}
 	else

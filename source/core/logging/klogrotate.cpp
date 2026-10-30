@@ -45,9 +45,48 @@
 #include <dekaf2/io/compression/kcompression.h>
 #include <dekaf2/core/strings/kregex.h>
 #include <dekaf2/system/process/kinshell.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/core/init/dekaf2.h>
+#include <algorithm>
+#include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
+
+namespace {
+
+//-----------------------------------------------------------------------------
+/// returns true if sFilename has the suffix of a compressed file
+bool IsCompressed(KStringView sFilename)
+//-----------------------------------------------------------------------------
+{
+	return sFilename.ends_with(".gz") || sFilename.ends_with(".zst") || sFilename.ends_with(".zstd");
+
+} // IsCompressed
+
+//-----------------------------------------------------------------------------
+/// returns the rotated files of a file with Counter or Timestamp naming, unsorted
+KDirectory ListRotated(const KLogRotate::Config& conf)
+//-----------------------------------------------------------------------------
+{
+	KString    sDirname  = kDirname (conf.sLogFilename);
+	auto       sBasename = kBasename(conf.sLogFilename);
+	KDirectory Rotated(sDirname);
+
+	if (conf.RotationNaming == KLogRotate::Config::Counter)
+	{
+		Rotated.Match(kFormat("{}\\.[0-9]+(\\.gz|\\.zst|\\.zstd|)", KRegex::EscapeText(sBasename)));
+	}
+	else
+	{
+		// "YYYY-MM-DDThh-mm-ssZ"
+		Rotated.Match(kFormat("{}\\.[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}T[0-9]{{2}}-[0-9]{{2}}-[0-9]{{2}}Z(\\.gz|\\.zst|\\.zstd|)", KRegex::EscapeText(sBasename)));
+	}
+
+	return Rotated;
+
+} // ListRotated
+
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 KLogRotate::KLogRotate(bool bOwnTimer)
@@ -62,16 +101,18 @@ KLogRotate::~KLogRotate()
 {
 	// cancel all registered timer callbacks before the timer (or this instance)
 	// is destroyed, to prevent use-after-free in timer callbacks
-	auto Timer = GetTimer();
+	WatchedFiles Watched;
 
-	auto WatchedFiles = m_WatchedFiles.unique();
-
-	for (auto& it : WatchedFiles.get())
 	{
-		Timer->Cancel(it.second.TimerID);
+		auto WatchedFiles = m_WatchedFiles.unique();
+		Watched = std::move(WatchedFiles.get());
+		WatchedFiles->clear();
 	}
 
-	WatchedFiles->clear();
+	for (const auto& it : Watched)
+	{
+		CancelTimers(it.second);
+	}
 
 } // dtor
 
@@ -91,6 +132,24 @@ KTimer* KLogRotate::GetTimer()
 } // GetTimer
 
 //-----------------------------------------------------------------------------
+void KLogRotate::CancelTimers(const WatchedFile& Watched)
+//-----------------------------------------------------------------------------
+{
+	// call this outside of the lock of m_WatchedFiles: Cancel() waits for a running
+	// callback, and the work callback takes that lock
+	auto Timer = GetTimer();
+
+	for (auto ID : { Watched.TimerID, Watched.WorkTimerID })
+	{
+		if (ID != KTimer::InvalidID)
+		{
+			Timer->Cancel(ID);
+		}
+	}
+
+} // CancelTimers
+
+//-----------------------------------------------------------------------------
 bool KLogRotate::Add(const Config& conf)
 //-----------------------------------------------------------------------------
 {
@@ -100,33 +159,45 @@ bool KLogRotate::Add(const Config& conf)
 		return false;
 	}
 
-	auto Timer = GetTimer();
-
-	auto TimerID = Timer->CallEvery(conf.CheckEvery, [this, conf](KUnixTime tNow)
+	if (conf.bWriterCuts && conf.RotationNaming != Config::Date)
 	{
-		Check(tNow, conf);
-	});
-
-	if (TimerID == KTimer::InvalidID)
-	{
+		kDebug(1, "a file that its writer cuts needs Date naming: {}", conf.sLogFilename);
 		return false;
 	}
 
+	auto         Timer       = GetTimer();
+	auto         iGeneration = ++m_iGeneration;
+	KTimer::ID_t TimerID     = KTimer::InvalidID;
+
+	if (!conf.bWriterCuts)
 	{
-		auto WatchedFiles = m_WatchedFiles.unique();
-
-		// cancel any existing timer for this file
-		auto it = WatchedFiles->find(conf.sLogFilename);
-
-		if (it != WatchedFiles->end())
+		TimerID = Timer->CallEvery(conf.CheckEvery, [this, conf](KUnixTime tNow)
 		{
-			Timer->Cancel(it->second.TimerID);
-			it->second = { conf, TimerID };
-		}
-		else
+			Check(tNow, conf);
+		});
+
+		if (TimerID == KTimer::InvalidID)
 		{
-			WatchedFiles->emplace(conf.sLogFilename, WatchedFile{ conf, TimerID });
+			return false;
 		}
+	}
+
+	WatchedFile Previous;
+
+	{
+		auto  WatchedFiles = m_WatchedFiles.unique();
+		auto& Watched      = WatchedFiles.get()[conf.sLogFilename];
+
+		Previous = std::move(Watched);
+		Watched  = { conf, TimerID, KTimer::InvalidID, iGeneration };
+	}
+
+	// the timers of an earlier configuration of this file
+	CancelTimers(Previous);
+
+	if (conf.RotationNaming == Config::Date)
+	{
+		ScheduleWork(conf.sLogFilename, iGeneration, kNow());
 	}
 
 	return true;
@@ -137,17 +208,23 @@ bool KLogRotate::Add(const Config& conf)
 bool KLogRotate::Remove(KStringViewZ sLogFilename)
 //-----------------------------------------------------------------------------
 {
-	auto WatchedFiles = m_WatchedFiles.unique();
+	WatchedFile Removed;
 
-	auto it = WatchedFiles->find(KString(sLogFilename));
-
-	if (it == WatchedFiles->end())
 	{
-		return false;
+		auto WatchedFiles = m_WatchedFiles.unique();
+
+		auto it = WatchedFiles->find(KString(sLogFilename));
+
+		if (it == WatchedFiles->end())
+		{
+			return false;
+		}
+
+		Removed = std::move(it->second);
+		WatchedFiles->erase(it);
 	}
 
-	GetTimer()->Cancel(it->second.TimerID);
-	WatchedFiles->erase(it);
+	CancelTimers(Removed);
 
 	return true;
 
@@ -173,16 +250,136 @@ bool KLogRotate::ForceRotate(KStringViewZ sLogFilename)
 	}
 
 	// call Check outside the lock to avoid holding it during I/O
-	Check(kNow(), conf);
+	auto tNow = kNow();
+
+	Check(tNow, conf);
+
+	if (conf.RotationNaming == Config::Date)
+	{
+		Housekeeping(tNow, conf);
+	}
 
 	return true;
 
 } // ForceRotate
 
 //-----------------------------------------------------------------------------
+KUnixTime KLogRotate::GetNextWorkTime(const Config& conf, KUnixTime tNow)
+//-----------------------------------------------------------------------------
+{
+	// a fixed offset in the work window for each host and file, so that the files of a
+	// host and the hosts of a fleet spread over the window
+	auto iHash   = kFormat("{}:{}", kGetHostname(), conf.sLogFilename).Hash();
+	auto iSpread = std::max<int64_t>(conf.WorkSpread.seconds().count(), 1);
+	auto Offset  = conf.WorkAt + chrono::seconds(static_cast<int64_t>(iHash % static_cast<uint64_t>(iSpread)));
+
+	auto Today   = detail::KDatedLogNames::GetSpan(tNow, KDatedLogFile::Day, conf.TimeZone);
+	auto tWork   = Today.tStart + Offset;
+
+	if (tWork <= tNow)
+	{
+		// the time of today has passed, take the one of tomorrow
+		tWork = Today.tEnd + Offset;
+	}
+
+	return tWork;
+
+} // GetNextWorkTime
+
+//-----------------------------------------------------------------------------
+void KLogRotate::ScheduleWork(const KString& sLogFilename, uint64_t iGeneration, KUnixTime tAfter)
+//-----------------------------------------------------------------------------
+{
+	Config conf;
+
+	{
+		auto WatchedFiles = m_WatchedFiles.shared();
+
+		auto it = WatchedFiles->find(sLogFilename);
+
+		if (it == WatchedFiles->end() || it->second.iGeneration != iGeneration)
+		{
+			// the file was removed or added again
+			return;
+		}
+
+		conf = it->second.conf;
+	}
+
+	auto tWork = GetNextWorkTime(conf, tAfter);
+	auto Timer = GetTimer();
+
+	auto WorkTimerID = Timer->CallOnce(tWork, [this, sLogFilename, iGeneration, tWork](KUnixTime)
+	{
+		Work(sLogFilename, iGeneration, tWork);
+	});
+
+	if (WorkTimerID == KTimer::InvalidID)
+	{
+		kDebug(1, "cannot schedule the work for {}", sLogFilename);
+		return;
+	}
+
+	bool bStored { false };
+
+	{
+		auto WatchedFiles = m_WatchedFiles.unique();
+
+		auto it = WatchedFiles->find(sLogFilename);
+
+		if (it != WatchedFiles->end() && it->second.iGeneration == iGeneration)
+		{
+			it->second.WorkTimerID = WorkTimerID;
+			bStored = true;
+		}
+	}
+
+	if (!bStored)
+	{
+		// the file was removed or added again in the meantime
+		Timer->Cancel(WorkTimerID);
+	}
+
+} // ScheduleWork
+
+//-----------------------------------------------------------------------------
+void KLogRotate::Work(const KString& sLogFilename, uint64_t iGeneration, KUnixTime tWork)
+//-----------------------------------------------------------------------------
+{
+	Config conf;
+
+	{
+		auto WatchedFiles = m_WatchedFiles.shared();
+
+		auto it = WatchedFiles->find(sLogFilename);
+
+		if (it == WatchedFiles->end() || it->second.iGeneration != iGeneration)
+		{
+			return;
+		}
+
+		conf = it->second.conf;
+	}
+
+	auto tNow = kNow();
+
+	Housekeeping(tNow, conf);
+
+	// after the time of this run, also if the timer fired a little early
+	ScheduleWork(sLogFilename, iGeneration, std::max(tNow, tWork));
+
+} // Work
+
+//-----------------------------------------------------------------------------
 void KLogRotate::Check(KUnixTime tNow, const Config& conf)
 //-----------------------------------------------------------------------------
 {
+	if (conf.bWriterCuts)
+	{
+		// the writer cuts the file itself
+		return;
+	}
+
 	auto Lock = m_LockMap.Create(conf.sLogFilename);
 
 	kDebug(2, "checking logfile: {}", conf.sLogFilename);
@@ -190,39 +387,87 @@ void KLogRotate::Check(KUnixTime tNow, const Config& conf)
 	// check size
 	KFileStat File(conf.sLogFilename);
 
-	if (!File.Exists() || File.Size() <= conf.iKeepSize)
+	if (!File.Exists())
 	{
-		// file does not (yet?) exist or would not rotate
+		// file does not (yet?) exist
 		return;
 	}
 
-	bool bForceRotation { false };
+	bool    bForceRotation { false };
+	// with Date naming the date of the content
+	KString sDate;
 
-	if (!conf.RotateEvery.IsZero())
+	if (conf.RotationNaming == Config::Date)
 	{
-		// check last rotation
-		KString sRotationStamp = conf.sLogFilename;
-		sRotationStamp += ".lastrotation";
-
+		// the stamp file holds the time of the last cut
+		KString   sRotationStamp = conf.sLogFilename + ".lastrotation";
 		KFileStat Stamp(sRotationStamp);
+		auto      Current = detail::KDatedLogNames::GetSpan(tNow, conf.Period, conf.TimeZone);
 
 		if (!Stamp.Exists())
 		{
+			// the content counts as content of the current period
 			kTouchFile(sRotationStamp);
 		}
 		else
 		{
-			if (Stamp.ModificationTime() + conf.RotateEvery < tNow)
+			auto Last = detail::KDatedLogNames::GetSpan(Stamp.ModificationTime(), conf.Period, conf.TimeZone);
+
+			if (Last.sDate != Current.sDate)
 			{
+				// a later period started, the content belongs to the period of the last cut
 				kTouchFile(sRotationStamp);
-				bForceRotation = true;
+				sDate = std::move(Last.sDate);
 			}
 		}
-	}
 
-	if (File.Size() > conf.iMaxSize)
+		if (File.Size() <= conf.iKeepSize)
+		{
+			// nothing to cut
+			return;
+		}
+
+		if (sDate.empty() && File.Size() > conf.iMaxSize)
+		{
+			sDate = std::move(Current.sDate);
+		}
+
+		bForceRotation = !sDate.empty();
+	}
+	else
 	{
-		bForceRotation = true;
+		if (File.Size() <= conf.iKeepSize)
+		{
+			// file would not rotate
+			return;
+		}
+
+		if (!conf.RotateEvery.IsZero())
+		{
+			// check last rotation
+			KString sRotationStamp = conf.sLogFilename;
+			sRotationStamp += ".lastrotation";
+
+			KFileStat Stamp(sRotationStamp);
+
+			if (!Stamp.Exists())
+			{
+				kTouchFile(sRotationStamp);
+			}
+			else
+			{
+				if (Stamp.ModificationTime() + conf.RotateEvery < tNow)
+				{
+					kTouchFile(sRotationStamp);
+					bForceRotation = true;
+				}
+			}
+		}
+
+		if (File.Size() > conf.iMaxSize)
+		{
+			bForceRotation = true;
+		}
 	}
 
 	if (bForceRotation)
@@ -241,7 +486,22 @@ void KLogRotate::Check(KUnixTime tNow, const Config& conf)
 			}
 		}
 
-		auto sNewestRotatedFile = Rotate(tNow, conf, File);
+		KString sNewestRotatedFile;
+
+		if (conf.RotationNaming == Config::Date)
+		{
+			// the compression follows in the work window
+			auto sTarget = detail::KDatedLogNames::GetNextName(conf.sLogFilename, sDate);
+
+			if (MoveContent(conf, File, sTarget))
+			{
+				sNewestRotatedFile = std::move(sTarget);
+			}
+		}
+		else
+		{
+			sNewestRotatedFile = Rotate(tNow, conf, File);
+		}
 
 		if (conf.AfterRotationCallback)
 		{
@@ -268,26 +528,20 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 		return {};
 	}
 
-	if (!conf.bUseTimestamps || !conf.MaxAge.IsZero())
+	bool bUseTimestamps = conf.RotationNaming == Config::Timestamp;
+
+	if (!bUseTimestamps || !conf.MaxAge.IsZero())
 	{
-		KString    sDirname  = kDirname (conf.sLogFilename);
 		auto       sBasename = kBasename(conf.sLogFilename);
-		KDirectory Rotated(sDirname);
+		KDirectory Rotated   = ListRotated(conf);
 
-		if (!conf.bUseTimestamps)
+		if (!bUseTimestamps)
 		{
-			Rotated.Match(kFormat("{}\\.[0-9]+(\\.gz|\\.zstd|)", KRegex::EscapeText(sBasename)));
-
 			std::sort(Rotated.begin(), Rotated.end(), [&sBasename](const KDirectory::value_type& left, const KDirectory::value_type& right)
 			{
 				// we sort reversed, as we will have to rename the files in that order
 				return GetRotationCount(left.Filename().substr(sBasename.size())) > GetRotationCount(right.Filename().substr(sBasename.size()));
 			});
-		}
-		else
-		{
-			// "YYYY-MM-DDThh-mm-ssZ"
-			Rotated.Match(kFormat("{}\\.[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}T[0-9]{{2}}-[0-9]{{2}}-[0-9]{{2}}Z(\\.gz|\\.zstd|)", KRegex::EscapeText(sBasename)));
 		}
 
 		bool bCheckAge { true };
@@ -296,7 +550,7 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 		{
 			bool bDiscard { false };
 
-			if (!conf.bUseTimestamps)
+			if (!bUseTimestamps)
 			{
 				// rotate all existing rotated files one level up
 				auto iCount = GetRotationCount(Rotate.Filename().substr(sBasename.size()));
@@ -327,7 +581,7 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 
 					auto sSuffix = kExtension(Rotate.Filename());
 
-					if (sSuffix == "zstd" || sSuffix == "gz")
+					if (sSuffix == "zstd" || sSuffix == "zst" || sSuffix == "gz")
 					{
 						sNewName += '.';
 						sNewName += sSuffix;
@@ -369,7 +623,7 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 	KString sTempfile;
 
 	// move/copy right into target rotation
-	if (!conf.bUseTimestamps)
+	if (!bUseTimestamps)
 	{
 		sTempfile = kFormat("{}.1", conf.sLogFilename);
 	}
@@ -379,6 +633,31 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 		sTempfile = kFormat("{}.{:%Y-%m-%dT%H-%M-%SZ}", conf.sLogFilename, tNow);
 	}
 
+	if (!MoveContent(conf, File, sTempfile))
+	{
+		return {};
+	}
+
+	if (!conf.bCompress)
+	{
+		return sTempfile;
+	}
+
+	CompressOlder(conf);
+
+	if (conf.iKeepUncompressed > 0)
+	{
+		return sTempfile;
+	}
+
+	return Compress(sTempfile, true, conf.CompressWith);
+
+} // Rotate
+
+//-----------------------------------------------------------------------------
+bool KLogRotate::MoveContent(const Config& conf, const KFileStat& File, KStringViewZ sTarget)
+//-----------------------------------------------------------------------------
+{
 	if (conf.iKeepSize > 0 || conf.bCopyTrunc)
 	{
 		// take an exclusive lock to prevent concurrent writes during rotation
@@ -395,21 +674,21 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 		if (!LogFile.is_open())
 		{
 			kDebug(1, "cannot open log file: {}", conf.sLogFilename);
-			return {};
+			return false;
 		}
 
-		KOutFile OutFile(sTempfile);
+		KOutFile OutFile(sTarget);
 
 		if (!OutFile.is_open())
 		{
-			kDebug(1, "cannot create tempfile: {}", sTempfile);
-			return {};
+			kDebug(1, "cannot create tempfile: {}", sTarget);
+			return false;
 		}
 
 		if (File.Size() <= conf.iKeepSize)
 		{
 			kDebug(1, "cannot rotate, file size {} <= {}", File.Size(), conf.iKeepSize);
-			return {};
+			return false;
 		}
 
 		auto iCopy = File.Size() - conf.iKeepSize;
@@ -435,7 +714,7 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 		if (!KeepFile.is_open())
 		{
 			kDebug(1, "cannot open log file for writing: {}", conf.sLogFilename);
-			return {};
+			return false;
 		}
 
 		KeepFile.Write(sBuffer);
@@ -446,33 +725,115 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 	}
 	else
 	{
-		if (!kRename(conf.sLogFilename, sTempfile))
+		if (!kRename(conf.sLogFilename, sTarget))
 		{
-			kDebug(1, "cannot rename file {} into temporary: {}", conf.sLogFilename, kBasename(sTempfile));
-			return {};
+			kDebug(1, "cannot rename file {} into temporary: {}", conf.sLogFilename, kBasename(sTarget));
+			return false;
 		}
 		// and make sure the log file is existing again
 		kTouchFile(conf.sLogFilename);
 	}
 
-	if (!conf.bCompress)
-	{
-		return sTempfile;
-	}
+	return true;
 
-	return Compress(sTempfile, true);
-
-} // Rotate
+} // MoveContent
 
 //-----------------------------------------------------------------------------
-KString KLogRotate::Compress(KStringViewZ sUncompressedName, bool bRemoveAfterCompression)
+void KLogRotate::CompressOlder(const Config& conf)
+//-----------------------------------------------------------------------------
+{
+	auto Rotated   = ListRotated(conf);
+	auto sBasename = kBasename(conf.sLogFilename);
+
+	// the newest first
+	std::sort(Rotated.begin(), Rotated.end(), [&conf, &sBasename](const KDirectory::value_type& left, const KDirectory::value_type& right)
+	{
+		if (conf.RotationNaming == Config::Counter)
+		{
+			return GetRotationCount(left.Filename().substr(sBasename.size())) < GetRotationCount(right.Filename().substr(sBasename.size()));
+		}
+
+		// the timestamps sort by their names
+		return left.Filename() > right.Filename();
+	});
+
+	// Rotate() compresses the newest file itself
+	std::size_t iKeep  = std::max<std::size_t>(conf.iKeepUncompressed, 1);
+	std::size_t iIndex { 0 };
+
+	for (const auto& Entry : Rotated)
+	{
+		if (iIndex++ >= iKeep && !IsCompressed(Entry.Filename()))
+		{
+			Compress(Entry.Path(), true, conf.CompressWith);
+		}
+	}
+
+} // CompressOlder
+
+//-----------------------------------------------------------------------------
+void KLogRotate::Housekeeping(KUnixTime tNow, const Config& conf)
+//-----------------------------------------------------------------------------
+{
+	auto Lock = m_LockMap.Create(conf.sLogFilename);
+
+	kDebug(2, "compressing and removing past files of: {}", conf.sLogFilename);
+
+	// the number of kept files, the newest first
+	std::size_t iKept { 0 };
+
+	for (const auto& Past : detail::KDatedLogNames::GetPastFiles(conf.sLogFilename))
+	{
+		if (!conf.MaxAge.IsZero())
+		{
+			auto tEnd = detail::KDatedLogNames::GetEnd(Past.sDate, conf.TimeZone);
+
+			if (tEnd.ok() && tEnd + conf.MaxAge < tNow)
+			{
+				if (!kRemoveFile(Past.sPath))
+				{
+					kDebug(1, "cannot remove file: {}", Past.sPath);
+				}
+
+				continue;
+			}
+		}
+
+		if (conf.bCompress && !Past.bCompressed && iKept >= conf.iKeepUncompressed)
+		{
+			Compress(Past.sPath, true, conf.CompressWith);
+		}
+
+		++iKept;
+	}
+
+} // Housekeeping
+
+//-----------------------------------------------------------------------------
+KString KLogRotate::Compress(KStringViewZ sUncompressedName, bool bRemoveAfterCompression, Config::Compression With)
 //-----------------------------------------------------------------------------
 {
 #if DEKAF2_HAS_LIBZSTD
-	auto sCompfile = kFormat("{}.zstd", sUncompressedName);
+	constexpr bool bHasZStd { true  };
 #else
-	auto sCompfile = kFormat("{}.gz", sUncompressedName);
+	constexpr bool bHasZStd { false };
 #endif
+
+	KStringView sSuffix;
+
+	switch (With)
+	{
+		case Config::Default:
+		case Config::ZStd:
+			sSuffix = bHasZStd ? "zst" : "gz";
+			break;
+
+		case Config::GZip:
+			sSuffix = "gz";
+			break;
+	}
+
+	auto sCompfile = kFormat("{}.{}", sUncompressedName, sSuffix);
 
 	KStopTime Timer;
 

@@ -81,6 +81,11 @@ public:
 	{
 		return m_iLevel;
 	}
+	/// @return the time of the record, taken by Set()
+	KUnixTime GetTime() const
+	{
+		return m_Time;
+	}
 
 //----------
 protected:

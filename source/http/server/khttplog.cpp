@@ -303,7 +303,7 @@ constexpr KStringView s_sExtendedFormat = R"(%h %l %u %t "%r" %>s %b "%{Referer}
 void KHTTPLog::WriteJSONAccessLog(const KRESTServer& HTTP) const
 //-----------------------------------------------------------------------------
 {
-	// the time of the record, which also decides about the file of a dated log
+	// the time of the record, for the line and for a dated log
 	auto tRecord = KUnixTime::now();
 
 	PrintJSONLog Log;
@@ -619,7 +619,7 @@ void KHTTPLog::CompileFormat(KStringView sFormat)
 void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 //-----------------------------------------------------------------------------
 {
-	// the time of the record, which also decides about the file of a dated log
+	// the time of the record, for the line and for a dated log
 	auto tRecord = KUnixTime::now();
 
 	PrintParsedLog Log;

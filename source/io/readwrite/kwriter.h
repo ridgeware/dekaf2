@@ -617,8 +617,7 @@ extern DEKAF2_PUBLIC void kLogger(KOutStream& Stream, KString sMessage, bool bFl
 
 //-----------------------------------------------------------------------------
 /// universal logger implemented with an output queue, for a log file with a file per day, week or
-/// month - the time stamp of the record decides about the output file. Make sure the File is valid
-/// until the program ends.
+/// month. Make sure the File is valid until the program ends.
 /// @param File the dated log file to write into, see KDatedLogFile in kdatedlogfile.h
 /// @param sMessage the line to write, a line feed is appended
 /// @param tRecord the time stamp of the record

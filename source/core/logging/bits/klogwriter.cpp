@@ -86,7 +86,7 @@ KLogNullWriter::~KLogNullWriter()
 }
 
 //---------------------------------------------------------------------------
-bool KLogStdWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
+bool KLogStdWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord)
 //---------------------------------------------------------------------------
 {
 	return m_OutStream.write(sOut.data(), static_cast<std::streamsize>(sOut.size())).flush().good();
@@ -104,10 +104,45 @@ KLogFileWriter::KLogFileWriter(KStringViewZ sFileName)
 } // ctor
 
 //---------------------------------------------------------------------------
-bool KLogFileWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
+bool KLogFileWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord)
 //---------------------------------------------------------------------------
 {
 	return m_OutFile.Write(sOut).Flush().Good();
+
+} // Write
+
+namespace {
+
+//---------------------------------------------------------------------------
+KDatedLogFile::Options DatedLogOptions(KDatedLogFile::Interval Period, std::size_t iMaxSize, std::size_t iRotations)
+//---------------------------------------------------------------------------
+{
+	KDatedLogFile::Options Options;
+
+	Options.Period     = Period;
+	Options.iMaxSize   = iMaxSize;
+	Options.iRotations = iRotations;
+	// the mode of new files, as for KLogFileWriter
+	Options.iMode      = DEKAF2_MODE_CREATE_FILE;
+
+	return Options;
+
+} // DatedLogOptions
+
+} // end of anonymous namespace
+
+//---------------------------------------------------------------------------
+KLogDatedFileWriter::KLogDatedFileWriter(KStringViewZ sFileName, KDatedLogFile::Interval Period, std::size_t iMaxSize, std::size_t iRotations)
+//---------------------------------------------------------------------------
+    : m_File(sFileName, DatedLogOptions(Period, iMaxSize, iRotations))
+{
+} // ctor
+
+//---------------------------------------------------------------------------
+bool KLogDatedFileWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord)
+//---------------------------------------------------------------------------
+{
+	return m_File.Write(sOut, tRecord) && m_File.Flush();
 
 } // Write
 
@@ -120,7 +155,7 @@ KLogStringWriter::KLogStringWriter(KStringRef& sOutString, KString sConcat)
 } // ctor
 
 //---------------------------------------------------------------------------
-bool KLogStringWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
+bool KLogStringWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord)
 //---------------------------------------------------------------------------
 {
 	if (!m_sConcat.empty() && !m_OutString.empty())
@@ -215,7 +250,7 @@ KLogSyslogWriter::~KLogSyslogWriter()
 } // dtor
 
 //---------------------------------------------------------------------------
-bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
+bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord)
 //---------------------------------------------------------------------------
 {
 	if (!m_hEventLog)
@@ -324,7 +359,7 @@ bool KLogSyslogWriter::UnregisterSource(KStringView sSource)
 #else // DEKAF2_IS_WINDOWS
 
 //---------------------------------------------------------------------------
-bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
+bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord)
 //---------------------------------------------------------------------------
 {
 	int priority;
@@ -406,7 +441,7 @@ bool KLogTCPWriter::Good() const
 } // Good
 
 //---------------------------------------------------------------------------
-bool KLogTCPWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
+bool KLogTCPWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord)
 //---------------------------------------------------------------------------
 {
 	if (!Good())
@@ -453,7 +488,7 @@ bool KLogHTTPWriter::Good() const
 } // Good
 
 //---------------------------------------------------------------------------
-bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
+bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord)
 //---------------------------------------------------------------------------
 {
 	if (!Good())
@@ -501,7 +536,7 @@ bool KLogHTTPHeaderWriter::Good() const
 } // Good
 
 //---------------------------------------------------------------------------
-bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
+bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord)
 //---------------------------------------------------------------------------
 {
 	for (auto sLine : sOut.Split('\n'))

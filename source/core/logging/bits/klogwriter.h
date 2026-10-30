@@ -50,6 +50,7 @@
 
 #ifdef DEKAF2_WITH_KLOG
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/logging/kdatedlogfile.h>
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <memory>
 
@@ -59,6 +60,8 @@
 #endif // DEKAF2_WITH_KLOG
 
 DEKAF2_NAMESPACE_BEGIN
+
+class KUnixTime;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// ABC for the LogWriter object - it exists also without KLog, as a writer can be
@@ -73,7 +76,9 @@ public:
 	
 	KLogWriter() = default;
 	virtual ~KLogWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) = 0;
+	/// writes a serialized log record - tRecord is the time of the record, which a writer can use
+	/// to select its output
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) = 0;
 	virtual bool Good() const = 0;
 
 }; // KLogWriter
@@ -99,7 +104,7 @@ public:
 
 	KLogNullWriter() = default;
 	virtual ~KLogNullWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override { return true; }
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override { return true; }
 	virtual bool Good() const override { return true; }
 
 }; // KLogNullWriter
@@ -117,7 +122,7 @@ public:
 	KLogStdWriter(std::ostream& iostream)
 	    : m_OutStream(iostream)
 	{}
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override;
 	virtual bool Good() const override { return m_OutStream.good(); }
 
 //----------
@@ -140,7 +145,7 @@ public:
 //----------
 
 	KLogFileWriter(KStringViewZ sFileName);
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override;
 	virtual bool Good() const override { return m_OutFile.good(); }
 
 //----------
@@ -150,6 +155,33 @@ private:
 	KOutFile m_OutFile;
 
 }; // KLogFileWriter
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that opens a file and starts a new file with every day, week or month, see
+/// KDatedLogFile
+class DEKAF2_PUBLIC KLogDatedFileWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// @param sFileName the path of the log file
+	/// @param Period the calendar period that one file holds
+	/// @param iMaxSize the size beyond which a file is cut within the period, npos for no limit
+	/// @param iRotations the number of past files to keep, npos to keep all
+	KLogDatedFileWriter(KStringViewZ sFileName, KDatedLogFile::Interval Period, std::size_t iMaxSize = npos, std::size_t iRotations = npos);
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override;
+	virtual bool Good() const override { return m_File.Good(); }
+
+//----------
+private:
+//----------
+
+	KDatedLogFile m_File;
+
+}; // KLogDatedFileWriter
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that writes into a string, possibly with concatenation chars
@@ -164,7 +196,7 @@ public:
 	/// The sConcat will be written between individual log messages.
 	/// It will not be written after the last message
 	KLogStringWriter(KStringRef& sOutString, KString sConcat = "\n");
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override;
 	virtual bool Good() const override { return true; }
 
 //----------
@@ -190,7 +222,7 @@ public:
 
 	KLogJSONWriter(KJSON& json);
 	virtual ~KLogJSONWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override;
 	virtual bool Good() const override;
 
 //----------
@@ -218,7 +250,7 @@ public:
 
 	KLogSyslogWriter();
 	virtual ~KLogSyslogWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override;
 	virtual bool Good() const override { return m_hEventLog != nullptr; }
 
 	//---------------------------------------------------------------------------
@@ -254,7 +286,7 @@ private:
 
 	KLogSyslogWriter() {}
 	virtual ~KLogSyslogWriter() {}
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override;
 	virtual bool Good() const override { return true; }
 
 #endif
@@ -275,7 +307,7 @@ public:
 
 	KLogTCPWriter(KStringView sURL);
 	virtual ~KLogTCPWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override;
 	virtual bool Good() const override;
 
 //----------
@@ -299,7 +331,7 @@ public:
 
 	KLogHTTPWriter(KStringView sURL);
 	virtual ~KLogHTTPWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override;
 	virtual bool Good() const override;
 
 //----------
@@ -323,7 +355,7 @@ public:
 
 	KLogHTTPHeaderWriter(KHTTPHeaders& HTTPHeaders, KStringView sHeader = "x-klog");
 	virtual ~KLogHTTPHeaderWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override;
 	virtual bool Good() const override;
 
 //----------

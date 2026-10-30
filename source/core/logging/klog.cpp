@@ -372,8 +372,10 @@ KLog& KLog::LogThisThreadToKLog(int iLevel)
 		if (s_PerThreadSerializer && s_PerThreadWriter)
 		{
 			auto pSerializerInstance = static_cast<KLogHTTPHeaderSerializer*>(s_PerThreadSerializer.get());
-			s_PerThreadWriter->Write(0, false, pSerializerInstance->GetTimeStamp("Stop"));
-			s_PerThreadWriter->Write(0, true,  KLogHTTPHeaderSerializer::GetFooter());
+			auto sStop = pSerializerInstance->GetTimeStamp("Stop");
+			auto tStop = pSerializerInstance->GetTime();
+			s_PerThreadWriter->Write(0, false, sStop, tStop);
+			s_PerThreadWriter->Write(0, true,  KLogHTTPHeaderSerializer::GetFooter(), tStop);
 		}
 	}
 #endif
@@ -397,8 +399,10 @@ KLog& KLog::LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, K
 		s_PerThreadWriter = std::make_unique<KLogHTTPHeaderWriter>(Response, sHeader);
 		s_PerThreadSerializer = std::make_unique<KLogHTTPHeaderSerializer>();
 		auto pSerializerInstance = static_cast<KLogHTTPHeaderSerializer*>(s_PerThreadSerializer.get());
-		s_PerThreadWriter->Write(0, true,  KLogHTTPHeaderSerializer::GetHeader());
-		s_PerThreadWriter->Write(0, false, pSerializerInstance->GetTimeStamp("Start"));
+		auto sStart = pSerializerInstance->GetTimeStamp("Start");
+		auto tStart = pSerializerInstance->GetTime();
+		s_PerThreadWriter->Write(0, true,  KLogHTTPHeaderSerializer::GetHeader(), tStart);
+		s_PerThreadWriter->Write(0, false, sStart, tStart);
 		s_bPrintTimeStampOnClose = true;
 	}
 	else
@@ -576,6 +580,66 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 } // SetDebugLog
 
 //---------------------------------------------------------------------------
+KLog& KLog::SetDebugLogPeriod(KDatedLogFile::Interval Period, std::size_t iMaxSize, std::size_t iRotations)
+//---------------------------------------------------------------------------
+{
+	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
+
+	if (!m_bDatedLog || m_DatedPeriod != Period || m_iDatedMaxSize != iMaxSize || m_iDatedRotations != iRotations)
+	{
+		m_bDatedLog       = true;
+		m_DatedPeriod     = Period;
+		m_iDatedMaxSize   = iMaxSize;
+		m_iDatedRotations = iRotations;
+		ReopenFileWriter();
+	}
+
+	return *this;
+
+} // SetDebugLogPeriod
+
+//---------------------------------------------------------------------------
+KLog& KLog::ClearDebugLogPeriod()
+//---------------------------------------------------------------------------
+{
+	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
+
+	if (m_bDatedLog)
+	{
+		m_bDatedLog = false;
+		ReopenFileWriter();
+	}
+
+	return *this;
+
+} // ClearDebugLogPeriod
+
+//---------------------------------------------------------------------------
+std::unique_ptr<KLogWriter> KLog::CreateFileWriter() const
+//---------------------------------------------------------------------------
+{
+	if (m_bDatedLog)
+	{
+		return std::make_unique<KLogDatedFileWriter>(m_sLogName, m_DatedPeriod, m_iDatedMaxSize, m_iDatedRotations);
+	}
+
+	return CreateWriter(Writer::FILE, m_sLogName);
+
+} // CreateFileWriter
+
+//---------------------------------------------------------------------------
+void KLog::ReopenFileWriter()
+//---------------------------------------------------------------------------
+{
+	if (m_bLogIsRegularFile)
+	{
+		SetWriter(CreateFileWriter());
+		m_iLogInode = KFileStat(m_sLogName).Inode();
+	}
+
+} // ReopenFileWriter
+
+//---------------------------------------------------------------------------
 KLog& KLog::SetWriter(std::unique_ptr<KLogWriter> logger)
 //---------------------------------------------------------------------------
 {
@@ -705,7 +769,7 @@ bool KLog::IntOpenLog()
 		}
 		else
 		{
-			SetWriter(CreateWriter(Writer::FILE, m_sLogName));
+			SetWriter(CreateFileWriter());
 			m_bLogIsRegularFile = true;
 			m_iLogInode         = KFileStat(m_sLogName).Inode();
 		}
@@ -795,17 +859,27 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 	{
 		KFileStat File(m_sLogName);
 
-		if (!File.Exists() || (m_iLogInode != 0 && File.Inode() != 0 && File.Inode() != m_iLogInode))
+		// a dated log replaces its file itself with every cut, so that only a removed
+		// file shows that it has to be reopened
+		bool bReplaced = !m_bDatedLog && m_iLogInode != 0 && File.Inode() != 0 && File.Inode() != m_iLogInode;
+
+		if (!File.Exists() || bReplaced)
 		{
 			// file was removed or replaced.. reopen, with the log mutex, as other
 			// threads write through the current writer
 			std::lock_guard<std::recursive_mutex> LogLock(m_LogMutex);
 
-			SetWriter(CreateWriter(Writer::FILE, m_sLogName));
-			m_iLogInode = KFileStat(m_sLogName).Inode();
+			// a dated log writes under the log mutex, and its file is missing for a moment
+			// during a cut - check again now that no cut can be in progress
+			if (bReplaced || !kFileExists(m_sLogName))
+			{
+				SetWriter(CreateFileWriter());
+				m_iLogInode = KFileStat(m_sLogName).Inode();
+			}
 		}
-		// check if file grew too big
-		else if (File.Size() > 10 * 1024 * 1024)
+		// check if file grew too big - a dated log limits its size with the maximum size and the
+		// number of past files instead
+		else if (!m_bDatedLog && File.Size() > 10 * 1024 * 1024)
 		{
 			if (GetLevel() > 1)
 			{
@@ -1065,11 +1139,11 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 		{
 			const auto& sSerialized = m_Serializer->Get(GetUSecMode());
 
-			m_Logger->Write(iLevel, m_Serializer->IsMultiline(), sSerialized);
+			m_Logger->Write(iLevel, m_Serializer->IsMultiline(), sSerialized, m_Serializer->GetTime());
 
 			if (DEKAF2_UNLIKELY(m_Mirror != nullptr))
 			{
-				m_Mirror->Write(iLevel, m_Serializer->IsMultiline(), sSerialized);
+				m_Mirror->Write(iLevel, m_Serializer->IsMultiline(), sSerialized, m_Serializer->GetTime());
 			}
 		}
 	}
@@ -1083,7 +1157,7 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 
 		if (s_PerThreadSerializer->Matches(s_bPerThreadEGrep, false, s_sPerThreadGrepExpression))
 		{
-			s_PerThreadWriter->Write(iLevel, s_PerThreadSerializer->IsMultiline(), s_PerThreadSerializer->Get());
+			s_PerThreadWriter->Write(iLevel, s_PerThreadSerializer->IsMultiline(), s_PerThreadSerializer->Get(), s_PerThreadSerializer->GetTime());
 		}
 	}
 
@@ -1150,11 +1224,11 @@ void KLog::TraceDownCaller(int iSkipStackLines, KStringView sSkipFiles, KStringV
 
 		const auto& sSerialized = m_Serializer->Get();
 
-		m_Logger->Write(-2, m_Serializer->IsMultiline(), sSerialized);
+		m_Logger->Write(-2, m_Serializer->IsMultiline(), sSerialized, m_Serializer->GetTime());
 
 		if (DEKAF2_UNLIKELY(m_Mirror != nullptr))
 		{
-			m_Mirror->Write(-2, m_Serializer->IsMultiline(), sSerialized);
+			m_Mirror->Write(-2, m_Serializer->IsMultiline(), sSerialized, m_Serializer->GetTime());
 		}
 	}
 

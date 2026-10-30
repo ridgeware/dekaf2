@@ -226,7 +226,7 @@ public:
 		~SuppressForThisThread() { --s_iSuppressed; }
 	};
 
-	virtual bool Write (int iLevel, bool bIsMultiline, KStringViewZ sOut) override
+	virtual bool Write (int iLevel, bool bIsMultiline, KStringViewZ sOut, KUnixTime tRecord) override
 	{
 		if (s_iSuppressed)
 		{

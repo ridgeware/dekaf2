@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/logging/bits/klogwriter.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/io/readwrite/kreader.h>
@@ -301,6 +302,85 @@ TEST_CASE("KLog follows a replaced log file")
 }
 #endif
 
+TEST_CASE("KLogDatedFileWriter")
+{
+	// a record of a later day starts a new file
+	KTempDir TmpDir;
+	auto sLogFile = kFormat("{}/klogwriter-dated.log", TmpDir.Name());
+	auto tDay29   = KUnixTime(chrono::system_clock::time_point(chrono::sys_days(chrono::year(2026) / chrono::month(10) / chrono::day(29))
+	                                                           + chrono::hours(12)));
+	KLogDatedFileWriter Writer(sLogFile, KDatedLogFile::Day);
+	CHECK ( Writer.Write(0, false, "day 29\n", tDay29) );
+	CHECK ( Writer.Write(0, false, "day 30\n", tDay29 + chrono::hours(24)) );
+	CHECK ( kReadAll(sLogFile + "-20261029") == "day 29\n" );
+	CHECK ( kReadAll(sLogFile)               == "day 30\n" );
+
+	// a file that would grow beyond the maximum size is cut within the day
+	auto sSizedFile = kFormat("{}/klogwriter-sized.log", TmpDir.Name());
+	KLogDatedFileWriter Sized(sSizedFile, KDatedLogFile::Day, 10);
+	CHECK ( Sized.Write(0, false, "first\n" , tDay29) );
+	CHECK ( Sized.Write(0, false, "second\n", tDay29) );
+	CHECK ( kReadAll(sSizedFile + "-20261029") == "first\n" );
+	CHECK ( kReadAll(sSizedFile)               == "second\n" );
+}
+
+TEST_CASE("KLog with a dated log file")
+{
+	KTempDir TmpDir;
+	auto sLogFile   = kFormat("{}/klog-dated.log", TmpDir.Name());
+	// a flag file that does not exist, so that the check does not change the level
+	auto sFlagFile  = kFormat("{}/klog-dated.dbg", TmpDir.Name());
+	// a log file of an earlier day, as after a restart
+	auto tYesterday = kNow() - chrono::hours(24);
+	auto sYesterday = kFormat("{}-{:%Y%m%d}", sLogFile, tYesterday);
+
+	REQUIRE ( kWriteFile(sLogFile, "a line of yesterday\n") );
+	REQUIRE ( kSetLastMod(sLogFile, tYesterday) );
+
+	auto&   Log          = KLog::getInstance();
+	auto    RestoreMode  = Log.GetMode();
+	auto    RestoreLevel = Log.GetLevel();
+	KString sRestoreLog  = Log.GetDebugLog();
+	KString sRestoreFlag = Log.GetDebugFlag();
+
+	Log.SetMode(KLog::SERVER);
+	Log.SetDebugFlag(sFlagFile);
+	// the level first, as setting it writes a line into the log
+	Log.SetLevel(1);
+	Log.SetDebugLog(sLogFile);
+	// the period applies to the open log file, and its first record of a later day cuts it
+	Log.SetDebugLogPeriod(KDatedLogFile::Day);
+	kDebug(1, "a line of today");
+
+	CHECK (  kReadAll(sYesterday) == "a line of yesterday\n" );
+	CHECK (  kReadAll(sLogFile).contains("a line of today") );
+	CHECK ( !kReadAll(sLogFile).contains("a line of yesterday") );
+
+	// a maximum size cuts the file within the day, here before every line, and only the newest
+	// past file is kept
+	Log.SetDebugLogPeriod(KDatedLogFile::Day, 1, 1);
+	kDebug(1, "a line before the size cut");
+	kDebug(1, "a line after the size cut");
+
+	CHECK (  kReadAll(sLogFile).contains("a line after the size cut") );
+	CHECK ( !kReadAll(sLogFile).contains("a line before the size cut") );
+	CHECK (  kFileExists(sYesterday) == false );
+
+	// without the period, the file of an earlier day is continued
+	REQUIRE ( kSetLastMod(sLogFile, tYesterday) );
+	Log.ClearDebugLogPeriod();
+	kDebug(1, "a line without a period");
+
+	CHECK ( kReadAll(sLogFile).contains("a line after the size cut") );
+	CHECK ( kReadAll(sLogFile).contains("a line without a period") );
+	CHECK ( kFileExists(sYesterday + ".1") == false );
+
+	Log.SetMode(RestoreMode);
+	Log.SetDebugFlag(sRestoreFlag);
+	Log.SetDebugLog(sRestoreLog);
+	Log.SetLevel(RestoreLevel);
+}
+
 #endif // of DEKAF2_WITH_KLOG
 
 #if defined(DEKAF2_IS_WINDOWS) && defined(DEKAF2_WITH_KLOG)
@@ -386,16 +466,16 @@ TEST_CASE("KLog Event Log")
 		CHECK ( sSource.empty() == false );
 
 		KString sWarning = kFormat("a warning {}", sMarker);
-		CHECK ( Writer.Write(0, false, sWarning) );
+		CHECK ( Writer.Write(0, false, sWarning, kNow()) );
 		CHECK ( HasEvent(sSource, EVENTLOG_WARNING_TYPE, sWarning) );
 
 		KString sError = kFormat("an error {}", sMarker);
-		CHECK ( Writer.Write(-1, false, sError) );
+		CHECK ( Writer.Write(-1, false, sError, kNow()) );
 		CHECK ( HasEvent(sSource, EVENTLOG_ERROR_TYPE, sError) );
 
 		// one event for several lines, which Event Viewer breaks only at CRLF
 		KString sLines = kFormat("first line\nsecond line {}\n", sMarker);
-		CHECK ( Writer.Write(2, true, sLines) );
+		CHECK ( Writer.Write(2, true, sLines, kNow()) );
 		CHECK ( HasEvent(sSource, EVENTLOG_INFORMATION_TYPE, kFormat("first line\r\nsecond line {}", sMarker)) );
 	}
 

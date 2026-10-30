@@ -47,6 +47,7 @@
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/logging/kdatedlogfile.h>
 
 #ifdef DEKAF2_WITH_KLOG
 	#include <dekaf2/core/strings/kstring.h>
@@ -372,6 +373,32 @@ public:
 	{ return true; }
 #endif
 
+	//---------------------------------------------------------------------------
+	/// Start a new log file with every day, week or month, see KDatedLogFile. The setting applies
+	/// to every log that is a regular file: the one of SetDebugLog(), of the environment, of the
+	/// debug flag file and the default log. It is kept when the debug flag file resets the log to
+	/// the default.
+	/// @param Period the calendar period that one log file holds
+	/// @param iMaxSize the size beyond which a log file is cut within the period, npos for no limit
+	/// @param iRotations the number of past log files to keep, npos to keep all
+	self& SetDebugLogPeriod(KDatedLogFile::Interval Period, std::size_t iMaxSize = npos, std::size_t iRotations = npos)
+	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
+
+	//---------------------------------------------------------------------------
+	/// Write a log that is a regular file into one file without cuts, which is the default
+	self& ClearDebugLogPeriod()
+	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
+
 	enum class Writer
 	{
 		NONE,
@@ -657,6 +684,16 @@ private:
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
+	/// Create the Writer for a log that is a regular file, with or without a period
+	std::unique_ptr<KLogWriter> CreateFileWriter() const;
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Open a log that is a regular file again, after a change of the period
+	void ReopenFileWriter();
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
 	/// Create a Serializer of specific type
 	static std::unique_ptr<KLogSerializer> CreateSerializer(Serializer serializer);
 	//---------------------------------------------------------------------------
@@ -758,6 +795,11 @@ private:
 	int m_iBackTrace { -2 };
 	// the inode of the log file when it was opened, 0 if it is no regular file or unknown
 	uint64_t m_iLogInode { 0 };
+	// the period, the maximum file size and the number of past files of a log that is a regular
+	// file, if m_bDatedLog is set
+	KDatedLogFile::Interval m_DatedPeriod { KDatedLogFile::Day };
+	std::size_t m_iDatedMaxSize   { npos };
+	std::size_t m_iDatedRotations { npos };
 	KUnixTime m_sTimestampFlagfile;
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
@@ -777,6 +819,7 @@ private:
 	bool m_bGlobalShouldOnlyShowCallerOnJsonError { false };
 	bool m_bHadConfigFromFlagFile  { false };
 	bool m_bLogIsRegularFile       { false };
+	bool m_bDatedLog               { false };
 	bool m_bIsCGI                  { false }; // we need this bool on top of m_Logmode for the constructor
 	bool m_bEGrep                  { false };
 	bool m_bInvertedGrep           { false };

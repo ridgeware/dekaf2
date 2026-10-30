@@ -48,12 +48,76 @@ DEKAF2_NAMESPACE_BEGIN
 
 namespace {
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// the first day of a period and the first day of the period after it
+struct PeriodDays
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	chrono::sys_days First;
+	chrono::sys_days Next;
+
+}; // PeriodDays
+
 //-----------------------------------------------------------------------------
-/// returns the date of Day as YYYYMMDD
-KString FormDate(chrono::sys_days Day)
+/// returns the first day of the period that contains Day, and the first day of the period after it
+PeriodDays GetPeriodDays(chrono::sys_days Day, KDatedLogFile::Interval Period)
 //-----------------------------------------------------------------------------
 {
-	chrono::year_month_day Date(Day);
+	switch (Period)
+	{
+		case KDatedLogFile::Day:
+			break;
+
+		case KDatedLogFile::Week:
+		{
+			// ISO weeks start on Monday
+			auto First = Day - (chrono::weekday(Day) - chrono::Monday);
+
+			return { First, First + chrono::days(7) };
+		}
+
+		case KDatedLogFile::Month:
+		{
+			chrono::year_month_day Date(Day);
+			auto First = Date.year() / Date.month() / 1;
+
+			return { chrono::sys_days(First), chrono::sys_days(First + chrono::months(1)) };
+		}
+	}
+
+	return { Day, Day + chrono::days(1) };
+
+} // GetPeriodDays
+
+//-----------------------------------------------------------------------------
+/// returns the date in the name of the period that starts with First, as YYYYMMDD, YYYYWww or
+/// YYYYMM
+KString FormDate(chrono::sys_days First, KDatedLogFile::Interval Period)
+//-----------------------------------------------------------------------------
+{
+	chrono::year_month_day Date(First);
+
+	switch (Period)
+	{
+		case KDatedLogFile::Day:
+			break;
+
+		case KDatedLogFile::Week:
+		{
+			// an ISO week belongs to the year of its Thursday, and the first week of a year is the
+			// one with the first Thursday of that year
+			auto Thursday = First + chrono::days(3);
+			auto Year     = chrono::year_month_day(Thursday).year();
+			auto iWeek    = (Thursday - chrono::sys_days(Year / chrono::January / 1)).count() / 7 + 1;
+
+			return kFormat("{:04}W{:02}", static_cast<int>(Year), iWeek);
+		}
+
+		case KDatedLogFile::Month:
+			return kFormat("{:04}{:02}",
+			               static_cast<int>(Date.year()),
+			               static_cast<unsigned>(Date.month()));
+	}
 
 	return kFormat("{:04}{:02}{:02}",
 	               static_cast<int>(Date.year()),
@@ -130,8 +194,8 @@ KDatedLogFile::KDatedLogFile(KString sFilename, Options options)
 	if (File.Exists() && File.Size() > 0)
 	{
 		// the file holds records up to its last modification, as after a restart - a record of a
-		// later day cuts it
-		m_Day = GetDay(File.ModificationTime());
+		// later period cuts it
+		m_Span = GetSpan(File.ModificationTime());
 	}
 
 	Open();
@@ -139,33 +203,34 @@ KDatedLogFile::KDatedLogFile(KString sFilename, Options options)
 } // ctor
 
 //-----------------------------------------------------------------------------
-KDatedLogFile::Day KDatedLogFile::GetDay(KUnixTime tRecord) const
+KDatedLogFile::Span KDatedLogFile::GetSpan(KUnixTime tRecord) const
 //-----------------------------------------------------------------------------
 {
-	Day Result;
+	Span Result;
 
 #if DEKAF2_HAS_TIMEZONES
 	if (m_Options.TimeZone != nullptr)
 	{
 		auto LocalDay  = chrono::floor<chrono::days>(m_Options.TimeZone->to_local(tRecord.to_sys_time()));
+		auto Days      = GetPeriodDays(chrono::sys_days(LocalDay.time_since_epoch()), m_Options.Period);
 
-		Result.tStart  = LocalMidnight(m_Options.TimeZone, LocalDay);
-		Result.tEnd    = LocalMidnight(m_Options.TimeZone, LocalDay + chrono::days(1));
-		Result.sDate   = FormDate(chrono::sys_days(LocalDay.time_since_epoch()));
+		Result.tStart  = LocalMidnight(m_Options.TimeZone, decltype(LocalDay)(Days.First.time_since_epoch()));
+		Result.tEnd    = LocalMidnight(m_Options.TimeZone, decltype(LocalDay)(Days.Next.time_since_epoch()));
+		Result.sDate   = FormDate(Days.First, m_Options.Period);
 
 		return Result;
 	}
 #endif
 
-	auto UTCDay    = chrono::floor<chrono::days>(tRecord.to_sys_time());
+	auto Days      = GetPeriodDays(chrono::floor<chrono::days>(tRecord.to_sys_time()), m_Options.Period);
 
-	Result.tStart  = KUnixTime(chrono::system_clock::time_point(UTCDay));
-	Result.tEnd    = KUnixTime(chrono::system_clock::time_point(UTCDay + chrono::days(1)));
-	Result.sDate   = FormDate(UTCDay);
+	Result.tStart  = KUnixTime(chrono::system_clock::time_point(Days.First));
+	Result.tEnd    = KUnixTime(chrono::system_clock::time_point(Days.Next));
+	Result.sDate   = FormDate(Days.First, m_Options.Period);
 
 	return Result;
 
-} // GetDay
+} // GetSpan
 
 //-----------------------------------------------------------------------------
 bool KDatedLogFile::Open()
@@ -215,21 +280,21 @@ KString KDatedLogFile::NextFreeName(KStringView sDate) const
 } // NextFreeName
 
 //-----------------------------------------------------------------------------
-void KDatedLogFile::Cut(Day NewDay, bool bNewDay)
+void KDatedLogFile::Cut(Span NewSpan, bool bNewSpan)
 //-----------------------------------------------------------------------------
 {
 	m_File.close();
 
-	auto sTarget = NextFreeName(m_Day.sDate);
+	auto sTarget = NextFreeName(m_Span.sDate);
 
 	if (kRename(m_sFilename, sTarget))
 	{
-		if (bNewDay)
+		if (bNewSpan)
 		{
-			// late records of the day that just ended go into this file
+			// late records of the period that just ended go into this file
 			m_Previous.close();
-			m_sPrevious   = std::move(sTarget);
-			m_PreviousDay = m_Day;
+			m_sPrevious    = std::move(sTarget);
+			m_PreviousSpan = m_Span;
 		}
 	}
 	else
@@ -237,7 +302,7 @@ void KDatedLogFile::Cut(Day NewDay, bool bNewDay)
 		kDebug(1, "cannot rename {} to {}, continuing in the same file", m_sFilename, sTarget);
 	}
 
-	m_Day = std::move(NewDay);
+	m_Span = std::move(NewSpan);
 
 	Open();
 
@@ -252,28 +317,28 @@ KOutFile& KDatedLogFile::Select(KUnixTime tRecord, std::size_t iSize)
 		m_tNewest = tRecord;
 	}
 
-	if (m_Previous.is_open() && m_tNewest - m_Day.tStart >= m_Options.Grace)
+	if (m_Previous.is_open() && m_tNewest - m_Span.tStart >= m_Options.Grace)
 	{
-		// the grace period for late records of the previous day has passed
+		// the grace period for late records of the previous period has passed
 		m_Previous.close();
 	}
 
-	if (m_Day.sDate.empty())
+	if (m_Span.sDate.empty())
 	{
 		// the first record of a new or empty file
-		m_Day = GetDay(tRecord);
+		m_Span = GetSpan(tRecord);
 	}
-	else if (tRecord >= m_Day.tEnd)
+	else if (tRecord >= m_Span.tEnd)
 	{
-		// a record of a later day
-		Cut(GetDay(tRecord), true);
+		// a record of a later period
+		Cut(GetSpan(tRecord), true);
 	}
-	else if (tRecord < m_Day.tStart)
+	else if (tRecord < m_Span.tStart)
 	{
-		// a record of an earlier day, which arrived after the cut
+		// a record of an earlier period, which arrived after the cut
 		if (!m_sPrevious.empty()
-		    && tRecord >= m_PreviousDay.tStart
-		    && m_tNewest - m_Day.tStart < m_Options.Grace)
+		    && tRecord >= m_PreviousSpan.tStart
+		    && m_tNewest - m_Span.tStart < m_Options.Grace)
 		{
 			if (!m_Previous.is_open())
 			{
@@ -286,14 +351,14 @@ KOutFile& KDatedLogFile::Select(KUnixTime tRecord, std::size_t iSize)
 			}
 		}
 
-		// too late, or the file of its day is gone: the record goes into the current file
+		// too late, or the file of its period is gone: the record goes into the current file
 		return m_File;
 	}
 
 	if (m_Options.iMaxSize != npos && m_iSize > 0 && m_iSize + iSize > m_Options.iMaxSize)
 	{
-		// the file would grow too large, continue the day in a new file
-		Cut(m_Day, false);
+		// the file would grow too large, continue the period in a new file
+		Cut(m_Span, false);
 	}
 
 	return m_File;

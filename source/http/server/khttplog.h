@@ -114,13 +114,14 @@ public:
 		Open(LogFormat, sAccessLogFile, sFormat);
 	}
 
-	/// Set the format and file name for an access log with a file per day, see KDatedLogFile
+	/// Set the format and file name for an access log with a file per day, week or month, see
+	/// KDatedLogFile
 	/// @param LogFormat one of JSON, COMMON, COMBINED, EXTENDED, PARSED
 	/// @param sAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
 	/// without days
 	/// @param sFormat the format string for PARSED format
-	/// @param DailyOptions the time zone of the days, the maximum size of a file and the grace period
-	/// for late records
+	/// @param DailyOptions the period of a file, its time zone, the maximum size of a file and the
+	/// grace period for late records
 	KHTTPLog(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat, KDatedLogFile::Options DailyOptions)
 	{
 		Open(LogFormat, sAccessLogFile, sFormat, std::move(DailyOptions));
@@ -133,15 +134,16 @@ public:
 	/// @return true if file can be opened, false otherwise
 	bool Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat = KStringView{});
 
-	/// Set the format and file name for an access log with a file per day - can only be called once
-	/// per instance. The time stamp of each request decides about the day of its line, and the
-	/// files of past days get their date appended, like access.log-20261029, see KDatedLogFile.
+	/// Set the format and file name for an access log with a file per day, week or month - can only
+	/// be called once per instance. The time stamp of each request decides about the period of its
+	/// line, and the files of past periods get their date appended, like access.log-20261029, see
+	/// KDatedLogFile.
 	/// @param LogFormat one of JSON, COMMON, COMBINED, EXTENDED, PARSED
 	/// @param sAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
 	/// without days
 	/// @param sFormat the format string for PARSED format
-	/// @param DailyOptions the time zone of the days, the maximum size of a file and the grace period
-	/// for late records
+	/// @param DailyOptions the period of a file, its time zone, the maximum size of a file and the
+	/// grace period for late records
 	/// @return true if file can be opened, false otherwise
 	bool Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat, KDatedLogFile::Options DailyOptions);
 

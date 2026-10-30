@@ -438,7 +438,7 @@ DEKAF2_CONSTEXPR_14 std::tm KUnixTime::to_tm(KUnixTime tp) noexcept
 	tm.tm_mon    = static_cast<int>(unsigned(ymd.month())) - 1;
 	tm.tm_year   = static_cast<int>(ymd.year()) - 1900;
 	tm.tm_wday   = chrono::weekday(dp).c_encoding();
-	tm.tm_yday   = (dp - chrono::sys_days(chrono::year_month_day(ymd.year()/1/1))).count();
+	tm.tm_yday   = detail::yearday_from_civil(ymd).count() - 1;
 	// tm_isdst is defaulted to 0
 #ifndef DEKAF2_IS_WINDOWS
 	// tm_gmtoff is defaulted to 0

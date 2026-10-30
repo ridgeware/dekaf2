@@ -388,7 +388,7 @@ constexpr chrono::weekday weekday_from_civil(const chrono::year_month_day& ymd) 
 // December = 30 bits.
 // We could of course also simply hardcode the result for the lookup value,
 // which is 462609335U, but constexpr explains better the algorithm behind..
-constexpr uint32_t compute_lookup_offsets()
+constexpr uint32_t compute_lookup_offsets() noexcept
 //-----------------------------------------------------------------------------
 {
 	uint32_t lookup_offsets = 0;
@@ -416,6 +416,14 @@ constexpr uint32_t compute_lookup_offsets()
 }
 
 //-----------------------------------------------------------------------------
+/// logs a date whose month is outside of 1 to 12, together with the first caller outside of the
+/// date and time code - yearday_from_civil() calls it in debug builds, as such a month is always a
+/// programming error of the caller
+DEKAF2_PUBLIC
+void ReportInvalidMonth(const chrono::year_month_day& ymd);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 // we do not want to use lookup tables in the calculation because that would require
 // to do bounds checking, which we do not want to expense - so we use a lookup table
 // for the month start offsets from a naive first calculation (m * 31) that is condensed
@@ -428,12 +436,22 @@ constexpr chrono::days yearday_from_civil(const chrono::year_month_day& ymd) noe
 	const auto m = static_cast<unsigned>(ymd.month()) - 1;
 	const auto d = static_cast<unsigned>(ymd.day  ());
 
+#ifndef NDEBUG
+	if DEKAF2_UNLIKELY(m > 11)
+	{
+		// the caller computed an invalid month, the result will be wrong
+		ReportInvalidMonth(ymd);
+	}
+#endif
+
 	constexpr auto lookup_offsets = compute_lookup_offsets();
 
 	return chrono::days{ m * 31 + d - ((m < 2)
 	                                   ? 0
-	                                   : ((lookup_offsets >> ((11 - m) * 3) & 7)
-	                                      - (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)))) };
+	                                   : (((lookup_offsets >> (((11 - m) * 3) & 31)) & 7)
+	// leap year test: for a year divisible by 4, divisible by 100 is the same as divisible by 25,
+	// and divisible by 400 the same as divisible by 16
+	                                      - ((y & ((y % 25 == 0) ? 15 : 3)) == 0))) };
 }
 
 } // end of namespace detail

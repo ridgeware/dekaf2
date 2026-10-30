@@ -41,8 +41,27 @@
 
 #include <dekaf2/time/clock/kdate.h>
 #include <dekaf2/core/format/kformat.h>
+#include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
+
+namespace detail {
+
+//-----------------------------------------------------------------------------
+void ReportInvalidMonth(const chrono::year_month_day& ymd)
+//-----------------------------------------------------------------------------
+{
+	// the error is in the computation of the date, so name the first caller outside of the date
+	// and time code
+	kTraceDownCaller(2, "klog.cpp,klog.h,kgetruntimestack.cpp,kgetruntimestack.h,kdate.cpp,kdate.h,ktime.cpp,ktime.h",
+	                 kFormat("invalid date {}-{:02}-{:02}, the month is outside of 1 to 12",
+	                         static_cast<int>(ymd.year()),
+	                         static_cast<unsigned>(ymd.month()),
+	                         static_cast<unsigned>(ymd.day())));
+
+} // ReportInvalidMonth
+
+} // end of namespace detail
 
 //-----------------------------------------------------------------------------
 KString KDateDiff::to_string () const

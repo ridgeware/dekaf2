@@ -43,6 +43,8 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <algorithm>
+#include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -148,31 +150,103 @@ KUnixTime LocalMidnight(const chrono::time_zone* Zone, LocalDays Midnight)
 #endif
 
 //-----------------------------------------------------------------------------
-/// returns true if sName exists, uncompressed or compressed
-bool ExistsInAnyForm(KStringView sName)
+/// returns true if sDigits consists of digits only
+bool IsDigits(KStringView sDigits)
 //-----------------------------------------------------------------------------
 {
-	KString sCandidate(sName);
+	return std::all_of(sDigits.begin(), sDigits.end(), [](char ch) { return KASCII::kIsDigit(ch); });
 
-	if (kFileExists(sCandidate))
+} // IsDigits
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a file of a past period, like app.log-20261029.1.gz
+struct PastFile
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KString     sPath;
+	/// the date as YYYYMMDD, YYYYWww or YYYYMM
+	KString     sDate;
+	/// the counter of a part of the period, 0 for the first part
+	std::size_t iPart;
+
+}; // PastFile
+
+//-----------------------------------------------------------------------------
+/// returns the files of past periods of sFilename, in every form of the date, uncompressed and
+/// compressed
+std::vector<PastFile> GetPastFiles(KStringView sFilename)
+//-----------------------------------------------------------------------------
+{
+	std::vector<PastFile> PastFiles;
+
+	auto    sPrefix = kFormat("{}-", kBasename(sFilename));
+	KString sDirname(kDirname(sFilename));
+
+	for (const auto& Entry : KDirectory(sDirname, KFileType::FILE))
 	{
-		return true;
+		KStringView sName = Entry.Filename();
+
+		if (!sName.remove_prefix(sPrefix))
+		{
+			continue;
+		}
+
+		for (auto sSuffix : { ".gz"_ksv, ".zst"_ksv, ".zstd"_ksv })
+		{
+			if (sName.remove_suffix(sSuffix))
+			{
+				break;
+			}
+		}
+
+		auto iDot  = sName.find('.');
+		auto sDate = sName.substr(0, iDot);
+		auto sPart = (iDot == KStringView::npos) ? KStringView{} : sName.substr(iDot + 1);
+
+		bool bIsDate = (sDate.size() == 8 || sDate.size() == 6)
+		             ? IsDigits(sDate)
+		             : sDate.size() == 7 && sDate[4] == 'W' && IsDigits(sDate.substr(0, 4)) && IsDigits(sDate.substr(5));
+
+		if (!bIsDate || (iDot != KStringView::npos && (sPart.empty() || !IsDigits(sPart))))
+		{
+			continue;
+		}
+
+		PastFiles.push_back({ Entry.Path(), KString(sDate), sPart.empty() ? 0 : sPart.UInt64() });
 	}
 
-	for (auto sSuffix : { ".gz"_ksv, ".zst"_ksv, ".zstd"_ksv })
-	{
-		sCandidate.erase(sName.size());
-		sCandidate += sSuffix;
+	return PastFiles;
 
-		if (kFileExists(sCandidate))
+} // GetPastFiles
+
+//-----------------------------------------------------------------------------
+/// removes the oldest files of past periods of sFilename beyond iKeep - the date and the counter
+/// of the part order them
+void RemovePastFiles(KStringView sFilename, std::size_t iKeep)
+//-----------------------------------------------------------------------------
+{
+	auto PastFiles = GetPastFiles(sFilename);
+
+	if (PastFiles.size() <= iKeep)
+	{
+		return;
+	}
+
+	// the newest first
+	std::sort(PastFiles.begin(), PastFiles.end(), [](const PastFile& Left, const PastFile& Right)
+	{
+		return Left.sDate != Right.sDate ? Left.sDate > Right.sDate : Left.iPart > Right.iPart;
+	});
+
+	for (auto it = PastFiles.begin() + iKeep; it != PastFiles.end(); ++it)
+	{
+		if (!kRemoveFile(it->sPath))
 		{
-			return true;
+			kDebug(1, "cannot remove past log file: {}", it->sPath);
 		}
 	}
 
-	return false;
-
-} // ExistsInAnyForm
+} // RemovePastFiles
 
 } // end of anonymous namespace
 
@@ -267,15 +341,24 @@ bool KDatedLogFile::Open()
 KString KDatedLogFile::NextFreeName(KStringView sDate) const
 //-----------------------------------------------------------------------------
 {
-	auto sBase = kFormat("{}-{}", m_sFilename, sDate);
-	auto sName = sBase;
+	// the counter after the highest existing part, so that the counters keep the order of the
+	// parts also when the oldest parts were removed
+	std::size_t iNext { 0 };
 
-	for (std::size_t iPart = 1; ExistsInAnyForm(sName); ++iPart)
+	for (const auto& Past : GetPastFiles(m_sFilename))
 	{
-		sName = kFormat("{}.{}", sBase, iPart);
+		if (Past.sDate == sDate && Past.iPart >= iNext)
+		{
+			iNext = Past.iPart + 1;
+		}
 	}
 
-	return sName;
+	if (iNext == 0)
+	{
+		return kFormat("{}-{}", m_sFilename, sDate);
+	}
+
+	return kFormat("{}-{}.{}", m_sFilename, sDate, iNext);
 
 } // NextFreeName
 
@@ -295,6 +378,11 @@ void KDatedLogFile::Cut(Span NewSpan, bool bNewSpan)
 			m_Previous.close();
 			m_sPrevious    = std::move(sTarget);
 			m_PreviousSpan = m_Span;
+		}
+
+		if (m_Options.iRotations != npos)
+		{
+			RemovePastFiles(m_sFilename, m_Options.iRotations);
 		}
 	}
 	else

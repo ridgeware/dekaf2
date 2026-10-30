@@ -95,6 +95,50 @@ TEST_CASE("KDatedLogFile")
 		CHECK ( kReadAll(sLog)                 == "next day\n" );
 	}
 
+	SECTION("the oldest past files beyond the rotations are removed")
+	{
+		// an older compressed file of the log, and a file of another name
+		REQUIRE ( kWriteFile(sLog + "-20261020.gz", "compressed") );
+		REQUIRE ( kWriteFile(sLog + "-backup"     , "other") );
+		KDatedLogFile::Options Options;
+		Options.iRotations = 2;
+		KDatedLogFile Log(sLog, Options);
+		Log.WriteLine("day 27", At(27, 10, 0, 0));
+		Log.WriteLine("day 28", At(28, 10, 0, 0));
+		Log.WriteLine("day 29", At(29, 10, 0, 0));
+		Log.WriteLine("day 30", At(30, 10, 0, 0));
+		CHECK ( Log.Flush() );
+		CHECK ( kFileExists(sLog + "-20261020.gz") == false );
+		CHECK ( kFileExists(sLog + "-20261027")    == false );
+		CHECK ( kReadAll(sLog + "-20261028") == "day 28\n" );
+		CHECK ( kReadAll(sLog + "-20261029") == "day 29\n" );
+		CHECK ( kReadAll(sLog + "-backup")   == "other" );
+		CHECK ( kReadAll(sLog)               == "day 30\n" );
+	}
+
+	SECTION("the parts of a day count as past files")
+	{
+		KDatedLogFile::Options Options;
+		Options.iMaxSize   = 10;
+		Options.iRotations = 1;
+		KDatedLogFile Log(sLog, Options);
+		// every line has 11 bytes with its line feed, each one starts a new file
+		Log.WriteLine("0123456789", At(29, 10, 0, 0));
+		Log.WriteLine("abcdefghij", At(29, 11, 0, 0));
+		Log.WriteLine("ABCDEFGHIJ", At(29, 12, 0, 0));
+		CHECK ( Log.Flush() );
+		CHECK ( kFileExists(sLog + "-20261029") == false );
+		CHECK ( kReadAll(sLog + "-20261029.1")  == "abcdefghij\n" );
+		CHECK ( kReadAll(sLog)                  == "ABCDEFGHIJ\n" );
+		// the next part continues after the highest counter, not in the name that became free
+		Log.WriteLine("KLMNOPQRST", At(29, 13, 0, 0));
+		CHECK ( Log.Flush() );
+		CHECK ( kFileExists(sLog + "-20261029")   == false );
+		CHECK ( kFileExists(sLog + "-20261029.1") == false );
+		CHECK ( kReadAll(sLog + "-20261029.2")    == "ABCDEFGHIJ\n" );
+		CHECK ( kReadAll(sLog)                    == "KLMNOPQRST\n" );
+	}
+
 	SECTION("a name that exists as a compressed file is not used again")
 	{
 		REQUIRE ( kWriteFile(sLog + "-20261029.gz", "compressed") );

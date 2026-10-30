@@ -77,7 +77,9 @@ DEKAF2_NAMESPACE_BEGIN
 /// a period are named app.log-20261029, app.log-20261029.1, app.log-20261029.2 in the order of
 /// their content.
 ///
-/// The class does not compress or remove the files of past periods, KLogRotate does that.
+/// The class does not compress the files of past periods, KLogRotate does that. With
+/// Options::iRotations, every cut removes the oldest past files beyond that number, also
+/// compressed ones; without it, KLogRotate can remove them by age.
 ///
 /// The class is not synchronized: the callers serialize their writes, as the writer thread of
 /// kLogger() and KLog do.
@@ -103,30 +105,33 @@ public:
 	{
 		/// the time zone whose midnight starts the periods, nullptr for UTC - a time zone is only
 		/// supported where DEKAF2_HAS_TIMEZONES is set
-		const chrono::time_zone* TimeZone { nullptr };
+		const chrono::time_zone* TimeZone   { nullptr };
 		/// the calendar period that one file holds
-		Interval                 Period   { Day };
+		Interval                 Period     { Day };
 		/// the size beyond which a file is cut within the period, npos for no limit
-		std::size_t              iMaxSize { npos };
+		std::size_t              iMaxSize   { npos };
+		/// the number of past files to keep, npos to keep all - every cut removes the oldest past
+		/// files beyond it
+		std::size_t              iRotations { npos };
 		/// the time after the period boundary during which records of the previous period still go
 		/// into the file of the previous period, measured in record time
-		KDuration                Grace    { chrono::seconds(60) };
+		KDuration                Grace      { chrono::seconds(60) };
 		/// the mode for newly created files, 0 to leave it to the umask
-		int                      iMode    { 0 };
+		int                      iMode      { 0 };
 
 	}; // Options
 
-	/// opens or creates the log file sFilename, with a file per day in UTC, no size limit and a grace
-	/// period of 60 seconds - an existing file continues to be written, until a record of a later
-	/// day than the day of its last modification arrives
+	/// opens or creates the log file sFilename, with a file per day in UTC, no size limit, all past
+	/// files kept and a grace period of 60 seconds - an existing file continues to be written, until
+	/// a record of a later day than the day of its last modification arrives
 	/// @param sFilename the path of the log file
 	KDatedLogFile(KString sFilename);
 
 	/// opens or creates the log file sFilename - an existing file continues to be written, until a
 	/// record of a later period than the period of its last modification arrives
 	/// @param sFilename the path of the log file
-	/// @param options the options for the period and its time zone, the maximum size and the grace
-	/// period
+	/// @param options the options for the period and its time zone, the maximum size, the number of
+	/// past files and the grace period
 	KDatedLogFile(KString sFilename, Options options);
 
 	KDatedLogFile(const KDatedLogFile&) = delete;
@@ -135,14 +140,14 @@ public:
 	/// writes sRecord as it is, after cutting the file if the record belongs to a later period or
 	/// the file would grow too large
 	/// @param sRecord the record to write
-	/// @param tRecord the time stamp of the record, which decides about its period
+	/// @param tRecord the time stamp of the record
 	/// @return true if the record was written
 	bool           Write       (KStringView sRecord, KUnixTime tRecord);
 
 	/// writes sLine and a line feed, after cutting the file if the line belongs to a later period
 	/// or the file would grow too large
 	/// @param sLine the line to write
-	/// @param tRecord the time stamp of the line, which decides about its period
+	/// @param tRecord the time stamp of the line
 	/// @return true if the line was written
 	bool           WriteLine   (KStringView sLine, KUnixTime tRecord);
 

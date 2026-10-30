@@ -377,7 +377,7 @@ public:
 	/// Start a new log file with every day, week or month, see KDatedLogFile. The setting applies
 	/// to every log that is a regular file: the one of SetDebugLog(), of the environment, of the
 	/// debug flag file and the default log. It is kept when the debug flag file resets the log to
-	/// the default.
+	/// the default. See @ref dated_logs "Dated Log Files".
 	/// @param Period the calendar period that one log file holds
 	/// @param iMaxSize the size beyond which a log file is cut within the period, npos for no limit
 	/// @param iRotations the number of past log files to keep, npos to keep all

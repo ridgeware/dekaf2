@@ -123,7 +123,8 @@ DEKAF2_NAMESPACE_BEGIN
 /// a work window, by default between 02:00 and 05:00 in the time zone of the files.
 /// Each file gets a fixed time in the window from a hash of the host name and its
 /// path, so that the files of a host and the hosts of a fleet do not all start at
-/// the same time, see GetNextWorkTime().
+/// the same time, see GetNextWorkTime(). See @ref dated_logs "Dated Log Files" for
+/// an example.
 ///
 /// ## Thread Safety
 ///

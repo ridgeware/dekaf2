@@ -136,7 +136,7 @@ public:
 
 	/// Set the format and file name for an access log with a file per day, week or month - can only
 	/// be called once per instance. The files of past periods get their date appended, like
-	/// access.log-20261029, see KDatedLogFile.
+	/// access.log-20261029, see @ref dated_logs "Dated Log Files".
 	/// @param LogFormat one of JSON, COMMON, COMBINED, EXTENDED, PARSED
 	/// @param sAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
 	/// without days

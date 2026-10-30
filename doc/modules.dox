@@ -67,6 +67,8 @@
 /// @defgroup core_logging Logging
 /// @ingroup core
 /// @brief Application logging and log rotation.
+///
+/// Log files with a file per day, week or month are described in @ref dated_logs "Dated Log Files".
 
 /// @defgroup core_init Initialization
 /// @ingroup core

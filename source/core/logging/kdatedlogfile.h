@@ -98,6 +98,9 @@ struct KDatedLogSpan
 /// Options::iRotations, every cut removes the oldest past files beyond that number, also
 /// compressed ones; without it, KLogRotate can remove them by age.
 ///
+/// See @ref dated_logs "Dated Log Files" for the writers that use the class and for the
+/// housekeeping with KLogRotate.
+///
 /// The class is not synchronized: the callers serialize their writes, as the writer thread of
 /// kLogger() and KLog do.
 class DEKAF2_PUBLIC KDatedLogFile

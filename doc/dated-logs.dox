@@ -1,0 +1,109 @@
+/// @page dated_logs_page Dated Log Files
+/// @ingroup core_logging
+///
+/// @anchor dated_logs
+/// A dated log file starts a new file with every day, ISO week or month. The current
+/// file keeps its name, like `app.log`, so that `tail -F` and other tools keep working.
+/// The files of past periods get the date of their period appended:
+///
+/// | Period | Name of a past file | Content                                      |
+/// |--------|---------------------|----------------------------------------------|
+/// | day    | `app.log-20261029`  | the records of 2026-10-29                    |
+/// | week   | `app.log-2026W44`   | the records of an ISO week, Monday to Sunday |
+/// | month  | `app.log-202610`    | the records of October 2026                  |
+///
+/// A week belongs to the year of its Thursday, as ISO 8601 defines: the week from
+/// 2026-12-28 to 2027-01-03 is `2026W53`. The periods start at midnight UTC, or at
+/// midnight of a configured time zone. A file of a past period holds exactly the records
+/// whose time stamp falls into that period: an audit of a day reads the files of that
+/// day and finds nothing of the days before or after.
+///
+/// #### Division of Work
+///
+/// A rotator that renames a log file at midnight cannot cut it exactly. A record that
+/// was stamped shortly before midnight can still wait in a queue and arrive after the
+/// rename, and between the rename and the reopen the writer continues to write into the
+/// renamed file. Only the writer knows the time stamp of each record, so the writer cuts:
+/// @ref dekaf2::KDatedLogFile "KDatedLogFile" gets each record together with its time
+/// stamp, and the first record of a later period closes the file, renames it and opens a
+/// new one. A cut costs a rename and an open.
+///
+/// - A record of the previous period that arrives after the cut goes into the file of
+///   the previous period, as long as the newest record time seen is less than a grace
+///   period, 60 seconds by default, after the boundary. An even older record goes into
+///   the current file.
+/// - After a restart, an existing current file keeps the period of its last
+///   modification, and the first record of a later period cuts it.
+/// - A maximum size cuts a file also within a period. The parts of a period are named
+///   `app.log-20261029`, `app.log-20261029.1`, `app.log-20261029.2` in the order of
+///   their content.
+///
+/// Compressing and removing the files of past periods is the task of
+/// @ref dekaf2::KLogRotate "KLogRotate". It does that once per day in a work window, by
+/// default between 02:00 and 05:00, at a time within the window that a hash of the host
+/// name and the path of the file fixes. The files of a host and the hosts of a fleet thus
+/// do not all start their work at the same time.
+///
+/// #### Writers
+///
+/// An access log of @ref dekaf2::KHTTPLog "KHTTPLog" is opened with the variant of
+/// @ref dekaf2::KHTTPLog::Open "KHTTPLog::Open()" that takes
+/// @ref dekaf2::KDatedLogFile::Options "KDatedLogFile::Options". The time of a request
+/// goes into its line, through `%t` or the `time` field of JSON, and into the cut, so
+/// that the printed time stamp and the file always agree:
+///
+/// @code{.cpp}
+/// KRESTServer::Options Options;
+/// Options.Logger.Open(KHTTPLog::LOG_FORMAT::COMBINED, "/var/log/app/access.log", "", KDatedLogFile::Options());
+/// @endcode
+///
+/// The debug log of @ref dekaf2::KLog "KLog" gets a period with
+/// @ref dekaf2::KLog::SetDebugLogPeriod "KLog::SetDebugLogPeriod()", for every log that
+/// is a regular file. A debug log mostly needs the current file and a few past ones, so
+/// that KLog can limit the size of a file and remove the older files itself:
+///
+/// @code{.cpp}
+/// // a file per day, cut at 50 MB, and the newest 3 past files kept
+/// KLog::getInstance().SetDebugLogPeriod(KDatedLogFile::Day, 50 * 1024 * 1024, 3);
+/// @endcode
+///
+/// Other logs of a program write through @ref dekaf2::kLogger "kLogger()" with a
+/// KDatedLogFile, or use a KDatedLogFile directly where the writes are serialized.
+///
+/// #### Compression and Removal with KLogRotate
+///
+/// @code{.cpp}
+/// KLogRotate::Config conf;
+/// conf.sLogFilename      = "/var/log/app/access.log";
+/// conf.RotationNaming    = KLogRotate::Config::Date;
+/// conf.bWriterCuts       = true;                     // KHTTPLog cuts the file
+/// conf.iKeepUncompressed = 1;                        // the file of yesterday stays readable
+/// conf.MaxAge            = chrono::days(30);
+/// conf.CompressWith      = KLogRotate::Config::GZip; // for zgrep and zless
+/// LogRotate.Add(conf);
+/// @endcode
+///
+/// - A file expires when MaxAge has passed after the end of the period in its name, so
+///   that a file of a week or of a month is kept as long after its last day as a file of
+///   a day. Files of an earlier logrotate setup with dateext naming, like
+///   `app.log-20261013.gz`, expire the same way.
+/// - The newest iKeepUncompressed past files stay uncompressed. The others are compressed
+///   with zstd, suffix `.zst`, or with gzip, suffix `.gz`, see
+///   @ref dekaf2::KLogRotate::Config::CompressWith "CompressWith".
+/// - @ref dekaf2::KLogRotate::Config::TimeZone "TimeZone" has to match the time zone of
+///   the writer, if it has one: it starts the work window and the periods for MaxAge.
+/// - @ref dekaf2::KLogRotate::ForceRotate "ForceRotate()" compresses and removes right
+///   away.
+///
+/// #### Files of Other Writers
+///
+/// A file that a program writes without KDatedLogFile is cut by KLogRotate itself, with
+/// Date naming and without bWriterCuts. The cut happens at the first check after the end
+/// of a period, which can be up to
+/// @ref dekaf2::KLogRotate::Config::CheckEvery "CheckEvery" late, so that the records of
+/// that time go into the file of the previous period. A writer that keeps the file open
+/// continues to write into the renamed file until it opens the file again: signal it with
+/// sCommandAfterRotation or AfterRotationCallback, or use bCopyTrunc. A stamp file, like
+/// `app.log.lastrotation`, holds the time of the last cut, and its period gives the
+/// content its date. @ref dekaf2::KLogRotate::Config::Period "Period" sets the length of
+/// the periods.

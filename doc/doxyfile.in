@@ -7,7 +7,8 @@ STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
 INPUT                  = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_SOURCE_DIR@/doc/modules.dox \
                          @PROJECT_SOURCE_DIR@/doc/mainpage.dox \
-                         @PROJECT_SOURCE_DIR@/doc/http-header-limits.dox
+                         @PROJECT_SOURCE_DIR@/doc/http-header-limits.dox \
+                         @PROJECT_SOURCE_DIR@/doc/dated-logs.dox
 FILE_PATTERNS          = *.h   \
                          *.hpp \
                          *.cpp \

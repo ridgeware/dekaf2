@@ -265,11 +265,11 @@ public:
 	} // EscapeWithoutSpaces
 
 	//-----------------------------------------------------------------------------
-	/// append the current time in the common log format, like [18/Sep/2011:19:18:28 +0000]
-	void Timestamp()
+	/// append the time of the record in the common log format, like [18/Sep/2011:19:18:28 +0000]
+	void Timestamp(KUnixTime tRecord)
 	//-----------------------------------------------------------------------------
 	{
-		detail::AppendCommonLogTimestamp(m_sLogline, KUTCTime::now());
+		detail::AppendCommonLogTimestamp(m_sLogline, KUTCTime(tRecord));
 
 	} // Timestamp
 
@@ -303,9 +303,12 @@ constexpr KStringView s_sExtendedFormat = R"(%h %l %u %t "%r" %>s %b "%{Referer}
 void KHTTPLog::WriteJSONAccessLog(const KRESTServer& HTTP) const
 //-----------------------------------------------------------------------------
 {
+	// the time of the record, which also decides about the file of a dated log
+	auto tRecord = KUnixTime::now();
+
 	PrintJSONLog Log;
 
-	Log.Write("time"      , kFormCommonLogTimestamp().Mid(1, 26)                     ); // cut off the framing []
+	Log.Write("time"      , kFormCommonLogTimestamp(tRecord).Mid(1, 26)              ); // cut off the framing []
 	Log.Write("remote_ip" , HTTP.GetRemoteIP()                                       );
 	Log.Write("host"      , HTTP.Request.Headers.Get(KHTTPHeader::HOST)              );
 	Log.Write("request"   , HTTP.Request.Resource.Path.get()                         );
@@ -323,7 +326,7 @@ void KHTTPLog::WriteJSONAccessLog(const KRESTServer& HTTP) const
 	Log.Write("user"      , kjson::GetString(HTTP.GetAuthToken(), "sub")             );
 	Log.Write("TTLB"      , HTTP.GetTimeToLastByte().microseconds().count()          );
 
-	kLogger(*m_LogStream, Log.Dump());
+	Output(Log.Dump(), tRecord);
 
 } // WriteJSONAccessLog
 
@@ -616,6 +619,9 @@ void KHTTPLog::CompileFormat(KStringView sFormat)
 void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 //-----------------------------------------------------------------------------
 {
+	// the time of the record, which also decides about the file of a dated log
+	auto tRecord = KUnixTime::now();
+
 	PrintParsedLog Log;
 
 	for (const auto& Entry : m_Fields)
@@ -695,7 +701,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 				break;
 
 			case Timestamp:
-				Log.Timestamp();
+				Log.Timestamp(tRecord);
 				break;
 
 			// the durations are written as numbers, also when they are 0
@@ -758,15 +764,30 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 		}
 	}
 
-	kLogger(*m_LogStream, std::move(Log).Get());
+	Output(std::move(Log).Get(), tRecord);
 
 } // WriteParsedAccessLog
+
+//-----------------------------------------------------------------------------
+void KHTTPLog::Output(KString sLine, KUnixTime tRecord) const
+//-----------------------------------------------------------------------------
+{
+	if (m_DatedLog != nullptr)
+	{
+		kLogger(*m_DatedLog, std::move(sLine), tRecord);
+	}
+	else
+	{
+		kLogger(*m_LogStream, std::move(sLine));
+	}
+
+} // Output
 
 //-----------------------------------------------------------------------------
 void KHTTPLog::Log(const KRESTServer& HTTP) const
 //-----------------------------------------------------------------------------
 {
-	if (m_LogStream != nullptr)
+	if (is_open())
 	{
 		switch (m_LogFormat)
 		{
@@ -790,50 +811,48 @@ void KHTTPLog::Log(const KRESTServer& HTTP) const
 bool KHTTPLog::Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
-	if (m_LogStream == nullptr)
+	if (!PrepareOpen(LogFormat, sFormat))
 	{
-		if (!SetFormat(LogFormat, sFormat))
-		{
-			return false;
-		}
-
-		switch (LogFormat)
-		{
-			case LOG_FORMAT::NONE:
-			case LOG_FORMAT::JSON:
-				break;
-
-			case LOG_FORMAT::COMMON:
-				CompileFormat(s_sCommonFormat);
-				break;
-
-			case LOG_FORMAT::COMBINED:
-				CompileFormat(s_sCombinedFormat);
-				break;
-
-			case LOG_FORMAT::EXTENDED:
-				CompileFormat(s_sExtendedFormat);
-				break;
-
-			case LOG_FORMAT::PARSED:
-				CompileFormat(m_sFormat);
-				break;
-		}
-
-		m_LogStream = kOpenOutStream(sAccessLogFile, std::ios::app);
-
-		if (is_open())
-		{
-			kDebug(1, "opened log stream at: {}", sAccessLogFile);
-			return true;
-		}
-		else
-		{
-			kDebug(1, "could not open log stream at: {}", sAccessLogFile);
-			return false;
-		}
+		return false;
 	}
-	else
+
+	m_LogStream = kOpenOutStream(sAccessLogFile, std::ios::app);
+
+	return ReportOpen(sAccessLogFile);
+
+} // Open
+
+//-----------------------------------------------------------------------------
+bool KHTTPLog::Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat, KDatedLogFile::Options DailyOptions)
+//-----------------------------------------------------------------------------
+{
+	if (sAccessLogFile == KLog::STDOUT || sAccessLogFile == KLog::STDERR)
+	{
+		// the console has no days
+		return Open(LogFormat, sAccessLogFile, sFormat);
+	}
+
+	if (!PrepareOpen(LogFormat, sFormat))
+	{
+		return false;
+	}
+
+	m_DatedLog = std::make_unique<KDatedLogFile>(sAccessLogFile, std::move(DailyOptions));
+
+	if (!m_DatedLog->Good())
+	{
+		m_DatedLog.reset();
+	}
+
+	return ReportOpen(sAccessLogFile);
+
+} // Open
+
+//-----------------------------------------------------------------------------
+bool KHTTPLog::PrepareOpen(LOG_FORMAT LogFormat, KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	if (is_open())
 	{
 		// we can only open once, as we have refs on the log stream
 		// in the task queue that handles the output!
@@ -841,7 +860,54 @@ bool KHTTPLog::Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringVi
 		return false;
 	}
 
-} // Open
+	if (!SetFormat(LogFormat, sFormat))
+	{
+		return false;
+	}
+
+	switch (LogFormat)
+	{
+		case LOG_FORMAT::NONE:
+		case LOG_FORMAT::JSON:
+			break;
+
+		case LOG_FORMAT::COMMON:
+			CompileFormat(s_sCommonFormat);
+			break;
+
+		case LOG_FORMAT::COMBINED:
+			CompileFormat(s_sCombinedFormat);
+			break;
+
+		case LOG_FORMAT::EXTENDED:
+			CompileFormat(s_sExtendedFormat);
+			break;
+
+		case LOG_FORMAT::PARSED:
+			CompileFormat(m_sFormat);
+			break;
+	}
+
+	return true;
+
+} // PrepareOpen
+
+//-----------------------------------------------------------------------------
+bool KHTTPLog::ReportOpen(KStringView sAccessLogFile) const
+//-----------------------------------------------------------------------------
+{
+	if (is_open())
+	{
+		kDebug(1, "opened log stream at: {}", sAccessLogFile);
+		return true;
+	}
+	else
+	{
+		kDebug(1, "could not open log stream at: {}", sAccessLogFile);
+		return false;
+	}
+
+} // ReportOpen
 
 //-----------------------------------------------------------------------------
 bool KHTTPLogParser::Open(KStringViewZ sAccessLogFile, KUnixTime StartDate)

@@ -45,6 +45,7 @@
 /// @file khttplog.h
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/logging/kdatedlogfile.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/http/protocol/khttp_method.h>
@@ -113,12 +114,36 @@ public:
 		Open(LogFormat, sAccessLogFile, sFormat);
 	}
 
+	/// Set the format and file name for an access log with a file per day, see KDatedLogFile
+	/// @param LogFormat one of JSON, COMMON, COMBINED, EXTENDED, PARSED
+	/// @param sAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
+	/// without days
+	/// @param sFormat the format string for PARSED format
+	/// @param DailyOptions the time zone of the days, the maximum size of a file and the grace period
+	/// for late records
+	KHTTPLog(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat, KDatedLogFile::Options DailyOptions)
+	{
+		Open(LogFormat, sAccessLogFile, sFormat, std::move(DailyOptions));
+	}
+
 	/// Set the format and file name for the access log - can only be called once per instance
 	/// @param LogFormat one of JSON, COMMON, COMBINED, EXTENDED, PARSED
 	/// @param sAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
 	/// @param sFormat the format string for PARSED format
 	/// @return true if file can be opened, false otherwise
 	bool Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat = KStringView{});
+
+	/// Set the format and file name for an access log with a file per day - can only be called once
+	/// per instance. The time stamp of each request decides about the day of its line, and the
+	/// files of past days get their date appended, like access.log-20261029, see KDatedLogFile.
+	/// @param LogFormat one of JSON, COMMON, COMBINED, EXTENDED, PARSED
+	/// @param sAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
+	/// without days
+	/// @param sFormat the format string for PARSED format
+	/// @param DailyOptions the time zone of the days, the maximum size of a file and the grace period
+	/// for late records
+	/// @return true if file can be opened, false otherwise
+	bool Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat, KDatedLogFile::Options DailyOptions);
 
 	/// Set the file name for the access log - can only be called once per instance. Will use COMBINED output format
 	/// @param sAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
@@ -127,7 +152,7 @@ public:
 
 	/// Check if the log stream is available
 	/// @return true if log stream is available
-	bool is_open() const { return m_LogStream != nullptr; }
+	bool is_open() const { return m_LogStream != nullptr || m_DatedLog != nullptr; }
 
 	/// Log one server request/response
 	/// @param HTTP the REST server object that handled the request
@@ -141,6 +166,15 @@ private:
 	void WriteJSONAccessLog   (const KRESTServer& HTTP) const;
 	DEKAF2_PRIVATE
 	void WriteParsedAccessLog (const KRESTServer& HTTP) const;
+	/// queues the line for the log stream or the dated log file
+	DEKAF2_PRIVATE
+	void Output               (KString sLine, KUnixTime tRecord) const;
+	/// checks that the log is not open yet and sets and compiles the format
+	DEKAF2_PRIVATE
+	bool PrepareOpen          (LOG_FORMAT LogFormat, KStringView sFormat);
+	/// reports whether the log stream or the dated log file could be opened
+	DEKAF2_PRIVATE
+	bool ReportOpen           (KStringView sAccessLogFile) const;
 
 	/// the fields of the PARSED format
 	enum FieldType : uint8_t
@@ -194,8 +228,10 @@ private:
 	DEKAF2_PRIVATE
 	void CompileFormat(KStringView sFormat);
 
-	std::vector<Field>                  m_Fields;
-	mutable std::unique_ptr<KOutStream> m_LogStream;
+	std::vector<Field>                     m_Fields;
+	mutable std::unique_ptr<KOutStream>    m_LogStream;
+	/// set instead of m_LogStream for a log with a file per day
+	mutable std::unique_ptr<KDatedLogFile> m_DatedLog;
 
 }; // KHTTPLog
 

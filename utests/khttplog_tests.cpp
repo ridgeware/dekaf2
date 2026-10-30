@@ -145,22 +145,27 @@ TEST_CASE("KHTTPLog output")
 	KRESTServer::Options Combined;
 	KRESTServer::Options Extended;
 	KRESTServer::Options Parsed;
+	KRESTServer::Options Dated;
 
 	auto sCommonLog   = kFormat("{}/httplog-common.log"  , TempDir.Name());
 	auto sCombinedLog = kFormat("{}/httplog-combined.log", TempDir.Name());
 	auto sExtendedLog = kFormat("{}/httplog-extended.log", TempDir.Name());
 	auto sParsedLog   = kFormat("{}/httplog-parsed.log"  , TempDir.Name());
+	auto sDatedLog    = kFormat("{}/httplog-dated.log"   , TempDir.Name());
 
 	REQUIRE ( Common.Logger.Open(KHTTPLog::LOG_FORMAT::COMMON, sCommonLog) );
 	REQUIRE ( Combined.Logger.Open(KHTTPLog::LOG_FORMAT::COMBINED, sCombinedLog) );
 	REQUIRE ( Extended.Logger.Open(KHTTPLog::LOG_FORMAT::EXTENDED, sExtendedLog) );
 	REQUIRE ( Parsed.Logger.Open(KHTTPLog::LOG_FORMAT::PARSED, sParsedLog, "%u|%T|%{ms}T|%b|%B") );
+	// a log with a file per day
+	REQUIRE ( Dated.Logger.Open(KHTTPLog::LOG_FORMAT::COMMON, sDatedLog, "", KDatedLogFile::Options()) );
 
 	KString sResponse;
 
 	auto sCommon   = LogRequest(Common  , sCommonLog  , sResponse);
 	auto sCombined = LogRequest(Combined, sCombinedLog, sResponse);
 	auto sParsed   = LogRequest(Parsed  , sParsedLog  , sResponse);
+	auto sDated    = LogRequest(Dated   , sDatedLog   , sResponse);
 	sResponse.clear();
 	auto sExtended = LogRequest(Extended, sExtendedLog, sResponse);
 
@@ -182,6 +187,7 @@ TEST_CASE("KHTTPLog output")
 
 	// the response body is {"response":"hello"}, printed with indentation and a line feed
 	CHECK ( Normalize(sCommon)   == R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 25)" "\n" );
+	CHECK ( Normalize(sDated)    == R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 25)" "\n" );
 	CHECK ( Normalize(sCombined) == R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 25 "https://host.testdomain.org/page1/" "Mozilla/5.0 \"quoted\" back\\slash")" "\n" );
 	// the request is executed in this thread
 	CHECK ( Normalize(sExtended) == kFormat(R"(172.31.71.1 - firstlast [time] "POST /page3/subpage?query=value HTTP/1.1" 200 25 "https://host.testdomain.org/page1/" "Mozilla/5.0 \"quoted\" back\\slash" "other.testdomain.org" {} {} {} duration; "192.168.1.1")" "\n",

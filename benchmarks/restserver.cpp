@@ -75,7 +75,7 @@ int main(int argc, char** argv)
 	Options.Type = KREST::HTTP;
 	Options.iPort = 8888;
 	Options.iMaxConnections = 20;
-	Options.iTimeout = 1;
+	Options.Timeout = chrono::seconds(1);
 	Options.iMaxKeepaliveRounds = 100;
 
 	bool bSimpleServer { false };
@@ -101,7 +101,7 @@ int main(int argc, char** argv)
 	CLI.Option("t", "timeout").Type(KOptions::Integer)
 	([&](KStringViewZ sArg)
 	{
-		Options.iTimeout = sArg.UInt16();
+		Options.Timeout = chrono::seconds(sArg.UInt16());
 	});
 
 	CLI.Option("k", "max keepalive rounds").Type(KOptions::Integer)
@@ -142,7 +142,7 @@ int main(int argc, char** argv)
 		KOut.FormatLine("starting SIMPLE server on port {}", Options.iPort);
 
 		SimpleServer Server(Options);
-		return Server.Start(chrono::seconds(Options.iTimeout));
+		return Server.Start(Options.GetTimeout());
 	}
 	else
 	{

@@ -770,6 +770,104 @@ KString KRESTServer::ThreadNameForRoute(const KRESTRoute& Route) const
 } // ThreadNameForRoute
 
 //-----------------------------------------------------------------------------
+bool KRESTServer::WaitForRequest()
+//-----------------------------------------------------------------------------
+{
+	auto* Socket = GetStreamSocket();
+
+	if (!Socket)
+	{
+		return true;
+	}
+
+	// the wait for the first request of a connection (Options::FirstRequestTimeout)
+	// and for the next request of a kept connection (Options::KeepAliveTimeout) may
+	// be shorter than any other read
+	KDuration MaxWait    = m_iRound ? m_Options.KeepAliveTimeout : m_Options.FirstRequestTimeout;
+	bool      bShortWait = MaxWait > KDuration::zero();
+
+	if (!bShortWait)
+	{
+		if (!m_StopCheck)
+		{
+			// Parse() waits for the socket timeout
+			return true;
+		}
+
+		MaxWait = Socket->GetTimeout();
+	}
+
+	KStopTime Waited;
+
+	// With a stop check, wait in short slices instead of blocking inside
+	// Parse() for the full read timeout: an idle keep-alive connection
+	// would otherwise pin this worker until its client disconnects, and
+	// a server shutdown could not proceed
+	auto WaitUntilReadable = [&]() -> bool
+	{
+		for (;;)
+		{
+			KDuration Remaining = MaxWait - Waited.elapsed();
+
+			if (Remaining > KDuration::zero())
+			{
+				if (m_StopCheck)
+				{
+					Remaining = std::min(Remaining, KDuration(chrono::milliseconds(500)));
+				}
+
+				if (Socket->IsReadReady(Remaining))
+				{
+					// request data (or EOF) is pending
+					return true;
+				}
+
+				if (m_StopCheck)
+				{
+					if (m_StopCheck())
+					{
+						kDebug(2, "server shutdown in keepalive round {}", m_iRound + 1);
+						return false;
+					}
+
+					continue;
+				}
+			}
+
+			kDebug(3, "read timeout in keepalive round {}", m_iRound + 1);
+			return false;
+		}
+	};
+
+	if (!WaitUntilReadable())
+	{
+		return false;
+	}
+
+	if (m_iRound || !bShortWait || !Socket->IsTLS())
+	{
+		// let Parse() read the request
+		return true;
+	}
+
+	// the client has started the TLS handshake - it counts into the wait for the
+	// first request, and may only take the time that remains of it
+	auto SocketTimeout = Socket->GetTimeout();
+	Socket->SetTimeout(MaxWait - Waited.elapsed());
+	bool bHandshake = Socket->StartManualTLSHandshake();
+	Socket->SetTimeout(SocketTimeout);
+
+	if (!bHandshake)
+	{
+		kDebug(3, "TLS handshake failed before the first request");
+		return false;
+	}
+
+	return WaitUntilReadable();
+
+} // WaitForRequest
+
+//-----------------------------------------------------------------------------
 bool KRESTServer::Execute()
 //-----------------------------------------------------------------------------
 {
@@ -816,39 +914,9 @@ bool KRESTServer::Execute()
 				Response.Headers.Add(it.first, it.second);
 			}
 
-			// Wait for the request in short slices instead of blocking
-			// inside Parse() for the full read timeout: an idle keep-alive
-			// connection would otherwise pin this worker until its client
-			// disconnects, and a server shutdown could not proceed
-			if (m_StopCheck)
+			if (!WaitForRequest())
 			{
-				auto* Socket = GetStreamSocket();
-
-				if (Socket)
-				{
-					KStopTime Waited;
-
-					for (;;)
-					{
-						if (Socket->IsReadReady(chrono::milliseconds(500)))
-						{
-							// request data (or EOF) is pending - let Parse() read it
-							break;
-						}
-
-						if (m_StopCheck())
-						{
-							kDebug(2, "server shutdown in keepalive round {}", m_iRound + 1);
-							return false;
-						}
-
-						if (Waited.elapsed() >= Socket->GetTimeout())
-						{
-							kDebug(3, "read timeout in keepalive round {}", m_iRound + 1);
-							return false;
-						}
-					}
-				}
+				return false;
 			}
 
 			bool bOK { false };

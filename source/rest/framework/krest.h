@@ -143,8 +143,13 @@ public:
 		/// Outbound flushes share the worker pool but run under a capped work-class tag, so slow
 		/// consumers cannot starve the readers. Only relevant with iWebSocketWorkerThreads > 0.
 		std::size_t iWebSocketMaxConcurrentWrites { 0 };
-		/// timeout in seconds (default 5) - also the write timeout of the websocket server
+		/// DEPRECATED - use Timeout. Timeout in seconds (default 5). A value other than the
+		/// default is used instead of Timeout, if Timeout is left on its default
 		uint16_t iTimeout { 5 };
+		/// timeout of each read and write of a connection (default 5 seconds) - also the write
+		/// timeout of the websocket server. Read it with GetTimeout(), which takes the
+		/// deprecated iTimeout into account
+		KDuration Timeout { chrono::seconds(5) };
 		/// stream options to apply to accepted connections, e.g. keepalive and drop
 		/// timeout from KStreamOptions::SetDeadPeerDetection()
 		KStreamOptions StreamOptions;
@@ -216,6 +221,10 @@ public:
 		/// .SetConnectionLimit(10);  // max 10 concurrent connections per IP
 		/// @endcode
 		void SetConnectionLimit(uint16_t iMaxConnectionsPerKey);
+		/// the timeout that applies: the deprecated iTimeout if it was changed from its
+		/// default (and Timeout wasn't), else Timeout
+		DEKAF2_NODISCARD
+		KDuration GetTimeout() const;
 
 	}; // Options
 

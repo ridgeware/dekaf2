@@ -8,6 +8,7 @@
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/net/util/kstreamoptions.h>
 #include <atomic>
+#include <thread>
 #ifndef DEKAF2_IS_WINDOWS
 	#include <sys/socket.h>
 #endif
@@ -480,6 +481,150 @@ TEST_CASE("KREST")
 		CHECK_FALSE ( sOut.contains("alert(1)") );
 	}
 
+	SECTION("timeout option")
+	{
+		KREST::Options Options;
+
+		// both defaults give the same timeout
+		CHECK ( Options.GetTimeout() == chrono::seconds(5) );
+
+		Options.Timeout = chrono::milliseconds(1500);
+		CHECK ( Options.GetTimeout() == chrono::milliseconds(1500) );
+
+		// if both are changed from their defaults, Timeout wins
+		Options.iTimeout = 2;
+		CHECK ( Options.GetTimeout() == chrono::milliseconds(1500) );
+
+		// the deprecated iTimeout is used while Timeout has its default
+		Options.Timeout = chrono::seconds(5);
+		CHECK ( Options.GetTimeout() == chrono::seconds(2) );
+	}
+
+	SECTION("HTTP keepalive timeout")
+	{
+		KRESTRoutes Routes;
+
+		uint16_t iCalledTest { 0 };
+
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			++iCalledTest;
+			http.json.tx["response"] = "hello world";
+		}});
+
+		KREST::Options Options;
+		Options.Type             = KREST::HTTP;
+		Options.iPort            = 30313;
+		Options.bBlocking        = false;
+		// the keep-alive timeout below the socket timeout shows that the idle
+		// connection is not kept for that long
+		Options.Timeout          = chrono::seconds(1);
+		Options.KeepAliveTimeout = chrono::milliseconds(300);
+		Options.bCreateEphemeralCert = false;
+
+		KREST REST;
+
+		if (!REST.Execute(Options, Routes))
+		{
+			CHECK ( REST.Error() == "" );
+		}
+		else
+		{
+			KHTTPError ec;
+			KJsonRestClient Client("http://localhost:30313");
+			Client.AllowConnectionRetry(false);
+
+			// within the keep-alive timeout the connection is still there
+			Client.Get("test").SetError(ec).Request();
+			CHECK ( ec.value() == 0 );
+			Client.Get("test").SetError(ec).Request();
+			CHECK ( ec.value() == 0 );
+			CHECK ( iCalledTest == 2 );
+
+			// after it, the server has closed the idle connection, although the
+			// socket timeout of 1 s has not passed yet - without a retry the request fails
+			std::this_thread::sleep_for(chrono::milliseconds(700));
+			Client.Get("test").SetError(ec).Request();
+			CHECK ( ec.value() != 0 );
+			CHECK ( iCalledTest == 2 );
+
+			// the first request of a connection does not have to come within the
+			// keep-alive timeout
+			KTCPStream Stream(KTCPEndPoint("127.0.0.1:30313"), KStreamOptions(chrono::seconds(5)));
+			REQUIRE ( Stream.is_open() );
+			std::this_thread::sleep_for(chrono::milliseconds(600));
+			Stream.Write("GET /test HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").Flush();
+			KString sLine;
+			CHECK ( Stream.ReadLine(sLine) );
+			CHECK ( sLine.starts_with("HTTP/1.1 200") );
+			CHECK ( iCalledTest == 3 );
+		}
+	}
+
+	SECTION("HTTP first request timeout")
+	{
+		KRESTRoutes Routes;
+
+		uint16_t iCalledTest { 0 };
+
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			++iCalledTest;
+			http.json.tx["response"] = "hello world";
+		}});
+
+		KREST::Options Options;
+		Options.Type                 = KREST::HTTP;
+		Options.iPort                = 0;
+		Options.sBindAddress         = "127.0.0.1";
+		Options.bBlocking            = false;
+		// the socket timeout is well above the first request timeout, and above the
+		// wait between the two requests of the kept connection below
+		Options.Timeout              = chrono::seconds(2);
+		Options.FirstRequestTimeout  = chrono::milliseconds(300);
+		Options.bCreateEphemeralCert = false;
+
+		KREST REST;
+		REQUIRE ( REST.Execute(Options, Routes) );
+
+		auto sEndpoint = kFormat("127.0.0.1:{}", REST.GetPort());
+		KString sLine;
+
+		// a request within the first request timeout is answered
+		{
+			KTCPStream Stream(KTCPEndPoint(sEndpoint), KStreamOptions(chrono::seconds(5)));
+			REQUIRE ( Stream.is_open() );
+			std::this_thread::sleep_for(chrono::milliseconds(100));
+			Stream.Write("GET /test HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").Flush();
+			CHECK ( Stream.ReadLine(sLine) );
+			CHECK ( sLine.starts_with("HTTP/1.1 200") );
+		}
+
+		// after it, the server has closed the connection, although the socket
+		// timeout has not passed yet
+		{
+			KTCPStream Stream(KTCPEndPoint(sEndpoint), KStreamOptions(chrono::seconds(5)));
+			REQUIRE ( Stream.is_open() );
+			std::this_thread::sleep_for(chrono::milliseconds(800));
+			Stream.Write("GET /test HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").Flush();
+			CHECK_FALSE ( Stream.ReadLine(sLine) );
+		}
+
+		CHECK ( iCalledTest == 1 );
+
+		// the next request of a kept connection waits for the socket timeout
+		KHTTPError ec;
+		KJsonRestClient Client(kFormat("http://{}", sEndpoint));
+		Client.AllowConnectionRetry(false);
+
+		Client.Get("test").SetError(ec).Request();
+		CHECK ( ec.value() == 0 );
+		std::this_thread::sleep_for(chrono::milliseconds(800));
+		Client.Get("test").SetError(ec).Request();
+		CHECK ( ec.value() == 0 );
+		CHECK ( iCalledTest == 3 );
+	}
+
 	SECTION("HTTP keepalive")
 	{
 		KRESTRoutes Routes;
@@ -497,7 +642,7 @@ TEST_CASE("KREST")
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = 30303;
 		Options.bBlocking = false;
-//		Options.iTimeout  = 300;
+//		Options.Timeout   = chrono::seconds(300);
 		Options.bCreateEphemeralCert = false;
 
 		KREST REST;

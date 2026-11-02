@@ -5,6 +5,7 @@
 #include <dekaf2/rest/framework/krestclient.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/net/tls/ktlsstream.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
@@ -82,7 +83,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort;
-		Options.iTimeout  = 3;
+		Options.Timeout   = chrono::seconds(3);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -132,7 +133,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 1;
-		Options.iTimeout  = 3;
+		Options.Timeout   = chrono::seconds(3);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -175,7 +176,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 2;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -213,7 +214,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 3;
-		Options.iTimeout  = 3;
+		Options.Timeout   = chrono::seconds(3);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -267,7 +268,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 4;
-		Options.iTimeout  = 3;
+		Options.Timeout   = chrono::seconds(3);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -310,7 +311,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPSPort;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = true;
 		Options.bStoreEphemeralCert  = false;
@@ -371,7 +372,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPSPort + 1;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = true;
 		Options.bStoreEphemeralCert  = false;
@@ -401,6 +402,56 @@ TEST_CASE("KNetwork")
 		}
 	}
 
+	SECTION("TLS first request timeout")
+	{
+		KRESTRoutes Routes;
+		uint16_t iCallCount { 0 };
+
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/ok", [&](KRESTServer& http)
+		{
+			++iCallCount;
+			http.json.tx["status"] = "ok";
+		}});
+
+		KREST::Options Options;
+		Options.Type                 = KREST::HTTP;
+		Options.iPort                = 0;
+		Options.sBindAddress         = "127.0.0.1";
+		Options.Timeout              = chrono::seconds(2);
+		Options.FirstRequestTimeout  = chrono::milliseconds(500);
+		Options.bBlocking            = false;
+		Options.bCreateEphemeralCert = true;
+		Options.bStoreEphemeralCert  = false;
+
+		KREST Server;
+		REQUIRE ( Server.Execute(Options, Routes) );
+
+		auto sEndpoint = kFormat("127.0.0.1:{}", Server.GetPort());
+		KString sLine;
+
+		// a request right after the handshake is answered
+		{
+			KTLSStream Stream(KTCPEndPoint(sEndpoint), KStreamOptions(KStreamOptions::None, chrono::seconds(5)));
+			REQUIRE ( Stream.StartManualTLSHandshake() );
+			Stream.Write("GET /ok HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").Flush();
+			CHECK ( Stream.ReadLine(sLine) );
+			CHECK ( sLine.starts_with("HTTP/1.1 200") );
+		}
+
+		// the completed handshake does not start a new wait: the server closes the
+		// connection after the first request timeout, although the socket timeout
+		// has not passed yet
+		{
+			KTLSStream Stream(KTCPEndPoint(sEndpoint), KStreamOptions(KStreamOptions::None, chrono::seconds(5)));
+			REQUIRE ( Stream.StartManualTLSHandshake() );
+			kSleep(chrono::milliseconds(1000));
+			Stream.Write("GET /ok HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").Flush();
+			CHECK_FALSE ( Stream.ReadLine(sLine) );
+		}
+
+		CHECK ( iCallCount == 1 );
+	}
+
 	// ========================================================================
 	// Unix Socket Tests
 	// ========================================================================
@@ -426,7 +477,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type        = KREST::UNIX;
 		Options.sSocketFile = sSocketFile;
-		Options.iTimeout    = 3;
+		Options.Timeout     = chrono::seconds(3);
 		Options.bBlocking   = false;
 
 		KREST Server;
@@ -485,7 +536,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type        = KREST::UNIX;
 		Options.sSocketFile = sSocketFile;
-		Options.iTimeout    = 3;
+		Options.Timeout     = chrono::seconds(3);
 		Options.bBlocking   = false;
 
 		KREST Server;
@@ -536,7 +587,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 10;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -577,7 +628,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 11;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -619,7 +670,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 12;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -661,7 +712,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPSPort + 10;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = true;
 		Options.bStoreEphemeralCert  = false;
@@ -713,7 +764,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 20;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -751,7 +802,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 21;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -790,7 +841,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 22;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -841,7 +892,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 30;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 
@@ -903,7 +954,7 @@ TEST_CASE("KNetwork")
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = g_iHTTPPort + 40;
-		Options.iTimeout  = 5;
+		Options.Timeout   = chrono::seconds(5);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 

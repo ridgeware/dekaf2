@@ -72,7 +72,7 @@ TEST_CASE("KRESTCLIENT")
 		KREST::Options Options;
 		Options.Type = KREST::HTTP;
 		Options.iPort = 6780;
-		Options.iTimeout = 1;
+		Options.Timeout = chrono::seconds(1);
 		Options.bBlocking = false;
 		Options.bCreateEphemeralCert = false;
 		// we set the option although we have no SSO route to check the server code

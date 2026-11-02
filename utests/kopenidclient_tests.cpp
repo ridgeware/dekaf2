@@ -325,7 +325,7 @@ TEST_CASE("KOpenIDClient")
 	MockOpt.iPort                = iPort;
 	MockOpt.bBlocking            = false;
 	MockOpt.bCreateEphemeralCert = false;
-	MockOpt.iTimeout             = 5;
+	MockOpt.Timeout              = chrono::seconds(5);
 
 	KREST MockServer;
 	REQUIRE ( MockServer.Execute(MockOpt, MockRoutes) );

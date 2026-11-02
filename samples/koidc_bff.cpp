@@ -57,7 +57,7 @@ int main(int argc, char** argv)
 
 		KREST::Options Settings;
 		Settings.iPort           = Options("http <port>           : TCP port to bind to");
-		Settings.iTimeout        = Options("timeout <seconds>     : server timeout (default 5)", 5);
+		Settings.Timeout         = chrono::seconds(Options("timeout <seconds> : server timeout (default 5)", 5).UInt16());
 		// use TLS with an ephemeral self-signed cert unless told otherwise
 		Settings.bCreateEphemeralCert = !Options("notls           : do NOT switch to TLS (plain HTTP, dev only)", false);
 

@@ -814,7 +814,7 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate 
 	KREST::Options Options;
 	Options.Type                        = KREST::HTTP;
 	Options.iPort                       = iPort;
-	Options.iTimeout                    = 2;
+	Options.Timeout                     = chrono::seconds(2);
 	Options.bBlocking                   = false;
 	// with TLS the server runs on a one-time self signed cert (which the client
 	// accepts, it does not verify) - but never persist it into ~/.config
@@ -954,7 +954,7 @@ void RunWebSocketServerStressTest(uint16_t iPort, std::size_t iWorkers, bool bTL
 	KREST::Options Options;
 	Options.Type                          = KREST::HTTP;
 	Options.iPort                         = iPort;
-	Options.iTimeout                      = 5;
+	Options.Timeout                       = chrono::seconds(5);
 	Options.bBlocking                     = false;
 	// see RunWebSocketServerTest() on the ephemeral cert
 	Options.bCreateEphemeralCert          = bTLS;

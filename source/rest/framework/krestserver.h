@@ -216,6 +216,23 @@ public:
 		/// DoS prevention - max rounds in keep-alive (default 50) - actually, this doesn't help much against DoS, and for some
 		/// protocols it may be benficial to set this value much higher (streaming e.g.). But 50 seems already a good compromise.
 		mutable uint16_t iMaxKeepaliveRounds { 50 };
+		/// How long a new connection may wait for its first request - zero (the default) waits
+		/// as long as for any read, the socket timeout (KREST::Options::Timeout). For a TLS
+		/// connection the handshake counts into this time. A connection that is opened ahead of
+		/// its request (preconnects of browsers, connection pools) or that never sends one holds
+		/// a worker thread while it waits, and a short value gives the thread back early. Clients
+		/// do not repeat a request that fails on a new connection, so the value should leave
+		/// room for slow networks. Once the first bytes of the request arrived, reading the
+		/// rest of it gets the socket timeout.
+		KDuration FirstRequestTimeout { KDuration::zero() };
+		/// How long an idle keep-alive connection may wait for its next request - zero (the
+		/// default) waits as long as for any read, the socket timeout (KREST::Options::Timeout).
+		/// The first request of a connection waits for FirstRequestTimeout. An idle connection
+		/// holds a worker thread while it waits: behind a reverse proxy, which opens a connection
+		/// per concurrent request and keeps it open afterwards, a short value gives the threads
+		/// back early. The proxy's idle timeout for its upstream connections should then be
+		/// shorter still, or it may send a request on a connection this server is just closing.
+		KDuration KeepAliveTimeout { KDuration::zero() };
 		/// Which of the three output formats HTTP, LAMBDA, CLI (default HTTP) ?
 		mutable OutputType Out { HTTP };
 		/// Which authentication level: ALLOW_ALL, ALLOW_ALL_WITH_AUTH_HEADER, VERIFY_AUTH_HEADER ? (default = ALLOW_ALL)
@@ -874,6 +891,16 @@ protected:
 	/// worker, and we will not rename e.g. the caller's thread in CGI or CLI mode)
 	DEKAF2_NODISCARD
 	KString ThreadNameForRoute(const KRESTRoute& Route) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// wait until the next request of the connection can be read, for at most
+	/// Options::FirstRequestTimeout or Options::KeepAliveTimeout if set, and with
+	/// the stop check if set - for the first request of a TLS connection with a
+	/// FirstRequestTimeout this includes the handshake
+	/// @return false if the connection shall be closed
+	DEKAF2_NODISCARD
+	bool WaitForRequest();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

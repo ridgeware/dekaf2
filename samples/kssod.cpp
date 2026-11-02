@@ -656,7 +656,7 @@ int main(int argc, char** argv)
 		KString  sSpoolDir            = Options("spool <dir>           : mail spool directory - undeliverable mail waits here and survives restarts", kFormat("{}/spool", sConfigDir));
 		Settings.iMaxConnections      = Options("n <max>               : max parallel connections (default 25)", 25);
 //		Settings.iMaxKeepaliveRounds  = Options("keepalive <maxrounds> : max keepalive rounds (default 10, 0 == off)", 10);
-		Settings.iTimeout             = Options("timeout <seconds>     : server timeout (default 5)", 5);
+		Settings.Timeout              = chrono::seconds(Options("timeout <seconds> : server timeout (default 5)", 5).UInt16());
 		double dRateLimit             = Options("ratelimit <req/s>     : per-IP request rate limit, e.g. 10 or 0.5 (default 0 == off)", 0.0);
 		uint16_t iRateBurst           = Options("rateburst <count>     : rate limit burst size (default 10)", 10);
 		uint16_t iConnLimit           = Options("connlimit <max>       : per-IP max concurrent connections (default 0 == off)", 0);

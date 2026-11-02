@@ -59,6 +59,21 @@ void KREST::Options::SetConnectionLimit(uint16_t iMaxConnectionsPerKey)
 }
 
 //-----------------------------------------------------------------------------
+KDuration KREST::Options::GetTimeout() const
+//-----------------------------------------------------------------------------
+{
+	// 5 is the default of iTimeout - and equals the default of Timeout,
+	// but if both values are non-default, the newer Timeout wins
+	if (iTimeout != 5 && Timeout == chrono::seconds(5))
+	{
+		return chrono::seconds(iTimeout);
+	}
+
+	return Timeout;
+
+} // GetTimeout
+
+//-----------------------------------------------------------------------------
 void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 //-----------------------------------------------------------------------------
 {
@@ -248,12 +263,14 @@ KWebSocketServer::Options GetWebSocketOptions(const KREST::Options& Options)
 	WebSocketOptions.Growth               = Options.Growth;
 	WebSocketOptions.Shrink               = Options.Shrink;
 
-	if (Options.iTimeout)
+	auto Timeout = Options.GetTimeout();
+
+	if (Timeout > KDuration::zero())
 	{
 		// a flush to a peer whose buffers are full waits no longer than any other write
 		// of this server - with the default of 30 seconds a slow consumer would block a
 		// worker that long, and with a single worker all connections
-		WebSocketOptions.WriteTimeout = chrono::seconds(Options.iTimeout);
+		WebSocketOptions.WriteTimeout = Timeout;
 	}
 
 	return WebSocketOptions;
@@ -406,7 +423,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 
-				if (!m_Server->Start(chrono::seconds(Options.iTimeout), Options.bBlocking))
+				if (!m_Server->Start(Options.GetTimeout(), Options.bBlocking))
 				{
 					return SetError(m_Server->CopyLastError()); // already logged
 				}
@@ -435,7 +452,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 
-				if (!m_Server->Start(chrono::seconds(Options.iTimeout), Options.bBlocking))
+				if (!m_Server->Start(Options.GetTimeout(), Options.bBlocking))
 				{
 					return SetError(m_Server->CopyLastError()); // already logged
 				}

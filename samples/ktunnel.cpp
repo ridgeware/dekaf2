@@ -2027,7 +2027,7 @@ RelayServer::RelayServer (const Config& config)
 	Settings.Type                     = KREST::HTTP;
 	Settings.iPort                    = m_Config.iPort;
 	Settings.iMaxConnections          = m_Config.iMaxTunneledConnections * 2 + 20;
-	Settings.iTimeout                 = m_Config.Timeout.seconds().count();
+	Settings.Timeout                  = m_Config.Timeout;
 	Settings.KLogHeader               = "";
 	Settings.bBlocking                = false;
 	Settings.bMicrosecondTimerHeader  = true;

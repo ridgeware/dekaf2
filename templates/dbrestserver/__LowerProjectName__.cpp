@@ -171,7 +171,7 @@ void __ProjectName__::SetupOptions (KOptions& Options)
 		.Help("HTTP server timeout (default 5, max 3600 (one hour))")
 	([&](KStringViewZ sArg)
 	 {
-		m_ServerOptions.iTimeout = sArg.UInt16();
+		m_ServerOptions.Timeout = chrono::seconds(sArg.UInt16());
 	});
 
 	Options

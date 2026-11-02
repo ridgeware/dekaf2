@@ -249,6 +249,32 @@ public:
 	using pool_type   = std::vector<std::unique_ptr<Value>>;
 	using size_type   = typename pool_type::size_type;
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// deleter of the pointers returned by get(), returns the object into the pool
+	class Deleter
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		Deleter(KPoolBase& Owner) noexcept : m_Owner(&Owner) {}
+
+		void operator()(Value* value) const { m_Owner->deleter(value, true); }
+
+	//----------
+	private:
+	//----------
+
+		KPoolBase* m_Owner;
+
+	}; // Deleter
+
+	/// a named type instead of the deduced return type of get() - it can be used
+	/// while Value is still incomplete, e.g. in the class definition of Value
+	using unique_ptr  = std::unique_ptr<Value, Deleter>;
+
 	enum { DEFAULT_MAX_POOL_SIZE = 10000 };
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -414,7 +440,7 @@ public:
 	/// any time to a std::shared_ptr<Value> if more appropriate.
 	/// The returned pointer (and any shared_ptr created from it) must not outlive
 	/// the pool itself - its deleter returns the object into the pool
-	auto get()
+	unique_ptr get()
 	//-----------------------------------------------------------------------------
 	{
 		Value* value     { nullptr };
@@ -514,9 +540,7 @@ public:
 			// slot could never be returned
 		}
 
-		auto PoolDeleter = [this](Value* value) { this->deleter(value, true); };
-
-		auto ptr = std::unique_ptr<Value, decltype(PoolDeleter)>(value, PoolDeleter);
+		auto ptr = unique_ptr(value, Deleter(*this));
 
 		// call the control method _after_ wrapping the pointer so that it
 		// is exception safe
@@ -795,7 +819,7 @@ public:
 
 	using base_type  = detail::KPoolBase<Value, iIntervals, Resolution, false>;
 	using size_type  = typename base_type::size_type;
-	using unique_ptr = decltype(base_type().get());
+	using unique_ptr = typename base_type::unique_ptr;
 	using shared_ptr = std::shared_ptr<Value>;
 
 	using base_type::base_type;
@@ -843,7 +867,7 @@ public:
 
 	using base_type  = detail::KPoolBase<Value, iIntervals, Resolution, true>;
 	using size_type  = typename base_type::size_type;
-	using unique_ptr = decltype(base_type().get());
+	using unique_ptr = typename base_type::unique_ptr;
 	using shared_ptr = std::shared_ptr<Value>;
 
 	using base_type::base_type;

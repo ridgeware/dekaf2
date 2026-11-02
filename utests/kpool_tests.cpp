@@ -15,6 +15,30 @@ struct MyType
 	uint32_t iPushed { 0 };
 };
 
+// names the pointer types of pools of itself while it is still incomplete,
+// like a database class with a static connection pool
+class MyPooled
+{
+public:
+
+	static KPool<MyPooled>::unique_ptr       GetUnique();
+	static KSharedPool<MyPooled>::unique_ptr GetShared();
+
+	KString sString;
+};
+
+KPool<MyPooled>::unique_ptr MyPooled::GetUnique()
+{
+	static KPool<MyPooled> s_Pool;
+	return s_Pool.get();
+}
+
+KSharedPool<MyPooled>::unique_ptr MyPooled::GetShared()
+{
+	static KSharedPool<MyPooled> s_Pool;
+	return s_Pool.get();
+}
+
 class MyControl : public KPoolControl<MyType>
 {
 public:
@@ -46,8 +70,8 @@ TEST_CASE("KPool")
 			CHECK ( Pool.size() == 1 );
 			CHECK ( Pool.used() == 1 );
 			p->sString = "hello world";
-			// KPool internally uses lambda deleters, because they reduce to one single
-			// pointer added to the type. Using std::function would add 7 words to the
+			// the KPool deleter only holds a pointer to the pool, so it adds one single
+			// pointer to the type. Using std::function would add 7 words to the
 			// size of a KPool<>::unique_ptr. We want to check that this really worked.
 			CHECK ( sizeof(p) == sizeof(void*) * 2 );
 			// It is important (and difficult to code) that KPool<type>::unique_ptr
@@ -545,5 +569,23 @@ TEST_CASE("KPool")
 		auto p1 = Pool.get();       // would block forever had the slots leaked
 		auto p2 = Pool.get();
 		CHECK ( Pool.used() == 2 );
+	}
+
+	SECTION("pointer types named by an incomplete class")
+	{
+		{
+			auto p = MyPooled::GetUnique();
+			REQUIRE ( p != nullptr );
+			p->sString = "unique";
+		}
+		{
+			auto p = MyPooled::GetShared();
+			REQUIRE ( p != nullptr );
+			p->sString = "shared";
+		}
+
+		// both objects came back into their pools
+		CHECK ( MyPooled::GetUnique()->sString == "unique" );
+		CHECK ( MyPooled::GetShared()->sString == "shared" );
 	}
 }

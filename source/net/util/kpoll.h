@@ -77,7 +77,8 @@ DEKAF2_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 /// poll multiple fds — sanitizes event masks on Windows
 /// @param fds pollfd structs (events set by caller, revents cleared before poll)
-/// @param Timeout timeout
+/// @param Timeout timeout - a timeout above INT_MAX milliseconds (about 24.8 days)
+/// waits without a limit
 /// @return >0 number of fds with events, 0 timeout, < 0 errno error number * -1
 int kPoll(KSpan<pollfd> fds, KDuration Timeout);
 //-----------------------------------------------------------------------------
@@ -86,7 +87,8 @@ int kPoll(KSpan<pollfd> fds, KDuration Timeout);
 /// poll one single fd
 /// @param fd a file descriptor
 /// @param what which events to look for
-/// @param Timeout timeout
+/// @param Timeout timeout - a timeout above INT_MAX milliseconds (about 24.8 days)
+/// waits without a limit
 /// @return >0 the triggered events, 0 timeout, < 0 errno error number * -1
 int kPoll(int fd, int what, KDuration Timeout);
 //-----------------------------------------------------------------------------

@@ -45,6 +45,7 @@
 #include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/threading/execution/kthreads.h>
+#include <limits>
 
 #if !DEKAF2_IS_WINDOWS
 	#include <sys/types.h>
@@ -72,10 +73,15 @@ int kPoll(KSpan<pollfd> fds, KDuration Timeout)
 	{
 		auto Start = KSteadyTime::now();
 
+		// poll() takes the timeout as int milliseconds, and a negative value
+		// waits without a limit - use that for timeouts that do not fit into an int
+		auto iMilliseconds = Remaining.milliseconds().count();
+		int  iTimeout      = iMilliseconds > std::numeric_limits<int>::max() ? -1 : static_cast<int>(iMilliseconds);
+
 #if !DEKAF2_IS_WINDOWS
-		int iResult = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), static_cast<int>(Remaining.milliseconds().count()));
+		int iResult = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), iTimeout);
 #else
-		int iResult = WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), static_cast<INT>(Remaining.milliseconds().count()));
+		int iResult = WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), iTimeout);
 #endif
 
 		if (iResult == 0)

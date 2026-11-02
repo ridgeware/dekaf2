@@ -81,4 +81,21 @@ TEST_CASE("KPoll")
 
 		Waker.join();
 	}
+
+	SECTION("timeout above INT_MAX milliseconds waits without a limit")
+	{
+		KPollInterruptor Interruptor;
+		REQUIRE ( Interruptor.IsValid() );
+
+		std::thread Waker([&Interruptor]()
+		{
+			kSleep(chrono::milliseconds(50));
+			Interruptor.Wake();
+		});
+
+		// 2^32 ms, truncated to an int, would be a timeout of 0
+		CHECK ( (kPoll(Interruptor.GetFD(), POLLIN, chrono::milliseconds(int64_t(1) << 32)) & POLLIN) != 0 );
+
+		Waker.join();
+	}
 }

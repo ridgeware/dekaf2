@@ -183,6 +183,34 @@ DEKAF2_NAMESPACE_BEGIN
 /// | Vector() | std::vector\<KStringViewZ\> (all values) |
 /// | Exists() | bool (was the option found in the input?) |
 ///
+/// ### Type and Range Checks
+///
+/// Like callback options, ad-hoc options can check their arguments. A numeric
+/// default value sets the matching type (Integer, Unsigned or Float), and Type()
+/// sets any other type. Range() checks the value for numeric types, and the
+/// string length for all other types - without a numeric default value or a
+/// numeric Type() that is the string length. The checks run when an argument is
+/// read, and only for arguments from the input, not for default values. A failed
+/// check is reported like a missing required option: it throws if KOptions throws
+/// on errors, else Check() returns false.
+///
+/// @code
+/// KStringViewZ sCert  = Options("cert <file> : TLS certificate", "").Type(KOptions::File);
+/// uint16_t     iConns = Options("n <max>     : max connections", 25).Range(1, 65535);
+/// double       dRatio = Options("ratio <r>   : a ratio", 1.0).Range(0, 1);
+/// @endcode
+///
+/// ### Help Sections
+///
+/// Section() starts a new section of the generated help for the ad-hoc options
+/// that are requested after it:
+///
+/// @code
+/// Options.Section("TLS options:");
+/// KStringViewZ sCert = Options("cert <file> : TLS certificate", "").Type(KOptions::File);
+/// KStringViewZ sKey  = Options("key <file>  : TLS private key", "").Type(KOptions::File);
+/// @endcode
+///
 /// ### String Lifetime
 ///
 /// All KStringViewZ values returned by the Values proxy — whether from
@@ -635,6 +663,15 @@ public:
 		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sCommand)), m_Strings.Persist(std::forward<String2>(sArgDescription)), true);
 	}
 
+	/// Insert a section break with the title sSection into the generated help, in front of the options that
+	/// are declared after this call. Use it for ad-hoc options - other options and commands set their section
+	/// with OptionalParm::Section().
+	template<class String>
+	KOptions& Section(String&& sSection)
+	{
+		return IntSection(m_Strings.Persist(std::forward<String>(sSection)));
+	}
+
 	/// Register a callback function for unhandled options
 	void UnknownOption(CallbackN Function);
 
@@ -739,43 +776,57 @@ public:
 	{
 	public:
 		/// construct Values with data from parameter parsing
-		Values(KOptions& base, const std::vector<KStringViewZ>& Params, bool bFound) noexcept
-		: m_base(base), m_Params(Params), m_bFound(bFound) {}
+		Values(KOptions& base, const std::vector<KStringViewZ>& Params, bool bFound, const CallbackParam* Param) noexcept
+		: m_base(base), m_Params(Params), m_Param(Param), m_bFound(bFound) {}
+		/// move ctor - the moved-from object no longer returns unused parameters
+		Values(Values&& other) noexcept;
 		/// dtor to push unused parameters into the unknown commands list
 		~Values();
+		/// Check the arguments that are read from this object for the given type,
+		/// like the type of a callback option. A numeric default value already sets
+		/// the matching numeric type. Default values are not checked.
+		Values&  Type (ArgTypes ArgType) &  noexcept { m_ArgType = ArgType; return *this; }
+		/// rvalue version of Type()
+		Values&& Type (ArgTypes ArgType) && noexcept { return std::move(Type(ArgType)); }
+		/// Check the arguments that are read from this object for the given bounds,
+		/// like the range of a callback option: the value for numeric types, else
+		/// the string length. Default values are not checked.
+		Values&  Range(int64_t iLowerBound, int64_t iUpperBound) &  noexcept;
+		/// rvalue version of Range()
+		Values&& Range(int64_t iLowerBound, int64_t iUpperBound) && noexcept { return std::move(Range(iLowerBound, iUpperBound)); }
 		/// Get the values associated to an option name as a vector<KStringViewZ>
 		DEKAF2_NODISCARD
-		std::vector<KStringViewZ> Vector() const noexcept;
+		std::vector<KStringViewZ> Vector() const;
 		/// Get the value associated to an option name as string
 		DEKAF2_NODISCARD
-		KStringViewZ String() const noexcept;
+		KStringViewZ String() const;
 		/// Get the value associated to an option name as C string
 		DEKAF2_NODISCARD
-		const char* c_str()   const noexcept { return String().c_str();  }
+		const char* c_str()   const { return String().c_str();  }
 		/// Get the value associated to an option name as signed integer
 		DEKAF2_NODISCARD
-		int64_t Int64()       const noexcept { return String().Int64();  }
+		int64_t Int64()       const { return String().Int64();  }
 		/// Get the value associated to an option name as unsigned integer
 		DEKAF2_NODISCARD
-		uint64_t UInt64()     const noexcept { return String().UInt64(); }
+		uint64_t UInt64()     const { return String().UInt64(); }
 		/// Get the value associated to an option name as signed integer
 		DEKAF2_NODISCARD
-		int32_t Int32()       const noexcept { return String().Int32();  }
+		int32_t Int32()       const { return String().Int32();  }
 		/// Get the value associated to an option name as unsigned integer
 		DEKAF2_NODISCARD
-		uint32_t UInt32()     const noexcept { return String().UInt32(); }
+		uint32_t UInt32()     const { return String().UInt32(); }
 		/// Get the value associated to an option name as signed integer
 		DEKAF2_NODISCARD
-		int16_t Int16()       const noexcept { return String().Int16();  }
+		int16_t Int16()       const { return String().Int16();  }
 		/// Get the value associated to an option name as unsigned integer
 		DEKAF2_NODISCARD
-		uint16_t UInt16()     const noexcept { return String().UInt16(); }
+		uint16_t UInt16()     const { return String().UInt16(); }
 		/// Get the value associated to an option name as floating point value
 		DEKAF2_NODISCARD
-		float Float()         const noexcept { return String().Float();  }
+		float Float()         const { return String().Float();  }
 		/// Get the value associated to an option name as floating point value
 		DEKAF2_NODISCARD
-		double Double()       const noexcept { return String().Double(); }
+		double Double()       const { return String().Double(); }
 		/// Get a boolean - the option name does not have/needs a value
 		/// - if the option is present the value is true, else false
 		DEKAF2_NODISCARD
@@ -783,7 +834,7 @@ public:
 		/// Get the value associated to an option name as a duration
 		template < typename DurationType = KDuration >
 		DEKAF2_NODISCARD
-		DurationType Duration() const noexcept { DurationType Value; kFromString(Value, String()); return Value; }
+		DurationType Duration() const { DurationType Value; kFromString(Value, String()); return Value; }
 		/// Get the count of arguments for this option
 		std::size_t size()    const noexcept { return m_Params.size();   }
 		/// Is the argument container empty?
@@ -794,12 +845,12 @@ public:
 		// all C++ string(view) types
 		template < typename ValueType,
 			typename std::enable_if <std::is_assignable<ValueType, KStringViewZ>::value, int >::type = 0 >
-		operator    ValueType () const noexcept { return String(); }
+		operator    ValueType () const { return String(); }
 
 		// all duration types
 		template < typename ValueType,
 			typename std::enable_if <detail::is_duration<ValueType>::value, int >::type = 0 >
-		operator    ValueType () const noexcept { return Duration<ValueType>(); }
+		operator    ValueType () const { return Duration<ValueType>(); }
 
 		// all unsigned integers
 		template < typename ValueType,
@@ -812,7 +863,7 @@ public:
 					std::negation< std::is_same    <ValueType, std::nullptr_t>                >
 				>::value
 			, int >::type = 0>
-		operator    ValueType () const noexcept { return static_cast<ValueType>(UInt64()); }
+		operator    ValueType () const { return static_cast<ValueType>(UInt64()); }
 
 		// all signed integers
 		template < typename ValueType,
@@ -825,7 +876,7 @@ public:
 					std::negation< std::is_same    <ValueType, std::nullptr_t>                >
 				>::value
 			, int >::type = 0>
-		operator    ValueType () const noexcept { return static_cast<ValueType>(Int64()); }
+		operator    ValueType () const { return static_cast<ValueType>(Int64()); }
 
 		// bool
 		template < typename ValueType,
@@ -839,10 +890,10 @@ public:
 			typename std::enable_if <
 				std::is_floating_point<ValueType>::value
 			, int >::type = 0>
-		operator    ValueType () const noexcept { return Double(); }
+		operator    ValueType () const { return Double(); }
 
 		// the vector type
-		operator std::vector<KStringViewZ> () const noexcept { return Vector(); }
+		operator std::vector<KStringViewZ> () const { return Vector(); }
 
 		/// index access throws if out of range
 		KStringViewZ operator [] (std::size_t index) const;
@@ -853,9 +904,18 @@ public:
 		std::vector<KStringViewZ>::const_iterator end()   const noexcept { return m_Params.end();   }
 
 	private:
+		/// check an argument that is read from the input for type and bounds,
+		/// returns the argument
+		KStringViewZ Checked(KStringViewZ sArg) const;
+
 		KOptions&                        m_base;
 		const std::vector<KStringViewZ>& m_Params;
+		const CallbackParam*             m_Param;
+		int64_t                          m_iLowerBound      { 0 };
+		int64_t                          m_iUpperBound      { 0 };
 		mutable std::size_t              m_iConsumed        { 0 };
+		ArgTypes                         m_ArgType { KOptions::String };
+		bool                             m_bCheckBounds { false };
 		bool                             m_bFound       { false };
 
 	}; // Values
@@ -884,7 +944,7 @@ public:
 	         typename std::enable_if<!detail::is_kstringviewz_assignable<const T&>::value, int>::type = 0>
 	DEKAF2_NODISCARD
 	Values Get(KStringView sOptionName, const T& DefaultValue) noexcept
-	{ return Get(sOptionName, KString::to_string(DefaultValue)); }
+	{ return Get(sOptionName, KString::to_string(DefaultValue)).Type(DefaultArgType<T>()); }
 
 	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
 	DEKAF2_NODISCARD
@@ -926,6 +986,16 @@ private:
 	using PersistedStrings = KPersistStrings<KString, false>;
 
 	static constexpr KStringView::size_type iMaxAdHocOptionLength { 200 };
+
+	/// the argument type that a default value of type T sets on ad-hoc Values
+	template<typename T>
+	static constexpr ArgTypes DefaultArgType() noexcept
+	{
+		return (!std::is_arithmetic<T>::value || std::is_same<T, bool>::value) ? String
+		       : std::is_floating_point<T>::value                              ? Float
+		       : std::is_unsigned<T>::value                                    ? Unsigned
+		       :                                                                 Integer;
+	}
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class DEKAF2_PRIVATE CLIParms
@@ -1084,6 +1154,8 @@ private:
 	{
 		return OptionalParm(*this, sOption, sArgDescription, bIsCommand);
 	}
+	DEKAF2_PRIVATE
+	KOptions& IntSection(KStringView sSection);
 	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	KStringViewZ ModifyArgument(KStringViewZ sArg, const CallbackParam* Callback);
 	DEKAF2_NODISCARD DEKAF2_PRIVATE

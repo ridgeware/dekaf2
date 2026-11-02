@@ -713,6 +713,120 @@ TEST_CASE("KOptions2")
 		CHECK ( sOut.find("-notfound4")         != npos );
 //		KOut.Write(sOut);
 	}
+
+	SECTION("ad hoc type and range checks")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-port", "8080",
+			"-count", "abc",
+			"-ratio", "0.5",
+			"-big", "70000",
+			"-file", "/this/file/does/not/exist.txt",
+			"-name", "hello",
+			"-flag", "positional"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI, KLog::STDOUT, /*bThrow*/true);
+
+		// a numeric default value sets the numeric type
+		uint16_t iPort = Opt("port <port> : port number", 0).Range(1, 65535);
+		CHECK ( iPort == 8080 );
+		CHECK_THROWS ( (void)Opt("count <n> : a count", 10).UInt16() );
+		double dRatio = Opt("ratio <r> : a ratio", 1.0).Range(0, 1);
+		CHECK ( dRatio == 0.5 );
+		CHECK_THROWS ( (void)Opt("big <n> : a big number", 0).Range(1, 65535).UInt16() );
+
+		// an explicit type for what the C++ type does not express
+		CHECK_THROWS ( (void)Opt("file <file> : an existing file", "").Type(KOptions::File).String() );
+
+		// a range without a type checks the string length
+		KStringViewZ sName = Opt("name <name> : a name", "").Range(1, 5);
+		CHECK ( sName == "hello" );
+
+		// a flag reads no argument, so the following command is not checked
+		bool bFlag = Opt("flag : a flag", false);
+		CHECK ( bFlag );
+
+		// default values are not checked
+		KStringViewZ sMissing = Opt("missing <file> : not given", "nofile").Type(KOptions::File);
+		CHECK ( sMissing == "nofile" );
+		uint16_t iDefault = Opt("default <n> : not given", 20).Range(1, 10);
+		CHECK ( iDefault == 20 );
+	}
+
+	SECTION("ad hoc type error without exceptions fails Check()")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-count", "abc"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		(void)Opt("count <n> : a count", 10).UInt16();
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		CHECK ( Opt.Check(oss) == false );
+	}
+
+	SECTION("ad hoc checks on a moved Values object")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-name", "hello", "arg2"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		{
+			// Range() returns an rvalue reference, from which the move ctor constructs Name
+			auto Name = Opt("name <name> : a name", "").Range(1, 5);
+			CHECK ( Name.String() == "hello" );
+		}
+
+		// the unused argument is returned once, by Name, not by the temporary it was moved from
+		auto UnknownArgs = Opt.GetUnknownCommands();
+		REQUIRE ( UnknownArgs.size() == 1 );
+		CHECK   ( UnknownArgs.front() == "arg2" );
+	}
+
+	SECTION("ad hoc help sections")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-help"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		KStringViewZ sWWW  = Opt("www <directory> : the served directory", "");
+		Opt.Section("TLS options:");
+		KStringViewZ sCert = Opt("cert <file> : TLS certificate", "");
+
+		if (sWWW .empty()) { /* gcc 13 wants this */ }
+		if (sCert.empty()) { /* gcc 13 wants this */ }
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		CHECK ( Opt.Check(oss) == false );
+
+		auto iWWW     = sOut.find("-www <directory>");
+		auto iSection = sOut.find("TLS options:");
+		auto iCert    = sOut.find("-cert <file>");
+		auto iFurther = sOut.find("further <options>:");
+
+		REQUIRE ( iWWW     != npos );
+		REQUIRE ( iSection != npos );
+		REQUIRE ( iCert    != npos );
+		REQUIRE ( iFurther != npos );
+		CHECK   ( iWWW     <  iSection );
+		CHECK   ( iSection <  iCert    );
+		CHECK   ( iCert    <  iFurther );
+	}
 }
 
 TEST_CASE("KOptions control flow")

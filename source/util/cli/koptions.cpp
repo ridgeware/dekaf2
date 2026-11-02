@@ -1139,6 +1139,21 @@ void KOptions::UnknownCommand(CallbackN Function)
 						   std::move(Function)));
 }
 
+//---------------------------------------------------------------------------
+KOptions& KOptions::IntSection(KStringView sSection)
+//---------------------------------------------------------------------------
+{
+	CallbackParam Section;
+
+	Section.m_iFlags = CallbackParam::fIsSection;
+	Section.m_sNames = sSection;
+
+	Register(std::move(Section));
+
+	return *this;
+
+} // IntSection
+
 #if 1 // these methods are deprecated..
 //---------------------------------------------------------------------------
 void KOptions::RegisterOption(KStringView sOptions, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
@@ -2092,7 +2107,7 @@ KOptions::Values KOptions::Get(KStringView sOptionName)
 		return Get(sOptionName, std::vector<KStringViewZ>{});
 	}
 
-	return Values(*this, Callback->m_Args, !Callback->m_bArgsAreDefaults);
+	return Values(*this, Callback->m_Args, !Callback->m_bArgsAreDefaults, Callback);
 
 } // Get
 
@@ -2137,7 +2152,7 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const std::vector<KStrin
 		{
 			kDebug(1, "cannot create option: {}", sOptionName);
 			static std::vector<KStringViewZ> s_Empty;
-			return Values(*this, s_Empty, false);
+			return Values(*this, s_Empty, false, nullptr);
 		}
 
 		// check if the args were already parsed under another name in the callback,
@@ -2159,7 +2174,7 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const std::vector<KStrin
 		bFound = false;
 	}
 
-	return Values(*this, Callback->m_Args, bFound);
+	return Values(*this, Callback->m_Args, bFound, Callback);
 
 } // Get
 
@@ -2170,6 +2185,24 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const KStringViewZ& sDef
 	return Get(sOptionName, std::vector<KStringViewZ> { sDefaultValue });
 
 } // Get
+
+//---------------------------------------------------------------------------
+KOptions::Values::Values(Values&& other) noexcept
+//---------------------------------------------------------------------------
+: m_base        (other.m_base)
+, m_Params      (other.m_Params)
+, m_Param       (other.m_Param)
+, m_iLowerBound (other.m_iLowerBound)
+, m_iUpperBound (other.m_iUpperBound)
+, m_iConsumed   (other.m_iConsumed)
+, m_ArgType     (other.m_ArgType)
+, m_bCheckBounds(other.m_bCheckBounds)
+, m_bFound      (other.m_bFound)
+{
+	// the moved-from object must not return the unused parameters a second time
+	other.m_iConsumed = other.m_Params.size();
+
+} // move ctor
 
 //---------------------------------------------------------------------------
 KOptions::Values::~Values()
@@ -2210,15 +2243,73 @@ KOptions::Values::~Values()
 } // dtor
 
 //---------------------------------------------------------------------------
-std::vector<KStringViewZ> KOptions::Values::Vector() const noexcept
+KOptions::Values& KOptions::Values::Range(int64_t iLowerBound, int64_t iUpperBound) & noexcept
+//---------------------------------------------------------------------------
+{
+	if (iLowerBound > iUpperBound)
+	{
+		std::swap(iLowerBound, iUpperBound);
+	}
+
+	m_iLowerBound  = iLowerBound;
+	m_iUpperBound  = iUpperBound;
+	m_bCheckBounds = true;
+
+	return *this;
+
+} // Range
+
+//---------------------------------------------------------------------------
+KStringViewZ KOptions::Values::Checked(KStringViewZ sArg) const
+//---------------------------------------------------------------------------
+{
+	// default values come from the program, not from the input, and the
+	// help generation reads all options without input
+	if (m_bFound && m_Param && !m_base.m_bProcessAdHocForHelp)
+	{
+		KString sReason;
+
+		if (!m_base.ValidArgType(m_ArgType, sArg))
+		{
+			sReason = m_base.BadArgReason(m_ArgType, sArg);
+		}
+		else if (m_bCheckBounds && !m_base.ValidBounds(m_ArgType, sArg, m_iLowerBound, m_iUpperBound))
+		{
+			sReason = m_base.BadBoundsReason(m_ArgType, sArg, m_iLowerBound, m_iUpperBound);
+		}
+
+		if (!sReason.empty())
+		{
+			// do not return the remaining parameters as unknown commands - the
+			// destructor runs during the exception that SetError() may throw
+			m_iConsumed = m_Params.size();
+
+			m_base.SetError(kFormat("wrong parameter after -{}: {}",
+			                        m_Param->m_sNames,
+			                        m_base.BuildParameterError(*m_Param, std::move(sReason))));
+		}
+	}
+
+	return sArg;
+
+} // Checked
+
+//---------------------------------------------------------------------------
+std::vector<KStringViewZ> KOptions::Values::Vector() const
 //---------------------------------------------------------------------------
 {
 	m_iConsumed = size();
+
+	for (auto sArg : m_Params)
+	{
+		Checked(sArg);
+	}
+
 	return m_Params;
 }
 
 //---------------------------------------------------------------------------
-KStringViewZ KOptions::Values::String() const noexcept
+KStringViewZ KOptions::Values::String() const
 //---------------------------------------------------------------------------
 {
 	if (m_iConsumed >= size())
@@ -2227,7 +2318,7 @@ KStringViewZ KOptions::Values::String() const noexcept
 	}
 	else
 	{
-		return m_Params[m_iConsumed++];
+		return Checked(m_Params[m_iConsumed++]);
 	}
 
 } // String
@@ -2261,7 +2352,7 @@ KStringViewZ KOptions::Values::operator [] (std::size_t index) const
 			m_iConsumed = index + 1;
 		}
 
-		return m_Params[index];
+		return Checked(m_Params[index]);
 	}
 	else
 	{

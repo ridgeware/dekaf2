@@ -89,6 +89,21 @@ TEST_CASE("KHTTPLog")
 		CHECK ( Logger.Open(KHTTPLog::LOG_FORMAT::COMMON, sLogname) == false );
 	}
 
+	SECTION("Open in a nonexistent directory fails")
+	{
+		auto sLogname = kFormat("{}/nonexistent/httplog.log", TempDir.Name());
+		{
+			KHTTPLog Logger;
+			CHECK ( Logger.Open(KHTTPLog::LOG_FORMAT::COMMON, sLogname) == false );
+			CHECK ( Logger.is_open()                                    == false );
+		}
+		{
+			KHTTPLog Logger;
+			CHECK ( Logger.Open(KHTTPLog::LOG_FORMAT::COMMON, sLogname, "", KDatedLogFile::Options()) == false );
+			CHECK ( Logger.is_open()                                                                  == false );
+		}
+	}
+
 }
 
 namespace {

@@ -818,6 +818,11 @@ bool KHTTPLog::Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringVi
 
 	m_LogStream = kOpenOutStream(sAccessLogFile, std::ios::app);
 
+	if (!m_LogStream->Good())
+	{
+		m_LogStream.reset();
+	}
+
 	return ReportOpen(sAccessLogFile);
 
 } // Open

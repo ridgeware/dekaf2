@@ -200,6 +200,20 @@ DEKAF2_NAMESPACE_BEGIN
 /// double       dRatio = Options("ratio <r>   : a ratio", 1.0).Range(0, 1);
 /// @endcode
 ///
+/// ### Positional Arguments and Repeated Options
+///
+/// The parser does not know how many arguments an ad-hoc option needs, so the
+/// option takes all arguments up to the next option. GetUnknownCommands()
+/// returns the arguments that no option reads, and those in front of the first
+/// option. For an option that can be repeated, MaxArgs() sets how many arguments
+/// each occurrence reads:
+///
+/// @code
+/// // http -H "Accept: text/plain" -H "X-Trace: 1" https://example.com
+/// auto Headers = Options("H,header <header> : add a header", std::vector<KStringViewZ>{}).MaxArgs(1).Vector();
+/// auto URLs    = Options.GetUnknownCommands();
+/// @endcode
+///
 /// ### Help Sections
 ///
 /// Section() starts a new section of the generated help for the ad-hoc options
@@ -380,7 +394,8 @@ public:
 
 	/// allow unknown options to be parsed like regular options? (default at construction = false). If no regular options
 	/// had been defined at time of parsing, ad-hoc args are automatically enabled. Such args then need to be fetched
-	/// with Get() or the call operator()
+	/// with Get() or the call operator(). Commands that are not declared are collected for GetUnknownCommands() if
+	/// ad-hoc args were allowed explicitly, with this method or the constructor that parses, else they are excess args.
 	KOptions& AllowAdHocArgs(bool bYesNo = true)                      { m_bAllowAdHocArgs = bYesNo;                                           return *this; }
 
 	/// Parse arguments and call the registered callback functions. Returns 0
@@ -469,6 +484,8 @@ private:
 		KStringView  m_sMissingArgs;
 		KStringView  m_sHelp;
 		mutable std::vector<KStringViewZ> m_Args;
+		/// the index in m_Args at which each occurrence of an ad-hoc option in the input starts
+		mutable std::vector<std::size_t>  m_Occurrences;
 		int64_t      m_iLowerBound      {      0 };
 		int64_t      m_iUpperBound      {      0 };
 		uint16_t     m_iMinArgs         {      0 };
@@ -794,6 +811,12 @@ public:
 		Values&  Range(int64_t iLowerBound, int64_t iUpperBound) &  noexcept;
 		/// rvalue version of Range()
 		Values&& Range(int64_t iLowerBound, int64_t iUpperBound) && noexcept { return std::move(Range(iLowerBound, iUpperBound)); }
+		/// Read at most iMaxArgs arguments of each occurrence of the option in the input. The other
+		/// arguments are returned like unread arguments, as unknown commands. Default values are
+		/// not limited.
+		Values&  MaxArgs(uint16_t iMaxArgs) &;
+		/// rvalue version of MaxArgs()
+		Values&& MaxArgs(uint16_t iMaxArgs) && { return std::move(MaxArgs(iMaxArgs)); }
 		/// Get the values associated to an option name as a vector<KStringViewZ>
 		DEKAF2_NODISCARD
 		std::vector<KStringViewZ> Vector() const;
@@ -907,6 +930,8 @@ public:
 		/// check an argument that is read from the input for type and bounds,
 		/// returns the argument
 		KStringViewZ Checked(KStringViewZ sArg) const;
+		/// return arguments that are not read to the unknown commands
+		void ReturnArgs(std::vector<KStringViewZ>::const_iterator it, std::vector<KStringViewZ>::const_iterator ie) const;
 
 		KOptions&                        m_base;
 		const std::vector<KStringViewZ>& m_Params;

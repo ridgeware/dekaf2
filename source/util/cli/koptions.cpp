@@ -1077,7 +1077,8 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 						if (OptionOrCommand.m_Args.empty())
 						{
 							// move the already collected args
-							OptionOrCommand.m_Args = std::move(Callback.m_Args);
+							OptionOrCommand.m_Args        = std::move(Callback.m_Args);
+							OptionOrCommand.m_Occurrences = std::move(Callback.m_Occurrences);
 						}
 						else
 						{
@@ -1664,6 +1665,10 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 		ResetBeforeParsing();
 	}
 
+	// positional args are collected only if ad hoc args were requested, else
+	// they remain excess args that make Parse() fail
+	bool bCollectPositionals = m_bAllowAdHocArgs;
+
 	if (!m_bAllowAdHocArgs && m_iAutomaticOptionCount == m_Options.size() && m_Commands.empty())
 	{
 		kDebug(2, "switching ad-hoc options on as there were no other options declared");
@@ -1749,13 +1754,27 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					}
 				}
 
+				// with ad hoc args, a command that is not found is a positional argument -
+				// collect it with the unknown commands, which Check() reports if they are
+				// not requested
+				if (!Callback && !it->IsOption() && bCollectPositionals)
+				{
+					it->bConsumed = true;
+					m_UnknownCommands.push_back(it->sArg);
+					m_bHaveAdHocArgs = true;
+					continue;
+				}
+
 				if (Callback)
 				{
 					// this looks redundant, but it is needed when parsing options
 					// from an ini file, and for ad-hoc options
 					it->bConsumed = true;
 
-					auto iMaxArgs = Callback->m_iMaxArgs;
+					// an ad hoc option takes all args up to the next option at each
+					// of its occurrences, as it does not know how many it needs
+					bool bIsAdHoc = Callback->IsAdHoc() && !Callback->m_Callback;
+					auto iMaxArgs = bIsAdHoc ? std::numeric_limits<uint16_t>::max() : Callback->m_iMaxArgs;
 					auto bAllArgs = Callback->GetAllArgs();
 
 					// isolate parms until next option (if bAllArgs is false) and add them to the ArgList
@@ -1786,7 +1805,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 						}
 					}
 
-					if (Callback->m_iMinArgs > Args.size())
+					if (!bIsAdHoc && Callback->m_iMinArgs > Args.size())
 					{
 						KString sMissingArgs;
 
@@ -1825,6 +1844,8 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					else
 					{
 						// this is an edge case - there was no callback, this happens with ad-hoc callbacks
+						// note where this occurrence starts, for Values::MaxArgs()
+						Callback->m_Occurrences.push_back(Callback->m_Args.size());
 						// copy all args from the stack/deque, and store them in reverse order for .Get()
 						for (auto it = Args.crbegin(), ie = Args.crend(); it != ie; ++it)
 						{
@@ -2212,35 +2233,97 @@ KOptions::Values::~Values()
 	if (m_iConsumed < size() && m_bFound)
 	{
 		// only restore those if the param was found, else it was a default value
-		auto Callback = m_base.FindParam(UNKNOWN_ARG, false, true);
-
-		if (Callback && Callback->m_Callback)
-		{
-			// we have a callback for unknown commands
-			ArgList Args;
-
-			// collect all unconsumed commands - with push_front, like the parser's main
-			// loop, so that pop() (which takes from the back) yields the args in command
-			// line order
-			for (; m_iConsumed < size(); ++m_iConsumed)
-			{
-				Args.push_front(m_Params[m_iConsumed]);
-			}
-
-			// and call the callback with the params
-			Callback->m_Callback(Args);
-		}
-		else
-		{
-			// add all unconsumed commands to the general unknown commands vec
-			for (; m_iConsumed < size(); ++m_iConsumed)
-			{
-				m_base.m_UnknownCommands.push_back(m_Params[m_iConsumed]);
-			}
-		}
+		ReturnArgs(m_Params.begin() + m_iConsumed, m_Params.end());
+		m_iConsumed = size();
 	}
 
 } // dtor
+
+//---------------------------------------------------------------------------
+void KOptions::Values::ReturnArgs(std::vector<KStringViewZ>::const_iterator it,
+                                  std::vector<KStringViewZ>::const_iterator ie) const
+//---------------------------------------------------------------------------
+{
+	auto Callback = m_base.FindParam(UNKNOWN_ARG, false, true);
+
+	if (Callback && Callback->m_Callback)
+	{
+		// we have a callback for unknown commands
+		ArgList Args;
+
+		// collect the args - with push_front, like the parser's main loop, so
+		// that pop() (which takes from the back) yields them in command line order
+		for (; it != ie; ++it)
+		{
+			Args.push_front(*it);
+		}
+
+		// and call the callback with the params
+		Callback->m_Callback(Args);
+	}
+	else
+	{
+		// add the args to the general unknown commands vec
+		m_base.m_UnknownCommands.insert(m_base.m_UnknownCommands.end(), it, ie);
+	}
+
+} // ReturnArgs
+
+//---------------------------------------------------------------------------
+KOptions::Values& KOptions::Values::MaxArgs(uint16_t iMaxArgs) &
+//---------------------------------------------------------------------------
+{
+	// default values are not limited
+	if (m_bFound && m_Param)
+	{
+		auto& Args        = m_Param->m_Args;
+		auto& Occurrences = m_Param->m_Occurrences;
+
+		std::vector<KStringViewZ> Kept;
+		std::vector<KStringViewZ> Excess;
+		std::vector<std::size_t>  KeptOccurrences;
+
+		// args without a recorded occurrence belong to one occurrence starting at 0
+		std::size_t iStart { 0 };
+		std::size_t iNext  { 0 };
+
+		for (std::size_t iArg = 0; iArg < Args.size(); ++iArg)
+		{
+			// find the occurrence this arg belongs to
+			while (iNext < Occurrences.size() && Occurrences[iNext] <= iArg)
+			{
+				iStart = Occurrences[iNext++];
+				KeptOccurrences.push_back(Kept.size());
+			}
+
+			if (iArg - iStart < iMaxArgs)
+			{
+				Kept.push_back(Args[iArg]);
+			}
+			else
+			{
+				Excess.push_back(Args[iArg]);
+			}
+		}
+
+		if (!Excess.empty())
+		{
+			// m_Params refers to the args of m_Param, they now are only the kept args
+			Args        = std::move(Kept);
+			Occurrences = std::move(KeptOccurrences);
+
+			if (m_iConsumed > Args.size())
+			{
+				m_iConsumed = Args.size();
+			}
+
+			ReturnArgs(Excess.begin(), Excess.end());
+		}
+	}
+
+	return *this;
+
+} // MaxArgs
 
 //---------------------------------------------------------------------------
 KOptions::Values& KOptions::Values::Range(int64_t iLowerBound, int64_t iUpperBound) & noexcept

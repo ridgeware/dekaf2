@@ -827,6 +827,126 @@ TEST_CASE("KOptions2")
 		CHECK   ( iSection <  iCert    );
 		CHECK   ( iCert    <  iFurther );
 	}
+
+	SECTION("ad hoc positional arguments in front of the first option")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"pattern",
+			"-i", "file"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		bool bIgnoreCase = Opt("i : ignore case", false);
+		CHECK ( bIgnoreCase );
+
+		auto Positionals = Opt.GetUnknownCommands();
+		REQUIRE ( Positionals.size() == 2 );
+		CHECK   ( Positionals[0] == "pattern" );
+		CHECK   ( Positionals[1] == "file"    );
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		CHECK ( Opt.Check(oss) == true );
+	}
+
+	SECTION("ad hoc positional arguments that are not requested fail Check()")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"pattern"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		CHECK ( Opt.Check(oss) == false );
+		CHECK ( sOut.contains("excess command: pattern") );
+	}
+
+	SECTION("ad hoc repeated option with MaxArgs")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-H", "a: 1",
+			"-H", "b: 2", "c: 3",
+			"-X", "POST", "https://example.com"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		std::vector<KStringViewZ> Headers = Opt("H,header <header> : a header", std::vector<KStringViewZ>{}).MaxArgs(1);
+		REQUIRE ( Headers.size() == 2 );
+		CHECK   ( Headers[0] == "a: 1" );
+		CHECK   ( Headers[1] == "b: 2" );
+
+		KStringViewZ sMethod = Opt("X <method> : the method", "GET");
+		CHECK ( sMethod == "POST" );
+
+		// the args that exceed MaxArgs, and those that are not read, in this order
+		auto Positionals = Opt.GetUnknownCommands();
+		REQUIRE ( Positionals.size() == 2 );
+		CHECK   ( Positionals[0] == "c: 3" );
+		CHECK   ( Positionals[1] == "https://example.com" );
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		CHECK ( Opt.Check(oss) == true );
+	}
+
+	SECTION("ad hoc repeated option with a single occurrence and MaxArgs")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-H", "a: 1", "https://example.com"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		std::vector<KStringViewZ> Headers = Opt("H,header <header> : a header", std::vector<KStringViewZ>{}).MaxArgs(1);
+		REQUIRE ( Headers.size() == 1 );
+		CHECK   ( Headers[0] == "a: 1" );
+
+		auto Positionals = Opt.GetUnknownCommands();
+		REQUIRE ( Positionals.size() == 1 );
+		CHECK   ( Positionals[0] == "https://example.com" );
+	}
+
+	SECTION("ad hoc repeated option with different argument counts")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-D", "a",
+			"-D", "b", "c"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI, KLog::STDOUT, /*bThrow*/true);
+
+		// each occurrence takes the args up to the next option
+		std::vector<KStringViewZ> Defines = Opt("D <define> : a define", std::vector<KStringViewZ>{});
+		REQUIRE ( Defines.size() == 3 );
+		CHECK   ( Defines[0] == "a" );
+		CHECK   ( Defines[1] == "b" );
+		CHECK   ( Defines[2] == "c" );
+	}
+
+	SECTION("ad hoc MaxArgs does not limit default values")
+	{
+		const char* CLI[] {
+			"MyProgramName"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		std::vector<KStringViewZ> Defaults = Opt("H,header <header> : a header", std::vector<KStringViewZ>{ "a: 1", "b: 2" }).MaxArgs(1);
+		CHECK ( Defaults.size() == 2 );
+		CHECK ( Opt.GetUnknownCommands().empty() );
+	}
 }
 
 TEST_CASE("KOptions control flow")

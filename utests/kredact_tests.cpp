@@ -65,6 +65,40 @@ TEST_CASE("kRedactCredentials")
 		CHECK ( kRedactCredentials("'Authorization: c2VjcmV0' sent"     ) == "'Authorization: [redacted]' sent"      );
 	}
 
+	SECTION("cookies")
+	{
+		// the names of the cookies are kept, their values redacted whole, also long ones
+		CHECK ( kRedactCredentials("Cookie: __Host-session=AbCdEfGhIjKlMnOpQrStUvWxYz0123456789")
+		        ==                 "Cookie: __Host-session=[redacted]" );
+		CHECK ( kRedactCredentials("Cookie: a=1; theme=dark; sid=AbCdEfGhIjKlMnOpQrSt")
+		        ==                 "Cookie: a=[redacted]; theme=[redacted]; sid=[redacted]" );
+		// in any case, and only up to the end of the line
+		CHECK ( kRedactCredentials("cookie: s=c2VjcmV0\nnext=line")
+		        ==                 "cookie: s=[redacted]\nnext=line" );
+		// of a Set-Cookie only the cookie, not its attributes
+		CHECK ( kRedactCredentials("set-cookie: __Host-session=AbCdEfGhIjKlMnOpQrStUvWxYz0123456789; Path=/; Max-Age=7776000; Secure")
+		        ==                 "set-cookie: __Host-session=[redacted]; Path=/; Max-Age=7776000; Secure" );
+		// a value in double quotes, the quotes are kept
+		CHECK ( kRedactCredentials("Cookie: a=1; sid=\"AbCdEfGhIjKlMnOpQrStUvWxYz0123456789\"; b=2")
+		        ==                 "Cookie: a=[redacted]; sid=\"[redacted]\"; b=[redacted]" );
+		// ' and ` are characters of a cookie value
+		CHECK ( kRedactCredentials("Cookie: sid=AbCdEfGh'IjKlMnOpQrStUvWxYz0123456789; x=Ab`Cd")
+		        ==                 "Cookie: sid=[redacted]; x=[redacted]" );
+		// a quote ends the header only if the same quote opened it
+		CHECK ( kRedactCredentials("'Cookie: sid=AbCdEfGhIjKlMnOpQrSt' sent")
+		        ==                 "'Cookie: sid=[redacted]' sent" );
+		CHECK ( kRedactCredentials("\"Set-Cookie: sid=AbCdEfGhIjKlMnOpQrSt; Path=/\" sent")
+		        ==                 "\"Set-Cookie: sid=[redacted]; Path=/\" sent" );
+		// a JWT in a cookie is replaced whole as well
+		CHECK ( kRedactCredentials("Cookie: id_token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl; a=1")
+		        ==                 "Cookie: id_token=[redacted]; a=[redacted]" );
+		// a second pass changes nothing
+		auto sOnce = kRedactCredentials("Cookie: sid=AbCdEfGhIjKlMnOpQrStUvWxYz0123456789");
+		CHECK ( kRedactCredentials(sOnce) == sOnce );
+		// a word that only contains "cookie" is no header
+		CHECK ( kRedactCredentials("cookies: 3 stored, sid=12") == "cookies: 3 stored, sid=12" );
+	}
+
 	SECTION("a credential in a JSON body")
 	{
 		// the shape an error from a service actually has

@@ -692,7 +692,7 @@ static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_ty
 /// Those were all fixed, but the seventh will be written next month. Per-site
 /// discipline has already been tried and has already failed; this is the net.
 ///
-/// It redacts five shapes:
+/// It redacts six shapes:
 ///   eyJ....  a JWT -- three base64url runs separated by dots. The "eyJ" prefix
 ///            is '{"' base64url-encoded, so every JWT begins with it.
 ///   Bearer <tok>          the value only, the scheme is kept
@@ -700,6 +700,9 @@ static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_ty
 ///                         kept: Bearer, Basic, Digest, Negotiate, NTLM, and a
 ///                         word that ends with "key" or "token". Of any other
 ///                         first word, it and the word after it are redacted
+///   Cookie: a=<val>; b=<val>   the values of all cookies, their names are kept.
+///                         A value is always replaced whole
+///   Set-Cookie: a=<val>; Path=/   the value of the cookie, not the attributes
 ///   password=<val>        the value of a parameter with a name of a credential,
 ///                         the name is kept (see kEndsWithSecretName())
 ///   user:<pass>@host      the password in the userinfo of a URL, with or
@@ -726,11 +729,12 @@ static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_ty
 bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 //---------------------------------------------------------------------------
 {
-	// the fast path: no copy, no allocation, no scan beyond these six - the anchors
-	// are the rare characters 'J', 'b', 'z', '=', '"' and '@'
+	// the fast path: no copy, no allocation, no scan beyond these seven - the anchors
+	// are the rare characters 'J', 'b', 'k', 'z', '=', '"' and '@'
 	if (DEKAF2_LIKELY(kFindJWT(sMessage)                            == KStringView::npos
 	               && kFindAnyCase(sMessage, "bearer ",        'b') == KStringView::npos
 	               && kFindAnyCase(sMessage, "authorization:", 'z') == KStringView::npos
+	               && kFindAnyCase(sMessage, "cookie:",        'k') == KStringView::npos
 	               && kFindSecretParameter(sMessage).empty()
 	               && kFindSecretJSONColon(sMessage)                == KStringView::npos
 	               && kFindUserinfoPassword(sMessage).empty()))
@@ -884,6 +888,102 @@ bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 
 			sBuffer.replace(iSecret, sSecret.size(), sMasked);
 			iPos = iSecret + sMasked.size();
+		}
+	}
+
+	// - - - "Cookie: a=<value>; b=<value>" and "Set-Cookie: a=<value>; Path=/" - - -
+	// A cookie is a session more often than not, so the values of all cookies are
+	// redacted, and their names kept. Of a Set-Cookie, only the first pair is the
+	// cookie - the pairs after it are its attributes (Path, Max-Age, SameSite ...).
+	//
+	// A value is replaced whole, also when it is long: a service holds many
+	// sessions, and many cookie values begin with a fixed prefix ("s%3A", "GA1.2."),
+	// so their first and last characters do not tell one session from another.
+	//
+	// The header runs to the end of the line. A quote or a backtick ends it only
+	// when the same character stands right before the header name, as in
+	// "'Cookie: a=b' sent". Any other quote belongs to the value: RFC 6265 allows
+	// ' and ` in a cookie value, and double quotes around it.
+	for (KString::size_type iPos = 0; (iPos = kFindAnyCase(sBuffer, "cookie:", 'k', iPos)) != KString::npos; )
+	{
+		const bool bSetCookie = iPos >= 4 && kCaselessBeginsWithLeft(KStringView(sBuffer).substr(iPos - 4), "set-");
+		const auto iName      = bSetCookie ? iPos - 4 : iPos;
+		const char chOpen     = iName > 0 ? sBuffer[iName - 1] : '\0';
+		const char chQuote    = (chOpen == '"' || chOpen == '\'' || chOpen == '`') ? chOpen : '\n';
+
+		// what ends the name of a cookie, and without the '=', what ends its value
+		const char  sNameEnd[] { '=', ';', '\n', '\r', chQuote, '\0' };
+		const char* sPairEnd = sNameEnd + 1;
+
+		iPos += 7; // "cookie:"
+
+		for (;;)
+		{
+			iPos = sBuffer.find_first_of(sNameEnd, iPos);
+
+			if (iPos != KString::npos && sBuffer[iPos] == '=')
+			{
+				auto iValue = iPos + 1;
+
+				while (iValue < sBuffer.size() && (sBuffer[iValue] == ' ' || sBuffer[iValue] == '\t'))
+				{
+					++iValue;
+				}
+
+				// a value in double quotes runs to the closing quote, and the quotes are kept
+				auto iStop = (iValue < sBuffer.size() && sBuffer[iValue] == '"')
+				           ? sBuffer.find_first_of("\"\n\r", iValue + 1)
+				           : KString::npos;
+
+				const bool bQuoted = iStop != KString::npos && sBuffer[iStop] == '"';
+
+				if (bQuoted)
+				{
+					++iValue;
+				}
+				else
+				{
+					// the value, without the white space after it
+					iStop = sBuffer.find_first_of(sPairEnd, iValue);
+
+					if (iStop == KString::npos)
+					{
+						iStop = sBuffer.size();
+					}
+
+					while (iStop > iValue && KASCII::kIsSpace(sBuffer[iStop - 1]))
+					{
+						--iStop;
+					}
+				}
+
+				KStringView sSecret(sBuffer.data() + iValue, iStop - iValue);
+
+				// a value that an earlier pass masked partially, as a JWT, is replaced
+				// as well
+				if (!sSecret.empty() && sSecret != REDACTED)
+				{
+					sBuffer.replace(iValue, sSecret.size(), REDACTED);
+					iStop = iValue + REDACTED.size();
+				}
+
+				// the pair ends behind the value, and behind the closing quote of a quoted one
+				iPos = sBuffer.find_first_of(sPairEnd, bQuoted ? iStop + 1 : iStop);
+			}
+
+			// a ';' separates the pairs, anything else ends the header. Of a
+			// Set-Cookie, the first pair is all
+			if (iPos == KString::npos || sBuffer[iPos] != ';' || bSetCookie)
+			{
+				break;
+			}
+
+			++iPos;
+		}
+
+		if (iPos == KString::npos)
+		{
+			break;
 		}
 	}
 

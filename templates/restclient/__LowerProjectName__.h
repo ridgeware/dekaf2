@@ -48,10 +48,4 @@ protected:
 
 	Config m_Config;
 
-//----------
-private:
-//----------
-
-	void SetupOptions (KOptions& Options);
-
 }; // __ProjectName__

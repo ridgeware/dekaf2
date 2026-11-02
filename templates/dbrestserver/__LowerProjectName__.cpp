@@ -4,6 +4,7 @@
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/io/streams/kstream.h>
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/crypto/auth/kopenid.h>
@@ -23,16 +24,30 @@ KRESTRoutes::MemberFunctionTable<__ProjectName__> __ProjectName__Routes[]
 using namespace dekaf2;
 
 //-----------------------------------------------------------------------------
-void __ProjectName__::SetupInputFile (KOptions::ArgList& ArgList)
+void __ProjectName__::SetServerType (KREST::ServerType Type)
 //-----------------------------------------------------------------------------
 {
-	if (!ArgList.empty())
+	if (m_ServerOptions.Type != KREST::UNDEFINED)
 	{
-		m_ServerOptions.Simulate.sFilename = ArgList.pop();
+		throw KOptions::Error("Request type set twice");
+	}
 
-		if (!kFileExists(m_ServerOptions.Simulate.sFilename))
+	m_ServerOptions.Type = Type;
+
+} // SetServerType
+
+//-----------------------------------------------------------------------------
+void __ProjectName__::SetupInputFile (KREST::ServerType Type, const KOptions::Values& Args)
+//-----------------------------------------------------------------------------
+{
+	if (Args.Exists())
+	{
+		SetServerType(Type);
+
+		if (!Args.empty())
 		{
-			throw KOptions::WrongParameterError(kFormat("input file not existing: {}", m_ServerOptions.Simulate.sFilename));
+			// the first argument is the input file, further arguments remain as excess commands
+			m_ServerOptions.Simulate.sFilename = Args.String();
 		}
 	}
 
@@ -67,388 +82,30 @@ __ProjectName__::__ProjectName__ ()
 }
 
 //-----------------------------------------------------------------------------
-void __ProjectName__::SetupOptions (KOptions& Options)
+void __ProjectName__::ShowVersion ()
 //-----------------------------------------------------------------------------
 {
-	Options
-		.Throw()
-		.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
-		// .SetHelpSeparator          ("::")            // the column separator between option and help text
-		// .SetLinefeedBetweenOptions (false)           // add linefeed between separate options or commands?
-		// .SetWrappedHelpIndent      (1)               // the indent for continuation help text
-		.SetSpacingPerSection      (true);              // whether commands and options get the same or separate column layout
+	KRESTRoutes Routes;
+	KRESTServer::Options Options;
+	KRESTServer HTTP(Routes, Options);
+	ApiVersion (HTTP);
 
-	// ---- insert project specific options here ----
-
-	Options
-		.Option("version")
-		.Help("show software version and exit")
-		.Stop()
-	([&]()
+	for (auto& it : HTTP.json.tx.items())
 	{
-		KRESTRoutes Routes;
-		KRESTServer::Options Options;
-		KRESTServer HTTP(Routes, Options);
-		ApiVersion (HTTP);
-
-		for (auto& it : HTTP.json.tx.items())
+		KString sName  = it.key();
+		if (it.value().is_string())
 		{
-			KString sName  = it.key();
-			if (it.value().is_string())
-			{
-				KString sValue = it.value();
-				KOut.FormatLine (":: {:<22} : {}", sName, sValue);
-			}
-			else if (it.value().is_number() || it.value().is_boolean())
-			{
-				int iValue = it.value();
-				KOut.FormatLine (":: {:<22} : {}", sName, iValue);
-			}
+			KString sValue = it.value();
+			KOut.FormatLine (":: {:<22} : {}", sName, sValue);
 		}
-	});
-
-	Options
-		.Option("http <port>", "port number")
-		.Type(KOptions::Unsigned)
-		.Range(1, 65535)
-		.Help("force HTTP server mode, requires port number")
-		.Section("general REST server options:")
-	([&](KStringViewZ sPort)
-	{
-		if (m_ServerOptions.Type != KREST::UNDEFINED)
+		else if (it.value().is_number() || it.value().is_boolean())
 		{
-			throw KOptions::Error("Request type set twice");
+			int iValue = it.value();
+			KOut.FormatLine (":: {:<22} : {}", sName, iValue);
 		}
-
-		m_ServerOptions.iPort = sPort.UInt16();
-
-		m_ServerOptions.Type = KREST::HTTP;
-		KLog::getInstance().SetMode(KLog::SERVER);
-	});
-
-	Options
-		.Option("socket <socket>", "unix socket file")
-		.Help("force HTTP server mode on unix domain socket file like /tmp/__LowerProjectName__.sock or unix:///tmp/__LowerProjectName__.sock")
-	([&](KStringViewZ sSocketFile)
-	{
-		if (m_ServerOptions.Type != KREST::UNDEFINED)
-		{
-			throw KOptions::Error("Request type set twice");
-		}
-
-		if (sSocketFile.StartsWith("unix://"))
-		{
-			sSocketFile.remove_prefix(7);
-		}
-
-		m_ServerOptions.sSocketFile = sSocketFile;
-		m_ServerOptions.Type = KREST::UNIX;
-		KLog::getInstance().SetMode(KLog::SERVER);
-	});
-
-	Options
-		.Option("n", "need number of max connections")
-		.Type(KOptions::Unsigned).Range(1, 65535)
-		.Help("max parallel connections (default 5, only for HTTP mode)")
-	([&](KStringViewZ sArg)
-	{
-		m_ServerOptions.iMaxConnections = sArg.UInt16();
-	});
-
-	Options
-		.Option("keepalive <maxrounds>", "need number of max keepalive rounds")
-		.Type(KOptions::Unsigned)
-		.Help("max keepalive rounds for HTTP mode (default 10, 0 == off)")
-	([&](KStringViewZ sArg)
-	 {
-		m_ServerOptions.iMaxKeepaliveRounds = sArg.UInt16();
-	});
-
-	Options
-		.Option("timeout <seconds>", "need http server timeout")
-		.Type(KOptions::Unsigned)
-		.Range(1, 60*60)
-		.Help("HTTP server timeout (default 5, max 3600 (one hour))")
-	([&](KStringViewZ sArg)
-	 {
-		m_ServerOptions.Timeout = chrono::seconds(sArg.UInt16());
-	});
-
-	Options
-		.Option("compressors <methods>", "list of permitted HTTP compression algorithms")
-		.Help("permitted http compression algorithms, default = br,deflate,gzip")
-	([&](KStringViewZ sArg)
-	{
-		KHTTPCompression::SetPermittedCompressors(sArg);
-	});
-
-	Options
-		.Option("baseroute </path>", "need base route prefix")
-		.Help("route prefix, e.g. '/__LowerProjectName__'")
-	([&](KStringViewZ sArg)
-	{
-		if (sArg.front() != '/')
-		{
-			throw KOptions::WrongParameterError("base route prefix has to start with a /");
-		}
-
-		m_ServerOptions.sBaseRoute = sArg;
-	});
-
-	Options
-		.Option("restlog <file>\n"
-				"        [<type>\n"
-				"        [<format>]]",
-				"rest log file name")
-		.Help("write rest server log to <file> - default off. "
-			  "<type> is one of JSON, COMMON, COMBINED, EXTENDED, PARSED, default EXTENDED. "
-			  "For PARSED, define <format> string in apache format (e.g. \"%h %l %u %t \\\"%r\\\" %>s %b \\\"%{Referer}i\\\"\")")
-	([&](KOptions::ArgList& sArgs)
-	{
-		auto sFilename = sArgs.pop();
-		KHTTPLog::LOG_FORMAT Format = KHTTPLog::LOG_FORMAT::EXTENDED;
-
-		if (!sArgs.empty())
-		{
-			auto sFormat = sArgs.pop();
-			switch (sFormat.ToUpperASCII().Hash())
-			{
-				case "JSON"_hash:
-					Format = KHTTPLog::LOG_FORMAT::JSON;
-					break;
-				case "COMMON"_hash:
-					Format = KHTTPLog::LOG_FORMAT::COMMON;
-					break;
-				case "COMBINED"_hash:
-					Format = KHTTPLog::LOG_FORMAT::COMBINED;
-					break;
-				case "EXTENDED"_hash:
-					Format = KHTTPLog::LOG_FORMAT::EXTENDED;
-					break;
-				case "PARSED"_hash:
-					Format = KHTTPLog::LOG_FORMAT::PARSED;
-					break;
-				default:
-					throw KOptions::WrongParameterError(kFormat("unknown log format '{}' - must be one of JSON,COMMON,COMBINED,EXTENDED,PARSED", sFormat));
-			}
-		}
-
-		KStringView sFormat;
-		if (Format == KHTTPLog::LOG_FORMAT::PARSED)
-		{
-			if (!sArgs.empty())
-			{
-				sFormat = sArgs.pop();
-			}
-			else
-			{
-				throw KOptions::WrongParameterError("missing format definition for PARSED format");
-			}
-		}
-
-		if (!m_ServerOptions.Logger.Open(Format, sFilename, sFormat))
-		{
-			throw KOptions::WrongParameterError("cannot open log stream");
-		}
-	});
-
-	Options
-		.Option("cert <file>", "need certificate filepath")
-		.Type(KOptions::File)
-		.Help("TLS certificate filepath")
-		.Section("TLS options:")
-([&](KStringViewZ Arg)
-	{
-		m_ServerOptions.sCert = Arg;
-	});
-
-	Options
-		.Option("key <file>", "need key filepath")
-		.Type(KOptions::File)
-		.Help("TLS private key filepath")
-	([&](KStringViewZ Arg)
-	{
-		m_ServerOptions.sKey = Arg;
-	});
-
-	Options
-		.Option("tlspass <pass>", "need TLS CERT password")
-		.Help("TLS certificate password, if any")
-	([&](KStringViewZ sArg)
-	 {
-		m_ServerOptions.sTLSPassword = sArg;
-	});
-
-	Options
-		.Option("dh <file>", "need diffie-hellman prime filepath")
-		.Type(KOptions::File)
-		.Help("TLS DH prime filepath (.pem) (generate with 'openssl dhparam -out dh2048.pem 2048')")
-	([&](KStringViewZ sArg)
-	{
-		m_ServerOptions.sDHPrimes = sArg;
-	});
-
-	Options
-		.Option("ciphers <suites>", "need cipher suites")
-		.Help("colon delimited list of permitted cipher suites for TLS")
-	([&](KStringViewZ sCipherSuites)
-	{
-		m_ServerOptions.sAllowedCipherSuites = sCipherSuites;
-	});
-
-	if (!s_SSOProvider.empty())
-	{
-		Options
-			.Option("ssolevel <0..2>", "SSO level")
-			.Type(KOptions::Unsigned)
-			.Range(1, 2)
-			.Help("set SSO authentication level, default = 0 (off), header check = 1, real check = 2")
-		([&](KStringViewZ sSSOLevel)
-		{
-			m_ServerOptions.iSSOLevel = sSSOLevel.UInt16();
-		});
 	}
 
-	Options
-		.Option("dbc <file>", "dbc file name")
-		.Type(KOptions::File)
-		.Help("set database connection")
-		.Section("database related options")
-	([&](KStringViewZ sFileName)
-	{
-		// set the static DBC file
-		DB::SetDBCFilename (sFileName);
-	});
-
-	Options
-		.Option("schema")
-		.Help("check (possibly upgrade) the database schema")
-		.Stop()
-	([&]()
-	{
-		auto pdb = DB::Get ();
-
-		uint16_t iAmAt = pdb->GetSchema ("__UpperProjectName___SCHEMA");
-		uint16_t iWant = DB::CURRENT_SCHEMA;
-		if (iAmAt != iWant)
-		{
-			pdb->EnsureSchema (/*bForce=*/false);
-		}
-	});
-
-	Options
-		.Option("schemaforce")
-		.Help("force recreation of the schema (be careful)")
-		.Stop()
-	([&]()
-	{
-		kDebug (1, "schema FORCE logic");
-		DB::Get ()->EnsureSchema (/*bForce=*/true);
-	});
-
-	Options
-		.Option("sim <url>", "url")
-		.Help("simulate request to a __LowerProjectName__ method (will use GET unless -X is used)")
-		.Section("options for simulation mode (local testing):")
-	([&](KStringViewZ sArg)
-	{
-		m_ServerOptions.Simulate.API = sArg;
-		m_ServerOptions.Type = KREST::SIMULATE_HTTP;
-	});
-
-	Options
-		.Option("X,request <method>", "request_method")
-		.ToUpper()
-		.Help("use with -sim: change request method of simulated request")
-	([&](KStringViewZ sMethod)
-	{
-		m_ServerOptions.Simulate.Method = sMethod.ToUpperASCII();
-
-		if (!m_ServerOptions.Simulate.Method.Serialize().In(KHTTPMethod::REQUEST_METHODS))
-		{
-			throw KOptions::WrongParameterError(kFormat("invalid request method '{}', legal ones are: {}", sMethod, KHTTPMethod::REQUEST_METHODS));
-		}
-	});
-
-	Options
-		.Option("H,header <header>", "header definition")
-		.Help("use with -sim: add \"Header: value\" additional headers to simulated request")
-	([&](KString sHeader)
-	{
-		auto Pair = kSplitToPair(sHeader, ":");
-		m_ServerOptions.Simulate.AdditionalRequestHeaders.push_back(Pair.first, Pair.second);
-	});
-
-	Options
-		.Option("D,data [@]<data>", "request_body")
-		.Help("use with -sim: add literal request body, or with @ take contents of file")
-	([&](KStringViewZ sArg)
-	{
-		if (sArg.StartsWith("@"))
-		{
-			sArg.TrimLeft('@');
-
-			if (!kReadAll (sArg, m_ServerOptions.Simulate.sBody))
-			{
-				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
-			}
-		}
-		else
-		{
-			m_ServerOptions.Simulate.sBody = sArg;
-		}
-	});
-
-	Options
-		.Option("cgi <file>")
-		.MinArgs(0)
-		.Help("force CGI mode, where <file> contains request + headers + post data")
-		.Section("cgi cli usage:")
-	([&](KOptions::ArgList& sArgs)
-	{
-		if (m_ServerOptions.Type != KREST::UNDEFINED)
-		{
-			throw KOptions::Error("Request type set twice");
-		}
-
-		m_ServerOptions.Type = KREST::CGI;
-		SetupInputFile(sArgs);
-	});
-
-#ifdef DEKAF2_WITH_FCGI
-	Options
-		.Option("fcgi")
-		.MinArgs(0)
-		.Help("force FCGI mode")
-	([&](KOptions::ArgList& sArgs)
-	{
-		if (m_ServerOptions.Type != KREST::UNDEFINED)
-		{
-			throw KOptions::Error("Request type set twice");
-		}
-
-		m_ServerOptions.Type = KREST::FCGI;
-		SetupInputFile(sArgs);
-	});
-#endif
-
-	Options
-		.Option("lambda [<lambda-arg> ...]")
-		.MinArgs(0)
-		.Help("force AWS Lambda mode")
-		.Section("aws-lambda usage:")
-	([&](KOptions::ArgList& sArgs)
-	{
-		if (m_ServerOptions.Type != KREST::UNDEFINED)
-		{
-			throw KOptions::Error("Request type set twice");
-		}
-
-		m_ServerOptions.Type = KREST::LAMBDA;
-		SetupInputFile(sArgs);
-	});
-
-} // ctor
+} // ShowVersion
 
 //-----------------------------------------------------------------------------
 void __ProjectName__::ApiOptions (KRESTServer& HTTP)
@@ -467,15 +124,286 @@ int __ProjectName__::Main (int argc, char** argv)
 {
 	// ---------------- parse CLI ------------------
 	{
-		KOptions Options(false);
-		SetupOptions(Options);
+		KOptions Options(false, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
-		auto iRetVal = Options.Parse(argc, argv, KOut);
+		Options
+			.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
+			// .SetHelpSeparator          ("::")            // the column separator between option and help text
+			// .SetLinefeedBetweenOptions (false)           // add linefeed between separate options or commands?
+			// .SetWrappedHelpIndent      (1)               // the indent for continuation help text
+			.SetSpacingPerSection      (true);              // whether commands and options get the same or separate column layout
 
-		if (Options.Terminate() || iRetVal)
+		bool bShowVersion = Options("version : show software version and exit", false);
+
+		// ---- insert project specific options here ----
+
+		Options.Section("general REST server options:");
+
+		uint16_t                  iPort            = Options("http <port>                : force HTTP server mode, requires port number", 0).Range(1, 65535);
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		KStringViewZ              sSocketFile      = Options("socket <socket>            : force HTTP server mode on unix domain socket file like /tmp/__LowerProjectName__.sock or unix:///tmp/__LowerProjectName__.sock", "");
+#endif
+		m_ServerOptions.sBindAddress               = Options("bind <address>             : bind the HTTP server to this address only, e.g. 127.0.0.1, default all interfaces", "");
+		m_ServerOptions.iMaxConnections            = Options("n <max>                    : max parallel connections (default 50, only for HTTP mode)", m_ServerOptions.iMaxConnections).Range(1, 65535);
+		m_ServerOptions.iMaxKeepaliveRounds        = Options("keepalive <maxrounds>      : max keepalive rounds for HTTP mode (default 50, 0 == off)", m_ServerOptions.iMaxKeepaliveRounds).Range(0, 65535);
+		m_ServerOptions.Timeout                    = chrono::seconds(Options("timeout <seconds> : HTTP server timeout (default 5, max 3600 (one hour))", 5).Range(1, 60*60).UInt16());
+		m_ServerOptions.FirstRequestTimeout        = chrono::seconds(Options("firsttimeout <seconds> : how long a new connection may wait for its first request (default 0 == the server timeout)", 0).Range(0, 60*60).UInt16());
+		m_ServerOptions.KeepAliveTimeout           = chrono::seconds(Options("keepalivetimeout <seconds> : how long an idle keep-alive connection may wait for its next request (default 0 == the server timeout)", 0).Range(0, 60*60).UInt16());
+		KStringViewZ              sMaxBody         = Options("maxbody <size>             : max request body size, supports k/M/G suffixes (default 256M, 0 == unlimited)", "256M");
+		KStringViewZ              sCompressors     = Options("compressors <methods>      : permitted http compression algorithms, default = br,deflate,gzip", "");
+		m_ServerOptions.sBaseRoute                 = Options("baseroute </path>          : route prefix, e.g. '/__LowerProjectName__'", "");
+		std::vector<KStringViewZ> RestLog          = Options("restlog <file>\n"
+		                                                     "        [<type>\n"
+		                                                     "        [<format>]] : "
+		                                                     "write rest server log to <file> - default off. "
+		                                                     "<type> is one of JSON, COMMON, COMBINED, EXTENDED, PARSED, default EXTENDED. "
+		                                                     "For PARSED, define <format> string in apache format (e.g. \"%h %l %u %t \\\"%r\\\" %>s %b \\\"%{Referer}i\\\"\")",
+		                                                     std::vector<KStringViewZ>{});
+		m_ServerOptions.KLogHeader                 = Options("headerlog <name>           : header name with which a client requests the debug log of its request - choose an unguessable name and use it only in trusted networks, default off", "");
+
+		Options.Section("rate and connection limits:");
+
+		double                    dRateLimit       = Options("ratelimit <req/s>          : per-IP request rate limit, e.g. 10 or 0.5 (default 0 == off)", 0.0);
+		uint16_t                  iRateBurst       = Options("rateburst <count>          : rate limit burst size (default 10)", 10).Range(1, 65535);
+		uint16_t                  iConnLimit       = Options("connlimit <max>            : per-IP max concurrent connections (default 0 == off)", 0).Range(0, 65535);
+		KStringViewZ              sTrustedProxies  = Options("proxies <ip[/prefix],...>  : comma separated list of trusted proxies - the client IP for the rate limit and the logs is then taken from their forwarding headers", "");
+
+		Options.Section("TLS options:");
+
+		m_ServerOptions.sCert                      = Options("cert <file>                : TLS certificate filepath (.pem), defaults to a self-signed ephemeral certificate", "").Type(KOptions::File);
+		m_ServerOptions.sKey                       = Options("key <file>                 : TLS private key filepath (.pem), defaults to an ephemeral key", "").Type(KOptions::File);
+		m_ServerOptions.sTLSPassword               = Options("tlspass <pass>             : TLS certificate password, if any", "");
+		m_ServerOptions.sDHPrimes                  = Options("dh <file>                  : TLS DH prime filepath (.pem) (generate with 'openssl dhparam -out dh2048.pem 2048')", "").Type(KOptions::File);
+		m_ServerOptions.sAllowedCipherSuites       = Options("ciphers <suites>           : colon delimited list of permitted cipher suites for TLS, defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", m_ServerOptions.sAllowedCipherSuites);
+		m_ServerOptions.bCreateEphemeralCert       =!Options("notls                      : do NOT switch to TLS mode if cert and key were not provided", false);
+		m_ServerOptions.bStoreEphemeralCert        = Options("persist                    : persist a self-signed certificate on disk and reuse it at the next start", false);
+		std::vector<KStringViewZ> Domains          = Options("domain <name>              : additional domain or IP for the self-signed TLS certificate (repeatable)", std::vector<KStringViewZ>{}).MaxArgs(1);
+		bool                      bNoLocalNets     = Options("nolocalnets                : do not include local network addresses in the self-signed TLS certificate", false);
+
+		Options.Section("automatic TLS certificates:");
+
+		std::vector<KStringViewZ> ACMEDomains      = Options("acme <domain>              : obtain and renew the TLS certificate for <domain> via ACME / Let's Encrypt (repeatable) - the CA connects to port 443 of the domain, which must reach this server", std::vector<KStringViewZ>{}).MaxArgs(1);
+		m_ServerOptions.sACMEContact               = Options("acmecontact <mailto>       : ACME account contact, e.g. mailto:admin@example.com", "");
+		m_ServerOptions.sACMEDirectoryURL          = Options("acmedir <url>              : ACME directory URL, default Let's Encrypt production", "");
+		m_ServerOptions.sACMEStorage               = Options("acmestore <directory>      : storage for the ACME account key and certificate, default the TLS config directory", "");
+		m_ServerOptions.bACMEVerifyTLS             =!Options("acmenoverify               : do not verify the ACME directory's CA (test servers like Pebble)", false);
+
+		if (!s_SSOProvider.empty())
 		{
-			// either error or completed
-			return iRetVal;
+			Options.Section("SSO options:");
+
+			m_ServerOptions.iSSOLevel              = Options("ssolevel <0..2>            : set SSO authentication level, default = 0 (off), header check = 1, real check = 2", 0).Range(0, 2);
+		}
+
+		Options.Section("database related options:");
+
+		KStringViewZ              sDBCFile         = Options("dbc <file>                 : set database connection", "").Type(KOptions::File);
+		bool                      bSchema          = Options("schema                     : check (possibly upgrade) the database schema", false);
+		bool                      bSchemaForce     = Options("schemaforce                : force recreation of the schema (be careful)", false);
+
+		Options.Section("options for simulation mode (local testing):");
+
+		KStringViewZ              sSimulate    = Options("sim <url>             : simulate request to a __LowerProjectName__ method (will use GET unless -X is used)", "");
+		KStringViewZ              sMethod      = Options("X,request <method>    : use with -sim: change request method of simulated request", "");
+		std::vector<KStringViewZ> Headers      = Options("H,header <header>     : use with -sim: add \"Header: value\" additional headers to simulated request", std::vector<KStringViewZ>{}).MaxArgs(1);
+		KStringViewZ              sData        = Options("D,data [@]<data>      : use with -sim: add literal request body, or with @ take contents of file", "");
+
+		Options.Section("cgi cli usage:");
+
+		SetupInputFile(KREST::CGI,    Options("cgi [<file>]              : force CGI mode, where <file> contains request + headers + post data", std::vector<KStringViewZ>{}).Type(KOptions::File));
+#ifdef DEKAF2_WITH_FCGI
+		SetupInputFile(KREST::FCGI,   Options("fcgi [<file>]             : force FCGI mode", std::vector<KStringViewZ>{}).Type(KOptions::File));
+#endif
+
+		Options.Section("aws-lambda usage:");
+
+		SetupInputFile(KREST::LAMBDA, Options("lambda [<lambda-arg> ...] : force AWS Lambda mode", std::vector<KStringViewZ>{}).Type(KOptions::File));
+
+		// check that all options were consumed - this also prints the help if it was requested
+		if (!Options.Check())
+		{
+			return 1;
+		}
+
+		if (bShowVersion)
+		{
+			ShowVersion();
+			return 0;
+		}
+
+		if (!sDBCFile.empty())
+		{
+			// set the static DBC file
+			DB::SetDBCFilename (sDBCFile);
+		}
+
+		if (bSchemaForce)
+		{
+			kDebug (1, "schema FORCE logic");
+			DB::Get ()->EnsureSchema (/*bForce=*/true);
+			return 0;
+		}
+
+		if (bSchema)
+		{
+			auto pdb = DB::Get ();
+
+			uint16_t iAmAt = pdb->GetSchema ("__UpperProjectName___SCHEMA");
+			uint16_t iWant = DB::CURRENT_SCHEMA;
+			if (iAmAt != iWant)
+			{
+				pdb->EnsureSchema (/*bForce=*/false);
+			}
+			return 0;
+		}
+
+		if (iPort)
+		{
+			SetServerType(KREST::HTTP);
+			m_ServerOptions.iPort = iPort;
+			KLog::getInstance().SetMode(KLog::SERVER);
+		}
+
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		if (!sSocketFile.empty())
+		{
+			SetServerType(KREST::UNIX);
+
+			if (sSocketFile.starts_with("unix://"))
+			{
+				sSocketFile.remove_prefix(7);
+			}
+
+			m_ServerOptions.sSocketFile = sSocketFile;
+			KLog::getInstance().SetMode(KLog::SERVER);
+		}
+#endif
+
+		m_ServerOptions.iMaxRequestBodySize = kFromBinarySize(sMaxBody);
+
+		if (dRateLimit > 0)
+		{
+			m_ServerOptions.SetRateLimit(dRateLimit, iRateBurst);
+		}
+
+		if (iConnLimit > 0)
+		{
+			m_ServerOptions.SetConnectionLimit(iConnLimit);
+		}
+
+		if (!sTrustedProxies.empty())
+		{
+			m_ServerOptions.AddTrustedProxies(sTrustedProxies);
+		}
+
+		m_ServerOptions.SANDomains.assign(Domains.begin(), Domains.end());
+
+		if (bNoLocalNets)
+		{
+			m_ServerOptions.SANPolicy = m_ServerOptions.SANDomains.empty()
+			                          ? SelfSignedCertSANPolicy::LocalhostOnly
+			                          : SelfSignedCertSANPolicy::Manual;
+		}
+
+		m_ServerOptions.ACMEDomains.assign(ACMEDomains.begin(), ACMEDomains.end());
+
+		if (!m_ServerOptions.ACMEDomains.empty() && !m_ServerOptions.bCreateEphemeralCert && m_ServerOptions.sCert.empty())
+		{
+			throw KException("acme needs a TLS server - do not combine it with notls");
+		}
+
+		if (!sCompressors.empty())
+		{
+			KHTTPCompression::SetPermittedCompressors(sCompressors);
+		}
+
+		if (!m_ServerOptions.sBaseRoute.empty() && m_ServerOptions.sBaseRoute.front() != '/')
+		{
+			throw KException("base route prefix has to start with a /");
+		}
+
+		if (!RestLog.empty())
+		{
+			KHTTPLog::LOG_FORMAT Format = KHTTPLog::LOG_FORMAT::EXTENDED;
+
+			if (RestLog.size() > 1)
+			{
+				switch (RestLog[1].ToUpperASCII().Hash())
+				{
+					case "JSON"_hash:
+						Format = KHTTPLog::LOG_FORMAT::JSON;
+						break;
+					case "COMMON"_hash:
+						Format = KHTTPLog::LOG_FORMAT::COMMON;
+						break;
+					case "COMBINED"_hash:
+						Format = KHTTPLog::LOG_FORMAT::COMBINED;
+						break;
+					case "EXTENDED"_hash:
+						Format = KHTTPLog::LOG_FORMAT::EXTENDED;
+						break;
+					case "PARSED"_hash:
+						Format = KHTTPLog::LOG_FORMAT::PARSED;
+						break;
+					default:
+						throw KException(kFormat("unknown log format '{}' - must be one of JSON,COMMON,COMBINED,EXTENDED,PARSED", RestLog[1]));
+				}
+			}
+
+			KStringView sFormat;
+
+			if (Format == KHTTPLog::LOG_FORMAT::PARSED)
+			{
+				if (RestLog.size() > 2)
+				{
+					sFormat = RestLog[2];
+				}
+				else
+				{
+					throw KException("missing format definition for PARSED format");
+				}
+			}
+
+			if (!m_ServerOptions.Logger.Open(Format, RestLog[0], sFormat))
+			{
+				throw KException("cannot open log stream");
+			}
+		}
+
+		if (!sSimulate.empty())
+		{
+			SetServerType(KREST::SIMULATE_HTTP);
+			m_ServerOptions.Simulate.API = sSimulate;
+		}
+
+		if (!sMethod.empty())
+		{
+			m_ServerOptions.Simulate.Method = sMethod.ToUpperASCII();
+
+			if (!m_ServerOptions.Simulate.Method.Serialize().In(KHTTPMethod::REQUEST_METHODS))
+			{
+				throw KException(kFormat("invalid request method '{}', legal ones are: {}", sMethod, KHTTPMethod::REQUEST_METHODS));
+			}
+		}
+
+		for (auto sHeader : Headers)
+		{
+			auto Pair = kSplitToPair(sHeader, ":");
+			m_ServerOptions.Simulate.AdditionalRequestHeaders.push_back(Pair.first, Pair.second);
+		}
+
+		if (sData.starts_with('@'))
+		{
+			sData.remove_prefix(1);
+
+			if (!kReadAll (sData, m_ServerOptions.Simulate.sBody))
+			{
+				throw KException(kFormat("invalid filename: {}", sData));
+			}
+		}
+		else
+		{
+			m_ServerOptions.Simulate.sBody = sData;
 		}
 
 		// --- try to auto detect execution by web server ---
@@ -551,8 +479,6 @@ int __ProjectName__::Main (int argc, char** argv)
 
 	// add a HTTP header that counts API execution time
 	m_ServerOptions.TimerHeader = "x-milliseconds";
-	// use x-klog as the header name for HTTP header logging
-	m_ServerOptions.KLogHeader  = "x-klog";
 
 	// setup record file name
 	m_ServerOptions.sRecordFile = s_sRecordFile;

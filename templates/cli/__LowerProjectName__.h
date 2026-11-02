@@ -31,10 +31,4 @@ protected:
 
 	void ShowVersion ();
 
-//----------
-private:
-//----------
-
-	void SetupOptions(KOptions& Options);
-
 }; // __ProjectName__

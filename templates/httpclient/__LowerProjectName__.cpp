@@ -21,91 +21,6 @@ __ProjectName__::__ProjectName__ ()
 }
 
 //-----------------------------------------------------------------------------
-void __ProjectName__::SetupOptions (KOptions& Options)
-//-----------------------------------------------------------------------------
-{
-	Options
-		.Throw()
-		.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
-		// .SetHelpSeparator          ("::")             // the column separator between option and help text
-		// .SetLinefeedBetweenOptions (false)            // add linefeed between separate options or commands?
-		// .SetWrappedHelpIndent      (1)                // the indent for continuation help text
-		.SetSpacingPerSection      (true)                // whether commands and options get the same or separate column layout
-		//.SetAdditionalHelp         (g_sAdditionalHelp) // extra help text at end of generated help
-	;
-
-	Options
-		.UnknownCommand([&](KOptions::ArgList& Commands)
-	{
-		if (!m_Config.URL.empty() || Commands.size() > 1)
-		{
-			throw KOptions::Error("multiple URLs");
-		}
-		m_Config.URL = Commands.pop();
-	});
-
-	Options
-		.Option("X,request <method>", "request_method")
-		.ToUpper()
-		.Help("set request method (default = GET)")
-	([&](KStringViewZ sMethod)
-	{
-		m_Config.Method = sMethod.ToUpperASCII();
-
-		if (!m_Config.Method.Serialize().In(KHTTPMethod::REQUEST_METHODS))
-		{
-			throw KOptions::WrongParameterError(kFormat("invalid request method '{}', legal ones are: {}", sMethod, KHTTPMethod::REQUEST_METHODS));
-		}
-	});
-
-	Options
-		.Option("D,data [@]<data>", "request_body")
-		.Help("add literal request body, or with @ take contents of file")
-	([&](KStringViewZ sArg)
-	{
-		if (sArg.StartsWith("@"))
-		{
-			sArg.TrimLeft('@');
-
-			if (!kReadAll (sArg, m_Config.sBody))
-			{
-				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
-			}
-		}
-		else
-		{
-			m_Config.sBody = sArg;
-		}
-	});
-
-	Options.
-		Option("M,mime <mime>", "mime type, default = application/json")
-	([&](KStringViewZ sMimeType)
-	{
-		m_Config.MimeType = sMimeType;
-	});
-
-	Options
-		.Option("H,header <header>", "header with key:value")
-		.Help("add HTTP header to the request (can be used multiple times)")
-	([&](KStringViewZ sHeader)
-	{
-		auto Pair = kSplitToPair (sHeader, ":");
-		m_Config.Headers.insert ({Pair.first, Pair.second});
-	});
-
-	Options
-		.Option("version")
-		.Help("show version information")
-		.Stop()
-	([&]()
-	{
-		ShowVersion();
-	});
-
-} // ctor
-
-//-----------------------------------------------------------------------------
 void __ProjectName__::ServerQuery ()
 //-----------------------------------------------------------------------------
 {
@@ -145,15 +60,80 @@ int __ProjectName__::Main (int argc, char** argv)
 {
 	// ---------------- parse CLI ------------------
 	{
-		KOptions Options(true);
-		SetupOptions(Options);
+		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
-		auto iRetVal = Options.Parse(argc, argv, KOut);
+		Options
+			.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
+			// .SetHelpSeparator          ("::")             // the column separator between option and help text
+			// .SetLinefeedBetweenOptions (false)            // add linefeed between separate options or commands?
+			// .SetWrappedHelpIndent      (1)                // the indent for continuation help text
+			.SetSpacingPerSection      (true)                // whether commands and options get the same or separate column layout
+			//.SetAdditionalHelp         (g_sAdditionalHelp) // extra help text at end of generated help
+		;
 
-		if (Options.Terminate() || iRetVal)
+		KStringViewZ              sMethod      = Options("X,request <method> : set request method (default = GET)", "GET");
+		KStringViewZ              sData        = Options("D,data [@]<data>   : add literal request body, or with @ take contents of file", "");
+		KStringViewZ              sMimeType    = Options("M,mime <mime>      : mime type, default = application/json", "");
+		std::vector<KStringViewZ> Headers      = Options("H,header <header>  : add HTTP header to the request (can be used multiple times)", std::vector<KStringViewZ>{}).MaxArgs(1);
+		bool                      bShowVersion = Options("version            : show version information", false);
+
+		// ---- insert project specific options here ----
+
+		// the URL is the only positional argument
+		auto URLs = Options.GetUnknownCommands();
+
+		// check that all options were consumed - this also prints the help if it was requested
+		if (!Options.Check())
 		{
-			// either error or completed
-			return iRetVal;
+			return 1;
+		}
+
+		if (bShowVersion)
+		{
+			ShowVersion();
+			return 0;
+		}
+
+		if (URLs.size() > 1)
+		{
+			throw KException("multiple URLs");
+		}
+
+		if (!URLs.empty())
+		{
+			m_Config.URL = URLs.front();
+		}
+
+		m_Config.Method = sMethod.ToUpperASCII();
+
+		if (!m_Config.Method.Serialize().In(KHTTPMethod::REQUEST_METHODS))
+		{
+			throw KException(kFormat("invalid request method '{}', legal ones are: {}", sMethod, KHTTPMethod::REQUEST_METHODS));
+		}
+
+		if (sData.starts_with('@'))
+		{
+			sData.remove_prefix(1);
+
+			if (!kReadAll (sData, m_Config.sBody))
+			{
+				throw KException(kFormat("invalid filename: {}", sData));
+			}
+		}
+		else
+		{
+			m_Config.sBody = sData;
+		}
+
+		if (!sMimeType.empty())
+		{
+			m_Config.MimeType = sMimeType;
+		}
+
+		for (auto sHeader : Headers)
+		{
+			auto Pair = kSplitToPair (sHeader, ":");
+			m_Config.Headers.insert ({Pair.first, Pair.second});
 		}
 	}
 

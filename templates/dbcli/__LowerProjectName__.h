@@ -40,8 +40,6 @@ protected:
 private:
 //----------
 
-	void SetupOptions (KOptions& Options);
-
 	static IniParms s_INI;
 	static bool     s_bINILoaded;
 

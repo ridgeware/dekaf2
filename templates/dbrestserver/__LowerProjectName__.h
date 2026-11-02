@@ -52,15 +52,15 @@ public:
 protected:
 //----------
 
-	void SetupInputFile (KOptions::ArgList& ArgList);
+	void SetServerType  (KREST::ServerType Type);
+	void SetupInputFile (KREST::ServerType Type, const KOptions::Values& Args);
+	void ShowVersion    ();
 
 	ServerOptions m_ServerOptions;
 
 //----------
 private:
 //----------
-
-	void SetupOptions (KOptions& Options);
 
 	static constexpr KStringView s_SSOProvider  = "__SSOProvider__";
 	static constexpr KStringView s_SSOScope     = "__SSOScope__";

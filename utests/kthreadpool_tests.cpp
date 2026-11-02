@@ -243,6 +243,103 @@ TEST_CASE("KThreadPool")
 		CHECK ( wCaptured.expired() );
 	}
 
+	SECTION("a burst of pushes grows the pool for each task without a thread")
+	{
+		// The queue is paused, so no thread takes a task, and every push finds the
+		// threads of the earlier ones either starting or idle. With PrestartNone the
+		// pool must have exactly one thread per task afterwards - not fewer (tasks
+		// left without a thread until a busy one finishes), and not more (a growth
+		// that ignores the policy).
+		constexpr std::size_t iTasks = 6;
+
+		KThreadPool Pool(8, KThreadPool::PrestartNone, KThreadPool::ShrinkNever);
+		Pool.pause(true);
+
+		std::atomic<std::size_t> iRunning  { 0 };
+		std::atomic<std::size_t> iTogether { 0 };
+
+		for (std::size_t i = 0; i < iTasks; ++i)
+		{
+			Pool.push([&iRunning, &iTogether]()
+			{
+				// every task waits until all of them run at the same time
+				++iRunning;
+				auto tEnd = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+				while (iRunning < iTasks && std::chrono::steady_clock::now() < tEnd)
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+				if (iRunning >= iTasks) ++iTogether;
+			});
+		}
+
+		CHECK ( Pool.size() == iTasks );
+
+		Pool.pause(false);
+		Pool.stop(false);
+
+		CHECK ( iTogether == iTasks );
+	}
+
+	SECTION("a burst of pushes keeps to the growth policy")
+	{
+		// PrestartSome starts ten idle threads on top of the needed ones - at the
+		// most, a burst may leave ten threads more than tasks
+		constexpr std::size_t iTasks = 20;
+
+		KThreadPool Pool(50, KThreadPool::PrestartSome, KThreadPool::ShrinkNever);
+		Pool.pause(true);
+
+		std::atomic<std::size_t> iDone { 0 };
+
+		for (std::size_t i = 0; i < iTasks; ++i)
+		{
+			Pool.push([&iDone]() { ++iDone; });
+		}
+
+		CHECK ( Pool.size() >= iTasks      );
+		CHECK ( Pool.size() <= iTasks + 10 );
+
+		Pool.pause(false);
+		Pool.stop(false);
+
+		CHECK ( iDone == iTasks );
+	}
+
+	SECTION("a capped tag grows the pool only for the tasks within its cap")
+	{
+		// A task of a tag at its concurrency cap waits for a free slot of its tag,
+		// not for a thread. With the queue paused, ten tasks of a tag with a cap of
+		// two need two threads, and every untagged task needs one more.
+		KThreadPool Pool(32, KThreadPool::PrestartNone, KThreadPool::ShrinkNever);
+
+		KThreadPool::TagConfig Cfg;
+		Cfg.iMaxConcurrency = 2;
+		Pool.ConfigureTag(1, Cfg);
+		Pool.pause(true);
+
+		std::atomic<std::size_t> iDone { 0 };
+
+		for (int i = 0; i < 10; ++i)
+		{
+			Pool.PostTagged(1, [&iDone]() { ++iDone; });
+		}
+
+		CHECK ( Pool.size() == 2 );
+
+		for (int i = 0; i < 3; ++i)
+		{
+			Pool.Post([&iDone]() { ++iDone; });
+		}
+
+		CHECK ( Pool.size() == 5 );
+
+		Pool.pause(false);
+		Pool.stop(false);
+
+		CHECK ( iDone == 13 );
+	}
+
 	SECTION("resize shrink does not lose idle threads")
 	{
 		// regression test for the same lost wakeup through resize(): shrink() sets

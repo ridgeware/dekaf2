@@ -104,6 +104,15 @@
  *     packaged_task<void()>
  *   - grow() is only called while the pool can still grow, and a push only
  *     notifies when a worker is idle
+ *
+ *  November 2026, Joachim Schurig
+ *   - a push grows the pool for every waiting task beyond the idle and the
+ *     starting threads, not only when no thread is idle - in a burst of
+ *     pushes the notified workers still counted as idle, and the surplus
+ *     tasks waited for a busy worker
+ *   - the tasks of a tag at its concurrency cap beyond its free slots do
+ *     not count for the growth - they wait for a slot of their tag, not
+ *     for a thread
 
  *********************************************************/
 
@@ -820,6 +829,7 @@ private:
 	std::vector<std::pair<Tag, TagState*>>                m_TagOrder;      ///< stable round-robin order of tags, with the state pointer cached to spare the hash lookup in the DRR scan (unordered_map references are rehash-stable)
 	std::size_t                                           m_iTagCursor   { 0 };  ///< DRR cursor into m_TagOrder
 	std::size_t                                           m_iTotalQueued { 0 };  ///< total tasks queued across all tags
+	std::size_t                                           m_iCappedTags  { 0 };  ///< number of tags with a concurrency cap
 	bool                                                  m_bQueuePaused { false };
 	KString                                               m_sThreadName;   ///< base name for the worker threads (guarded by m_cond_mutex)
 
@@ -828,6 +838,7 @@ private:
 	std::atomic<std::size_t>     ma_iTotalTasks              { 0 };
 	std::atomic<std::size_t>     ma_iMaxWaitingTasks         { 0 };
 	std::atomic<std::size_t>     ma_n_idle                   { 0 };
+	std::atomic<std::size_t>     ma_n_starting               { 0 };
 	std::atomic<std::size_t>     ma_iAlreadyStopped          { 0 };
 	std::atomic<std::size_t>     ma_iDetachedThreadsToFinish { 0 };
 	std::atomic<std::size_t>     ma_iShrinkCounter           { 0 };

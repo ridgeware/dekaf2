@@ -98,6 +98,15 @@
  *   - grow() is only called while the pool can still grow, and a push only
  *     notifies when a worker is idle
  *
+ *  November 2026, Joachim Schurig
+ *   - a push grows the pool for every waiting task beyond the idle and the
+ *     starting threads, not only when no thread is idle - in a burst of
+ *     pushes the notified workers still counted as idle, and the surplus
+ *     tasks waited for a busy worker
+ *   - the tasks of a tag at its concurrency cap beyond its free slots do
+ *     not count for the growth - they wait for a slot of their tag, not
+ *     for a thread
+ *
  *********************************************************/
 
 
@@ -292,9 +301,14 @@ bool KThreadPool::grow(std::size_t iQueued)
 			{
 				m_abort[i] = std::make_shared<std::atomic<eAbort>>(eAbort::None);
 
+				// counted before the start, the thread counts itself down once it holds
+				// m_cond_mutex (see bookkeep_enqueue())
+				++ma_n_starting;
+
 				if (!run_thread(i))
 				{
 					// could not start thread - stop increasing thread count
+					--ma_n_starting;
 					m_threads.resize(i);
 					m_abort  .resize(i);
 					return false;
@@ -551,6 +565,7 @@ void KThreadPool::stop(bool bKill)
 	m_threads .clear();
 	m_abort   .clear();
 	ma_n_idle = 0;
+	ma_n_starting = 0;
 	ma_interrupt = false;
 	ma_iAlreadyStopped = 0;
 
@@ -582,6 +597,9 @@ bool KThreadPool::run_thread(std::size_t i)
 		Task                       _f;
 		Tag                        _tag { DefaultTag };  // work-class of the task in _f
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
+
+		// from now on this thread takes a queued task or counts itself idle
+		--ma_n_starting;
 
 		if (!m_sThreadName.empty())
 		{
@@ -724,7 +742,20 @@ void KThreadPool::ConfigureTag(Tag tag, TagConfig config)
 	}
 
 	std::unique_lock<std::mutex> lock(m_cond_mutex);
-	sched_tag(tag).Config = config;
+
+	auto& State = sched_tag(tag);
+
+	// bookkeep_enqueue() looks at the caps of the tags only if at least one tag has one
+	if (State.Config.iMaxConcurrency == 0 && config.iMaxConcurrency != 0)
+	{
+		++m_iCappedTags;
+	}
+	else if (State.Config.iMaxConcurrency != 0 && config.iMaxConcurrency == 0)
+	{
+		--m_iCappedTags;
+	}
+
+	State.Config = config;
 
 } // ConfigureTag
 
@@ -904,17 +935,50 @@ void KThreadPool::bookkeep_enqueue(std::size_t iWaiting)
 
 	if (!ma_interrupt)
 	{
-		if (ma_n_idle == 0)
+		// The waiting tasks that need a thread: a task of a tag at its concurrency cap
+		// waits for a free slot of its tag, and another thread would only be idle. The
+		// tasks of a paused queue count, they need a thread once the queue continues.
+		std::size_t iRunnable = iWaiting;
+
+		if (m_iCappedTags)
+		{
+			for (auto& Pair : m_TagOrder)
+			{
+				auto& State = *Pair.second;
+
+				if (State.Config.iMaxConcurrency != 0)
+				{
+					auto iFree = State.Config.iMaxConcurrency - std::min(State.iRunning, State.Config.iMaxConcurrency);
+
+					if (State.Queue.size() > iFree)
+					{
+						iRunnable -= State.Queue.size() - iFree;
+					}
+				}
+			}
+		}
+
+		// The threads that will take a waiting task without another one being started:
+		// - the idle ones. In a burst of pushes this includes the workers that an earlier
+		//   push notified, but that have not woken up yet - a worker leaves ma_n_idle
+		//   only once it holds m_cond_mutex again.
+		// - the threads that grow() started, and that did not yet take m_cond_mutex.
+		// A runnable task beyond these takers waits for a busy worker unless the pool
+		// grows.
+		std::size_t iTakers = ma_n_idle + ma_n_starting;
+
+		if (iRunnable > iTakers)
 		{
 			// grow() takes m_resize_mutex only to find out that the pool is at its maximum
 			// size - check that before (m_threads changes only under m_cond_mutex as long
-			// as the pool is not interrupted)
+			// as the pool is not interrupted). grow() adds the threads of the growth
+			// policy on top of the surplus.
 			if (m_threads.size() < ma_iMaxThreads)
 			{
-				grow(iWaiting);
+				grow(iRunnable - iTakers);
 			}
 		}
-		else if (iWaiting <= 1 && ++ma_iShrinkCounter % 25 == 0)
+		else if (ma_n_idle > 0 && iWaiting <= 1 && ++ma_iShrinkCounter % 25 == 0)
 		{
 			shrink(iWaiting);
 		}

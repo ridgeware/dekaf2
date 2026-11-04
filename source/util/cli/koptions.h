@@ -1207,6 +1207,8 @@ private:
 	void SetDefaults(KStringView sCliDebugTo);
 	DEKAF2_PRIVATE
 	void AutomaticHelp() const;
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	bool HasOnlyAdHocOptions() const;
 	DEKAF2_PRIVATE
 	bool AdHocOptionSanityCheck(KStringView sOption);
 	DEKAF2_NODISCARD DEKAF2_PRIVATE
@@ -1235,6 +1237,7 @@ private:
 	const KStringView*         m_sHelp                   { nullptr };
 	std::size_t                m_iHelpSize               {       0 };
 	std::size_t                m_iAutomaticOptionCount   {       0 };
+	std::size_t                m_iAutomaticCallbackCount {       0 };
 	uint16_t                   m_iRecursedHelp           {       0 };
 	uint16_t                   m_iExecutions             {       0 };
 	bool                       m_bEmptyParmsIsError      {    true };
@@ -1243,6 +1246,7 @@ private:
 	bool                       m_bHaveAdHocArgs          {   false };
 	bool                       m_bCheckWasCalled         {   false };
 	bool                       m_bHaveErrors             {   false };
+	bool                       m_bInParse                {   false };
 	mutable bool               m_bProcessAdHocForHelp    {   false };
 
 }; // KOptions

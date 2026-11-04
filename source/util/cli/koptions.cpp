@@ -840,8 +840,15 @@ void KOptions::SetDefaults(KStringView sCliDebugTo/*=KLog::STDOUT*/)
 	([this]()
 	{
 		AutomaticHelp();
-		// and abort further parsing
-		throw NoError {};
+
+		if (!m_bProcessAdHocForHelp || !m_bInParse)
+		{
+			// abort further parsing
+			throw NoError {};
+		}
+
+		// Check() prints the help of ad hoc options after the program requested them -
+		// parse the remaining arguments, which may hold values for these requests
 	});
 
 #ifdef DEKAF2_WITH_KLOG
@@ -904,7 +911,8 @@ void KOptions::SetDefaults(KStringView sCliDebugTo/*=KLog::STDOUT*/)
 
 	// we need the count of the automatic options to allow ad hoc parms automatically
 	// if no other options were set
-	m_iAutomaticOptionCount = m_Options.size();
+	m_iAutomaticOptionCount   = m_Options.size();
+	m_iAutomaticCallbackCount = m_Callbacks.size();
 
 } // SetDefaults
 
@@ -912,11 +920,10 @@ void KOptions::SetDefaults(KStringView sCliDebugTo/*=KLog::STDOUT*/)
 void KOptions::AutomaticHelp() const
 //---------------------------------------------------------------------------
 {
-	if (m_bAllowAdHocArgs && 
-		!m_bHaveAdHocArgs &&
-		m_iAutomaticOptionCount == m_Options.size() &&
-		!m_bProcessAdHocForHelp)
+	if (m_bInParse && m_bAllowAdHocArgs && HasOnlyAdHocOptions())
 	{
+		// while the arguments are parsed, the program has not yet requested its ad hoc
+		// options with their help texts - Check() prints the help after the requests
 		m_bProcessAdHocForHelp = true;
 		return;
 	}
@@ -944,6 +951,26 @@ void KOptions::AutomaticHelp() const
 	}
 
 } // AutomaticHelp
+
+//---------------------------------------------------------------------------
+bool KOptions::HasOnlyAdHocOptions() const
+//---------------------------------------------------------------------------
+{
+	// the options that were registered after the automatic ones - declared commands
+	// do not count, they are no options
+	for (auto iIndex = m_iAutomaticCallbackCount; iIndex < m_Callbacks.size(); ++iIndex)
+	{
+		const auto& Callback = m_Callbacks[iIndex];
+
+		if (Callback.IsOption() && !Callback.IsAdHoc() && !Callback.IsSection())
+		{
+			return false;
+		}
+	}
+
+	return true;
+
+} // HasOnlyAdHocOptions
 
 //---------------------------------------------------------------------------
 void KOptions::Help(KOutStream& out)
@@ -1665,6 +1692,17 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 		ResetBeforeParsing();
 	}
 
+	// AutomaticHelp() needs to know whether it is called while the arguments are parsed
+	struct ParseFlag
+	{
+		explicit ParseFlag(bool& bFlag) : m_bFlag(bFlag), m_bBefore(bFlag) { m_bFlag = true; }
+		~ParseFlag() { m_bFlag = m_bBefore; }
+		bool& m_bFlag;
+		bool  m_bBefore;
+	};
+
+	ParseFlag InParse(m_bInParse);
+
 	// positional args are collected only if ad hoc args were requested, else
 	// they remain excess args that make Parse() fail
 	bool bCollectPositionals = m_bAllowAdHocArgs;
@@ -2128,6 +2166,12 @@ KOptions::Values KOptions::Get(KStringView sOptionName)
 		return Get(sOptionName, std::vector<KStringViewZ>{});
 	}
 
+	if (Callback->IsAdHoc())
+	{
+		// the other overload registers the declared names and help of the option
+		return Get(sOptionName, std::vector<KStringViewZ>{});
+	}
+
 	return Values(*this, Callback->m_Args, !Callback->m_bArgsAreDefaults, Callback);
 
 } // Get
@@ -2169,17 +2213,10 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const std::vector<KStrin
 
 		Callback = FindParam(list.front(), true, true);
 
-		if (!Callback)
-		{
-			kDebug(1, "cannot create option: {}", sOptionName);
-			static std::vector<KStringViewZ> s_Empty;
-			return Values(*this, s_Empty, false, nullptr);
-		}
-
 		// check if the args were already parsed under another name in the callback,
 		// in which case we do not add the default args here, but treat this as an
 		// existing parm set
-		if (Callback->m_Args.empty())
+		if (Callback && Callback->m_Args.empty())
 		{
 			for (auto sDefaultValue : DefaultValues)
 			{
@@ -2188,6 +2225,23 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const std::vector<KStrin
 			// note that these args are defaults, not real input
 			Callback->m_bArgsAreDefaults = true;
 		}
+	}
+	else if (Callback->IsAdHoc() && Callback->m_sNames != pair.first)
+	{
+		// the parser created this option with its name from the input only - register
+		// it with the declared names and help, the new option takes over the arguments
+		Option     (pair.first)
+			.Help  (pair.second)
+			.AdHoc ();
+
+		Callback = FindParam(list.front(), true, true);
+	}
+
+	if (!Callback)
+	{
+		kDebug(1, "cannot create option: {}", sOptionName);
+		static std::vector<KStringViewZ> s_Empty;
+		return Values(*this, s_Empty, false, nullptr);
 	}
 
 	if (Callback->m_bArgsAreDefaults)

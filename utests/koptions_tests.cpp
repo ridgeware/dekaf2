@@ -947,6 +947,67 @@ TEST_CASE("KOptions2")
 		CHECK ( Defaults.size() == 2 );
 		CHECK ( Opt.GetUnknownCommands().empty() );
 	}
+
+	SECTION("ad hoc help after other options")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-second", "2",
+			"-help",
+			"-path", "/some/path"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		KStringViewZ sFirst  = Opt("first <f>   : the first option", "");
+		KStringViewZ sSecond = Opt("second <s>  : the second option", "");
+		KStringViewZ sPath   = Opt("path <path> : a path", "");
+
+		// the arguments after -help are parsed as well
+		CHECK ( sFirst.empty()          );
+		CHECK ( sSecond == "2"          );
+		CHECK ( sPath   == "/some/path" );
+		CHECK ( Opt.Terminate()         );
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		CHECK ( Opt.Check(oss) == false );
+
+		// the help has the declared names and texts, in the order of the declarations
+		auto iFirst  = sOut.find("-first <f>");
+		auto iSecond = sOut.find("-second <s>");
+		auto iPath   = sOut.find("-path <path>");
+
+		REQUIRE ( iFirst  != npos   );
+		REQUIRE ( iSecond != npos   );
+		REQUIRE ( iPath   != npos   );
+		CHECK   ( iFirst  <  iSecond );
+		CHECK   ( iSecond <  iPath   );
+		CHECK   ( sOut.contains("the second option") );
+	}
+
+	SECTION("ad hoc help printed by Help() after parsing")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-n", "5"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		uint16_t iMax = Opt("n <max> : max connections", 10);
+		CHECK ( iMax == 5 );
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		Opt.Help(oss);
+
+		CHECK ( sOut.contains("-n <max>")        );
+		CHECK ( sOut.contains("max connections") );
+		CHECK ( Opt.Check(oss) == true           );
+	}
 }
 
 TEST_CASE("KOptions control flow")

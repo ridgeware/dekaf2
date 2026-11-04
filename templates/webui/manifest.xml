@@ -1,0 +1,6 @@
+<manifest>
+	<description>
+	a web server with HTML pages and a settings form, optionally behind a login
+	</description>
+	<feature name="service">run as a service of systemd, launchd or the Windows service manager</feature>
+</manifest>

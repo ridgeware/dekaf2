@@ -1,0 +1,5 @@
+<manifest>
+	<description>
+	a desktop application on the system webview, optionally serving browsers on the network
+	</description>
+</manifest>

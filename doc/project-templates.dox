@@ -60,7 +60,7 @@
 /// #### Variables
 ///
 /// After the marker lines, variables of the form `__Name__` are replaced, in the
-/// contents and in the names of the files:
+/// contents of the files and in the names of files and directories:
 ///
 /// | Variable                             | Value                                                |
 /// |--------------------------------------|------------------------------------------------------|

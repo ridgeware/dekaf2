@@ -1,0 +1,6 @@
+<manifest>
+	<description>
+	a websocket server with a chat as example, and a page to try it in the browser
+	</description>
+	<feature name="service">run as a service of systemd, launchd or the Windows service manager</feature>
+</manifest>

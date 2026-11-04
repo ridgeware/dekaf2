@@ -598,7 +598,7 @@ void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFrom
 				continue;
 			}
 
-			KString sNewOut  = kFormat("{}{}{}", sOutputDir, kDirSep, File.Filename());
+			KString sNewOut  = kFormat("{}{}{}", sOutputDir, kDirSep, m_Variables.Replace(File.Filename()));
 			KString sNewFrom = kFormat("{}{}{}", sFromDir,   kDirSep, File.Filename());
 			CopyDirRecursive(sNewOut, sNewFrom, iRecursion + 1, bAddFeature);
 		}

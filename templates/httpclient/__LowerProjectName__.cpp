@@ -7,6 +7,8 @@
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/core/strings/ksplit.h>
 #include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/io/streams/koutstringstream.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 
 using namespace dekaf2;
 
@@ -21,10 +23,13 @@ __ProjectName__::__ProjectName__ ()
 }
 
 //-----------------------------------------------------------------------------
-void __ProjectName__::ServerQuery ()
+bool __ProjectName__::ServerQuery ()
 //-----------------------------------------------------------------------------
 {
 	KWebClient HTTP;
+
+	HTTP.SetVerifyCerts (m_Config.bVerifyCerts);
+	HTTP.SetTimeout (m_Config.Timeout);
 
 	for (const auto& Header : m_Config.Headers)
 	{
@@ -38,11 +43,30 @@ void __ProjectName__::ServerQuery ()
 	if (!HTTP.HttpSuccess())
 	{
 		KErr.WriteLine (HTTP.Error());
+		return false;
 	}
-	else
+
+	KString sOutput;
+
+	if (m_Config.bShowHeaders)
 	{
-		KOut.WriteLine (sResponse);
+		// the response class hides Serialize(), write the received headers through its base class
+		KOutStringStream Headers(sOutput);
+		static_cast<const KHTTPResponseHeaders&>(HTTP.Response).Serialize(Headers);
 	}
+
+	sOutput += sResponse;
+
+	if (m_Config.sOutFile.empty())
+	{
+		KOut.WriteLine (sOutput);
+	}
+	else if (!kWriteFile (m_Config.sOutFile, sOutput))
+	{
+		throw KException(kFormat("cannot write to {}", m_Config.sOutFile));
+	}
+
+	return true;
 
 } // ServerQuery
 
@@ -63,7 +87,7 @@ int __ProjectName__::Main (int argc, char** argv)
 		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
 		Options
-			.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
+			.SetBriefDescription       ("dekaf2 __ProjectType__ template")
 			// .SetHelpSeparator          ("::")             // the column separator between option and help text
 			// .SetLinefeedBetweenOptions (false)            // add linefeed between separate options or commands?
 			// .SetWrappedHelpIndent      (1)                // the indent for continuation help text
@@ -75,6 +99,10 @@ int __ProjectName__::Main (int argc, char** argv)
 		KStringViewZ              sData        = Options("D,data [@]<data>   : add literal request body, or with @ take contents of file", "");
 		KStringViewZ              sMimeType    = Options("M,mime <mime>      : mime type, default = application/json", "");
 		std::vector<KStringViewZ> Headers      = Options("H,header <header>  : add HTTP header to the request (can be used multiple times)", std::vector<KStringViewZ>{}).MaxArgs(1);
+		m_Config.bVerifyCerts                  =!Options("k,insecure         : do not verify the TLS certificate of the server", false);
+		m_Config.Timeout                       = chrono::seconds(Options("timeout <seconds> : connect and read timeout (default 15)", 15).Range(1, 3600).UInt16());
+		m_Config.sOutFile                      = Options("o,output <file>    : write the response to <file> instead of stdout", "");
+		m_Config.bShowHeaders                  = Options("i,include          : include the response headers in the output", false);
 		bool                      bShowVersion = Options("version            : show version information", false);
 
 		// ---- insert project specific options here ----
@@ -144,9 +172,7 @@ int __ProjectName__::Main (int argc, char** argv)
 		throw KException ("missing URL");
 	}
 
-	ServerQuery ();
-
-	return 0;
+	return ServerQuery () ? 0 : 1;
 
 } // Main
 

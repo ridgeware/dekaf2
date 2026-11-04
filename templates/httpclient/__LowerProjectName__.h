@@ -33,7 +33,7 @@ public:
 protected:
 //----------
 
-	void ServerQuery ();
+	bool ServerQuery ();
 	void ShowVersion ();
 
 	using HeaderMap = KMap<KString, KString>;
@@ -45,6 +45,10 @@ protected:
 		KMIME       MimeType   { KMIME::JSON };
 		KString     sBody;
 		HeaderMap   Headers;
+		KDuration   Timeout;
+		KString     sOutFile;
+		bool        bVerifyCerts { true  };
+		bool        bShowHeaders { false };
 	};
 
 	Config m_Config;

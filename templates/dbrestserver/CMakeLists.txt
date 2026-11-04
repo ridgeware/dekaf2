@@ -2,18 +2,16 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-# ==================================== PROJECT =====================================
+if (POLICY CMP0091)
+	# let the dekaf2 setup select the runtime library on Windows - dekaf2 may be
+	# linked against the static runtime, and every target then has to use the same
+	cmake_policy(SET CMP0091 NEW)
+endif()
 
-# allow version number in project command
-cmake_policy(SET CMP0048 NEW)
+# ==================================== PROJECT =====================================
 
 # declare the project
 project(__LowerProjectName__ VERSION __ProjectVersion__ DESCRIPTION "__ProjectName__ based on dekaf2")
-
-set(CMAKE_CXX_STANDARD 17)
-
-# if this project requires a specific C++ version, uncomment the next line
-#set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ==================================== BUILD TYPE ==================================
 
@@ -37,6 +35,7 @@ endif()
 
 # =================================== LIBRARIES ====================================
 
+# take over the build flags of dekaf2, including its C++ standard
 set(DEKAF2_INHERIT_BUILD_FLAGS ON)
 find_package(dekaf2 2.0 REQUIRED)
 

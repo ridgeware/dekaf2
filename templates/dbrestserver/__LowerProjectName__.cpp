@@ -8,7 +8,12 @@
 #include <dekaf2/io/streams/kstream.h>
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/crypto/auth/kopenid.h>
+#include <dekaf2/crypto/rsa/krsacert.h>
 #include <dekaf2/data/json/kjson.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/net/address/knetworkinterface.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/kservice.h>
 
 constexpr
 KRESTRoutes::MemberFunctionTable<__ProjectName__> __ProjectName__Routes[]
@@ -127,11 +132,12 @@ int __ProjectName__::Main (int argc, char** argv)
 		KOptions Options(false, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
 		Options
-			.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
+			.SetBriefDescription       ("dekaf2 __ProjectType__ template")
 			// .SetHelpSeparator          ("::")            // the column separator between option and help text
 			// .SetLinefeedBetweenOptions (false)           // add linefeed between separate options or commands?
 			// .SetWrappedHelpIndent      (1)               // the indent for continuation help text
-			.SetSpacingPerSection      (true);              // whether commands and options get the same or separate column layout
+			.SetSpacingPerSection      (true)               // whether commands and options get the same or separate column layout
+			.SetAdditionalHelp         (KService::GetHelp()); // the options to run as a service of systemd, launchd or Windows
 
 		bool bShowVersion = Options("version : show software version and exit", false);
 
@@ -159,6 +165,8 @@ int __ProjectName__::Main (int argc, char** argv)
 		                                                     "<type> is one of JSON, COMMON, COMBINED, EXTENDED, PARSED, default EXTENDED. "
 		                                                     "For PARSED, define <format> string in apache format (e.g. \"%h %l %u %t \\\"%r\\\" %>s %b \\\"%{Referer}i\\\"\")",
 		                                                     std::vector<KStringViewZ>{});
+		KStringViewZ              sRestLogPeriod   = Options("restlogperiod <period>     : start a new rest log file every day, week or month at midnight UTC, and rename the past ones after their period - default off", "");
+		uint16_t                  iRestLogKeep     = Options("restlogkeep <count>        : the number of past rest log files to keep with -restlogperiod (default 0 == all)", 0);
 		m_ServerOptions.KLogHeader                 = Options("headerlog <name>           : header name with which a client requests the debug log of its request - choose an unguessable name and use it only in trusted networks, default off", "");
 
 		Options.Section("rate and connection limits:");
@@ -364,10 +372,47 @@ int __ProjectName__::Main (int argc, char** argv)
 				}
 			}
 
-			if (!m_ServerOptions.Logger.Open(Format, RestLog[0], sFormat))
+			bool bOpened { false };
+
+			if (sRestLogPeriod.empty())
+			{
+				bOpened = m_ServerOptions.Logger.Open(Format, RestLog[0], sFormat);
+			}
+			else
+			{
+				KDatedLogFile::Options Dated;
+
+				switch (sRestLogPeriod.ToLowerASCII().Hash())
+				{
+					case "day"_hash:
+						Dated.Period = KDatedLogFile::Day;
+						break;
+					case "week"_hash:
+						Dated.Period = KDatedLogFile::Week;
+						break;
+					case "month"_hash:
+						Dated.Period = KDatedLogFile::Month;
+						break;
+					default:
+						throw KException(kFormat("unknown log period '{}' - must be one of day, week, month", sRestLogPeriod));
+				}
+
+				if (iRestLogKeep)
+				{
+					Dated.iRotations = iRestLogKeep;
+				}
+
+				bOpened = m_ServerOptions.Logger.Open(Format, RestLog[0], sFormat, Dated);
+			}
+
+			if (!bOpened)
 			{
 				throw KException("cannot open log stream");
 			}
+		}
+		else if (!sRestLogPeriod.empty())
+		{
+			throw KException("restlogperiod needs a restlog");
 		}
 
 		if (!sSimulate.empty())
@@ -480,15 +525,63 @@ int __ProjectName__::Main (int argc, char** argv)
 	// add a HTTP header that counts API execution time
 	m_ServerOptions.TimerHeader = "x-milliseconds";
 
-	// setup record file name
-	m_ServerOptions.sRecordFile = s_sRecordFile;
-	// and check if we shall switch recording on
-	m_ServerOptions.bRecordRequest = kFileExists (s_sRecordFlag);
-
 	// create a REST router
 	KRESTRoutes Routes;
 	// add our REST routes to it
 	Routes.AddMemberFunctionTable(*this, __ProjectName__Routes);
+
+	if (m_ServerOptions.Type == KREST::HTTP)
+	{
+		bool bTLS        = m_ServerOptions.bCreateEphemeralCert || !m_ServerOptions.sCert.empty();
+		bool bSelfSigned = m_ServerOptions.bCreateEphemeralCert &&  m_ServerOptions.sCert.empty() && m_ServerOptions.ACMEDomains.empty();
+
+		if (bSelfSigned)
+		{
+			// offer the self-signed certificate for the import into the trust store of a client
+			Routes.AddRoute("/.well-known/cert.pem").Get([](KRESTServer& HTTP)
+			{
+				KString sCert;
+
+				if (!kReadTextFile(KRSACert::GetDefaultCertFilename(), sCert) || sCert.empty())
+				{
+					throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "certificate not available - start the server with -persist" };
+				}
+
+				HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, "application/x-pem-file");
+				HTTP.SetRawOutput(std::move(sCert));
+
+			}).Parse(KRESTRoute::NOREAD);
+		}
+
+		KStringView sScheme = bTLS ? "https" : "http";
+
+		if (!m_ServerOptions.sBindAddress.empty())
+		{
+			kPrintLine(":: listening at {}://{}:{}", sScheme, m_ServerOptions.sBindAddress, m_ServerOptions.iPort);
+		}
+		else
+		{
+			for (auto& Network : KNetworkInterface::GetRoutableNetworks())
+			{
+				if (Network.Is6())
+				{
+					kPrintLine(":: reachable at {}://[{}]:{}", sScheme, Network.ToString(false), m_ServerOptions.iPort);
+				}
+				else
+				{
+					kPrintLine(":: reachable at {}://{}:{}", sScheme, Network.ToString(false), m_ServerOptions.iPort);
+				}
+			}
+		}
+
+		if (bSelfSigned)
+		{
+			kPrintLine(":: self-signed certificate at /.well-known/cert.pem");
+		}
+
+		// stdout is buffered when it goes into a file or the log of a service manager
+		KOut.Flush();
+	}
 
 	// create the REST service itself
 	KREST REST;
@@ -507,19 +600,28 @@ int __ProjectName__::Main (int argc, char** argv)
 int main (int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	try
-	{
-		return __ProjectName__().Main (argc, argv);
-	}
-	catch (const KException& ex)
-	{
-		KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
-	}
-	catch (const std::exception& ex)
-	{
-		KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
-	}
-	return 1;
+	// KService::Run() handles -install, -uninstall, -start, -stop and -status, and runs
+	// Main() under systemd, launchd or the Windows service manager, or interactively
+	return KService::Run("__LowerProjectName__", argc, argv,
+		[](int ac, char** av)
+		{
+			try
+			{
+				return __ProjectName__().Main (ac, av);
+			}
+			catch (const KException& ex)
+			{
+				KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
+			}
+			catch (const std::exception& ex)
+			{
+				KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
+			}
+			return 1;
+		},
+		/*bSuppressHelp*/true, // the service options are part of our own help
+		__ProjectName__::s_sProjectName,
+		"dekaf2 __ProjectType__ template");
 
 } // main
 
@@ -533,6 +635,4 @@ constexpr KStringViewZ __ProjectName__::s_sProjectName;
 constexpr KStringViewZ __ProjectName__::s_sProjectVersion;
 constexpr KStringView  __ProjectName__::s_SSOProvider;
 constexpr KStringView  __ProjectName__::s_SSOScope;
-constexpr KStringViewZ __ProjectName__::s_sRecordFlag;
-constexpr KStringViewZ __ProjectName__::s_sRecordFile;
 #endif

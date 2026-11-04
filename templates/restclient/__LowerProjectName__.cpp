@@ -7,6 +7,7 @@
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/core/strings/ksplit.h>
 #include <dekaf2/rest/framework/krestclient.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 
 using namespace dekaf2;
 
@@ -26,6 +27,9 @@ void __ProjectName__::ServerQuery ()
 {
 	KJsonRestClient HTTP (m_Config.URL);
 
+	HTTP.SetVerifyCerts (m_Config.bVerifyCerts);
+	HTTP.SetTimeout (m_Config.Timeout);
+
 	for (const auto& Header : m_Config.Headers)
 	{
 		HTTP.AddHeader (Header.first, Header.second);
@@ -35,7 +39,16 @@ void __ProjectName__::ServerQuery ()
 	auto sResponse = HTTP.Verb(m_Config.Method)
 	                     .Request(m_Config.jBody);
 
-	kWriteLine (sResponse.dump());
+	auto sOutput = m_Config.bPretty ? sResponse.dump(1, '\t') : sResponse.dump();
+
+	if (m_Config.sOutFile.empty())
+	{
+		kWriteLine (sOutput);
+	}
+	else if (!kWriteFile (m_Config.sOutFile, sOutput))
+	{
+		throw KException(kFormat("cannot write to {}", m_Config.sOutFile));
+	}
 
 } // ServerQuery
 
@@ -56,7 +69,7 @@ int __ProjectName__::Main (int argc, char** argv)
 		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
 		Options
-			.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
+			.SetBriefDescription       ("dekaf2 __ProjectType__ template")
 			// .SetHelpSeparator          ("::")             // the column separator between option and help text
 			// .SetLinefeedBetweenOptions (false)            // add linefeed between separate options or commands?
 			// .SetWrappedHelpIndent      (1)                // the indent for continuation help text
@@ -67,6 +80,10 @@ int __ProjectName__::Main (int argc, char** argv)
 		KStringViewZ              sMethod      = Options("X,request <method> : set request method (default = GET)", "GET");
 		KStringViewZ              sData        = Options("D,data [@]<data>   : add literal request body, or with @ take contents of file", "");
 		std::vector<KStringViewZ> Headers      = Options("H,header <header>  : add HTTP header to the request (can be used multiple times)", std::vector<KStringViewZ>{}).MaxArgs(1);
+		m_Config.bVerifyCerts                  =!Options("k,insecure         : do not verify the TLS certificate of the server", false);
+		m_Config.Timeout                       = chrono::seconds(Options("timeout <seconds> : connect and read timeout (default 15)", 15).Range(1, 3600).UInt16());
+		m_Config.sOutFile                      = Options("o,output <file>    : write the response to <file> instead of stdout", "");
+		m_Config.bPretty                       = Options("pretty             : pretty print the JSON response", false);
 		bool                      bShowVersion = Options("version            : show version information", false);
 
 		// ---- insert project specific options here ----

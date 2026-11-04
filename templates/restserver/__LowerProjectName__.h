@@ -60,7 +60,4 @@ private:
 	static constexpr KStringView s_SSOProvider  = "__SSOProvider__";
 	static constexpr KStringView s_SSOScope     = "__SSOScope__";
 
-	static constexpr KStringViewZ s_sRecordFlag = "/tmp/__LowerProjectName__.record";
-	static constexpr KStringViewZ s_sRecordFile = "/tmp/__LowerProjectName__.log";
-
 }; // __ProjectName__

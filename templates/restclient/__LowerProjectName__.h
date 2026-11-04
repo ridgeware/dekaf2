@@ -44,6 +44,10 @@ protected:
 		KHTTPMethod Method     { KHTTPMethod::GET };
 		KJSON       jBody;
 		HeaderMap   Headers;
+		KDuration   Timeout;
+		KString     sOutFile;
+		bool        bVerifyCerts { true  };
+		bool        bPretty      { false };
 	};
 
 	Config m_Config;

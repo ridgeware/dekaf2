@@ -35,7 +35,7 @@ int __ProjectName__::Main(int argc, char** argv)
 		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
 		Options
-			.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
+			.SetBriefDescription       ("dekaf2 __ProjectType__ template")
 			// .SetHelpSeparator          ("::")             // the column separator between option and help text
 			// .SetLinefeedBetweenOptions (false)            // add linefeed between separate options or commands?
 			// .SetWrappedHelpIndent      (1)                // the indent for continuation help text

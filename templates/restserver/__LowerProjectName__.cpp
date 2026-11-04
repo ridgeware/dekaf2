@@ -1,5 +1,8 @@
 
 #include "__LowerProjectName__.h"
+//@if db
+#include "db.h"
+//@endif
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
@@ -12,7 +15,9 @@
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/net/address/knetworkinterface.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+//@if service
 #include <dekaf2/system/os/kservice.h>
+//@endif
 
 constexpr
 KRESTRoutes::MemberFunctionTable<__ProjectName__> __ProjectName__Routes[]
@@ -57,6 +62,26 @@ void __ProjectName__::SetupInputFile (KREST::ServerType Type, const KOptions::Va
 
 } // SetupInputFile
 
+//@if db
+//-----------------------------------------------------------------------------
+const __ProjectName__::IniParms& __ProjectName__::GetIniParms ()
+//-----------------------------------------------------------------------------
+{
+	if (!s_bINILoaded)
+	{
+		static std::mutex Mutex;
+		std::lock_guard Lock(Mutex);
+
+		s_INI.Load (__UpperProjectName___INI);
+
+		s_bINILoaded = true;
+	}
+
+	return s_INI;
+
+} // GetIniParms
+
+//@endif
 //-----------------------------------------------------------------------------
 __ProjectName__::__ProjectName__ ()
 //-----------------------------------------------------------------------------
@@ -118,7 +143,10 @@ int __ProjectName__::Main (int argc, char** argv)
 			// .SetLinefeedBetweenOptions (false)           // add linefeed between separate options or commands?
 			// .SetWrappedHelpIndent      (1)               // the indent for continuation help text
 			.SetSpacingPerSection      (true)               // whether commands and options get the same or separate column layout
-			.SetAdditionalHelp         (KService::GetHelp()); // the options to run as a service of systemd, launchd or Windows
+//@if service
+			.SetAdditionalHelp         (KService::GetHelp()) // the options to run as a service of systemd, launchd or Windows
+//@endif
+		;
 
 		bool bShowVersion = Options("version : show software version and exit", false);
 
@@ -183,6 +211,14 @@ int __ProjectName__::Main (int argc, char** argv)
 
 			m_ServerOptions.iSSOLevel              = Options("ssolevel <0..2>            : set SSO authentication level, default = 0 (off), header check = 1, real check = 2", 0).Range(0, 2);
 		}
+//@if db
+
+		Options.Section("database related options:");
+
+		KStringViewZ              sDBCFile         = Options("dbc <file>                 : set database connection", "").Type(KOptions::File);
+		bool                      bSchema          = Options("schema                     : check (possibly upgrade) the database schema", false);
+		bool                      bSchemaForce     = Options("schemaforce                : force recreation of the schema (be careful)", false);
+//@endif
 
 		Options.Section("options for simulation mode (local testing):");
 
@@ -213,6 +249,34 @@ int __ProjectName__::Main (int argc, char** argv)
 			ShowVersion();
 			return 0;
 		}
+//@if db
+
+		if (!sDBCFile.empty())
+		{
+			// set the static DBC file
+			DB::SetDBCFilename (sDBCFile);
+		}
+
+		if (bSchemaForce)
+		{
+			kDebug (1, "schema FORCE logic");
+			DB::Get ()->EnsureSchema (/*bForce=*/true);
+			return 0;
+		}
+
+		if (bSchema)
+		{
+			auto pdb = DB::Get ();
+
+			uint16_t iAmAt = pdb->GetSchema ("__UpperProjectName___SCHEMA");
+			uint16_t iWant = DB::CURRENT_SCHEMA;
+			if (iAmAt != iWant)
+			{
+				pdb->EnsureSchema (/*bForce=*/false);
+			}
+			return 0;
+		}
+//@endif
 
 		if (iPort)
 		{
@@ -531,6 +595,7 @@ int __ProjectName__::Main (int argc, char** argv)
 		// stdout is buffered when it goes into a file or the log of a service manager
 		KOut.Flush();
 	}
+
 	// create the REST service itself
 	KREST REST;
 
@@ -549,30 +614,41 @@ int __ProjectName__::Main (int argc, char** argv)
 int main (int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
+	auto RunMain = [](int ac, char** av)
+	{
+		try
+		{
+			return __ProjectName__().Main (ac, av);
+		}
+		catch (const KException& ex)
+		{
+			KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
+		}
+		catch (const std::exception& ex)
+		{
+			KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
+		}
+		return 1;
+	};
+
+//@if service
 	// KService::Run() handles -install, -uninstall, -start, -stop and -status, and runs
 	// Main() under systemd, launchd or the Windows service manager, or interactively
-	return KService::Run("__LowerProjectName__", argc, argv,
-		[](int ac, char** av)
-		{
-			try
-			{
-				return __ProjectName__().Main (ac, av);
-			}
-			catch (const KException& ex)
-			{
-				KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
-			}
-			catch (const std::exception& ex)
-			{
-				KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
-			}
-			return 1;
-		},
+	return KService::Run("__LowerProjectName__", argc, argv, RunMain,
 		/*bSuppressHelp*/true, // the service options are part of our own help
 		__ProjectName__::s_sProjectName,
 		"dekaf2 __ProjectType__ template");
+//@else
+	return RunMain(argc, argv);
+//@endif
 
 } // main
+//@if db
+
+// static variables
+bool __ProjectName__::s_bINILoaded { false };
+__ProjectName__::IniParms __ProjectName__::s_INI;
+//@endif
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr KStringViewZ __ProjectName__::s_sProjectName;

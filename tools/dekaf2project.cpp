@@ -44,6 +44,7 @@
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kjoin.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
@@ -68,6 +69,7 @@ constexpr KStringView g_Synopsis[] = {
 	"  -p,path <ProjectPath>  :: path to project root, name is added, default = current directory",
 	"  -s,sso  <URL> <Scope>  :: URL and scope of SSO server, default = none",
 	"  -v,version <Version>   :: version string, default = 1.0.0",
+	"  -with <features>       :: comma separated list of features to add to the project type, or all",
 	"  -templates <path>      :: path to templates, defaults to system install dir"
 };
 
@@ -89,6 +91,34 @@ public:
 private:
 //----------
 
+	/// a part that can be added to a project type
+	struct Feature
+	{
+		KString sName;
+		KString sDescription;
+		bool    bEnabled { false };
+	};
+
+	/// the content of the manifest.xml of a project type
+	struct Manifest
+	{
+		KString              sDescription;
+		/// the features that can be added to the project type
+		std::vector<Feature> Features;
+	};
+
+	/// read the manifest of the project type in sTemplateDir
+	static Manifest ReadManifest(KStringViewZ sTemplateDir);
+	/// add the names of a comma separated list to Names
+	static void AddFeatureNames(std::vector<KString>& Names, KStringView sList);
+	/// enable the features of -with
+	void SelectFeatures();
+	/// returns the feature with sName, or nullptr
+	const Feature* FindFeature(KStringView sName) const;
+	/// returns the directories with the files of the enabled features
+	std::vector<KString> GetFeatureDirs() const;
+	/// remove the lines of the features that are not enabled, and the marker lines
+	KString SelectLines(KStringView sContent, KStringView sFilename) const;
 	/// set fixed variables
 	void SetupVariables();
 	/// compute remaining values from set values
@@ -96,9 +126,11 @@ private:
 	void PrintReplacedFile (KStringViewZ sOutFile, KStringViewZ sInFile);
 	void CreateBuildSystem (KStringView sBuildType);
 	void InstallTemplateDir();
-	void CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFromDir, uint16_t iRecursion = 1);
+	void CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFromDir, uint16_t iRecursion = 1, bool bAddFeature = false);
 
 	KString m_sProjectType { "cli" };
+	std::vector<KString> m_With;
+	std::vector<Feature> m_Features;
 	KString m_sProjectName;
 	KString m_sProjectPath;
 	KString m_sProjectVersion { "0.0.1" };
@@ -173,6 +205,12 @@ CreateProject::CreateProject ()
 		m_sProjectType = sType;
 	});
 
+	m_Options.Option("with", "feature list")
+	([&](KStringViewZ sFeatures)
+	{
+		AddFeatureNames(m_With, sFeatures);
+	});
+
 	m_Options.Option("templates", "templates path")
 	([&](KStringViewZ sPath)
 	{
@@ -185,11 +223,6 @@ CreateProject::CreateProject ()
 		m_SSOProvider = SSO.pop();
 		m_SSOScope    = SSO.pop();
 	});
-
-	if (!kDirExists(m_sCanonicalTemplateDir))
-	{
-		throw KException(kFormat("template directory not found: {}", m_sCanonicalTemplateDir));
-	}
 
 } // ctor
 
@@ -207,33 +240,298 @@ void CreateProject::ShowAllTemplates()
 
 	for (const auto& Template : Templates)
 	{
+		// directories starting with + hold the files of features, not project types
+		if (Template.Filename().starts_with('+'))
+		{
+			continue;
+		}
+
 		// check if the template directory is empty - then ignore it
 		KDirectory Target(Template.Path(), KFileType::FILE);
 
 		if (!Target.empty())
 		{
 			KOut.FormatLine(" {}", Template.Filename());
-			auto ManifestFile = Target.Find("manifest.xml");
-			if (ManifestFile != Target.end())
+
+			auto Manifest = ReadManifest(Template.Path());
+
+			if (!Manifest.sDescription.empty())
 			{
-				KXML Manifest(KInFile(ManifestFile->Path()), true);
-				auto Description = Manifest.Child("manifest").Child("description");
-				if (Description)
-				{
-					auto sDescription = Description.GetValue();
-					sDescription.TrimLeft("\t ");
-					sDescription.TrimLeft("\r\n");
-					sDescription.TrimRight("\r\n\t ");
-					KOut.WriteLine(sDescription);
-					KOut.WriteLine();
-				}
+				KOut.WriteLine(Manifest.sDescription);
 			}
+
+			std::size_t iMaxName { 0 };
+
+			for (const auto& Feature : Manifest.Features)
+			{
+				iMaxName = std::max(iMaxName, Feature.sName.size());
+			}
+
+			for (const auto& Feature : Manifest.Features)
+			{
+				KOut.FormatLine("\t-with {:<{}} : {}", Feature.sName, iMaxName, Feature.sDescription);
+			}
+
+			KOut.WriteLine();
 		}
 	}
 
 	KOut.WriteLine();
 
 } // ShowAllTemplates
+
+//-----------------------------------------------------------------------------
+CreateProject::Manifest CreateProject::ReadManifest(KStringViewZ sTemplateDir)
+//-----------------------------------------------------------------------------
+{
+	Manifest Result;
+
+	auto sManifestFile = kFormat("{}{}manifest.xml", sTemplateDir, kDirSep);
+
+	if (!kFileExists(sManifestFile))
+	{
+		return Result;
+	}
+
+	KXML XML(KInFile(sManifestFile), true);
+	auto Root = XML.Child("manifest");
+
+	// the description keeps its indent
+	auto sDescription = Root.Child("description").GetValue();
+	sDescription.TrimLeft("\t ");
+	sDescription.TrimLeft("\r\n");
+	sDescription.TrimRight("\r\n\t ");
+	Result.sDescription = sDescription;
+
+	for (auto Node = Root.Child("feature"); Node; Node = Node.Next("feature"))
+	{
+		Feature NewFeature;
+
+		NewFeature.sName = Node.Attribute("name").GetValue();
+
+		auto sFeatureDescription = Node.GetValue();
+		sFeatureDescription.Trim();
+		NewFeature.sDescription = sFeatureDescription;
+
+		if (NewFeature.sName.empty())
+		{
+			throw KException(kFormat("feature without a name in {}", sManifestFile));
+		}
+
+		if (NewFeature.sName == "all")
+		{
+			throw KException(kFormat("feature name 'all' is reserved for all features, in {}", sManifestFile));
+		}
+
+		Result.Features.push_back(std::move(NewFeature));
+	}
+
+	return Result;
+
+} // ReadManifest
+
+//-----------------------------------------------------------------------------
+void CreateProject::AddFeatureNames(std::vector<KString>& Names, KStringView sList)
+//-----------------------------------------------------------------------------
+{
+	for (auto sName : sList.Split(","))
+	{
+		if (!sName.empty())
+		{
+			Names.push_back(sName);
+		}
+	}
+
+} // AddFeatureNames
+
+//-----------------------------------------------------------------------------
+const CreateProject::Feature* CreateProject::FindFeature(KStringView sName) const
+//-----------------------------------------------------------------------------
+{
+	for (const auto& Feature : m_Features)
+	{
+		if (Feature.sName == sName)
+		{
+			return &Feature;
+		}
+	}
+
+	return nullptr;
+
+} // FindFeature
+
+//-----------------------------------------------------------------------------
+void CreateProject::SelectFeatures()
+//-----------------------------------------------------------------------------
+{
+	for (const auto& sName : m_With)
+	{
+		if (sName == "all")
+		{
+			for (auto& Feature : m_Features)
+			{
+				Feature.bEnabled = true;
+			}
+
+			continue;
+		}
+
+		auto Feature = std::find_if(m_Features.begin(), m_Features.end(), [&sName](const CreateProject::Feature& Known)
+		{
+			return Known.sName == sName;
+		});
+
+		if (Feature == m_Features.end())
+		{
+			std::vector<KStringView> Names;
+
+			for (const auto& Known : m_Features)
+			{
+				Names.push_back(Known.sName);
+			}
+
+			throw KException(kFormat("project type {} has no feature '{}'{}{}",
+			                         m_sProjectType,
+			                         sName,
+			                         Names.empty() ? " - it has no features" : " - its features are: ",
+			                         kJoined(Names, ", ")));
+		}
+
+		Feature->bEnabled = true;
+	}
+
+} // SelectFeatures
+
+//-----------------------------------------------------------------------------
+std::vector<KString> CreateProject::GetFeatureDirs() const
+//-----------------------------------------------------------------------------
+{
+	std::vector<KString> Dirs;
+
+	for (const auto& Feature : m_Features)
+	{
+		if (Feature.bEnabled)
+		{
+			// the files of a feature can belong to the project type, or be shared by all types
+			for (auto sDir : { kFormat("{}{}+{}", m_sTemplateDir,          kDirSep, Feature.sName),
+			                   kFormat("{}{}+{}", m_sCanonicalTemplateDir, kDirSep, Feature.sName) })
+			{
+				if (kDirExists(sDir))
+				{
+					Dirs.push_back(std::move(sDir));
+				}
+			}
+		}
+	}
+
+	return Dirs;
+
+} // GetFeatureDirs
+
+//-----------------------------------------------------------------------------
+KString CreateProject::SelectLines(KStringView sContent, KStringView sFilename) const
+//-----------------------------------------------------------------------------
+{
+	// a block between //@if and //@endif (or #@if and #@endif), with an optional //@else
+	struct Block
+	{
+		bool        bWrite;     // are the lines of the block written?
+		bool        bOuter;     // are the lines around the block written?
+		bool        bCondition; // the value of the //@if condition
+		bool        bElse;      // was the //@else seen?
+		std::size_t iIf;        // the line of the //@if
+	};
+
+	std::vector<Block> Blocks;
+	KString            sResult;
+	std::size_t        iLine { 0 };
+
+	auto Error = [&](KStringView sMessage)
+	{
+		return KException(kFormat("{} in {}:{}", sMessage, sFilename, iLine));
+	};
+
+	while (!sContent.empty())
+	{
+		++iLine;
+
+		auto iEnd  = sContent.find('\n');
+		auto sLine = sContent.substr(0, iEnd == KStringView::npos ? KStringView::npos : iEnd + 1);
+		sContent.remove_prefix(sLine.size());
+
+		bool bWrite = Blocks.empty() || Blocks.back().bWrite;
+
+		KStringView sMarker = sLine;
+		sMarker.TrimLeft(" \t");
+
+		if (!sMarker.remove_prefix("//@") && !sMarker.remove_prefix("#@"))
+		{
+			if (bWrite)
+			{
+				sResult += sLine;
+			}
+
+			continue;
+		}
+
+		sMarker.TrimRight();
+
+		auto iSpace     = sMarker.find_first_of(" \t");
+		auto sDirective = sMarker.substr(0, iSpace);
+		auto sArgument  = iSpace == KStringView::npos ? KStringView{} : sMarker.substr(iSpace);
+		sArgument.Trim();
+
+		if (sDirective == "if")
+		{
+			bool bNegate = sArgument.remove_prefix("!");
+			sArgument.TrimLeft();
+
+			auto Feature = FindFeature(sArgument);
+
+			if (!Feature)
+			{
+				throw Error(kFormat("unknown feature '{}'", sArgument));
+			}
+
+			bool bCondition = Feature->bEnabled != bNegate;
+
+			Blocks.push_back({ bWrite && bCondition, bWrite, bCondition, false, iLine });
+		}
+		else if (sDirective == "else")
+		{
+			if (Blocks.empty() || Blocks.back().bElse)
+			{
+				throw Error("@else without @if");
+			}
+
+			auto& Current  = Blocks.back();
+			Current.bElse  = true;
+			Current.bWrite = Current.bOuter && !Current.bCondition;
+		}
+		else if (sDirective == "endif")
+		{
+			if (Blocks.empty())
+			{
+				throw Error("@endif without @if");
+			}
+
+			Blocks.pop_back();
+		}
+		else
+		{
+			throw Error(kFormat("unknown template directive '@{}'", sDirective));
+		}
+	}
+
+	if (!Blocks.empty())
+	{
+		iLine = Blocks.back().iIf;
+		throw Error("missing @endif for the @if");
+	}
+
+	return sResult;
+
+} // SelectLines
 
 //-----------------------------------------------------------------------------
 void CreateProject::SetupVariables()
@@ -262,17 +560,35 @@ void CreateProject::SetupVariables()
 		throw KException(kFormat("cannot open template type: {}", m_sProjectType));
 	}
 
-	Directory.Sort();
+	// the files of the project type and of its enabled features
+	std::vector<KString> Filenames;
 
 	for (const auto& File : Directory)
 	{
-		if (File.Filename().ends_with(".cpp"))
+		Filenames.push_back(File.Filename());
+	}
+
+	for (const auto& sFeatureDir : GetFeatureDirs())
+	{
+		KDirectory FeatureDirectory(sFeatureDir, KFileType::FILE);
+
+		for (const auto& File : FeatureDirectory)
 		{
-			sSourceFiles += kFormat("    {}\n", m_Variables.Replace(File.Filename()));
+			Filenames.push_back(File.Filename());
 		}
-		else if (File.Filename().ends_with(".h"))
+	}
+
+	std::sort(Filenames.begin(), Filenames.end());
+
+	for (const auto& sFilename : Filenames)
+	{
+		if (sFilename.ends_with(".cpp"))
 		{
-			sHeaderFiles += kFormat("    {}\n", m_Variables.Replace(File.Filename()));
+			sSourceFiles += kFormat("    {}\n", m_Variables.Replace(sFilename));
+		}
+		else if (sFilename.ends_with(".h"))
+		{
+			sHeaderFiles += kFormat("    {}\n", m_Variables.Replace(sFilename));
 		}
 	}
 
@@ -286,9 +602,17 @@ void CreateProject::SetupVariables()
 void CreateProject::FinishSetup()
 //-----------------------------------------------------------------------------
 {
-	m_sTemplateDir  = m_sCanonicalTemplateDir;
-	m_sTemplateDir += kDirSep;
-	m_sTemplateDir += m_sProjectType;
+	// directories starting with + hold the files of features, not project types
+	if (m_sProjectType.starts_with('+'))
+	{
+		ShowAllTemplates();
+		throw KException(kFormat("cannot open template type: {}", m_sProjectType));
+	}
+
+	m_sTemplateDir = kFormat("{}{}{}", m_sCanonicalTemplateDir, kDirSep, m_sProjectType);
+	m_Features     = ReadManifest(m_sTemplateDir).Features;
+
+	SelectFeatures();
 
 	if (m_sProjectPath.empty())
 	{
@@ -321,12 +645,12 @@ void CreateProject::PrintReplacedFile(KStringViewZ sOutFile, KStringViewZ sInFil
 
 	KOut.FormatLine(":: creating file              : {}", kBasename(sOutFile)).Flush();
 
-	OutFile.Write(m_Variables.Replace(kReadAll(sInFile)));
+	OutFile.Write(m_Variables.Replace(SelectLines(kReadAll(sInFile), sInFile)));
 
 } // PrintReplacedFile
 
 //-----------------------------------------------------------------------------
-void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFromDir, uint16_t iRecursion)
+void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFromDir, uint16_t iRecursion, bool bAddFeature)
 //-----------------------------------------------------------------------------
 {
 	KOut.FormatLine(":: entering directory         : {}", sOutputDir);
@@ -350,13 +674,25 @@ void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFrom
 	{
 		if (File.Type() == KFileType::DIRECTORY)
 		{
+			if (iRecursion == 1 && File.Filename().starts_with('+'))
+			{
+				// the files of a feature are added by InstallTemplateDir()
+				continue;
+			}
+
 			KString sNewOut  = kFormat("{}{}{}", sOutputDir, kDirSep, File.Filename());
 			KString sNewFrom = kFormat("{}{}{}", sFromDir,   kDirSep, File.Filename());
-			CopyDirRecursive(sNewOut, sNewFrom, ++iRecursion);
+			CopyDirRecursive(sNewOut, sNewFrom, iRecursion + 1, bAddFeature);
 		}
 		else
 		{
 			KString sOutFile = kFormat("{}{}{}", sOutputDir, kDirSep, m_Variables.Replace(File.Filename()));
+
+			if (bAddFeature && kFileExists(sOutFile))
+			{
+				throw KException(kFormat("the feature file {} exists already in the project", File.Path()));
+			}
+
 			PrintReplacedFile(sOutFile, File.Path());
 		}
 	}
@@ -370,7 +706,27 @@ void CreateProject::InstallTemplateDir()
 	KOut.FormatLine(":: reading configuration from : {}", m_sTemplateDir);
 	KOut.FormatLine(":: creating project at        : {}", m_sOutputDir);
 
+	std::vector<KStringView> Enabled;
+
+	for (const auto& Feature : m_Features)
+	{
+		if (Feature.bEnabled)
+		{
+			Enabled.push_back(Feature.sName);
+		}
+	}
+
+	if (!Enabled.empty())
+	{
+		KOut.FormatLine(":: with features              : {}", kJoined(Enabled, ", "));
+	}
+
 	CopyDirRecursive(m_sOutputDir, m_sTemplateDir);
+
+	for (const auto& sFeatureDir : GetFeatureDirs())
+	{
+		CopyDirRecursive(m_sOutputDir, sFeatureDir, 1, /*bAddFeature*/true);
+	}
 
 } // InstallTemplateDir
 
@@ -428,6 +784,12 @@ int CreateProject::Main(int argc, char* argv[])
 		throw KException("project name is empty");
 	}
 
+	// checked after parsing, as -templates may name another directory
+	if (!kDirExists(m_sCanonicalTemplateDir))
+	{
+		throw KException(kFormat("template directory not found: {}", m_sCanonicalTemplateDir));
+	}
+
 	FinishSetup();
 
 	if (kDirExists(m_sOutputDir))
@@ -435,7 +797,16 @@ int CreateProject::Main(int argc, char* argv[])
 		throw KException(kFormat("output directory already exists: {}", m_sOutputDir));
 	}
 
-	InstallTemplateDir();
+	try
+	{
+		InstallTemplateDir();
+	}
+	catch (const KException&)
+	{
+		// the output directory did not exist before, remove the incomplete project
+		kRemoveDir(m_sOutputDir);
+		throw;
+	}
 
 	CreateBuildSystem("Release");
 	CreateBuildSystem("Debug");

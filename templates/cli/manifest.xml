@@ -2,4 +2,5 @@
 	<description>
 	a simple CLI app
 	</description>
+	<feature name="db">pooled database connectors</feature>
 </manifest>

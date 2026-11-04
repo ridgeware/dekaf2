@@ -1,5 +1,8 @@
 
 #include "__LowerProjectName__.h"
+//@if db
+#include "db.h"
+//@endif
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
@@ -8,6 +11,26 @@
 
 using namespace dekaf2;
 
+//@if db
+//-----------------------------------------------------------------------------
+const __ProjectName__::IniParms& __ProjectName__::GetIniParms ()
+//-----------------------------------------------------------------------------
+{
+	if (!s_bINILoaded)
+	{
+		static std::mutex Mutex;
+		std::lock_guard Lock(Mutex);
+
+		s_INI.Load (__UpperProjectName___INI);
+
+		s_bINILoaded = true;
+	}
+
+	return s_INI;
+
+} // GetIniParms
+
+//@endif
 //-----------------------------------------------------------------------------
 __ProjectName__::__ProjectName__ ()
 //-----------------------------------------------------------------------------
@@ -43,7 +66,14 @@ int __ProjectName__::Main(int argc, char** argv)
 			//.SetAdditionalHelp         (g_sAdditionalHelp) // extra help text at end of generated help
 		;
 
+//@if db
+		KStringViewZ sDBCFile     = Options("dbc <file>  : set database connection", "").Type(KOptions::File);
+		bool         bSchema      = Options("schema      : check (possibly upgrade) the database schema", false);
+		bool         bSchemaForce = Options("schemaforce : force recreation of the schema (be careful)", false);
+		bool         bShowVersion = Options("version     : show version information", false);
+//@else
 		bool bShowVersion = Options("version : show version information", false);
+//@endif
 
 		// ---- insert project specific options here ----
 
@@ -58,6 +88,34 @@ int __ProjectName__::Main(int argc, char** argv)
 			ShowVersion();
 			return 0;
 		}
+//@if db
+
+		if (!sDBCFile.empty())
+		{
+			// set the static DBC file
+			DB::SetDBCFilename (sDBCFile);
+		}
+
+		if (bSchemaForce)
+		{
+			kDebug (1, "schema FORCE logic");
+			DB::Get ()->EnsureSchema (/*bForce=*/true);
+			return 0;
+		}
+
+		if (bSchema)
+		{
+			auto pdb = DB::Get ();
+
+			uint16_t iAmAt = pdb->GetSchema ("__UpperProjectName___SCHEMA");
+			uint16_t iWant = DB::CURRENT_SCHEMA;
+			if (iAmAt != iWant)
+			{
+				pdb->EnsureSchema (/*bForce=*/false);
+			}
+			return 0;
+		}
+//@endif
 	}
 
 	// ---- insert project code here ----
@@ -85,6 +143,12 @@ int main (int argc, char** argv)
 	return 1;
 
 } // main
+//@if db
+
+// static variables
+bool __ProjectName__::s_bINILoaded { false };
+__ProjectName__::IniParms __ProjectName__::s_INI;
+//@endif
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr KStringViewZ __ProjectName__::s_sProjectName;

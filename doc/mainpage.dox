@@ -132,6 +132,8 @@
 /// DEKAF2 builds with **CMake** (≥ 3.13) and requires a C++14-capable
 /// compiler (GCC ≥ 6, Clang ≥ 5, MSVC ≥ 2017).
 ///
+/// New projects can start from a template, see @ref project_templates "Project Templates".
+///
 /// @section taste A Taste of DEKAF2
 ///
 /// A minimal REST server:

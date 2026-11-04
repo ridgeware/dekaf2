@@ -1,0 +1,75 @@
+/// @page project_templates_page Project Templates
+///
+/// @anchor project_templates
+/// `dekaf2project` creates a new project from a template: the sources, a CMake file
+/// that finds the installed dekaf2, and build directories for Release, Debug and, on
+/// macOS, Xcode.
+///
+/// @code{.sh}
+/// dekaf2project -type restserver -with db,service MyServer
+/// @endcode
+///
+/// `dekaf2project -help` lists the project types with their features.
+///
+/// #### Project Types and Features
+///
+/// A project type is a directory in the templates directory. Its `manifest.xml`
+/// describes the type and declares its features, the parts that can be added to a
+/// project of this type:
+///
+/// @code{.xml}
+/// <manifest>
+/// 	<description>
+/// 	a REST server implementation
+/// 	</description>
+/// 	<feature name="db">pooled database connectors</feature>
+/// 	<feature name="service">run as a service of systemd, launchd or the Windows service manager</feature>
+/// </manifest>
+/// @endcode
+///
+/// A project gets the base of its type and the features that `-with` names, in a comma
+/// separated list. `-with all` adds all features of the type, and `all` is therefore no
+/// valid name for a feature.
+///
+/// #### Files of a Feature
+///
+/// The files that only a feature needs are in a directory with the name of the feature
+/// and a leading `+`. A `+db` directory in the directory of a project type holds files
+/// of that type only, and a `+db` directory in the templates directory holds files that
+/// all project types with the feature share. The content of both is added to the
+/// project, and a file of a feature must not exist in the project already.
+///
+/// #### Lines of a Feature
+///
+/// Marker lines select the lines of a feature in any file of a template:
+///
+/// @code{.cpp}
+/// //@if service
+/// 	return KService::Run("__LowerProjectName__", argc, argv, RunMain);
+/// //@else
+/// 	return RunMain(argc, argv);
+/// //@endif
+/// @endcode
+///
+/// `//@if !service` selects lines for a project without the feature. In files with `#`
+/// comments, like CMake files, the markers start with `#@` instead of `//@`. Markers can
+/// be indented and nested, and they are removed from the project. A marker with an
+/// unknown feature, or an `if` without `endif`, stops the creation of the project with
+/// the name of the file and the line.
+///
+/// #### Variables
+///
+/// After the marker lines, variables of the form `__Name__` are replaced, in the
+/// contents and in the names of the files:
+///
+/// | Variable                             | Value                                                |
+/// |--------------------------------------|------------------------------------------------------|
+/// | `__ProjectName__`                    | the project name                                     |
+/// | `__LowerProjectName__`               | the project name in lowercase                        |
+/// | `__UpperProjectName__`               | the project name in uppercase                        |
+/// | `__ProjectVersion__`                 | the version from `-version`                          |
+/// | `__ProjectType__`                    | the project type                                     |
+/// | `__ProjectPath__`                    | the path from `-path`                                |
+/// | `__SSOProvider__`, `__SSOScope__`    | the URL and scope from `-sso`                        |
+/// | `__Dekaf2Version__`                  | the version of dekaf2                                |
+/// | `__SourceFiles__`, `__HeaderFiles__` | the .cpp and .h files of the project, for CMake      |

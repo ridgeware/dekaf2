@@ -7,6 +7,9 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/util/cli/koptions.h>
 #include <dekaf2/rest/framework/krest.h>
+//@if db
+#include "db.h"
+//@endif
 
 using namespace dekaf2;
 
@@ -40,8 +43,16 @@ public:
 	void ApiOptions (KRESTServer& HTTP);
 	void ApiVersion (KRESTServer& HTTP);
 
+//@if db
+	using IniParms = KProps<KString, KString, false, true>;
+	static const IniParms& GetIniParms ();
+
+//@endif
 	static constexpr KStringViewZ s_sProjectName    { "__ProjectName__" };
 	static constexpr KStringViewZ s_sProjectVersion { "__ProjectVersion__" };
+//@if db
+	static constexpr KStringViewZ __UpperProjectName___INI = "/etc/__LowerProjectName__.ini";
+//@endif
 
 //----------
 protected:
@@ -60,4 +71,9 @@ private:
 	static constexpr KStringView s_SSOProvider  = "__SSOProvider__";
 	static constexpr KStringView s_SSOScope     = "__SSOScope__";
 
+//@if db
+	static IniParms s_INI;
+	static bool     s_bINILoaded;
+
+//@endif
 }; // __ProjectName__

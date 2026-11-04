@@ -47,6 +47,7 @@
 #include <dekaf2/core/strings/kjoin.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/io/streams/koutstringstream.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/util/cli/koptions.h>
 #include <dekaf2/data/json/kjson.h>
@@ -56,22 +57,6 @@
 #include <dekaf2/data/xml/kxml.h>
 
 using namespace DEKAF2_NAMESPACE_NAME;
-
-constexpr KStringView g_Synopsis[] = {
-	" ",
-	"dekaf2project -- generate dekaf2 based project setups",
-	" ",
-	"usage: dekaf2project [<Options>] <ProjectName>",
-	"",
-	" where options are:"
-	"",
-	"  -t,type <ProjectType>  :: type of project, default = cli",
-	"  -p,path <ProjectPath>  :: path to project root, name is added, default = current directory",
-	"  -s,sso  <URL> <Scope>  :: URL and scope of SSO server, default = none",
-	"  -v,version <Version>   :: version string, default = 1.0.0",
-	"  -with <features>       :: comma separated list of features to add to the project type, or all",
-	"  -templates <path>      :: path to templates, defaults to system install dir"
-};
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class CreateProject
@@ -85,7 +70,8 @@ public:
 	CreateProject();
 	int Main (int argc, char* argv[]);
 
-	void ShowAllTemplates();
+	/// returns the list of the project types with their features
+	KString GetAllTemplates() const;
 
 //----------
 private:
@@ -136,14 +122,11 @@ private:
 	KString m_sProjectVersion { "0.0.1" };
 	KURL m_SSOProvider;
 	KString m_SSOScope;
-	bool m_bIsDone { false };
 
 	KString m_sCanonicalTemplateDir;
 	KString m_sOutputDir;
 	KString m_sTemplateDir;
 	KReplacer m_Variables { "__", "__", false };
-
-	KOptions m_Options { true };
 
 }; // CreateProject
 
@@ -155,88 +138,21 @@ CreateProject::CreateProject ()
 
 	m_sCanonicalTemplateDir = kReadLink(kFormat("{}/../{}/templates", Dekaf::getInstance().GetProgPath(), DEKAF2_SHARED_DIRECTORY), true);
 
-	m_Options.Throw();
-
-	m_Options.UnknownCommand([&](KOptions::ArgList& Commands)
-	{
-		if (!m_sProjectName.empty() || Commands.size() > 1)
-		{
-			throw KOptions::Error("project name defined multiple times");
-		}
-		m_sProjectName = Commands.pop();
-	});
-
-	// keep the -name option, it was the previous way to set the name
-	m_Options.Option("name", "project name")
-	([&](KStringViewZ sName)
-	{
-		if (!m_sProjectName.empty())
-		{
-			throw KOptions::Error("project name defined multiple times");
-		}
-		m_sProjectName = sName;
-	});
-
-	m_Options.Option("help")([&]()
-	{
-		for (const auto& it : g_Synopsis)
-		{
-			KOut.WriteLine(it);
-		}
-		ShowAllTemplates();
-		m_bIsDone = true;
-	});
-
-	m_Options.Option("p,path", "project path")
-	([&](KStringViewZ sPath)
-	{
-		m_sProjectPath = sPath;
-	});
-
-	m_Options.Option("v,version", "version string")
-	([&](KStringViewZ sVersion)
-	{
-		m_sProjectVersion = sVersion;
-	});
-
-	m_Options.Option("t,type", "project type")
-	([&](KStringViewZ sType)
-	{
-		m_sProjectType = sType;
-	});
-
-	m_Options.Option("with", "feature list")
-	([&](KStringViewZ sFeatures)
-	{
-		AddFeatureNames(m_With, sFeatures);
-	});
-
-	m_Options.Option("templates", "templates path")
-	([&](KStringViewZ sPath)
-	{
-		m_sCanonicalTemplateDir = sPath;
-	});
-
-	m_Options.Option("s,sso", "SSO server URL and scope").MinArgs(2)
-	([&](KOptions::ArgList& SSO)
-	{
-		m_SSOProvider = SSO.pop();
-		m_SSOScope    = SSO.pop();
-	});
-
 } // ctor
 
 //-----------------------------------------------------------------------------
-void CreateProject::ShowAllTemplates()
+KString CreateProject::GetAllTemplates() const
 //-----------------------------------------------------------------------------
 {
+	KString sTemplates;
+	KOutStringStream Out(sTemplates);
 
 	KDirectory Templates(m_sCanonicalTemplateDir, KFileType::DIRECTORY);
 	Templates.Sort();
 
-	KOut.WriteLine();
-	KOut.WriteLine("available project types for the -type parameter:");
-	KOut.WriteLine();
+	Out.WriteLine();
+	Out.WriteLine("available project types for the -type parameter:");
+	Out.WriteLine();
 
 	for (const auto& Template : Templates)
 	{
@@ -251,13 +167,13 @@ void CreateProject::ShowAllTemplates()
 
 		if (!Target.empty())
 		{
-			KOut.FormatLine(" {}", Template.Filename());
+			Out.FormatLine(" {}", Template.Filename());
 
 			auto Manifest = ReadManifest(Template.Path());
 
 			if (!Manifest.sDescription.empty())
 			{
-				KOut.WriteLine(Manifest.sDescription);
+				Out.WriteLine(Manifest.sDescription);
 			}
 
 			std::size_t iMaxName { 0 };
@@ -269,16 +185,18 @@ void CreateProject::ShowAllTemplates()
 
 			for (const auto& Feature : Manifest.Features)
 			{
-				KOut.FormatLine("\t-with {:<{}} : {}", Feature.sName, iMaxName, Feature.sDescription);
+				Out.FormatLine("\t-with {:<{}} : {}", Feature.sName, iMaxName, Feature.sDescription);
 			}
 
-			KOut.WriteLine();
+			Out.WriteLine();
 		}
 	}
 
-	KOut.WriteLine();
+	Out.Flush();
 
-} // ShowAllTemplates
+	return sTemplates;
+
+} // GetAllTemplates
 
 //-----------------------------------------------------------------------------
 CreateProject::Manifest CreateProject::ReadManifest(KStringViewZ sTemplateDir)
@@ -556,7 +474,7 @@ void CreateProject::SetupVariables()
 
 	if (!Directory.Open(m_sTemplateDir) || Directory.empty())
 	{
-		ShowAllTemplates();
+		KOut.Write(GetAllTemplates());
 		throw KException(kFormat("cannot open template type: {}", m_sProjectType));
 	}
 
@@ -605,7 +523,7 @@ void CreateProject::FinishSetup()
 	// directories starting with + hold the files of features, not project types
 	if (m_sProjectType.starts_with('+'))
 	{
-		ShowAllTemplates();
+		KOut.Write(GetAllTemplates());
 		throw KException(kFormat("cannot open template type: {}", m_sProjectType));
 	}
 
@@ -772,16 +690,71 @@ void CreateProject::CreateBuildSystem(KStringView sBuildType)
 int CreateProject::Main(int argc, char* argv[])
 //-----------------------------------------------------------------------------
 {
-	auto iErrors = m_Options.Parse(argc, argv, KOut);
-
-	if (iErrors || m_bIsDone)
+	// ---------------- parse CLI ------------------
 	{
-		return iErrors;
-	}
+		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
-	if (m_sProjectName.empty())
-	{
-		throw KException("project name is empty");
+		Options
+			.SetBriefDescription        ("generate dekaf2 based project setups")
+			.SetAdditionalArgDescription("<ProjectName>");
+
+		m_sProjectType                  = Options("t,type <ProjectType> : type of project, default cli", "cli");
+		m_sProjectPath                  = Options("p,path <ProjectPath> : path to the project root, the name is added, default the current directory", "");
+		m_sProjectVersion               = Options("v,version <Version>  : version string, default 0.0.1", "0.0.1");
+		std::vector<KStringViewZ> SSO   = Options("s,sso <URL> <Scope>  : URL and scope of the SSO server, default none", std::vector<KStringViewZ>{}).MaxArgs(2);
+		std::vector<KStringViewZ> With  = Options("with <features>      : comma separated list of features to add to the project type, or all", std::vector<KStringViewZ>{}).MaxArgs(1);
+		KStringViewZ              sPath = Options("templates <path>     : path to the templates, default the system install directory", "");
+		// -name was the previous way to set the project name
+		KStringViewZ              sName = Options("name <ProjectName>   : project name, instead of the last argument", "");
+
+		auto Names = Options.GetUnknownCommands();
+
+		if (!sPath.empty())
+		{
+			m_sCanonicalTemplateDir = sPath;
+		}
+
+		// the help is printed by Check(), after -templates was read
+		Options.SetAdditionalHelp(GetAllTemplates());
+
+		// check that all options were consumed - this also prints the help if it was requested
+		if (!Options.Check())
+		{
+			return Options.Terminate() ? 0 : 1;
+		}
+
+		if (!sName.empty())
+		{
+			Names.push_back(sName);
+		}
+
+		if (Names.size() > 1)
+		{
+			throw KException(kFormat("project name defined multiple times: {}", kJoined(Names, ", ")));
+		}
+
+		if (Names.empty())
+		{
+			throw KException("project name is empty");
+		}
+
+		m_sProjectName = Names.front();
+
+		if (!SSO.empty())
+		{
+			if (SSO.size() != 2)
+			{
+				throw KException("-sso needs a URL and a scope");
+			}
+
+			m_SSOProvider = SSO[0];
+			m_SSOScope    = SSO[1];
+		}
+
+		for (auto sFeatures : With)
+		{
+			AddFeatureNames(m_With, sFeatures);
+		}
 	}
 
 	// checked after parsing, as -templates may name another directory
@@ -815,7 +788,7 @@ int CreateProject::Main(int argc, char* argv[])
 #endif
 	KOut.WriteLine(":: done");
 
-	return (iErrors);
+	return 0;
 
 } // Main
 

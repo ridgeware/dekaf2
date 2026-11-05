@@ -616,6 +616,79 @@ TEST_CASE("KSQL-SQLite3")
 		db.SetFlags(KSQL::F_None);
 	}
 
+	SECTION("Error while fetching rows")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		auto Guard = db.ScopedFlags(KSQL::F_IgnoreSelectKeyword);
+
+		// abs() of the smallest 64 bit integer fails with an integer overflow - this
+		// query returns two rows, then fails in the third
+		auto ExecFailingQuery = [&db]()
+		{
+			return db.ExecQuery("with recursive c(x) as (select 1 union all select x + 1 from c where x < 5)\n"
+			                    "select x, abs(-9223372036854775807 - (x - 2)) from c");
+		};
+
+		// NextRow()
+		REQUIRE ( ExecFailingQuery() );
+		int iRows = 0;
+		while (db.NextRow())
+		{
+			++iRows;
+		}
+		CHECK ( iRows == 2 );
+		CHECK ( db.GetLastError().contains("integer overflow") );
+
+		// NextRow(KROW&)
+		REQUIRE ( ExecFailingQuery() );
+		iRows = 0;
+		KROW row;
+		while (db.NextRow(row))
+		{
+			++iRows;
+		}
+		CHECK ( iRows == 2 );
+		CHECK ( db.GetLastError().contains("integer overflow") );
+
+		// range-for loop
+		REQUIRE ( ExecFailingQuery() );
+		iRows = 0;
+		for (auto& Row : db)
+		{
+			CHECK ( Row.size() == 2 );
+			++iRows;
+		}
+		CHECK ( iRows == 2 );
+		CHECK ( db.GetLastError().contains("integer overflow") );
+
+		// throwing mode
+		REQUIRE ( ExecFailingQuery() );
+		{
+			auto bOld = db.SetThrow(true);
+			CHECK_THROWS ( [&db]() { for (auto& Row : db) { (void)Row; } }() );
+			db.SetThrow(bOld);
+		}
+
+		// buffered results
+		{
+			auto BufferGuard = db.ScopedFlags(KSQL::F_BufferResults);
+			CHECK ( !ExecFailingQuery() );
+			CHECK ( db.GetLastError().contains("integer overflow") );
+		}
+
+		// a single value that fails in its first row
+		CHECK ( db.SingleIntQuery("select abs(-9223372036854775807 - 1)") == -1 );
+		CHECK ( db.GetLastError().contains("integer overflow") );
+
+		// the next statement works
+		CHECK ( db.SingleIntQuery("select count(*) from TEST_QUERY") == 5 );
+		CHECK ( db.GetLastError().empty() );
+	}
+
 	SECTION("UTF-8 characters")
 	{
 		KSQL db;

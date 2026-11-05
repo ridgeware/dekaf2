@@ -237,6 +237,13 @@ std::size_t KSessionKSQLStore::ListFor(KStringView sUsername, std::vector<KSessi
 		++iAdded;
 	}
 
+	if (!m_DB.GetLastError().empty())
+	{
+		// the query failed after some rows - return nothing, as for a failed query
+		Out.resize(Out.size() - iAdded);
+		return 0;
+	}
+
 	return iAdded;
 
 } // ListFor

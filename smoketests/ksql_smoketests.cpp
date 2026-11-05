@@ -1696,6 +1696,59 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 			db.SetThrow(bTOld);
 		}
 
+		// a statement that the server aborts with its max_statement_time fails, also when the
+		// abort reaches the client only while it fetches the rows (MariaDB only)
+		if (db.GetDBType() == KSQL::DBT::MYSQL && db.SingleStringQuery("select version()").contains("MariaDB"))
+		{
+			auto bTOld = db.SetThrow(false);
+			auto Guard = db.ScopedFlags(KSQL::F_IgnoreSelectKeyword);
+
+			// before the first row
+			if (db.ExecQuery("set statement max_statement_time=0.1 for select sleep(2) as s"))
+			{
+				while (db.NextRow())
+				{
+				}
+			}
+			CHECK ( db.GetLastErrorNum() == 1969 );
+			CHECK ( db.GetLastError().contains("MSQL-1969") );
+
+			// after some of the rows
+			{
+				REQUIRE ( db.ExecQuery("set statement max_statement_time=0.3 for "
+				                       "select seq, repeat('x', 1000) as filler, sleep(0.001) from seq_1_to_3000") );
+				std::size_t iRows { 0 };
+				while (db.NextRow())
+				{
+					++iRows;
+				}
+				CHECK ( iRows < 3000 );
+				CHECK ( db.GetLastErrorNum() == 1969 );
+			}
+
+			// with buffered results
+			{
+				auto BufferGuard = db.ScopedFlags(KSQL::F_BufferResults);
+				CHECK_FALSE ( db.ExecQuery("set statement max_statement_time=0.1 for select sleep(2) as s") );
+				CHECK ( db.GetLastErrorNum() == 1969 );
+			}
+
+			// a single value, aborted before its row
+			CHECK ( db.SingleIntQuery("set statement max_statement_time=0.1 for select sleep(2)") == -1 );
+			CHECK ( db.GetLastErrorNum() == 1969 );
+
+			// a single value, aborted after its row: the server keeps searching for more rows
+			CHECK ( db.SingleIntQuery("set statement max_statement_time=0.2 for "
+			                          "select seq from seq_1_to_1000 where seq = 1 or sleep(0.01) > 1") == -1 );
+			CHECK ( db.GetLastErrorNum() == 1969 );
+
+			// the connection still works
+			CHECK ( db.SingleIntQuery("select 1") == 1 );
+			CHECK ( db.GetLastError().empty() );
+
+			db.SetThrow(bTOld);
+		}
+
 		{
 			// transactions
 

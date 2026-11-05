@@ -3234,6 +3234,12 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 						kWarning ("UNEXPECTED ANALYZE RESULT: {} table {} {}={}", sOp, sTable, sMsgType, sMsgText);
 					}
 				}
+
+				if (!GetLastError().empty())
+				{
+					Parms.fOK   = false;
+					Parms.fDone = true;
+				}
 			}
 			else
 			{
@@ -4256,6 +4262,17 @@ bool KSQL::BufferResults ()
 				file.FormatLine ("{}\n", sColVal);
 			}
 		}
+
+		{
+			// mysql_fetch_row() also returns nullptr when the server aborts the
+			// statement after it has sent the column definitions
+			auto iErrorNum = mysql_errno (m_dMYSQL);
+
+			if (DEKAF2_UNLIKELY(iErrorNum != 0))
+			{
+				return SetFetchError (kFormat ("KSQL: MSQL-{}: {}", iErrorNum, mysql_error (m_dMYSQL)), iErrorNum);
+			}
+		}
 		break;
 	#endif
 
@@ -4404,6 +4421,12 @@ bool KSQL::BufferResults ()
 					file.FormatLine ("{}\n", sColVal);
 				}
 			}
+
+			if (DEKAF2_UNLIKELY(m_SQLite->Cursor->ErrorCode() != 0))
+			{
+				return SetFetchError (kFormat ("SQLITE3: {}", m_SQLite->Cursor->Error()),
+				                      static_cast<uint32_t>(m_SQLite->Cursor->ErrorCode()));
+			}
 		}
 		break;
 	#endif
@@ -4531,8 +4554,18 @@ bool KSQL::NextRow ()
 				}
 				else
 				{
-					kDebug (4, "{} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
 					m_MYSQLRowLens = nullptr;
+
+					// mysql_fetch_row() also returns nullptr when the server aborts the
+					// statement after it has sent the column definitions
+					auto iErrorNum = mysql_errno (m_dMYSQL);
+
+					if (DEKAF2_UNLIKELY(iErrorNum != 0))
+					{
+						return SetFetchError (kFormat ("KSQL: MSQL-{}: {}", iErrorNum, mysql_error (m_dMYSQL)), iErrorNum);
+					}
+
+					kDebug (4, "{} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
 					return false;
 				}
 				break;
@@ -4636,6 +4669,11 @@ bool KSQL::NextRow ()
 						++m_iRowNum;
 						kDebug (4, "KSQLite gave us row {}", m_iRowNum);
 						return true;
+					}
+					else if (DEKAF2_UNLIKELY(m_SQLite->Cursor->ErrorCode() != 0))
+					{
+						return SetFetchError (kFormat ("SQLITE3: {}", m_SQLite->Cursor->Error()),
+						                      static_cast<uint32_t>(m_SQLite->Cursor->ErrorCode()));
 					}
 					else
 					{
@@ -4961,6 +4999,12 @@ KROW KSQL::SingleRawQuery (KSQLString sSQL, Flags iFlags/*=0*/, KStringView sAPI
 
 	bool bOK = ExecRawQuery (std::move(sSQL), Flags::F_None, sAPI);
 
+	// a second fetch finds an abort of the statement after its first row. With MySQL it
+	// costs nothing, as EndQuery() reads the result set to its end anyway. SQLite has no
+	// server that aborts a statement, and its second fetch would continue the search that
+	// EndQuery() stops.
+	bool bFetchSecondRow = (GetDBType() != DBT::SQLITE3) || kWouldLog(1);
+
 	if (!bOK)
 	{
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): sql error: {}", sAPI, GetLastError());
@@ -4969,9 +5013,14 @@ KROW KSQL::SingleRawQuery (KSQLString sSQL, Flags iFlags/*=0*/, KStringView sAPI
 	{
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one row back and didn't get it", sAPI);
 	}
-	else if (kWouldLog(1) && NextRow())
+	else if (bFetchSecondRow && NextRow())
 	{
 		kDebugLog (1, "KSQL::{}(): expected one row back, but got at least two", sAPI);
+	}
+	else if (!GetLastError().empty())
+	{
+		// the server aborted the statement after its first row
+		ROW.clear();
 	}
 
 	EndQuery();
@@ -6606,6 +6655,11 @@ KJSON KSQL::FindColumn (KStringView sColLike, KStringView sSchemaName/*current d
 		list += row;
 	}
 
+	if (!GetLastError().empty())
+	{
+		return KJSON::array(); // empty
+	}
+
 	return list;
 
 } // FindColumn
@@ -7346,6 +7400,13 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 		}
 	}
 
+	if (!OtherDB.GetLastError().empty())
+	{
+		// the source query failed while its rows were read, the copy is incomplete
+		Pool.stop(false);
+		return SetError(kFormat ("{}: {}: {}", OtherDB.ConnectSummary(), OtherDB.GetLastError(), OtherDB.GetLastSQL()));
+	}
+
 	if (BulkRows.size())
 	{
 		BulkCopyFlush (BulkRows, Pool);
@@ -7873,7 +7934,9 @@ bool KSQL::ctlib_nextrow ()
 	CS_INT iFetched = 0;
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_fetch...");
-	if ((ct_fetch (m_pCtCommand, CS_UNUSED, CS_UNUSED, CS_UNUSED, &iFetched) == CS_SUCCEED) && (iFetched > 0))
+	auto iStatus = ct_fetch (m_pCtCommand, CS_UNUSED, CS_UNUSED, CS_UNUSED, &iFetched);
+
+	if ((iStatus == CS_SUCCEED) && (iFetched > 0))
 	{
 		for (uint32_t ii = 0; ii < m_iNumColumns; ++ii)
 		{
@@ -7892,7 +7955,15 @@ bool KSQL::ctlib_nextrow ()
 		return (true); // we got a row
 	}
 
-	return (false); // we did not get a row
+	if ((iStatus == CS_END_DATA) || (iStatus == CS_SUCCEED))
+	{
+		return (false); // we did not get a row
+	}
+
+	// CS_FAIL, CS_ROW_FAIL or CS_CANCELED: the result set ended with an error
+	ctlib_api_error ("KSQL>NextRow>ct_fetch");
+
+	return SetFetchError (m_sCtLibLastError, m_iCtLibErrorNum);
 
 } // ctlib_nextrow
 
@@ -8693,9 +8764,25 @@ KString KSQL::QueryOpenRows (OutputFormat iFormat/*=ASCII*/, std::size_t* piNumR
 
 		Table.DryMode(false);
 
-		EndQuery ();
-		// the query already ran once, so do not re-check for the select keyword
-		ExecLastRawQuery (Flags(GetFlags() | F_IgnoreSelectKeyword), "QueryOpenRows");
+		// a query that failed in the measuring pass does not run a second time
+		bool bOK = GetLastError().empty();
+
+		if (bOK)
+		{
+			EndQuery ();
+			// the query already ran once, so do not re-check for the select keyword
+			bOK = ExecLastRawQuery (Flags(GetFlags() | F_IgnoreSelectKeyword), "QueryOpenRows");
+		}
+
+		if (!bOK)
+		{
+			if (piNumRows)
+			{
+				*piNumRows = 0;
+			}
+
+			return KString{};
+		}
 	}
 
 	// for a weird reason gcc 11.5 crashes here with ctlib when iterating
@@ -10372,6 +10459,23 @@ bool KSQL::HandleCanceledConnection(KString* sError)
 } // HandleCanceledConnection
 
 //-----------------------------------------------------------------------------
+bool KSQL::SetFetchError (KString sError, uint32_t iErrorNum)
+//-----------------------------------------------------------------------------
+{
+	// a connection that was killed on purpose reports why, and gets a new connection.
+	// The open result set survives the reconnect: a failed fetch detaches a MySQL result
+	// set from its connection.
+	HandleCanceledConnection(&sError);
+
+	// SetError() returns true for informational messages of SQL Server, but a failed fetch
+	// never delivers a row
+	SetError(std::move(sError), iErrorNum);
+
+	return false;
+
+} // SetFetchError
+
+//-----------------------------------------------------------------------------
 void KSQL::ForgetQueryKill()
 //-----------------------------------------------------------------------------
 {
@@ -10561,6 +10665,11 @@ bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
 		}
 	}
 
+	if (!GetLastError().empty())
+	{
+		return false;
+	}
+
 	EndQuery();
 
 	for (auto& sTable : Tables)
@@ -10706,6 +10815,12 @@ KJSON KSQL::_LoadSchema_MySQL (KStringView sDBName/*=""*/, KStringView sStartsWi
 		Tables.push_back(row.GetValue(0).ToUpper());
 	}
 
+	if (!GetLastError().empty())
+	{
+		SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+		return KJSON{};
+	}
+
 #ifdef DEKAF2_WRAPPED_KJSON
 	const bool     bIgnoreCollate = options(DIFF::ignore_collate);
 	const bool     bShowMetaInfo  = options(DIFF::show_meta_info);
@@ -10750,7 +10865,10 @@ KJSON KSQL::_LoadSchema_MySQL (KStringView sDBName/*=""*/, KStringView sStartsWi
 
 		if (!NextRow())
 		{
-			SetError (kFormat ("did not get a row back from: {}", GetLastSQL()));
+			if (GetLastError().empty())
+			{
+				SetError (kFormat ("did not get a row back from: {}", GetLastSQL()));
+			}
 			return KJSON{};
 		}
 
@@ -10819,7 +10937,10 @@ KJSON KSQL::_LoadSchema_MySQL (KStringView sDBName/*=""*/, KStringView sStartsWi
 			KROW row;
 			if (!NextRow(row))
 			{
-				SetError (kFormat ("did not get a row back from: {}", GetLastSQL()));
+				if (GetLastError().empty())
+				{
+					SetError (kFormat ("did not get a row back from: {}", GetLastSQL()));
+				}
 				return KJSON{};
 			}
 
@@ -10883,6 +11004,12 @@ KJSON KSQL::_LoadSchema_SS (KStringView sDBName/*=""*/, KStringView sStartsWith/
 		}
 
 		Tables.push_back(sTable);
+	}
+
+	if (!GetLastError().empty())
+	{
+		SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+		return KJSON{};
 	}
 
 #if 0 // TODO
@@ -10964,6 +11091,12 @@ KJSON KSQL::_LoadSchema_SS (KStringView sDBName/*=""*/, KStringView sStartsWith/
 
 		} // columns
 
+		if (!GetLastError().empty())
+		{
+			SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+			return KJSON{};
+		}
+
 		if (!ExecQuery ("exec sp_helpindex {}", sTable))
 		{
 			SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
@@ -10982,6 +11115,12 @@ KJSON KSQL::_LoadSchema_SS (KStringView sDBName/*=""*/, KStringView sStartsWith/
 				{ "pkey",    bPKEY                   },
 				{ "columns", idx["index_keys"]       }
 			};
+		}
+
+		if (!GetLastError().empty())
+		{
+			SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+			return KJSON{};
 		}
 
 		oSchema["tables"].push_back(oTable);
@@ -11684,6 +11823,21 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 		        || (sText.starts_with("/*") && sText.ends_with("*/")));
 	};
 
+	// the number of statements that failed
+	std::size_t iFailedStatements { 0 };
+
+	// returns the result of the interpreter when it ends regularly: a session that is not
+	// interactive fails when one of its statements failed
+	auto Finish = [&]() -> bool
+	{
+		if (!bInteractive && iFailedStatements)
+		{
+			return SetErrorNoThrow(kFormat("{} statement{} failed", iFailedStatements, (iFailedStatements == 1) ? "" : "s"));
+		}
+
+		return true;
+	};
+
 	// executes one statement and prints its results, returns false for quit and exit
 	auto ExecuteStatement = [&](KString sStatement) -> bool
 	{
@@ -11728,32 +11882,31 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 		{
 			KStopTime Timer;
 			auto iResults = OutputQuery (sStatement, Format);
+			// a query that failed after some of its rows has printed them, and still failed
+			bSuccess = GetLastError().empty();
 			Terminal.FGColor(KXTerm::ColorCode::Blue);
-			if (iResults)
+			if (bSuccess && !bQuiet)
 			{
-				if (!bQuiet)
+				if (iResults)
 				{
 					kPrintLine(":: {} {} in set ({})", iResults, (iResults == 1) ? "row" : "rows", Timer.elapsed());
 				}
-				bSuccess = true;
-			}
-			else if (GetLastError().empty())
-			{
-				if (!bQuiet)
+				else
 				{
 					kPrintLine(":: Empty set ({})", Timer.elapsed());
 				}
-				bSuccess = true;
 			}
 			Terminal.ResetCharModes();
 		}
 
 		if (!bSuccess)
 		{
+			++iFailedStatements;
+
 			if (!GetLastError().empty())
 			{
 				Terminal.FGColor(KXTerm::ColorCode::BrightRed);
-				kPrintLine (">> {}", GetLastError());
+				kPrintLine (KErr, ">> {}", GetLastError());
 				Terminal.ResetCharModes();
 			}
 		}
@@ -11818,7 +11971,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 
 					if (bReturnAtClose)
 					{
-						return true;
+						return Finish();
 					}
 
 					break;
@@ -11840,7 +11993,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 			// tabs and other control characters in the input survive intact).
 			if (!kReadLine(KIn, sLine))
 			{
-				return true;
+				return Finish();
 			}
 		}
 		else
@@ -11855,7 +12008,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 				}
 				else
 				{
-					return true;
+					return Finish();
 				}
 			}
 
@@ -12003,7 +12156,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 					{
 						kWriteLine(":: bye");
 					}
-					return true;
+					return Finish();
 
 				case "help"_casehash:
 					kWriteLine ();
@@ -12191,7 +12344,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 
 					if (!ExecuteStatement(std::move(sStatement)))
 					{
-						return true; // quit or exit
+						return Finish(); // quit or exit
 					}
 				}
 
@@ -12216,7 +12369,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 							{
 								kWriteLine(":: bye");
 							}
-							return true;
+							return Finish();
 
 						case "use"_casehash:
 							if (!kGetWord(sWords).empty())
@@ -12250,7 +12403,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 								{
 									kWriteLine(":: bye");
 								}
-								return true;
+								return Finish();
 
 							case "use"_casehash:
 								bIsUse = true;
@@ -12281,7 +12434,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 
 					if (!bContinue)
 					{
-						return true; // quit or exit
+						return Finish(); // quit or exit
 					}
 				}
 			}

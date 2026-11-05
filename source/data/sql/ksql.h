@@ -343,7 +343,8 @@ public:
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// KSQL iterator over result rows, use it for auto range for loops like
-	/// for (auto& row : ksql) after issuing a query statement
+	/// for (auto& row : ksql) after issuing a query statement. The loop also ends
+	/// on an error - check GetLastError() after it.
 	class iterator
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -638,7 +639,11 @@ public:
 
 	KROW::Index    GetNumCols     ();
 	KROW::Index    GetNumColumns  ()         { return (GetNumCols());       }
+	/// fetches the next row of the result set, returns false at its end and on an error, e.g. when
+	/// the server aborted the query after its first rows - GetLastError() tells the two apart
 	bool           NextRow        ();
+	/// fetches the next row of the result set into Row, returns false at its end and on an error -
+	/// GetLastError() tells the two apart
 	bool           NextRow        (KROW& Row, bool fTrimRight=true);
 	/// Loads column layout into Row
 	/// @param Row a KROW that will receive the column definitions. Existing content in Row will not be erased (but updated).
@@ -1322,6 +1327,10 @@ private:
 	/// if the connection of a failing statement was killed on purpose: stores the reason,
 	/// sets sError to its text, reconnects, and returns true
 	bool HandleCanceledConnection (KString* sError);
+
+	/// sets the error of a result set that failed while its rows were fetched, with the
+	/// reason if its connection was killed on purpose - returns false
+	bool SetFetchError (KString sError, uint32_t iErrorNum);
 
 	/// a statement ended without an error, so a kill of only its query missed it
 	void ForgetQueryKill ();

@@ -168,6 +168,13 @@ std::vector<KApplePush::Subscription> KApplePushKSQLDB::GetSubscriptions(KString
 		sub.tLastMod   = m_DB.GetUnixTime(7);
 		Subs.push_back(std::move(sub));
 	}
+
+	if (!m_DB.GetLastError().empty())
+	{
+		// the query failed after some rows - return nothing, as for a failed query
+		Subs.clear();
+	}
+
 	return Subs;
 
 } // GetSubscriptions

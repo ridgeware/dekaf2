@@ -48,7 +48,10 @@
 #include <vector>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
-#include <dekaf2/core/types/bits/kunique_deleter.h>
+#include <dekaf2/containers/memory/ksharedref.h>
+
+// kregex.cpp includes the RE2 headers, this header only needs the declaration
+namespace re2 { class RE2; }
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -72,6 +75,12 @@ public:
 	/// converting constructor, takes string literals and strings
 	KRegex(KStringView expression);
 	//-----------------------------------------------------------------------------
+
+	KRegex(const KRegex&) = delete;
+	KRegex(KRegex&&) noexcept;
+	KRegex& operator=(const KRegex&) = delete;
+	KRegex& operator=(KRegex&&) noexcept;
+	~KRegex();
 
 	//-----------------------------------------------------------------------------
 	/// returns true if expression is empty
@@ -212,8 +221,8 @@ protected:
 private:
 //----------
 
-	KUniqueVoidPtr m_Regex;
-	bool m_bIsEmpty;
+	KSharedRef<re2::RE2, true> m_Regex;
+	bool                       m_bIsEmpty;
 
 }; // KRegex
 

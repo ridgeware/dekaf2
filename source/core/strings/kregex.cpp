@@ -73,19 +73,8 @@ inline cache_t& getInstance()
 } // end of namespace kregex
 } // end of namespace detail
 
-//-----------------------------------------------------------------------------
-inline const detail::kregex::regex_t& rget(const KUniqueVoidPtr& p)
-//-----------------------------------------------------------------------------
-{
-	return *static_cast<detail::kregex::regex_t*>(p.get());
-}
-
-//-----------------------------------------------------------------------------
-auto kRegexDeleter = [](void* data)
-//-----------------------------------------------------------------------------
-{
-	delete static_cast<detail::kregex::regex_t*>(data);
-};
+static_assert(std::is_same<detail::kregex::regex_t, KSharedRef<re2::RE2, true>>::value,
+              "the type of KRegex::m_Regex has to match the value type of the regex cache");
 
 //-----------------------------------------------------------------------------
 void KRegex::LogExpError() const
@@ -102,14 +91,14 @@ void KRegex::LogExpError() const
 const std::string& KRegex::Pattern() const
 //-----------------------------------------------------------------------------
 {
-	return rget(m_Regex)->pattern();
+	return m_Regex->pattern();
 }
 
 //-----------------------------------------------------------------------------
 size_t KRegex::Cost() const
 //-----------------------------------------------------------------------------
 {
-	return static_cast<size_t>(rget(m_Regex)->ProgramSize());
+	return static_cast<size_t>(m_Regex->ProgramSize());
 }
 
 //-----------------------------------------------------------------------------
@@ -117,7 +106,7 @@ size_t KRegex::Cost() const
 bool KRegex::Good() const
 //-----------------------------------------------------------------------------
 {
-	return rget(m_Regex)->ok();
+	return m_Regex->ok();
 }
 
 //-----------------------------------------------------------------------------
@@ -125,7 +114,7 @@ bool KRegex::Good() const
 const std::string& KRegex::Error() const
 //-----------------------------------------------------------------------------
 {
-	return rget(m_Regex)->error();
+	return m_Regex->error();
 }
 
 //-----------------------------------------------------------------------------
@@ -133,14 +122,14 @@ const std::string& KRegex::Error() const
 const std::string& KRegex::ErrorArg() const
 //-----------------------------------------------------------------------------
 {
-	return rget(m_Regex)->error_arg();
+	return m_Regex->error_arg();
 }
 
 //-----------------------------------------------------------------------------
 /// converting constructor, takes string literals and strings
 KRegex::KRegex(KStringView expression)
 //-----------------------------------------------------------------------------
-: m_Regex(new detail::kregex::regex_t(detail::kregex::getInstance().Get(expression)), kRegexDeleter)
+: m_Regex(detail::kregex::getInstance().Get(expression))
 , m_bIsEmpty(expression.empty())
 {
 	if (!Good())
@@ -148,6 +137,11 @@ KRegex::KRegex(KStringView expression)
 		LogExpError();
 	}
 }
+
+// the special members are defined here, where re2::RE2 is a complete type
+KRegex::KRegex(KRegex&&) noexcept = default;
+KRegex& KRegex::operator=(KRegex&&) noexcept = default;
+KRegex::~KRegex() = default;
 
 using reGroup  = re2::StringPiece;
 using reGroups = std::vector<reGroup>;
@@ -180,8 +174,8 @@ KRegex::Groups KRegex::MatchGroups(KStringView sStr, size_type pos) const
 		else
 		{
 			reGroups resGroups;
-			resGroups.resize(static_cast<size_t>(rget(m_Regex)->NumberOfCapturingGroups()+1));
-			if (rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, &resGroups[0], static_cast<int>(resGroups.size())))
+			resGroups.resize(static_cast<size_t>(m_Regex->NumberOfCapturingGroups()+1));
+			if (m_Regex->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, &resGroups[0], static_cast<int>(resGroups.size())))
 			{
 				re2groups(resGroups, vGroups);
 			}
@@ -210,7 +204,7 @@ KStringView KRegex::Match(KStringView sStr, size_type pos) const
 		else
 		{
 			reGroup resGroup;
-			if (rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, &resGroup, 1))
+			if (m_Regex->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, &resGroup, 1))
 			{
 				sGroup.assign(resGroup.data(), resGroup.size());
 			}
@@ -230,7 +224,7 @@ bool KRegex::Matches(KStringView sStr, size_type pos) const
 {
 	if (DEKAF2_LIKELY(Good()))
 	{
-		if (m_bIsEmpty || rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, nullptr, 0))
+		if (m_bIsEmpty || m_Regex->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, nullptr, 0))
 		{
 			return true;
 		}
@@ -253,11 +247,11 @@ size_t KRegex::Replace(std::string& sStr, KStringView sReplaceWith, bool bReplac
 	{
 		if (bReplaceAll)
 		{
-			iCount = static_cast<size_t>(re2::RE2::GlobalReplace(&sStr, rget(m_Regex).get(), re2::StringPiece(sReplaceWith.data(), sReplaceWith.size())));
+			iCount = static_cast<size_t>(re2::RE2::GlobalReplace(&sStr, m_Regex.get(), re2::StringPiece(sReplaceWith.data(), sReplaceWith.size())));
 		}
 		else
 		{
-			if (re2::RE2::Replace(&sStr, rget(m_Regex).get(), re2::StringPiece(sReplaceWith.data(), sReplaceWith.size())))
+			if (re2::RE2::Replace(&sStr, m_Regex.get(), re2::StringPiece(sReplaceWith.data(), sReplaceWith.size())))
 			{
 				iCount = 1;
 			}

@@ -272,3 +272,105 @@ TEST_CASE("KRegex")
 	}
 */
 }
+
+TEST_CASE("KRegex cache")
+{
+	SECTION("a cache hit returns the cached regex")
+	{
+		KRegex::ClearCache();
+
+		KRegex Regex("^[0-9]+$");
+		// Pattern() returns a reference into the compiled regex object
+		CHECK ( &KRegex("^[0-9]+$").Pattern() == &Regex.Pattern() );
+		CHECK ( KRegex::GetCacheSize() == 1 );
+
+		KRegex::ClearCache();
+	}
+
+	SECTION("a used regex gets a second chance")
+	{
+		auto iOrigSize = KRegex::GetMaxCacheSize();
+		KRegex::ClearCache();
+		KRegex::SetMaxCacheSize(3);
+
+		// RegexA and RegexB keep their compiled objects alive after an eviction from
+		// the cache, so a new compilation of their patterns gets a different address
+		KRegex RegexA("^a+$");
+		KRegex RegexB("^b+$");
+		CHECK ( KRegex::Matches("ccc", "^c+$") == true );
+		CHECK ( KRegex::GetCacheSize() == 3 );
+
+		// marks "^a+$" as used
+		CHECK ( KRegex::Matches("aaa", "^a+$") == true );
+
+		// "^a+$" is the oldest element, but was used, therefore "^b+$" is removed
+		CHECK ( KRegex::Matches("ddd", "^d+$") == true );
+		CHECK ( KRegex::GetCacheSize() == 3 );
+
+		CHECK ( &KRegex("^a+$").Pattern() == &RegexA.Pattern() );
+		CHECK ( &KRegex("^b+$").Pattern() != &RegexB.Pattern() );
+
+		KRegex::SetMaxCacheSize(iOrigSize);
+		KRegex::ClearCache();
+	}
+
+	SECTION("move")
+	{
+		KRegex Regex1("^a+$");
+		KRegex Regex2(std::move(Regex1));
+		CHECK ( Regex2.Matches("aaa") == true   );
+
+		KRegex Regex3("^b+$");
+		CHECK ( Regex3.Matches("aaa") == false  );
+		Regex3 = std::move(Regex2);
+		CHECK ( Regex3.Matches("aaa") == true   );
+		CHECK ( Regex3.Pattern()      == "^a+$" );
+
+		static_assert(!std::is_copy_constructible<KRegex>::value, "KRegex should not be copy constructible");
+		static_assert(std::is_nothrow_move_assignable<KRegex>::value, "KRegex should be nothrow move assignable");
+	}
+
+	SECTION("invalid pattern")
+	{
+		KRegex Regex("(abc");
+		CHECK ( Regex.Good() == false );
+		CHECK ( Regex.Error().empty() == false );
+		CHECK ( Regex.Matches("abc")  == false );
+		CHECK ( KRegex::Matches("abc", "(abc") == false );
+	}
+
+	SECTION("MT with eviction")
+	{
+		auto iOrigSize = KRegex::GetMaxCacheSize();
+		KRegex::ClearCache();
+		KRegex::SetMaxCacheSize(8);
+
+		std::vector<KString> Patterns;
+
+		for (int i = 0; i < 40; ++i)
+		{
+			Patterns.push_back(KString("^p") + KString::to_string(i) + "/[a-z]+$");
+		}
+
+		std::atomic<uint32_t> iErrors { 0 };
+
+		KRunThreads(10).Create([&iErrors, &Patterns]()
+		{
+			for (int i = 0; i < 500; ++i)
+			{
+				auto iIndex = static_cast<std::size_t>(i * 7) % Patterns.size();
+				KString sInput = KString("p") + KString::to_string(iIndex) + "/abc";
+
+				if (KRegex::Matches(sInput, Patterns[iIndex]) == false) { ++iErrors; }
+				if (KRegex::Matches("p999/abc", Patterns[iIndex]) == true) { ++iErrors; }
+				if (KStringView(sString).MatchRegex("^[0-9a-f]+$") != sString) { ++iErrors; }
+			}
+		});
+
+		CHECK ( iErrors == 0 );
+		CHECK ( KRegex::GetCacheSize() <= 8 );
+
+		KRegex::SetMaxCacheSize(iOrigSize);
+		KRegex::ClearCache();
+	}
+}

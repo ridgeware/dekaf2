@@ -70,6 +70,7 @@
 #if DEKAF2_IS_GCC
 #pragma GCC diagnostic pop
 #endif
+#include <functional>
 #include <iterator>
 #include <dekaf2/containers/associative/bits/kmutable_pair.h>
 
@@ -96,8 +97,10 @@ protected:
 		Element,
 		boost::multi_index::indexed_by<
 			boost::multi_index::sequenced<boost::multi_index::tag<SeqIdx> >,
+			// uses std::hash instead of boost::hash, as std::hash supports transparent lookups
 			boost::multi_index::hashed_unique<boost::multi_index::tag<KeyIdx>,
-			boost::multi_index::identity<Element> >
+			boost::multi_index::identity<Element>,
+			std::hash<Element> >
 		>
 	>;
 
@@ -121,8 +124,10 @@ protected:
 		Element,
 		boost::multi_index::indexed_by<
 			boost::multi_index::sequenced<boost::multi_index::tag<SeqIdx> >,
+			// uses std::hash instead of boost::hash, as std::hash supports transparent lookups
 			boost::multi_index::hashed_unique<boost::multi_index::tag<KeyIdx>,
-			boost::multi_index::member<Element, Key, &Element::first> >
+			boost::multi_index::member<Element, Key, &Element::first>,
+			std::hash<Key> >
 		>
 	>;
 
@@ -131,6 +136,7 @@ protected:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a generalized Most/Least Recently Used container. Once it has reached
 /// its max capacity it will start deleting the least recently used elements.
+/// The key type needs a std::hash specialization and an equality operator.
 template <typename Element, typename Key = Element, bool IsMap = false>
 class KMRUBase : KMRUBaseType<Element, Key, IsMap>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -149,9 +155,10 @@ protected:
 public:
 //----------
 
-	using element_type = Element;
-	using iterator     = typename MRU_t::iterator;
-	using pair_ib      = std::pair<iterator, bool>;
+	using element_type   = Element;
+	using iterator       = typename MRU_t::iterator;
+	using const_iterator = typename MRU_t::const_iterator;
+	using pair_ib        = std::pair<iterator, bool>;
 
 	//-----------------------------------------------------------------------------
 	/// Constructor.
@@ -196,6 +203,53 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Insert an element into the container, new or known. The element will be
+	/// placed at the top of the most recently used list. If the container then exceeds
+	/// its maximum size, the element at the end of the list is removed, unless
+	/// fnSecondChance returns true for it. In that case the element is moved behind the
+	/// inserted element, and the next element at the end of the list is checked.
+	/// fnSecondChance is called at most once per element and call of insert(). It should
+	/// reset the state it checks, so that the element is removed when it reaches the end
+	/// of the list again without having been used in between.
+	/// @param element the element to insert
+	/// @param fnSecondChance a callable with signature bool(const element_type&)
+	/// @return an iterator on the inserted or known element, or end() if the maximum size is 0
+	template<class SecondChance>
+	iterator insert(element_type element, SecondChance&& fnSecondChance)
+	//-----------------------------------------------------------------------------
+	{
+		auto pair = m_Elements.push_front(std::move(element));
+
+		if (!pair.second)
+		{
+			// element was already known. Bring to front.
+			touch(pair.first);
+			return begin();
+		}
+
+		// the number of elements that may still get a second chance - the inserted
+		// element at the front is not one of them
+		auto iCandidates = m_Elements.size() - 1;
+
+		while (m_Elements.size() > m_iMaxElements)
+		{
+			auto it = std::prev(m_Elements.end());
+
+			if (iCandidates && fnSecondChance(*it))
+			{
+				--iCandidates;
+				m_Elements.relocate(std::next(m_Elements.begin()), it);
+			}
+			else
+			{
+				m_Elements.pop_back();
+			}
+		}
+
+		return begin();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Erase the element with the given key from the container.
 	template<class K>
 	bool erase(const K& key)
@@ -233,6 +287,24 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Return a const iterator on the first element in the MRU sequence.
+	DEKAF2_NODISCARD
+	const_iterator begin() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Elements.begin();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Return a const end iterator.
+	DEKAF2_NODISCARD
+	const_iterator end() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Elements.end();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Finds the element with the given key. Returns end() if not found. Moves
 	/// the element to the top of the MRU list if found.
 	template<class K>
@@ -254,6 +326,21 @@ public:
 		{
 			return end();
 		}
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Finds the element with the given key. Returns end() if not found. Other than
+	/// find(), peek() does not move the element to the top of the MRU list. It does
+	/// not modify the container, therefore multiple threads may call it concurrently
+	/// as long as no thread modifies the container at the same time.
+	template<class K>
+	DEKAF2_NODISCARD
+	const_iterator peek(const K& key) const
+	//-----------------------------------------------------------------------------
+	{
+		const auto& KeyView = m_Elements.template get<KeyIdx>();
+		// convert into base iterator
+		return m_Elements.template project<SeqIdx>(KeyView.find(key));
 	}
 
 	//-----------------------------------------------------------------------------

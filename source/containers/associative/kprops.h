@@ -73,6 +73,7 @@
 #pragma GCC diagnostic pop
 #endif
 #include <algorithm>
+#include <functional>
 #include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/containers/associative/bits/kmutable_pair.h>
 #include <dekaf2/core/strings/ksplit.h>
@@ -107,6 +108,7 @@ protected:
 
 	// the multi_index definition. Looks a bit convoluted because
 	// it adapts to Unique and Sequential template arguments..
+	// uses std::hash instead of boost::hash, as std::hash supports transparent lookups
 	using storage_type =
 			// the non-sequential variant
 			boost::multi_index::multi_index_container<
@@ -116,11 +118,11 @@ protected:
 						Unique,
 						// the non-sequential unique variant
 						boost::multi_index::hashed_unique<
-							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>
+							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>, std::hash<Key>
 						>,
 						// the non-sequential non-unique variant
 						boost::multi_index::hashed_non_unique<
-							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>
+							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>, std::hash<Key>
 						>
 					>::type
 				>
@@ -149,6 +151,7 @@ protected:
 
 	// the multi_index definition. Looks a bit convoluted because
 	// it adapts to Unique and Sequential template arguments..
+	// uses std::hash instead of boost::hash, as std::hash supports transparent lookups
 	using storage_type =
 			// the sequential variant
 			boost::multi_index::multi_index_container<
@@ -158,11 +161,11 @@ protected:
 						Unique,
 						// the sequential unique variant
 						boost::multi_index::hashed_unique<
-							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>
+							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>, std::hash<Key>
 						>,
 						// the sequential non-unique variant
 						boost::multi_index::hashed_non_unique<
-							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>
+							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>, std::hash<Key>
 						>
 					>::type,
 					boost::multi_index::random_access<
@@ -182,6 +185,8 @@ protected:
 ///
 /// Also, per default, multiple keys (or key/value pairs) with different or
 /// the same value may exist. To switch to unique keys, set Unique to true.
+///
+/// The key type needs a std::hash specialization and an equality operator.
 template <class Key, class Value, bool Sequential = true, bool Unique = false>
 class DEKAF2_PUBLIC KProps : protected KPropsBase<Key, Value, Sequential, Unique>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -860,3 +860,105 @@ test=xyz
 	}
 
 }
+
+namespace {
+
+//-----------------------------------------------------------------------------
+std::size_t& CountedPropsKeyConstructions()
+//-----------------------------------------------------------------------------
+{
+	static std::size_t s_iConstructions { 0 };
+	return s_iConstructions;
+}
+
+// a key type with transparent std::hash and std::equal_to that counts its copies
+struct CountedPropsKey
+{
+	CountedPropsKey() = default;
+	explicit CountedPropsKey(KStringView sKey) : sKey(sKey) { ++CountedPropsKeyConstructions(); }
+	CountedPropsKey(const CountedPropsKey& other) : sKey(other.sKey) { ++CountedPropsKeyConstructions(); }
+	CountedPropsKey(CountedPropsKey&&) = default;
+	CountedPropsKey& operator=(const CountedPropsKey&) = default;
+	CountedPropsKey& operator=(CountedPropsKey&&) = default;
+
+	bool operator==(const CountedPropsKey& other) const { return sKey == other.sKey; }
+
+	KString sKey;
+};
+
+} // end of anonymous namespace
+
+namespace std {
+
+template<>
+struct hash<CountedPropsKey>
+{
+	using is_transparent = void;
+
+	std::size_t operator()(DEKAF2_PREFIX KStringView sKey) const noexcept { return DEKAF2_PREFIX kHash(sKey.data(), sKey.size()); }
+	std::size_t operator()(const CountedPropsKey& Key)     const noexcept { return operator()(Key.sKey.ToView()); }
+};
+
+template<>
+struct equal_to<CountedPropsKey>
+{
+	using is_transparent = void;
+
+	bool operator()(const CountedPropsKey& left, const CountedPropsKey& right)    const { return left == right;      }
+	bool operator()(DEKAF2_PREFIX KStringView left, const CountedPropsKey& right) const { return left == right.sKey; }
+	bool operator()(const CountedPropsKey& left, DEKAF2_PREFIX KStringView right) const { return left.sKey == right; }
+};
+
+} // end of namespace std
+
+TEST_CASE("KProps lookups with a transparent key type")
+{
+	SECTION("sequential, not unique")
+	{
+		KProps<CountedPropsKey, int> Props;
+
+		Props.Add(CountedPropsKey("abc"), 1);
+		Props.Add(CountedPropsKey("def"), 2);
+		Props.Add(CountedPropsKey("def"), 3);
+
+		auto iConstructions = CountedPropsKeyConstructions();
+
+		CHECK ( Props.contains(KStringView("abc"))                );
+		CHECK ( Props.count   (KStringView("def")) == 2           );
+		CHECK ( Props.Get     (KStringView("abc")) == 1           );
+		CHECK ( Props.find    (KStringView("xyz")) == Props.end() );
+
+		auto Range = Props.equal_range(KStringView("def"));
+		CHECK ( std::distance(Range.first, Range.second) == 2 );
+
+		CHECK ( CountedPropsKeyConstructions() == iConstructions );
+	}
+
+	SECTION("not sequential, unique")
+	{
+		KProps<CountedPropsKey, int, false, true> Props;
+
+		Props.Add(CountedPropsKey("abc"), 1);
+		Props.Add(CountedPropsKey("def"), 2);
+
+		auto iConstructions = CountedPropsKeyConstructions();
+
+		CHECK ( Props.contains(KStringView("def"))                );
+		CHECK ( Props.Get     (KStringView("def")) == 2           );
+		CHECK ( Props.find    (KStringView("xyz")) == Props.end() );
+
+		CHECK ( CountedPropsKeyConstructions() == iConstructions );
+	}
+
+	SECTION("KString keys")
+	{
+		KProps<KString, KString> Props;
+
+		Props.Add("Key", "Value");
+
+		CHECK ( Props.Get     (KStringView("Key")) == "Value" );
+		CHECK ( Props.Get     ("Key")              == "Value" );
+		CHECK ( Props.contains(KString("Key"))                );
+		CHECK ( Props.contains(KStringView("key")) == false   );
+	}
+}

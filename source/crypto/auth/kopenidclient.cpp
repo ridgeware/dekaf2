@@ -56,6 +56,7 @@
 #include <dekaf2/web/url/kurl.h>                 // KURL
 #include <dekaf2/core/format/kformat.h>          // kFormat
 #include <dekaf2/core/logging/klog.h>            // kDebug
+#include <dekaf2/core/types/kscopeguard.h>       // KScopeGuard
 #include <mutex>                                 // std::call_once, std::unique_lock
 
 DEKAF2_NAMESPACE_BEGIN
@@ -649,63 +650,156 @@ KString KOpenIDClient::Authorize(KRESTServer& HTTP)
 		return {};
 	}
 
-	KString   sAccessToken = kjson::GetStringRef(jTokens, "access_token");
-	KUnixTime tExpiresAt(kjson::GetInt(jTokens, "expires_at"));
-
 	// If the access token is within the leeway window of expiry, silently renew
 	// it using the stored refresh_token, then persist the rotated tokens back
 	// into the session (via KSession::UpdateExtra, which preserves the idle and
 	// absolute timeouts). If renewal is not possible, clear the session so the
 	// frontend re-initiates a fresh code exchange.
-	if (KUnixTime::now() + m_Config.ExpiryLeeway >= tExpiresAt)
+	if (IsRenewalDue(jTokens) && !RenewTokens(HTTP, sToken, Record, jTokens))
 	{
-		KString sRefreshToken = kjson::GetStringRef(jTokens, "refresh_token");
-
-		KJSON jNew = sRefreshToken.empty() ? KJSON{} : TokenRequest({
-			{ "grant_type"   , "refresh_token" },
-			{ "refresh_token", sRefreshToken   }
-		});
-
-		KString sNewAccess = kjson::GetStringRef(jNew, "access_token");
-		if (sNewAccess.empty())
-		{
-			kDebug(1, "access token expired and refresh failed, clearing session for user:{}", Record.sUsername);
-			m_pSession->Logout(Record.sToken);
-			ExpireSessionCookie(HTTP);
-			return {};
-		}
-
-		sAccessToken            = sNewAccess;
-		jTokens["access_token"] = sNewAccess;
-		jTokens["expires_at"]   = AccessTokenExpiry(jNew).to_time_t();
-
-		// providers may rotate the refresh token and/or re-issue the id_token
-		KString sNewRefresh = kjson::GetStringRef(jNew, "refresh_token");
-		if (!sNewRefresh.empty())
-		{
-			jTokens["refresh_token"] = sNewRefresh;
-		}
-		KString sNewIDToken = kjson::GetStringRef(jNew, "id_token");
-		if (!sNewIDToken.empty())
-		{
-			jTokens["id_token"] = sNewIDToken;
-		}
-
-		if (!m_pSession->UpdateExtra(Record.sToken, jTokens.dump()))
-		{
-			// The configured Store does not support in-place updates (a custom
-			// backend that has not overridden UpdateExtra). The freshly renewed
-			// token is still used for this request, but it cannot be persisted,
-			// so the next request will renew again.
-			kDebug(2, "refreshed access token could not be persisted (Store has no UpdateExtra)");
-		}
+		return {};
 	}
 
 	// inject for VerifyAuthentication(), which strips the "Bearer " prefix
-	HTTP.Request.Headers[KHTTPHeader::AUTHORIZATION] = sAccessToken;
+	HTTP.Request.Headers[KHTTPHeader::AUTHORIZATION] = kjson::GetStringRef(jTokens, "access_token");
 	return Record.sUsername;
 
 } // Authorize
+
+//-----------------------------------------------------------------------------
+bool KOpenIDClient::IsRenewalDue(const KJSON& jTokens) const
+//-----------------------------------------------------------------------------
+{
+	return KUnixTime::now() + m_Config.ExpiryLeeway >= KUnixTime(kjson::GetInt(jTokens, "expires_at"));
+
+} // IsRenewalDue
+
+//-----------------------------------------------------------------------------
+bool KOpenIDClient::RenewTokens(KRESTServer& HTTP, KStringView sToken, KSession::Record& Record, KJSON& jTokens)
+//-----------------------------------------------------------------------------
+{
+	// reads the session again, after another renewal may have changed its tokens
+	// or cleared it
+	auto ReadSession = [&]() -> bool
+	{
+		if (!m_pSession->Validate(sToken, &Record))
+		{
+			ExpireSessionCookie(HTTP);
+			return false;
+		}
+
+		jTokens = kjson::Parse(Record.sExtra);
+
+		return jTokens.is_object();
+	};
+
+	// One renewal per session at a time: a provider that rotates the refresh token
+	// rejects a second renewal with the same refresh token, and may revoke all tokens
+	// of the session. Other requests of the session wait for the running renewal and
+	// then read the renewed tokens from the session. Requests whose access token is
+	// not due for renewal do not get here and take no lock.
+	KString            sSessionToken(sToken);
+	std::promise<void> RenewalDone;
+
+	for (;;)
+	{
+		std::shared_future<void> OtherRenewalDone;
+
+		{
+			std::lock_guard<std::mutex> Lock(m_RenewalMutex);
+
+			auto it = m_Renewals.find(sSessionToken);
+
+			if (it == m_Renewals.end())
+			{
+				// no other thread renews the tokens of this session, this thread does
+				m_Renewals.emplace(sSessionToken, RenewalDone.get_future().share());
+				break;
+			}
+
+			OtherRenewalDone = it->second;
+		}
+
+		// wait for the other renewal without holding the lock
+		OtherRenewalDone.wait();
+
+		if (!ReadSession())
+		{
+			return false;
+		}
+
+		if (!IsRenewalDue(jTokens))
+		{
+			return true;
+		}
+	}
+
+	// removes the session from m_Renewals and wakes up the waiting threads at the
+	// end of the renewal, also when it throws
+	KScopeGuard Guard([this, &sSessionToken, &RenewalDone]()
+	{
+		{
+			std::lock_guard<std::mutex> Lock(m_RenewalMutex);
+			m_Renewals.erase(sSessionToken);
+		}
+		RenewalDone.set_value();
+	});
+
+	// another renewal may have ended after this request read the session and before
+	// this thread registered its own renewal
+	if (!ReadSession())
+	{
+		return false;
+	}
+
+	if (!IsRenewalDue(jTokens))
+	{
+		return true;
+	}
+
+	KString sRefreshToken = kjson::GetStringRef(jTokens, "refresh_token");
+
+	KJSON jNew = sRefreshToken.empty() ? KJSON{} : TokenRequest({
+		{ "grant_type"   , "refresh_token" },
+		{ "refresh_token", sRefreshToken   }
+	});
+
+	KString sNewAccess = kjson::GetStringRef(jNew, "access_token");
+	if (sNewAccess.empty())
+	{
+		kDebug(1, "access token expired and refresh failed, clearing session for user:{}", Record.sUsername);
+		m_pSession->Logout(Record.sToken);
+		ExpireSessionCookie(HTTP);
+		return false;
+	}
+
+	jTokens["access_token"] = sNewAccess;
+	jTokens["expires_at"]   = AccessTokenExpiry(jNew).to_time_t();
+
+	// providers may rotate the refresh token and/or re-issue the id_token
+	KString sNewRefresh = kjson::GetStringRef(jNew, "refresh_token");
+	if (!sNewRefresh.empty())
+	{
+		jTokens["refresh_token"] = sNewRefresh;
+	}
+	KString sNewIDToken = kjson::GetStringRef(jNew, "id_token");
+	if (!sNewIDToken.empty())
+	{
+		jTokens["id_token"] = sNewIDToken;
+	}
+
+	if (!m_pSession->UpdateExtra(Record.sToken, jTokens.dump()))
+	{
+		// The configured Store does not support in-place updates (a custom
+		// backend that has not overridden UpdateExtra). The freshly renewed
+		// token is still used for this request, but it cannot be persisted,
+		// so the next request will renew again.
+		kDebug(2, "refreshed access token could not be persisted (Store has no UpdateExtra)");
+	}
+
+	return true;
+
+} // RenewTokens
 
 //-----------------------------------------------------------------------------
 void KOpenIDClient::GetUserInfo(KRESTServer& HTTP)

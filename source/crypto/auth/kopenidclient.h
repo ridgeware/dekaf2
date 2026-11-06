@@ -59,7 +59,9 @@
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/auth/kopenid.h>   // KOpenIDProviderList, KJWT
 #include <dekaf2/web/url/kurl.h>          // KURL (returned by BuildLoginURL)
+#include <dekaf2/containers/associative/kassociative.h>
 #include <cstddef>
+#include <future>
 #include <memory>
 #include <mutex>
 
@@ -120,7 +122,7 @@ public:
 		KDuration IdleTimeout        { chrono::minutes(30) };
 		KDuration AbsoluteTimeout    { chrono::hours(8)    };
 		KDuration DiscoveryRefresh   { chrono::hours(24)   }; ///< how long discovery + JWKS are cached
-		KDuration ExpiryLeeway       { chrono::minutes(5)  }; ///< treat the access token as expired this long before its real expiry
+		KDuration ExpiryLeeway       { chrono::seconds(10) }; ///< treat the access token as expired this long before its real expiry
 		/// Assumed access-token lifetime when the token response omits "expires_in"
 		/// (RFC 6749 marks it OPTIONAL). Without a fallback a missing value would
 		/// collapse the expiry to "now", forcing a silent refresh — or, with no
@@ -198,7 +200,8 @@ public:
 	/// Config::ExpiryLeeway of expiry, silently renew it using the stored
 	/// refresh_token and persist the rotated tokens back into the session
 	/// (preserving its idle/absolute timeouts). If renewal is not possible the
-	/// session is cleared so the frontend re-initiates login. On success sets
+	/// session is cleared so the frontend re-initiates login. Concurrent requests
+	/// of the same session wait for one renewal and use its tokens. On success sets
 	/// the Authorization header and returns the username; returns an empty
 	/// string on failure.
 	KString Authorize      (KRESTServer& HTTP);
@@ -240,6 +243,14 @@ private:
 	/// (seconds); falls back to Config::DefaultAccessTTL when it is absent or
 	/// non-positive, so a missing expires_in does not collapse to "expires now".
 	DEKAF2_PRIVATE KUnixTime  AccessTokenExpiry  (const KJSON& jTokenResponse) const;
+	/// true if the access token in the session tokens expires within Config::ExpiryLeeway
+	DEKAF2_PRIVATE bool       IsRenewalDue       (const KJSON& jTokens) const;
+	/// Renew the access token of the session with its refresh_token, one renewal
+	/// per session at a time, and persist the new tokens into the session. Reads
+	/// the session again into Record and jTokens. Returns false and clears the
+	/// session if renewal is not possible.
+	DEKAF2_PRIVATE bool       RenewTokens        (KRESTServer& HTTP, KStringView sToken,
+	                                              KSession::Record& Record, KJSON& jTokens);
 	/// Validate an id_token's signature (via KJWT against the provider's JWKS)
 	/// and its nonce, then return the resolved username (empty on failure).
 	DEKAF2_PRIVATE KString    ValidateIDToken    (KStringView sIDToken, KStringView sExpectedNonce);
@@ -263,6 +274,9 @@ private:
 	KOpenIDProviderList       m_Providers;             ///< for id_token validation via KJWT (lazily filled, once)
 	std::once_flag            m_ProvidersOnce;         ///< guards the one-time build of m_Providers
 	std::mutex                m_RefreshMutex;          ///< serialises KOpenIDProvider::Refresh() to a single writer
+	std::mutex                m_RenewalMutex;          ///< guards m_Renewals
+	KUnorderedMap<KString, std::shared_future<void>>
+	                          m_Renewals;              ///< session tokens whose access token is being renewed
 	KString                   m_sTokenEndpoint;
 	KString                   m_sAuthEndpoint;
 	KString                   m_sEndSessionEndpoint;

@@ -10,12 +10,18 @@
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/rest/framework/krestroute.h>
 #include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kcaseless.h>   // kCaselessEqual
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/ksystem.h>       // kSleep
+#include <atomic>
 #include <map>
+#include <mutex>
+#include <set>
+#include <thread>
 #include <vector>
 
 using namespace dekaf2;
@@ -116,6 +122,13 @@ struct MockIdP
 	KString sAud { "test-client" }; ///< audience to mint into the next id_token (default = our client_id)
 	KString sAzp;           ///< authorized party (azp) to mint; empty = omit the claim
 	bool    bOmitExpiresIn { false }; ///< drop "expires_in" from the token response
+	int     iExpiresIn        { 3600 };  ///< "expires_in" of the code exchange
+	int     iRefreshExpiresIn { 3600 };  ///< "expires_in" of a renewal
+	bool    bRotateRefresh    { false }; ///< issue new tokens on every renewal, and accept a refresh_token once
+	KDuration RefreshDelay;              ///< time the token endpoint takes for a renewal
+	std::atomic<int> iRefreshes { 0 };   ///< count of renewals
+	std::mutex       UsedMutex;          ///< guards UsedRefreshTokens
+	std::set<KString> UsedRefreshTokens; ///< refresh tokens presented so far, with bRotateRefresh
 };
 
 //-----------------------------------------------------------------------------
@@ -311,13 +324,42 @@ TEST_CASE("KOpenIDClient")
 	{
 		bool bRefresh = http.GetRequestBody().contains("grant_type=refresh_token");
 		// (route parsed as WWWFORM below, so GetRequestBody() holds the raw form)
+		KString sAccess  = bRefresh ? "access-2"  : "access-1";
+		KString sRefresh = bRefresh ? "refresh-2" : "refresh-1";
+
+		if (bRefresh)
+		{
+			auto iRefresh = ++Mock.iRefreshes;
+
+			if (Mock.bRotateRefresh)
+			{
+				// a refresh_token is valid once, as with a provider that rotates them
+				{
+					std::lock_guard<std::mutex> Lock(Mock.UsedMutex);
+
+					if (!Mock.UsedRefreshTokens.insert(http.GetQueryParm("refresh_token")).second)
+					{
+						throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid_grant" };
+					}
+				}
+
+				sAccess  = kFormat("access-{}" , iRefresh + 1);
+				sRefresh = kFormat("refresh-{}", iRefresh + 1);
+			}
+
+			if (Mock.RefreshDelay > KDuration::zero())
+			{
+				kSleep(Mock.RefreshDelay);
+			}
+		}
+
 		http.json.tx = {
-			{ "access_token",  bRefresh ? "access-2"  : "access-1"  },
-			{ "refresh_token", bRefresh ? "refresh-2" : "refresh-1" },
+			{ "access_token",  sAccess  },
+			{ "refresh_token", sRefresh },
 			{ "id_token",      MakeES256JWT(Mock.Key, Mock.sBase, "alice", Mock.sNonce, 3600, Mock.sAud, Mock.sAzp) },
 			{ "token_type",    "Bearer" }
 		};
-		if (!Mock.bOmitExpiresIn) http.json.tx["expires_in"] = 3600;
+		if (!Mock.bOmitExpiresIn) http.json.tx["expires_in"] = bRefresh ? Mock.iRefreshExpiresIn : Mock.iExpiresIn;
 	}, KRESTRoute::WWWFORM });
 
 	KREST::Options MockOpt;
@@ -427,7 +469,7 @@ TEST_CASE("KOpenIDClient")
 	SECTION("missing expires_in defaults to Config::DefaultAccessTTL (no spurious refresh)")
 	{
 		// A provider that omits the OPTIONAL "expires_in" must not make the
-		// session look expired-on-arrival. With the default leeway (5 min) and
+		// session look expired-on-arrival. With the default leeway (10 s) and
 		// DefaultAccessTTL (1 h) the token is comfortably valid, so the protected
 		// request serves the original access-1 without a refresh_token exchange.
 		// (Before the fix the expiry collapsed to "now" and this returned access-2.)
@@ -447,6 +489,79 @@ TEST_CASE("KOpenIDClient")
 
 		KString sProtected = Drive(AppRoutes, "GET", "/protected", Cookies.Header());
 		CHECK ( sProtected.contains("alice|access-1") );
+	}
+
+	SECTION("default leeway: a 5 minute access token is used without renewal")
+	{
+		// KOpenIDServer issues access tokens for 5 minutes
+		Mock.iExpiresIn = 300;
+
+		CookieJar Cookies;
+
+		KString sLogin = Drive(AppRoutes, "GET", "/auth/login", Cookies.Header());
+		Cookies.Apply(sLogin);
+		Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+		KString sState = URLParam(ResponseBody(sLogin), "state");
+
+		KString sCallback = Drive(AppRoutes, "GET",
+			kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+		Cookies.Apply(sCallback);
+		REQUIRE ( Cookies.Has("session") );
+
+		CHECK ( Drive(AppRoutes, "GET", "/protected", Cookies.Header()).contains("alice|access-1") );
+		CHECK ( Drive(AppRoutes, "GET", "/protected", Cookies.Header()).contains("alice|access-1") );
+		CHECK ( Mock.iRefreshes == 0 );
+	}
+
+	SECTION("concurrent requests of a session share one renewal")
+	{
+		// the access token expires within the leeway, the renewed one does not. The
+		// provider accepts a refresh_token once, and takes its time for the renewal,
+		// so that the requests below overlap with it
+		Mock.iExpiresIn        = 5;
+		Mock.iRefreshExpiresIn = 3600;
+		Mock.bRotateRefresh    = true;
+		Mock.RefreshDelay      = chrono::milliseconds(300);
+
+		CookieJar Cookies;
+
+		KString sLogin = Drive(AppRoutes, "GET", "/auth/login", Cookies.Header());
+		Cookies.Apply(sLogin);
+		Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+		KString sState = URLParam(ResponseBody(sLogin), "state");
+
+		KString sCallback = Drive(AppRoutes, "GET",
+			kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+		Cookies.Apply(sCallback);
+		REQUIRE ( Cookies.Has("session") );
+
+		KString sCookie = Cookies.Header();
+		std::vector<KString> Responses(8);
+		std::vector<std::thread> Threads;
+
+		for (std::size_t i = 0; i < Responses.size(); ++i)
+		{
+			Threads.emplace_back([&, i]()
+			{
+				Responses[i] = Drive(AppRoutes, "GET", "/protected", sCookie);
+			});
+		}
+
+		for (auto& Thread : Threads)
+		{
+			Thread.join();
+		}
+
+		for (const auto& sResponse : Responses)
+		{
+			CHECK ( sResponse.contains("alice|access-2") );
+		}
+
+		CHECK ( Mock.iRefreshes == 1 );
+
+		// the session keeps the renewed tokens
+		CHECK ( Drive(AppRoutes, "GET", "/protected", sCookie).contains("alice|access-2") );
+		CHECK ( Mock.iRefreshes == 1 );
 	}
 
 	SECTION("callback is rejected on id_token nonce mismatch")

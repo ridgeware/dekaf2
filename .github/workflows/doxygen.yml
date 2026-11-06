@@ -1,9 +1,7 @@
 name: Doxygen Documentation
 
 on:
-  workflow_dispatch:          # manual trigger via GitHub UI
-  push:
-    tags: ['v*']              # automatic on version tags like v2.1.0
+  workflow_dispatch:          # manual trigger via GitHub UI, the github-pages environment only deploys from master
 
 permissions:
   contents: read

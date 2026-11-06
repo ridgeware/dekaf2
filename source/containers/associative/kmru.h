@@ -45,6 +45,9 @@
 /// @file kmru.h
 /// provides a least / most recently used container
 
+#ifndef BOOST_NO_CXX98_FUNCTION_BASE
+	#define BOOST_NO_CXX98_FUNCTION_BASE
+#endif
 #include <dekaf2/core/init/kdefinitions.h> // for the GCC warning guards below
 // boost::multi_index provokes a false-positive -Wstringop-overflow / -Warray-bounds
 // on GCC >= 16 (a bogus ~2^64 memset bound in bucket_array::clear()). The diagnostic is

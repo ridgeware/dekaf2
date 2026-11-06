@@ -1396,6 +1396,10 @@ private:
 							Row,
 							boost::multi_index::member<Row, ConnectionID, &Row::ID         >,
 							boost::multi_index::member<Row, uint64_t,     &Row::iServerHash>
+						>,
+						boost::multi_index::composite_key_hash<
+							std::hash<ConnectionID>,
+							std::hash<uint64_t>
 						>
 					>,
 					boost::multi_index::ordered_non_unique<

@@ -1178,21 +1178,4 @@ namespace std
 
 } // end of namespace std
 
-#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost {
-#else
-DEKAF2_NAMESPACE_BEGIN
-#endif
-	inline
-	std::size_t hash_value(const DEKAF2_PREFIX KHTMLObject& o)
-	{
-		return o.Type();
-	}
-#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-}
-#else
-
 /// @}
-
-DEKAF2_NAMESPACE_END
-#endif

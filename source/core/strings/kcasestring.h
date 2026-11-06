@@ -397,29 +397,6 @@ namespace std
 
 } // end of namespace std
 
-#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost {
-#else
-DEKAF2_NAMESPACE_BEGIN
-#endif
-	template<typename Trimming>
-	std::size_t hash_value(const DEKAF2_PREFIX KCaseStringViewBase<Trimming>& s)
-	{
-		return DEKAF2_PREFIX kCalcCaseHashTrim<Trimming>(s);
-	}
-
-	template<typename Trimming>
-	std::size_t hash_value(const DEKAF2_PREFIX KCaseStringBase<Trimming>& s)
-	{
-		return DEKAF2_PREFIX kCalcCaseHashTrim<Trimming>(s);
-	}
-#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-}
-#else
-
-DEKAF2_NAMESPACE_END
-#endif
-
 //----------------------------------------------------------------------
 template<typename Trimming>
 inline std::size_t DEKAF2_PREFIX KCaseStringViewBase<Trimming>::Hash() const

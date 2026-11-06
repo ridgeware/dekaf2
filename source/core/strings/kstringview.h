@@ -59,14 +59,6 @@
 #include <fmt/format.h>
 #include <cinttypes>
 #include <functional>
-#ifndef BOOST_NO_CXX98_FUNCTION_BASE
-	#define BOOST_NO_CXX98_FUNCTION_BASE
-#endif
-#if DEKAF2_HAS_INCLUDE(<boost/container_hash/hash.hpp>)
-	#include <boost/container_hash/hash.hpp>
-#else
-	#include <boost/functional/hash.hpp>
-#endif
 #include <string>
 #include <vector>
 #include <ostream>
@@ -134,7 +126,7 @@ class KFindSetOfChars;
 ///
 /// **Interoperability** - implicitly converts to/from `std::string`,
 /// `std::string_view`, `KStringViewZ`, `KString`, and `fmt::string_view`.
-/// Provides `std::hash`, `boost::hash`, and `fmt::formatter` specializations.
+/// Provides `std::hash` and `fmt::formatter` specializations.
 ///
 /// Usage:
 /// @code
@@ -2058,22 +2050,6 @@ namespace std
 	};
 
 } // namespace std
-
-#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost {
-#else
-DEKAF2_NAMESPACE_BEGIN
-#endif
-	inline
-	std::size_t hash_value(const DEKAF2_PREFIX KStringView& s)
-	{
-		return s.Hash();
-	}
-#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-}
-#else
-DEKAF2_NAMESPACE_END
-#endif
 
 //----------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC std::size_t DEKAF2_PREFIX KStringView::Hash() const

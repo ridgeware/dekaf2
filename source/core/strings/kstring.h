@@ -107,7 +107,7 @@ struct is_kstring_move_assignable
 ///
 /// **Interoperability** - implicitly converts to/from `std::string`,
 /// `KStringView`, `KStringViewZ`, `std::string_view`, and `fmt::string_view`.
-/// Provides `std::hash`, `boost::hash`, and `fmt::formatter` specializations.
+/// Provides `std::hash` and `fmt::formatter` specializations.
 ///
 /// Usage:
 /// @code
@@ -2608,23 +2608,6 @@ namespace std
 	};
 
 } // end of namespace std
-
-#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost {
-#else
-DEKAF2_NAMESPACE_BEGIN
-#endif
-	inline
-	std::size_t hash_value(const DEKAF2_PREFIX KString& s)
-	{
-		return s.Hash();
-	}
-#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-}
-#else
-
-DEKAF2_NAMESPACE_END
-#endif
 
 //----------------------------------------------------------------------
 DEKAF2_CONSTEXPR_STRING std::size_t DEKAF2_PREFIX KString::Hash() const

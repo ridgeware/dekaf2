@@ -1866,6 +1866,9 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 		kDebug (4, "...");
 	}
 
+	// the watch list knows the connection by its ID, which is reset below
+	EndTimeoutWatch();
+
 	if (IsConnectionOpen())
 	{
 		if (!bDestructor)
@@ -2266,6 +2269,10 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		return false;
 	}
 
+	// end an open query before the timeout of this statement is watched: it may
+	// reconnect if the timeout of the open query killed its connection
+	EndQuery();
+
 	// cancel the statement if it runs longer than the query timeout - the code above
 	// this point must be safe for recursion, see QueryTimeoutGuard
 	QueryTimeoutGuard TimeoutGuard(*this, QueryType);
@@ -2273,7 +2280,6 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 	m_SQLStmtStats.Collect(m_sLastSQL.str(), QueryType);
 
 	m_iNumRowsAffected  = 0;
-	EndQuery();
 
 	bool    bOK          = false;
 	int     iRetriesLeft = m_bDisableRetries ? 1 : NUM_RETRIES;
@@ -3324,6 +3330,10 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 	case API::MYSQL:
 	// - - - - - - - - - - - - - - - - -
 		{
+			// cancel the query if it runs longer than the query timeout, also while its rows
+			// are read - the guard in ExecLastRawSQL() leaves the watch to this one
+			QueryTimeoutGuard TimeoutGuard(*this, GetQueryType(m_sLastSQL.str()));
+
 			// with mysql, I can get away with calling my ExecSQL() function for the
 			// start of queries...
 			if (!ExecLastRawSQL (F_NoKlogDebug, "ExecRawQuery"))
@@ -3384,6 +3394,9 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 				m_dColInfo.push_back(std::move(ColInfo));
 			}
+
+			// the server may still work on the rows, and sends them while they are read
+			TimeoutGuard.KeepForResult();
 		}
 		break;
 	#endif
@@ -3782,6 +3795,9 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 					return false;
 				}
 			}
+
+			// the server sends the rows while they are read
+			TimeoutGuard.KeepForResult();
 
 			break; // success
 		}
@@ -4480,6 +4496,12 @@ bool KSQL::BufferResults ()
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
+	// all rows are read
+	if (!EndResultWatch())
+	{
+		return false;
+	}
+
 #if DEKAF2_IS_WINDOWS
 	auto errcode = fopen_s (&m_bpBufferedResults, GetTempResultsFile().c_str(), "r");
 	if (errcode)
@@ -4566,6 +4588,7 @@ bool KSQL::NextRow ()
 					}
 
 					kDebug (4, "{} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
+					EndResultWatch();
 					return false;
 				}
 				break;
@@ -5210,6 +5233,19 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 	FreeBufferedColArray ();
 
 	m_bQueryStarted = false;
+
+	if (m_TimeoutWatch == TimeoutWatch::Result)
+	{
+		// the query ends before all its rows were read
+		EndTimeoutWatch();
+
+		if (!bDestructor)
+		{
+			// if the watcher killed the connection meanwhile, reconnect now, so that
+			// the next statement does not fail
+			HandleCanceledConnection(nullptr, CancelReason::Timeout);
+		}
+	}
 
 } // KSQL::EndQuery
 
@@ -7957,6 +7993,7 @@ bool KSQL::ctlib_nextrow ()
 
 	if ((iStatus == CS_END_DATA) || (iStatus == CS_SUCCEED))
 	{
+		EndResultWatch();
 		return (false); // we did not get a row
 	}
 
@@ -10052,7 +10089,7 @@ void KSQL::CanceledConnections::Add(ServerKey Server, ConnectionID iConnectionID
 } // CanceledConnections::Add
 
 //-----------------------------------------------------------------------------
-KSQL::CancelReason KSQL::CanceledConnections::Take(ServerKey Server, ConnectionID iConnectionID)
+KSQL::CancelReason KSQL::CanceledConnections::Take(ServerKey Server, ConnectionID iConnectionID, CancelReason Only)
 //-----------------------------------------------------------------------------
 {
 	if (m_iMarks == 0)
@@ -10065,6 +10102,11 @@ KSQL::CancelReason KSQL::CanceledConnections::Take(ServerKey Server, ConnectionI
 	auto it = Connections->find(CanceledConnection { Server, iConnectionID });
 
 	if (it == Connections->end())
+	{
+		return CancelReason::None;
+	}
+
+	if (Only != CancelReason::None && it->second.Reason != Only)
 	{
 		return CancelReason::None;
 	}
@@ -10122,9 +10164,18 @@ KSQL::CanceledConnections& KSQL::GetCanceledConnections()
 KSQL::QueryTimeoutGuard::QueryTimeoutGuard(KSQL& Instance, QueryType Type)
 //-----------------------------------------------------------------------------
 {
+	// the watch list holds one entry per connection - a query whose rows were not read
+	// is over when the next statement starts
+	if (Instance.m_TimeoutWatch == TimeoutWatch::Result)
+	{
+		Instance.EndTimeoutWatch();
+	}
+
 	if (!Instance.m_bEnableQueryTimeout
 		|| Instance.m_QueryTimeout <= std::chrono::milliseconds(0)
-		|| (Instance.m_QueryTypeForTimeout & Type) != Type)
+		|| (Instance.m_QueryTypeForTimeout & Type) != Type
+		// an outer guard watches this statement already
+		|| Instance.m_TimeoutWatch == TimeoutWatch::Statement)
 	{
 		return;
 	}
@@ -10151,6 +10202,7 @@ KSQL::QueryTimeoutGuard::QueryTimeoutGuard(KSQL& Instance, QueryType Type)
 
 	s_TimedConnections.Add(Instance);
 
+	Instance.m_TimeoutWatch = TimeoutWatch::Statement;
 	m_pInstance = &Instance;
 
 } // QueryTimeoutGuard::ctor
@@ -10159,12 +10211,26 @@ KSQL::QueryTimeoutGuard::QueryTimeoutGuard(KSQL& Instance, QueryType Type)
 KSQL::QueryTimeoutGuard::~QueryTimeoutGuard()
 //-----------------------------------------------------------------------------
 {
-	if (m_pInstance)
+	// a reconnect meanwhile may have ended the watch already
+	if (m_pInstance && m_pInstance->m_TimeoutWatch == TimeoutWatch::Statement)
 	{
-		s_TimedConnections.Remove(*m_pInstance);
+		m_pInstance->EndTimeoutWatch();
 	}
 
 } // QueryTimeoutGuard::dtor
+
+//-----------------------------------------------------------------------------
+void KSQL::QueryTimeoutGuard::KeepForResult()
+//-----------------------------------------------------------------------------
+{
+	if (m_pInstance && m_pInstance->m_TimeoutWatch == TimeoutWatch::Statement)
+	{
+		m_pInstance->m_TimeoutWatch = TimeoutWatch::Result;
+	}
+
+	m_pInstance = nullptr;
+
+} // QueryTimeoutGuard::KeepForResult
 
 //-----------------------------------------------------------------------------
 KSQL::TimedConnectionIDs::TimedConnectionIDs()
@@ -10414,7 +10480,7 @@ bool KSQL::Kill(ConnectionID iConnectionID, CancelReason Reason, bool bQueryOnly
 } // Kill
 
 //-----------------------------------------------------------------------------
-bool KSQL::HandleCanceledConnection(KString* sError)
+bool KSQL::HandleCanceledConnection(KString* sError, CancelReason Only)
 //-----------------------------------------------------------------------------
 {
 	if (!m_iConnectionID)
@@ -10422,7 +10488,7 @@ bool KSQL::HandleCanceledConnection(KString* sError)
 		return false;
 	}
 
-	auto Reason = GetCanceledConnections().Take(GetServerKey(), m_iConnectionID);
+	auto Reason = GetCanceledConnections().Take(GetServerKey(), m_iConnectionID, Only);
 
 	if (Reason == CancelReason::None)
 	{
@@ -10432,9 +10498,12 @@ bool KSQL::HandleCanceledConnection(KString* sError)
 	kDebug(2, "connection {} was killed on purpose, no retry", m_iConnectionID);
 
 	// the connection is gone: reconnect, so that the next statement works. This
-	// clears the error and the cancel reason, so set them afterwards.
+	// clears the error and the cancel reason, so set them afterwards. The reconnect
+	// may run statements of its own, so keep the last SQL.
+	auto sLastSQL = m_sLastSQL;
 	CloseConnection();
 	OpenConnection(m_ConnectionTimeout);
+	m_sLastSQL = std::move(sLastSQL);
 
 	m_LastCancelReason = Reason;
 
@@ -10462,6 +10531,10 @@ bool KSQL::HandleCanceledConnection(KString* sError)
 bool KSQL::SetFetchError (KString sError, uint32_t iErrorNum)
 //-----------------------------------------------------------------------------
 {
+	// the query ends here - the watch list knows the connection by its ID, which the
+	// reconnect below changes
+	EndTimeoutWatch();
+
 	// a connection that was killed on purpose reports why, and gets a new connection.
 	// The open result set survives the reconnect: a failed fetch detaches a MySQL result
 	// set from its connection.
@@ -10474,6 +10547,43 @@ bool KSQL::SetFetchError (KString sError, uint32_t iErrorNum)
 	return false;
 
 } // SetFetchError
+
+//-----------------------------------------------------------------------------
+void KSQL::EndTimeoutWatch ()
+//-----------------------------------------------------------------------------
+{
+	if (m_TimeoutWatch != TimeoutWatch::None)
+	{
+		// the watcher removes the connection itself when it kills it
+		s_TimedConnections.Remove(*this);
+		m_TimeoutWatch = TimeoutWatch::None;
+	}
+
+} // EndTimeoutWatch
+
+//-----------------------------------------------------------------------------
+bool KSQL::EndResultWatch ()
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_LIKELY(m_TimeoutWatch != TimeoutWatch::Result))
+	{
+		return true;
+	}
+
+	EndTimeoutWatch();
+
+	// the watcher may have killed the connection after the server had sent the last
+	// row, while the client was still reading the rows: the query exceeded its timeout
+	KString sError;
+
+	if (HandleCanceledConnection(&sError, CancelReason::Timeout))
+	{
+		return SetError(std::move(sError));
+	}
+
+	return true;
+
+} // EndResultWatch
 
 //-----------------------------------------------------------------------------
 void KSQL::ForgetQueryKill()

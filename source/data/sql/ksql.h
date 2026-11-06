@@ -529,11 +529,13 @@ public:
 	/// returns a string with the names of the selected query types
 	static std::vector<KStringViewZ> SerializeQueryTypes(QueryType QueryType);
 
-	/// Sets a timeout and the types of statements to abort after the timeout expired. An aborted
-	/// statement fails with "KSQL: query timed out after <timeout>", and GetCancelReason() returns
-	/// CancelReason::Timeout. Effective on MySQL, PostgreSQL, SQL Server and Sybase: the statement
-	/// is killed through a second connection with the same credentials, so the database user needs
-	/// the permission to kill its own connections (on SQL Server: ALTER ANY CONNECTION).
+	/// Sets a timeout and the types of statements to abort after the timeout expired. The timeout
+	/// of a query lasts until its rows are read or the query ends, e.g. with EndQuery() or the next
+	/// statement. An aborted statement fails with "KSQL: query timed out after <timeout>", and
+	/// GetCancelReason() returns CancelReason::Timeout. Effective on MySQL, PostgreSQL, SQL Server
+	/// and Sybase: the statement is killed through a second connection with the same credentials,
+	/// so the database user needs the permission to kill its own connections (on SQL Server:
+	/// ALTER ANY CONNECTION).
 	void SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType Queries = QueryType::Any);
 
 	/// set the timeout and type of query to abort after the timeout expired to the default values set with SetDefaultQueryTimeout()
@@ -1277,8 +1279,9 @@ private:
 
 		/// marks a connection before it is killed - bQueryOnly if only its running statement is killed
 		void         Add             (ServerKey Server, ConnectionID iConnectionID, CancelReason Reason, bool bQueryOnly);
-		/// returns the reason of a marked connection and removes the mark, or returns CancelReason::None
-		CancelReason Take            (ServerKey Server, ConnectionID iConnectionID);
+		/// returns the reason of a marked connection and removes the mark, or returns CancelReason::None -
+		/// with Only other than CancelReason::None only a mark with this reason
+		CancelReason Take            (ServerKey Server, ConnectionID iConnectionID, CancelReason Only = CancelReason::None);
 		/// removes the mark of a connection
 		void         Remove          (ServerKey Server, ConnectionID iConnectionID) { Take(Server, iConnectionID); }
 		/// removes the mark of a connection if only its running statement was killed: a statement
@@ -1325,12 +1328,20 @@ private:
 	bool Kill (ConnectionID iConnectionID, CancelReason Reason, bool bQueryOnly);
 
 	/// if the connection of a failing statement was killed on purpose: stores the reason,
-	/// sets sError to its text, reconnects, and returns true
-	bool HandleCanceledConnection (KString* sError);
+	/// sets sError to its text, reconnects, and returns true - with Only other than
+	/// CancelReason::None only for a kill with this reason
+	bool HandleCanceledConnection (KString* sError, CancelReason Only = CancelReason::None);
 
 	/// sets the error of a result set that failed while its rows were fetched, with the
 	/// reason if its connection was killed on purpose - returns false
 	bool SetFetchError (KString sError, uint32_t iErrorNum);
+
+	/// removes the instance from the watch list of the query timeout
+	void EndTimeoutWatch ();
+
+	/// the rows of the last query are read: ends the watch of its query timeout, and returns
+	/// false with the timeout error if the watcher killed the connection meanwhile
+	bool EndResultWatch ();
 
 	/// a statement ended without an error, so a kill of only its query missed it
 	void ForgetQueryKill ();
@@ -1406,6 +1417,14 @@ private:
 
 	static TimedConnectionIDs s_TimedConnections;
 
+	/// what keeps an instance on the watch list of the query timeout
+	enum class TimeoutWatch : uint8_t
+	{
+		None,      ///< the instance is not on the watch list
+		Statement, ///< a QueryTimeoutGuard watches the running statement
+		Result     ///< the query is watched until its rows are read or it ends
+	};
+
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// registers a statement with the query timeout watcher for the lifetime of the
 	/// object, if the query timeout of the instance applies to the type of the statement
@@ -1422,6 +1441,10 @@ private:
 
 		QueryTimeoutGuard(const QueryTimeoutGuard&) = delete;
 		QueryTimeoutGuard& operator=(const QueryTimeoutGuard&) = delete;
+
+		/// keeps the query on the watch list after the lifetime of the object, until its
+		/// rows are read or the query ends
+		void KeepForResult();
 
 	//----------
 	private:
@@ -1858,6 +1881,7 @@ private:
 	bool       m_bReuseRows { true };
 	std::size_t m_iRowLayoutHash { 0 };
 	bool       m_bEnableQueryTimeout { false };
+	TimeoutWatch m_TimeoutWatch { TimeoutWatch::None };
 	static std::atomic<std::chrono::milliseconds> s_QueryTimeout;
 	static std::atomic<QueryType> s_QueryTypeForTimeout;
 	std::chrono::milliseconds m_QueryTimeout { 0 };

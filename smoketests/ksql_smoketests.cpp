@@ -1749,6 +1749,82 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 			db.SetThrow(bTOld);
 		}
 
+		// the query timeout lasts until the rows are read (MariaDB only)
+		if (db.GetDBType() == KSQL::DBT::MYSQL && db.SingleStringQuery("select version()").contains("MariaDB"))
+		{
+			auto bTOld = db.SetThrow(false);
+
+			db.SetQueryTimeout(std::chrono::milliseconds(300), KSQL::QueryType::Select);
+
+			// the server sends the first rows at once, and then works for seconds on the others
+			{
+				KStopTime Timer;
+				REQUIRE ( db.ExecQuery("select seq, repeat('x', 1000) as filler from seq_1_to_3000 "
+				                       "where seq < 100 or sleep(0.001) > 1") );
+				std::size_t iRows { 0 };
+				while (db.NextRow())
+				{
+					++iRows;
+				}
+				CHECK ( iRows < 100 );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::Timeout );
+				CHECK ( db.GetLastError().contains("query timed out after 300ms") );
+				CHECK ( Timer.elapsed().seconds() < chrono::seconds(2) );
+			}
+
+			// the same with buffered results
+			{
+				auto BufferGuard = db.ScopedFlags(KSQL::F_BufferResults);
+				CHECK_FALSE ( db.ExecQuery("select seq, repeat('x', 1000) as filler from seq_1_to_3000 "
+				                           "where seq < 100 or sleep(0.001) > 1") );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::Timeout );
+			}
+
+			// a client that reads all rows and then works longer than the timeout
+			{
+				REQUIRE ( db.ExecQuery("select seq from seq_1_to_10") );
+				std::size_t iRows { 0 };
+				while (db.NextRow())
+				{
+					++iRows;
+				}
+				CHECK ( iRows == 10 );
+				CHECK ( db.GetLastError().empty() );
+				std::this_thread::sleep_for(std::chrono::milliseconds(600));
+				CHECK ( db.SingleIntQuery("select 1") == 1 );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::None );
+			}
+
+			// a client that stops reading the rows: the next statement works
+			{
+				REQUIRE ( db.ExecQuery("select seq, repeat('x', 1000) as filler from seq_1_to_3000 "
+				                       "where seq < 100 or sleep(0.001) > 1") );
+				CHECK ( db.NextRow() );
+				std::this_thread::sleep_for(std::chrono::milliseconds(800));
+				CHECK ( db.SingleIntQuery("select 1") == 1 );
+				CHECK ( db.GetLastError().empty() );
+			}
+
+			// a client that reads the rows slower than the timeout, while the server has
+			// sent all of them: the query fails at the end of the rows
+			{
+				REQUIRE ( db.ExecQuery("select seq from seq_1_to_10") );
+				CHECK ( db.NextRow() );
+				std::this_thread::sleep_for(std::chrono::milliseconds(600));
+				std::size_t iRows { 1 };
+				while (db.NextRow())
+				{
+					++iRows;
+				}
+				CHECK ( iRows == 10 );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::Timeout );
+				CHECK ( db.SingleIntQuery("select 1") == 1 );
+			}
+
+			db.SetQueryTimeout(std::chrono::seconds(0));
+			db.SetThrow(bTOld);
+		}
+
 		{
 			// transactions
 

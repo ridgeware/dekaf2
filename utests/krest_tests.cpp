@@ -1016,7 +1016,8 @@ TEST_CASE("KREST streamed answer without a body")
 	CHECK ( sBody == "ok" );
 }
 
-#ifndef DEKAF2_IS_WINDOWS
+#ifdef DEKAF2_IS_LINUX
+// needs /dev/full, which only Linux has
 TEST_CASE("KREST aborted compression cache pass")
 {
 	// a compression cache pass that fails after its transmission started leaves the

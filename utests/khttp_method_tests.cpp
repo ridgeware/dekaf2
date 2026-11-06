@@ -15,12 +15,4 @@ TEST_CASE("KHTTPMethod")
 		auto sMethod = kFormat("{}", M);
 		CHECK ( sMethod == "POST");
 	}
-
-	SECTION("ALL is a route wildcard, not a request method")
-	{
-		CHECK ( KHTTPMethod::Parse("ALL") == KHTTPMethod::INVALID );
-		CHECK ( KHTTPMethod("ALL") == KHTTPMethod::INVALID );
-		CHECK ( KHTTPMethod(KHTTPMethod::ALL).Serialize() == "" );
-		CHECK_FALSE ( KHTTPMethod(KHTTPMethod::ALL).empty() );
-	}
 }

@@ -1116,7 +1116,7 @@ x-klog: -level 1
 		KRESTRoutes::Parameters Params;
 		const auto& Route = OptionRoutes.FindRoute(KRESTPath(KHTTPMethod::POST, "/any"), Params, false, false);
 		CHECK ( OptionRoutes.GetRouteIndex(Route) == 0 );
-		CHECK ( Route.Method == KHTTPMethod::ALL );
+		CHECK ( Route.Method == KHTTPMethod::INVALID );
 		CHECK ( Route.Option.Has(KRESTRoute::Options::NO_REPEAT_LOG) );
 		CHECK ( OptionRoutes.GetRouteIndex(OptionRoutes.FindRoute(KRESTPath(KHTTPMethod::GET, "/other"), Params, false, false)) == 1 );
 	}

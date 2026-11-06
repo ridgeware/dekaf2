@@ -84,4 +84,16 @@ TEST_CASE("KInStreamBufAdaptor")
 		CHECK ( iss.istream().gcount() == 3 );
 		CHECK ( KStringView(sOutput).substr(0, 3) == "abc" );
 	}
+
+	SECTION("read() after peek() inspects every char once")
+	{
+		KString sInput = "abcdef";
+		KInStringStream iss(sInput);
+		FlipCaseStreamBuf Flip(iss.istream());
+		CHECK ( iss.istream().peek() == 'A' );
+		KString sOutput(sInput.size(), '\0');
+		iss.istream().read(&sOutput[0], static_cast<std::streamsize>(sOutput.size()));
+		CHECK ( iss.istream().gcount() == static_cast<std::streamsize>(sInput.size()) );
+		CHECK ( sOutput == "ABCDEF" );
+	}
 }

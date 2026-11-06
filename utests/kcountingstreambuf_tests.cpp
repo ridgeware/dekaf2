@@ -97,6 +97,19 @@ TEST_CASE("KCountingStreambuf")
 		CHECK ( Counter.Count() == 10 );
 	}
 
+	SECTION("KCountingInputStreambuf with read() after peek()")
+	{
+		auto sInput = AllBytes();
+		KInStringStream iss(sInput);
+		KCountingInputStreamBuf Counter(iss.istream());
+		CHECK ( iss.istream().peek() == 0 );
+		KString sOutput(10, '\0');
+		iss.istream().read(&sOutput[0], 10);
+		CHECK ( iss.istream().gcount() == 10 );
+		CHECK ( sOutput == sInput.substr(0, 10) );
+		CHECK ( Counter.Count() == 10 );
+	}
+
 	SECTION("KCountingInputStreambuf")
 	{
 		KStringView sInput = "abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ";

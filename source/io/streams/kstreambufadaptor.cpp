@@ -168,11 +168,9 @@ std::streamsize KInStreamBufAdaptor::xsgetn(char_type* s, std::streamsize n)
 {
 	std::streamsize iExtracted = 0;
 
-	// save the buffer start
-	char_type* sBufferStart = s;
-
 	{
-		// read as many chars as possible directly from the stream buffer
+		// read as many chars as possible directly from the stream buffer -
+		// underflow() has inspected them already
 		iExtracted = std::min(n, in_avail());
 
 		if (iExtracted > 0)
@@ -194,18 +192,12 @@ std::streamsize KInStreamBufAdaptor::xsgetn(char_type* s, std::streamsize n)
 		// iRead is -1 on error
 		if (iRead > 0)
 		{
-			iExtracted += iRead;
+			// inspect only the chars read from the parent streambuf
+			iExtracted += Inspect(s, iRead);
 		}
 	}
 
-	auto iNewSize = Inspect(sBufferStart, iExtracted);
-
-	if (iNewSize > n)
-	{
-		return n;
-	}
-
-	return iNewSize;
+	return iExtracted;
 
 } // xsgetn
 

@@ -1251,7 +1251,7 @@ private:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// analyses KHTTPHeaders to find out about trustworthy information in FORWARDED, X-FORWARDED-FOR,
 /// X-FORWARDED-HOST, X-FORWARDED-PROTO, X-FORWARDED-SERVER, X-SERVER
-class KHTTPTrustedRemoteEndpoint
+class DEKAF2_PUBLIC KHTTPTrustedRemoteEndpoint
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

@@ -80,7 +80,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// @param Timeout timeout - a timeout above INT_MAX milliseconds (about 24.8 days)
 /// waits without a limit
 /// @return >0 number of fds with events, 0 timeout, < 0 errno error number * -1
-int kPoll(KSpan<pollfd> fds, KDuration Timeout);
+DEKAF2_PUBLIC int kPoll(KSpan<pollfd> fds, KDuration Timeout);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -90,7 +90,7 @@ int kPoll(KSpan<pollfd> fds, KDuration Timeout);
 /// @param Timeout timeout - a timeout above INT_MAX milliseconds (about 24.8 days)
 /// waits without a limit
 /// @return >0 the triggered events, 0 timeout, < 0 errno error number * -1
-int kPoll(int fd, int what, KDuration Timeout);
+DEKAF2_PUBLIC int kPoll(int fd, int what, KDuration Timeout);
 //-----------------------------------------------------------------------------
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

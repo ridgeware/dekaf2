@@ -100,7 +100,7 @@ struct result {
  * @param length        the length of the string in 4-byte code units (char32_t)
  * @return the number of bytes required to encode the UTF-32 string as UTF-8
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t utf8_length_from_latin1(const char* input, std::size_t length) noexcept;
 
 /**
@@ -114,7 +114,7 @@ std::size_t utf8_length_from_latin1(const char* input, std::size_t length) noexc
  * @param length        the length of the string in 2-byte code units (char16_t)
  * @return the number of bytes required to encode the UTF-16LE string as UTF-8
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t utf8_length_from_utf16(const char16_t* input, std::size_t length) noexcept;
 
 /**
@@ -128,7 +128,7 @@ std::size_t utf8_length_from_utf16(const char16_t* input, std::size_t length) no
  * @param length        the length of the string in 4-byte code units (char32_t)
  * @return the number of bytes required to encode the UTF-32 string as UTF-8
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t utf8_length_from_utf32(const char32_t* input, std::size_t length) noexcept;
 
 /**
@@ -143,7 +143,7 @@ std::size_t utf8_length_from_utf32(const char32_t* input, std::size_t length) no
  * @param length        the length of the string in bytes
  * @return number of code points
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t count_utf8(const char* input, std::size_t length) noexcept;
 
 /**
@@ -160,7 +160,7 @@ std::size_t count_utf8(const char* input, std::size_t length) noexcept;
  * @param length        the length of the string in 2-byte code units (char16_t)
  * @return number of code points
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t count_utf16(const char16_t* input, std::size_t length) noexcept;
 
 /**
@@ -179,7 +179,7 @@ std::size_t count_utf16(const char16_t* input, std::size_t length) noexcept;
  * @return the number of char32_t code units required to encode the UTF-8 string
  * as UTF-32
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t utf32_length_from_utf8(const char* input, std::size_t length) noexcept;
 
 /**
@@ -196,7 +196,7 @@ std::size_t utf32_length_from_utf8(const char* input, std::size_t length) noexce
  * @return the number of char16_t code units required to encode the UTF-8 string
  * as UTF-16LE
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 size_t utf16_length_from_utf8(const char* input, std::size_t length) noexcept;
 
 /**
@@ -210,7 +210,7 @@ size_t utf16_length_from_utf8(const char* input, std::size_t length) noexcept;
  * @param length        the length of the string in 4-byte code units (char32_t)
  * @return the number of bytes required to encode the UTF-32 string as UTF-16
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t utf16_length_from_utf32(const char32_t* input, std::size_t length) noexcept;
 
 /**
@@ -228,7 +228,7 @@ std::size_t utf16_length_from_utf32(const char32_t* input, std::size_t length) n
  * @param length        the length of the string in 2-byte code units (char16_t)
  * @return the number of bytes required to encode the UTF-16LE string as UTF-32
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t utf32_length_from_utf16(const char16_t* input, std::size_t length) noexcept;
 
 /**
@@ -241,7 +241,7 @@ std::size_t utf32_length_from_utf16(const char16_t* input, std::size_t length) n
  * @param utf8_buffer   the pointer to buffer that can hold conversion result
  * @return the number of written char; 0 if conversion is not possible
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t convert_latin1_to_utf8(const char* input, std::size_t length, char* utf8_buffer) noexcept;
 
 /**
@@ -259,7 +259,7 @@ std::size_t convert_latin1_to_utf8(const char* input, std::size_t length, char* 
  * @return number of written code units; 0 if input is not a valid UTF-16LE
  * string
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t convert_utf16_to_utf8(const char16_t* input, std::size_t length, char* utf8_buffer) noexcept;
 
 /**
@@ -275,7 +275,7 @@ std::size_t convert_utf16_to_utf8(const char16_t* input, std::size_t length, cha
  * @param utf8_buffer   the pointer to buffer that can hold conversion result
  * @return number of written code units; 0 if input is not a valid UTF-32 string
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t convert_utf32_to_utf8(const char32_t* input, std::size_t length, char* utf8_buffer) noexcept;
 
 /**
@@ -286,7 +286,7 @@ std::size_t convert_utf32_to_utf8(const char32_t* input, std::size_t length, cha
  * @param utf16_buffer  the pointer to buffer that can hold conversion result
  * @return the number of written char16_t.
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t convert_latin1_to_utf16(const char* input, std::size_t length, char16_t* utf16_buffer) noexcept;
 
 /**
@@ -303,7 +303,7 @@ std::size_t convert_latin1_to_utf16(const char* input, std::size_t length, char1
  * @param utf16_buffer   the pointer to buffer that can hold conversion result
  * @return number of written code units; 0 if input is not a valid UTF-32 string
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t convert_utf32_to_utf16(const char32_t* input, std::size_t length, char16_t* utf16_buffer) noexcept;
 
 /**
@@ -316,7 +316,7 @@ std::size_t convert_utf32_to_utf16(const char32_t* input, std::size_t length, ch
  * @param utf32_buffer  the pointer to buffer that can hold conversion result
  * @return the number of written char32_t; 0 if conversion is not possible
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t convert_latin1_to_utf32(const char* input, std::size_t length, char32_t* utf32_buffer) noexcept;
 
 /**
@@ -334,7 +334,7 @@ std::size_t convert_latin1_to_utf32(const char* input, std::size_t length, char3
  * @return number of written code units; 0 if input is not a valid UTF-16LE
  * string
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t convert_utf16_to_utf32(const char16_t* input, std::size_t length, char32_t* utf32_buffer) noexcept;
 
 /**
@@ -349,7 +349,7 @@ std::size_t convert_utf16_to_utf32(const char16_t* input, std::size_t length, ch
  * @return the number of written char32_t; 0 if the input was not valid UTF-8
  * string
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t convert_utf8_to_utf32(const char* input, std::size_t length, char32_t* utf32_output) noexcept;
 
 /**
@@ -365,7 +365,7 @@ std::size_t convert_utf8_to_utf32(const char* input, std::size_t length, char32_
  * @return the number of written char16_t; 0 if the input was not valid UTF-8
  * string
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t convert_utf8_to_utf16(const char* input, std::size_t length, char16_t* utf16_output) noexcept;
 
 /**
@@ -377,7 +377,7 @@ std::size_t convert_utf8_to_utf16(const char* input, std::size_t length, char16_
  * @param len the length of the string in bytes.
  * @return true if and only if the string is valid ASCII.
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool validate_ascii(const char *buf, std::size_t len) noexcept;
 
 /**
@@ -393,7 +393,7 @@ bool validate_ascii(const char *buf, std::size_t len) noexcept;
  * (in the input in code units) if any, or the number of code units validated if
  * successful.
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 result validate_ascii_with_errors(const char *buf, std::size_t len) noexcept;
 
 /***
@@ -407,7 +407,7 @@ result validate_ascii_with_errors(const char *buf, std::size_t len) noexcept;
  * @param len the length of the string in bytes.
  * @return true if and only if the string is valid UTF-8.
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool validate_utf8(const char* buf, std::size_t len) noexcept;
 
 /**
@@ -422,7 +422,7 @@ bool validate_utf8(const char* buf, std::size_t len) noexcept;
  * (in the input in code units) if any, or the number of code units validated if
  * successful.
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 result validate_utf8_with_errors(const char* buf, std::size_t len) noexcept;
 
 /**
@@ -439,7 +439,7 @@ result validate_utf8_with_errors(const char* buf, std::size_t len) noexcept;
  * (char16_t).
  * @return true if and only if the string is valid UTF-16.
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool validate_utf16(const char16_t* buf, std::size_t len) noexcept;
 
 /**
@@ -459,7 +459,7 @@ bool validate_utf16(const char16_t* buf, std::size_t len) noexcept;
  * (in the input in code units) if any, or the number of code units validated if
  * successful.
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 result validate_utf16_with_errors(const char16_t* buf, std::size_t len) noexcept;
 
 /**
@@ -476,7 +476,7 @@ result validate_utf16_with_errors(const char16_t* buf, std::size_t len) noexcept
  * (char32_t).
  * @return true if and only if the string is valid UTF-32.
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool validate_utf32(const char32_t* buf, std::size_t len) noexcept;
 
 /**
@@ -495,7 +495,7 @@ bool validate_utf32(const char32_t* buf, std::size_t len) noexcept;
  * (in the input in code units) if any, or the number of code units validated if
  * successful.
  */
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 result validate_utf32_with_errors(const char32_t* buf, std::size_t len) noexcept;
 
 } // end of namespace simd

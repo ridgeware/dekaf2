@@ -79,17 +79,17 @@ bool kIsConstantEvaluated(bool default_value = false) noexcept
 
 
 /// tiny strcpy replacement that does not warn on windows..
-void strcpy_n(char* sTarget, const char* sSource, std::size_t iMax);
+DEKAF2_PUBLIC void strcpy_n(char* sTarget, const char* sSource, std::size_t iMax);
 
 #ifdef DEKAF2_IS_WINDOWS
 // there's nothing wrong with strerror() on Linux these days (it uses thread
 // locale storage), and windows had it fixed, too - but still warns. So we
 // work around it for those cases where _CRT_SECURE_NO_WARNING doesn't work.
 // Same with open/close/read ..
-const char* strerror (int errnum);
-int open(const char *path, int oflag);
-int open(const char *path, int oflag, int mode);
-int read(int fd, void *buf, size_t nbyte);
+DEKAF2_PUBLIC const char* strerror (int errnum);
+DEKAF2_PUBLIC int open(const char *path, int oflag);
+DEKAF2_PUBLIC int open(const char *path, int oflag, int mode);
+DEKAF2_PUBLIC int read(int fd, void *buf, size_t nbyte);
 #endif
 
 

@@ -285,35 +285,35 @@ inline bool kSetTLSDefaults(TLSOptions Options) { return KStreamOptions::SetDefa
 /// get the TCP keepalive interval set for this socket - 0 if no keepalive
 /// @param socket the socket to query
 /// @returns the keepalive interval for this socket
-KDuration kGetTCPKeepAliveInterval(int socket);
+DEKAF2_PUBLIC KDuration kGetTCPKeepAliveInterval(int socket);
 
 /// set the TCP keepalive interval for this socket - use KDuration::zero() for no keepalive
 /// @param socket the socket to query
 /// @param tKeepAliveInterval the keepalive interval for this socket
 /// @returns false on failure
-bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepAliveInterval);
+DEKAF2_PUBLIC bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepAliveInterval);
 
 /// get the interval between TCP keepalive probes for this socket
 /// @param socket the socket to query
 /// @returns the probe interval, or 0 when it cannot be read
-KDuration kGetTCPKeepAliveProbeInterval(int socket);
+DEKAF2_PUBLIC KDuration kGetTCPKeepAliveProbeInterval(int socket);
 
 /// get the count of unanswered TCP keepalive probes after which the connection is dropped
 /// @param socket the socket to query
 /// @returns the probe count, or 0 when it cannot be read
-uint16_t kGetTCPKeepAliveProbeCount(int socket);
+DEKAF2_PUBLIC uint16_t kGetTCPKeepAliveProbeCount(int socket);
 
 /// set interval and count of the TCP keepalive probes - a zero value leaves the system default
 /// @param socket the socket to set the options on
 /// @param tProbeInterval the interval between two keepalive probes
 /// @param iProbeCount the count of unanswered probes after which the connection is dropped
 /// @returns false on failure
-bool kSetTCPKeepAliveProbes(int socket, KDuration tProbeInterval, uint16_t iProbeCount);
+DEKAF2_PUBLIC bool kSetTCPKeepAliveProbes(int socket, KDuration tProbeInterval, uint16_t iProbeCount);
 
 /// get the connection drop timeout for this socket
 /// @param socket the socket to query
 /// @returns the drop timeout, or 0 on platforms without the option
-KDuration kGetTCPConnectionDropTimeout(int socket);
+DEKAF2_PUBLIC KDuration kGetTCPConnectionDropTimeout(int socket);
 
 /// set the connection drop timeout: drop the connection after this long of unacknowledged
 /// retransmissions. Maps to TCP_USER_TIMEOUT on Linux (where it then also bounds keepalive
@@ -323,29 +323,29 @@ KDuration kGetTCPConnectionDropTimeout(int socket);
 /// @param socket the socket to set the option on
 /// @param tDrop the drop timeout
 /// @returns false on failure
-bool kSetTCPConnectionDropTimeout(int socket, KDuration tDrop);
+DEKAF2_PUBLIC bool kSetTCPConnectionDropTimeout(int socket, KDuration tDrop);
 
 /// get the linger timeout set for this socket - 0 if lingering is off
 /// @param socket the socket to query
 /// @returns the linger timeout for this socket
-KDuration kGetLingerTimeout(int socket);
+DEKAF2_PUBLIC KDuration kGetLingerTimeout(int socket);
 
 /// set the linger timeout for this socket - use KDuration::zero() for no lingering
 /// @param socket the socket to query
 /// @param tLingerTimeout the linger timeout for this socket
 /// @returns false on failure
-bool kSetLingerTimeout(int socket, KDuration tLingerTimeout);
+DEKAF2_PUBLIC bool kSetLingerTimeout(int socket, KDuration tLingerTimeout);
 
 /// get the TCP_NODELAY (disable Nagle's algorithm) state for this socket
 /// @param socket the socket to query
 /// @returns true if TCP_NODELAY is enabled
-bool kGetTCPNoDelay(int socket);
+DEKAF2_PUBLIC bool kGetTCPNoDelay(int socket);
 
 /// set the TCP_NODELAY (disable Nagle's algorithm) state for this socket
 /// @param socket the socket to set
 /// @param bEnable true to disable Nagle's algorithm (enable TCP_NODELAY)
 /// @returns false on failure
-bool kSetTCPNoDelay(int socket, bool bEnable);
+DEKAF2_PUBLIC bool kSetTCPNoDelay(int socket, bool bEnable);
 
 
 /// @}

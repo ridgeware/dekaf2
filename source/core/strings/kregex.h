@@ -228,7 +228,7 @@ private:
 
 /// Converts a wildcard expression for file matching into a regular expression.
 /// * and ? are allowed expressions.
-KString kWildCard2Regex(KStringView sInput);
+DEKAF2_PUBLIC KString kWildCard2Regex(KStringView sInput);
 
 
 /// @}

@@ -71,7 +71,7 @@ namespace KResolve {
 #endif
 
 	/// lookup a hostname, returns list of found addresses
-	resolver_results_tcp_type
+	DEKAF2_PUBLIC resolver_results_tcp_type
 	ResolveTCP(
 		KStringView sHostname,
 		uint16_t iPort,
@@ -81,7 +81,7 @@ namespace KResolve {
 	);
 
 	/// lookup a hostname, returns list of found addresses
-	resolver_results_udp_type
+	DEKAF2_PUBLIC resolver_results_udp_type
 	ResolveUDP(
 		KStringView sHostname,
 		uint16_t iPort,
@@ -91,7 +91,7 @@ namespace KResolve {
 	);
 
 	/// reverse lookup an IP address, returns list of found addresses
-	resolver_results_tcp_type
+	DEKAF2_PUBLIC resolver_results_tcp_type
 	ReverseLookup(
 		KStringView sIPAddr,
 		boost::asio::io_service& IOService,
@@ -99,7 +99,7 @@ namespace KResolve {
 	);
 
 	/// print one endpoint address into a string
-	KString
+	DEKAF2_PUBLIC KString
 	PrintResolvedAddress(
 #if (DEKAF2_CLASSIC_ASIO)
 		resolver_endpoint_tcp_type endpoint
@@ -110,7 +110,7 @@ namespace KResolve {
 
 	/// add a hostname and its address to the list of known hosts (like /etc/hosts)
 	/// -this function is not thread safe, use it at init of program
-	void
+	DEKAF2_PUBLIC void
 	AddKnownHostAddress(
 		KStringView sHostname,
 		KStringView sIPAddress
@@ -120,7 +120,7 @@ namespace KResolve {
 	/// @param sHostname the hostname to look up
 	/// @param Family the address family searched for
 	/// @return the resolved IP address or the original hostname
-	KStringView
+	DEKAF2_PUBLIC KStringView
 	GetKnownHostAddress(
 		KStringView sHostname,
 		KStreamOptions::Family Family

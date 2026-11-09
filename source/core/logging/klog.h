@@ -839,8 +839,9 @@ namespace detail {
 /// The functions that the logging macros call - not meant for other use.
 /// A call place only compares the level and calls a function that is not
 /// inlined, so that it takes few instructions, and no stack space for the
-/// arguments of the formatting.
-class KLogMacros
+/// arguments of the formatting. Exported, as the macros expand to calls of it
+/// in the code of the user of a shared libdekaf2.
+class DEKAF2_PUBLIC KLogMacros
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

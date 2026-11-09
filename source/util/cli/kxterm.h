@@ -341,7 +341,7 @@ private:
 ///     sLine.clear();
 /// }
 /// @endcode
-class KXTerm : public KErrorBase
+class DEKAF2_PUBLIC KXTerm : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

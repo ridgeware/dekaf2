@@ -69,7 +69,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// Simplified helper method that uses KWebClient to "wget" a file from a remote server
 /// to a local filesystem.  Eventually we will support all wget's cli options but currently
 /// the Options argument is ignored.
-bool KWget (KStringView sURL, KStringViewZ sOutfile, const KJSON& Options=KJSON{});
+DEKAF2_PUBLIC bool KWget (KStringView sURL, KStringViewZ sOutfile, const KJSON& Options=KJSON{});
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // we cannot make this a protected child of KHTTPClient because a lot of users

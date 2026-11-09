@@ -129,12 +129,12 @@ extern KStream KInOut;
 
 //-----------------------------------------------------------------------------
 /// return a std::iostream object that reads and writes from/to nothing, but is valid
-std::iostream& kGetNullIOStream();
+DEKAF2_PUBLIC std::iostream& kGetNullIOStream();
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// return a KStream object that reads and writes from/to nothing, but is valid
-KStream& kGetNullStream();
+DEKAF2_PUBLIC KStream& kGetNullStream();
 //-----------------------------------------------------------------------------
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

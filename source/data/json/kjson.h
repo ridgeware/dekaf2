@@ -207,7 +207,7 @@ namespace kjson
 {
 	/// advance a stream over leading spaces
 	/// @return false if first non-space char could not be returned into the stream, true otherwise
-	bool SkipLeadingSpace(KInStream& InStream);
+	DEKAF2_PUBLIC bool SkipLeadingSpace(KInStream& InStream);
 
 	/// maximum nesting depth of arrays and objects accepted by the Parse() functions.
 	/// The parser itself is iterative, but serialization and comparison of the parsed

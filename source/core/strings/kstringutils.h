@@ -88,10 +88,10 @@ KStringRef::size_type kReplace(KStringRef& string,
 
 namespace detail {
 
-void kMakeUpperASCII  (const char* it, const char* ie, char* out);
-void kMakeLowerASCII  (const char* it, const char* ie, char* out);
-void kMakeUpperLocale (const char* it, const char* ie, char* out);
-void kMakeLowerLocale (const char* it, const char* ie, char* out);
+DEKAF2_PUBLIC void kMakeUpperASCII  (const char* it, const char* ie, char* out);
+DEKAF2_PUBLIC void kMakeLowerASCII  (const char* it, const char* ie, char* out);
+DEKAF2_PUBLIC void kMakeUpperLocale (const char* it, const char* ie, char* out);
+DEKAF2_PUBLIC void kMakeLowerLocale (const char* it, const char* ie, char* out);
 
 } // end of namespace detail
 

@@ -73,7 +73,7 @@ namespace detail {
 /// library stay recognizable in a stack trace, and by KLog with bRemoveStd for the
 /// signature of a warning, where "string" tells the overload as well as "std::string".
 /// sSignature must not point into sAppendTo.
-void AppendWithoutNoise(KStringRef& sAppendTo, KStringView sSignature, bool bRemoveStd);
+DEKAF2_PUBLIC void AppendWithoutNoise(KStringRef& sAppendTo, KStringView sSignature, bool bRemoveStd);
 
 } // end of namespace detail
 

@@ -2738,7 +2738,13 @@ set(KSQL2_SOURCE_FILES
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${KSQL2_SOURCE_FILES})
 add_library                   (ksql2-objects OBJECT ${KSQL2_SOURCE_FILES})
 target_include_directories    (ksql2-objects PUBLIC ${KSQL2_INCLUDE_DIRECTORIES})
-target_link_libraries         (ksql2-objects ${KSQL2_LINK_LIBRARIES} dekaf2)
+# the usage requirements of dekaf2 (include directories, definitions) - from
+# the static target, or from the shared one if no static dekaf2 gets built
+if (DEKAF2_BUILD_STATIC_DEKAF2)
+	target_link_libraries     (ksql2-objects ${KSQL2_LINK_LIBRARIES} dekaf2)
+else()
+	target_link_libraries     (ksql2-objects ${KSQL2_LINK_LIBRARIES} dekaf2-shared)
+endif()
 target_compile_definitions    (ksql2-objects ${KSQL2_COMPILE_DEFINITIONS})
 #if (DEKAF2_USE_PRECOMPILED_HEADERS)
 #	target_precompile_headers (ksql2-objects REUSE_FROM dekaf2-objects)

@@ -226,6 +226,14 @@ else()
 	target_link_libraries(dekaf2-utests ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}ksql2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}re2)
 endif()
 
+# kcompression_tests.cpp compares with the gzip filter of boost::iostreams: with a
+# static boost_iostreams that needs zlib in this link, and a shared libdekaf2 does
+# not pass its private libraries on
+find_package(ZLIB QUIET)
+if (ZLIB_FOUND)
+	target_link_libraries(dekaf2-utests ZLIB::ZLIB)
+endif()
+
 find_package(GoogleBench QUIET)
 if (GoogleBench_FOUND)
 	add_executable(dekaf2-benchmark EXCLUDE_FROM_ALL benchmarks.cpp)

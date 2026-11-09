@@ -826,7 +826,7 @@ private:
 //----------
 
 #ifdef DEKAF2_FILESTAT_USE_STAT
-	DEKAF2_PRIVATE
+	// not DEKAF2_PRIVATE: called by the inline KFileStat(struct stat&) in the code of the user
 	void FromStat(struct stat& StatStruct, bool bAddForSymlinks);
 #endif
 

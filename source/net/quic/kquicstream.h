@@ -116,6 +116,10 @@ public:
 	KQuicStream(KQuicStream&&) = delete;
 	KQuicStream& operator=(KQuicStream&&) = delete;
 
+	// out of line: destroying the private RawDelegate member needs its vtable,
+	// which a shared libdekaf2 does not export
+	~KQuicStream() override;
+
 	//-----------------------------------------------------------------------------
 	/// Connects a given server as a client, and completes the QUIC handshake.
 	/// @param Endpoint

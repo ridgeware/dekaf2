@@ -200,7 +200,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// only call with func == SIG_IGN or SIG_DFL
-	DEKAF2_PRIVATE
+	// not DEKAF2_PRIVATE: called by the inline IgnoreSignalHandler() in the code of the user
 	void IntDelSignalHandler(int iSignal, signal_func_t func);
 	//-----------------------------------------------------------------------------
 

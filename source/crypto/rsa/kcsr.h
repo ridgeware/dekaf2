@@ -158,7 +158,7 @@ public:
 private:
 //------
 
-	DEKAF2_PRIVATE
+	// not DEKAF2_PRIVATE: called by the inline Create() overloads in the code of the user
 	bool Create
 	(
 		evp_pkey_st*                pKey,

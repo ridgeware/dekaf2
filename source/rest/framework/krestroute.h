@@ -730,7 +730,7 @@ private:
 	using Redirects = std::vector<KHTTPRewrite>;
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_PRIVATE
+	// not DEKAF2_PRIVATE: called by inline members in the code of the user
 	static std::size_t RegexMatchPath(KStringRef& sPath, const Rewrites& Rewrites);
 	//-----------------------------------------------------------------------------
 

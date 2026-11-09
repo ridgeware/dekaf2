@@ -1179,7 +1179,7 @@ private:
 	{
 		return OptionalParm(*this, sOption, sArgDescription, bIsCommand);
 	}
-	DEKAF2_PRIVATE
+	// not DEKAF2_PRIVATE: called by the template Section() in the code of the user
 	KOptions& IntSection(KStringView sSection);
 	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	KStringViewZ ModifyArgument(KStringViewZ sArg, const CallbackParam* Callback);

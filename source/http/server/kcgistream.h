@@ -183,7 +183,8 @@ private:
 		{}
 
 		void CreateHeader();
-		void AddCGIVar(KString sCGIVar, KString sHTTPHeader);
+		// exported from the private class: called by the inline AddCGIVar() in the code of the user
+		DEKAF2_PUBLIC void AddCGIVar(KString sCGIVar, KString sHTTPHeader);
 
 		std::istream* istream;
 		KStringView   sHeader;

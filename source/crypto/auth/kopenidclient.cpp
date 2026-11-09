@@ -66,12 +66,13 @@ KSession::Config KOpenIDClient::MakeSessionConfig() const
 //-----------------------------------------------------------------------------
 {
 	KSession::Config sc;
-	sc.sCookieName     = m_Config.sSessionCookieName;
-	sc.sSameSite       = "Lax";
-	sc.bSecure         = true;
-	sc.bHttpOnly       = true;
-	sc.IdleTimeout     = m_Config.IdleTimeout;
-	sc.AbsoluteTimeout = m_Config.AbsoluteTimeout;
+	sc.sCookieName       = m_Config.sSessionCookieName;
+	sc.sSameSite         = "Lax";
+	sc.bSecure           = true;
+	sc.bHttpOnly         = true;
+	sc.IdleTimeout       = m_Config.IdleTimeout;
+	sc.AbsoluteTimeout   = m_Config.AbsoluteTimeout;
+	sc.bPersistentCookie = m_Config.bPersistentCookie;
 	return sc;
 
 } // MakeSessionConfig
@@ -418,16 +419,27 @@ KString KOpenIDClient::CreateSession(KStringView sUsername, KStringView sClientI
 void KOpenIDClient::SetSessionCookie(KRESTServer& HTTP, KStringView sToken)
 //-----------------------------------------------------------------------------
 {
+	// a session cookie ends with the browser session, a persistent one with the
+	// absolute lifetime of the server-side session - the session's own config
+	// decides, which is ours (MakeSessionConfig) or the shared one of the app
+	const auto& SessionConfig = m_pSession->GetConfig();
+	KString sMaxAge;
+
+	if (SessionConfig.bPersistentCookie)
+	{
+		sMaxAge = kFormat("; Max-Age={}", SessionConfig.AbsoluteTimeout.seconds().count());
+	}
+
 	// HttpOnly: the real opaque token, never readable by JS
 	HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE,
-		kFormat("{}={}; HttpOnly; Secure; SameSite=Lax; Path=/",
-		        m_Config.sSessionCookieName, sToken));
+		kFormat("{}={}; HttpOnly; Secure; SameSite=Lax; Path=/{}",
+		        m_Config.sSessionCookieName, sToken, sMaxAge));
 
 	// Non-HttpOnly hint: lets JS detect whether a session exists without
 	// exposing the token itself. Contains no sensitive data.
 	HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE,
-		kFormat("{}_hint=1; Secure; SameSite=Lax; Path=/",
-		        m_Config.sSessionCookieName));
+		kFormat("{}_hint=1; Secure; SameSite=Lax; Path=/{}",
+		        m_Config.sSessionCookieName, sMaxAge));
 
 } // SetSessionCookie
 
@@ -509,12 +521,52 @@ void KOpenIDClient::Redirect(KRESTServer& HTTP, KStringView sURL)
 } // Redirect
 
 //-----------------------------------------------------------------------------
+bool KOpenIDClient::IsLocalReturnTarget(KStringView sReturnTo)
+//-----------------------------------------------------------------------------
+{
+	if (sReturnTo.empty() || sReturnTo.front() != '/')
+	{
+		return false;
+	}
+
+	// "//host" is a scheme-relative URL, and browsers read "/\host" the same way
+	if (sReturnTo.size() > 1 && (sReturnTo[1] == '/' || sReturnTo[1] == '\\'))
+	{
+		return false;
+	}
+
+	for (auto ch : sReturnTo)
+	{
+		// no backslash a browser reads as a slash, no line break into the
+		// Location header, no other control character
+		if (ch == '\\' || static_cast<unsigned char>(ch) < 0x20 || ch == 0x7f)
+		{
+			return false;
+		}
+	}
+
+	return true;
+
+} // IsLocalReturnTarget
+
+//-----------------------------------------------------------------------------
 KURL KOpenIDClient::BuildLoginURL(KRESTServer& HTTP, KStringView sReturnTo)
 //-----------------------------------------------------------------------------
 {
 	if (!EnsureDiscovery())
 	{
 		return {}; // empty KURL signals failure
+	}
+
+	if (!IsLocalReturnTarget(sReturnTo))
+	{
+		// typically a query parameter of the login link - a target on another
+		// server would make the login an open redirect
+		if (!sReturnTo.empty())
+		{
+			kDebug(1, "return target is not a local path, using /: {}", sReturnTo);
+		}
+		sReturnTo = "/";
 	}
 
 	LoginState Login;
@@ -624,7 +676,10 @@ void KOpenIDClient::HandleCallback(KRESTServer& HTTP)
 	}
 
 	SetSessionCookie(HTTP, sSessionToken);
-	Redirect(HTTP, Login.sReturnTo.empty() ? "/" : Login.sReturnTo);
+	// checked again: the state cookie may come from before BuildLoginURL()
+	// checked it, or be tossed in from a sibling host when its name has no
+	// __Host- prefix
+	Redirect(HTTP, IsLocalReturnTarget(Login.sReturnTo) ? KStringView(Login.sReturnTo) : KStringView("/"));
 
 } // HandleCallback
 

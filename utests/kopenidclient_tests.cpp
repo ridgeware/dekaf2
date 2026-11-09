@@ -6,6 +6,7 @@
 #include <dekaf2/crypto/ec/keckey.h>
 #include <dekaf2/crypto/ec/kecsign.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/rest/framework/krestroute.h>
@@ -140,7 +141,8 @@ KRESTRoutes BuildAppRoutes(KOpenIDClient& OIDC)
 
 	Routes.AddRoute({ KHTTPMethod::GET, false, "/auth/login", [&OIDC](KRESTServer& http)
 	{
-		http.SetRawOutput(OIDC.BuildLoginURL(http, "/").Serialize());
+		// the return target as an application takes it from its login link
+		http.SetRawOutput(OIDC.BuildLoginURL(http, http.GetQueryParmSafe("return", "/")).Serialize());
 	}});
 
 	Routes.AddRoute({ KHTTPMethod::GET, false, "/auth/callback", [&OIDC](KRESTServer& http)
@@ -239,6 +241,34 @@ struct CookieJar
 
 	bool Has(KStringView sName) const { return Jar.find(KString(sName)) != Jar.end(); }
 };
+
+//-----------------------------------------------------------------------------
+// one login through the app routes and the mock provider, up to the response
+// of the callback - sReturn is the return target of the login link
+KString LoginCallback(const KRESTRoutes& Routes, MockIdP& Mock, KStringView sReturn = "/")
+//-----------------------------------------------------------------------------
+{
+	CookieJar Cookies;
+
+	KString sLogin = Drive(Routes, "GET", kFormat("/auth/login?return={}", KEncode::URL(sReturn)), Cookies.Header());
+	Cookies.Apply(sLogin);
+	Mock.sNonce    = URLParam(ResponseBody(sLogin), "nonce");
+	KString sState = URLParam(ResponseBody(sLogin), "state");
+
+	return Drive(Routes, "GET", kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+}
+
+//-----------------------------------------------------------------------------
+// the Set-Cookie value of the cookie sName in a response, empty if none
+KString SetCookieOf(KStringView sResponse, KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	for (const auto& sSetCookie : HeaderValues(sResponse, "Set-Cookie"))
+	{
+		if (sSetCookie.starts_with(kFormat("{}=", sName))) return sSetCookie;
+	}
+	return {};
+}
 
 } // anonymous namespace
 
@@ -435,6 +465,92 @@ TEST_CASE("KOpenIDClient")
 
 		KString sAfter = Drive(AppRoutes, "GET", "/protected", Cookies.Header());
 		CHECK ( sAfter.contains("ANON") );
+	}
+
+	SECTION("the return target is a path on this server only")
+	{
+		CHECK       ( KOpenIDClient::IsLocalReturnTarget("/")                          );
+		CHECK       ( KOpenIDClient::IsLocalReturnTarget("/xy/?ab=Some%20Thing#here")  );
+		CHECK_FALSE ( KOpenIDClient::IsLocalReturnTarget("")                           );
+		CHECK_FALSE ( KOpenIDClient::IsLocalReturnTarget("xy/")                        );
+		CHECK_FALSE ( KOpenIDClient::IsLocalReturnTarget("https://evil.example/")      );
+		CHECK_FALSE ( KOpenIDClient::IsLocalReturnTarget("//evil.example/")            );
+		CHECK_FALSE ( KOpenIDClient::IsLocalReturnTarget("/\\evil.example/")           );
+		CHECK_FALSE ( KOpenIDClient::IsLocalReturnTarget("/a\\b")                      );
+		CHECK_FALSE ( KOpenIDClient::IsLocalReturnTarget("/a\r\nSet-Cookie: x=1")      );
+		CHECK_FALSE ( KOpenIDClient::IsLocalReturnTarget(KStringView("/a\0b", 4))      );
+		CHECK_FALSE ( KOpenIDClient::IsLocalReturnTarget("/a\x7f")                     );
+
+		// after the login, a local target is kept, anything else becomes "/"
+		auto Location = [&](KStringView sReturn)
+		{
+			auto Values = HeaderValues(LoginCallback(AppRoutes, Mock, sReturn), "Location");
+			return Values.empty() ? KString{} : Values.front();
+		};
+
+		CHECK ( Location("/xy/?ab=Calm")          == "/xy/?ab=Calm" );
+		CHECK ( Location("https://evil.example/") == "/" );
+		CHECK ( Location("//evil.example/")       == "/" );
+		CHECK ( Location("")                      == "/" );
+	}
+
+	SECTION("the session cookie is a browser-session cookie by default, persistent on request")
+	{
+		KString sCallback = LoginCallback(AppRoutes, Mock);
+
+		KString sCookie = SetCookieOf(sCallback, "session");
+		KString sHint   = SetCookieOf(sCallback, "session_hint");
+		REQUIRE_FALSE ( sCookie.empty() );
+		REQUIRE_FALSE ( sHint.empty()   );
+		CHECK_FALSE   ( sCookie.contains("Max-Age") );
+		CHECK_FALSE   ( sHint.contains("Max-Age")   );
+
+		KOpenIDClient::Config cfgKeep = cfg;
+		cfgKeep.bPersistentCookie     = true;
+		cfgKeep.AbsoluteTimeout       = chrono::hours(24 * 30);
+		cfgKeep.sSessionCookieName    = "session_keep";
+
+		KString sDBk = kGenerateTempPath(".sqlite");
+		KOpenIDClient OIDCKeep(cfgKeep, sDBk);
+		KRESTRoutes AppRoutesKeep = BuildAppRoutes(OIDCKeep);
+
+		sCallback = LoginCallback(AppRoutesKeep, Mock);
+
+		sCookie = SetCookieOf(sCallback, "session_keep");
+		sHint   = SetCookieOf(sCallback, "session_keep_hint");
+		REQUIRE_FALSE ( sCookie.empty() );
+		REQUIRE_FALSE ( sHint.empty()   );
+		CHECK ( sCookie.contains("; Max-Age=2592000") );
+		CHECK ( sHint.contains("; Max-Age=2592000")   );
+		CHECK ( sCookie.contains("HttpOnly")          );
+
+		// the logout still deletes it
+		CookieJar Cookies;
+		Cookies.Apply(sCallback);
+		KString sLogout = Drive(AppRoutesKeep, "GET", "/auth/logout", Cookies.Header());
+		CHECK ( SetCookieOf(sLogout, "session_keep").contains("Max-Age=0") );
+	}
+
+	SECTION("a shared KSession decides about a persistent cookie")
+	{
+		KSession::Config sc;
+		sc.sCookieName       = "shared";
+		sc.bSecure           = true;
+		sc.bPersistentCookie = true;
+		sc.AbsoluteTimeout   = chrono::hours(24 * 7);
+
+		auto pSession = std::make_shared<KSession>(std::make_unique<KSessionMemoryStore>(), sc);
+
+		// the client's own flag does not count - the app's session is the authority
+		KOpenIDClient::Config cfgShared = cfg;
+		cfgShared.bPersistentCookie     = false;
+
+		KOpenIDClient OIDCShared(cfgShared, pSession);
+		KRESTRoutes AppRoutesShared = BuildAppRoutes(OIDCShared);
+
+		KString sCookie = SetCookieOf(LoginCallback(AppRoutesShared, Mock), "shared");
+		REQUIRE_FALSE ( sCookie.empty() );
+		CHECK ( sCookie.contains("; Max-Age=604800") );
 	}
 
 	SECTION("silent token refresh on near-expiry")

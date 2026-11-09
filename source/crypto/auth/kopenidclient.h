@@ -137,6 +137,13 @@ public:
 		/// only for a trusted back-channel IdP or in tests. The nonce is always
 		/// checked regardless of this setting.
 		bool      bVerifyIDTokenSignature { true };
+		/// Give the session cookie (and its "_hint") a Max-Age of the session's
+		/// AbsoluteTimeout, so a login survives closing the browser - a web app
+		/// on a phone's home screen is closed often. Off by default: the cookie
+		/// then ends with the browser session, while the server-side session
+		/// lives on until it times out. With a shared KSession, that session's
+		/// own Config::bPersistentCookie and AbsoluteTimeout decide instead.
+		bool      bPersistentCookie { false };
 	};
 
 	/// Standalone form with an in-memory session store (KSessionMemoryStore). The
@@ -188,6 +195,10 @@ public:
 	/// the URL the browser should be redirected to as a KURL (call Serialize()
 	/// for the string form, e.g. when setting the Location header). Returns an
 	/// empty KURL (empty() == true) on discovery failure.
+	/// @param sReturnTo where HandleCallback() sends the browser after the
+	/// login - a path on this server only (see IsLocalReturnTarget()), anything
+	/// else becomes "/". It typically comes from a query parameter, so an
+	/// absolute URL would turn the login into an open redirect.
 	KURL    BuildLoginURL  (KRESTServer& HTTP, KStringView sReturnTo);
 
 	/// Handle the IdP callback: validate state, exchange the code for tokens,
@@ -209,6 +220,11 @@ public:
 	/// Write a JSON object with safe user info ({logged_in, username,
 	/// expires_at}) into HTTP.json.tx without exposing any tokens.
 	void    GetUserInfo    (KRESTServer& HTTP);
+
+	/// True if sReturnTo is a path on this server: it starts with a single '/'
+	/// and holds no backslash and no control character. "//host", "/\host" and
+	/// "https://host" are other servers to a browser.
+	static bool IsLocalReturnTarget (KStringView sReturnTo);
 
 	/// Clear the session, expire the cookie, and 302-redirect the browser to the
 	/// IdP's end-session endpoint (falling back to the post-logout URI). Throws

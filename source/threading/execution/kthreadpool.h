@@ -285,6 +285,14 @@ public:
 	~KThreadPool();
 	//-----------------------------------------------------------------------------
 
+	/// why a worker thread ends - an abort is irregular, a regular end is None
+	enum class Abort
+	{
+		None,   ///< no abort: the pool stops normally through stop() without kill, or its destructor
+		Kill,   ///< stop(true): the thread ends after its current task, tasks may still be queued
+		Resize  ///< the pool shrinks, and goes on with fewer threads
+	};
+
 	struct Diagnostics
 	{
 		std::size_t iMaxThreadsEver  { 0 }; ///< max number of threads that were allowed at any time
@@ -296,13 +304,15 @@ public:
 		std::size_t iMaxWaitingTasks { 0 }; ///< max size of wait queue since last resize
 		std::size_t iWaitingTasks    { 0 }; ///< current number of tasks in wait queue
 		bool        bWasIdle         { false };
+		Abort       Reason           { Abort::None }; ///< why the thread ends - set only for the shutdown callback
 
 	}; // Diagnostics
 
 	//-----------------------------------------------------------------------------
-	/// Query current threadpool status - ignore bWasIdle param
+	/// Query current threadpool status - for regular status inquiry ignore bWasIdle and abort params,
+	/// they are used for shutdown notifications only
 	DEKAF2_NODISCARD
-	Diagnostics get_diagnostics(bool bWasIdle = false) const;
+	Diagnostics get_diagnostics(bool bWasIdle = false, Abort abort = Abort::None) const;
 	//-----------------------------------------------------------------------------
 
 	using ShutdownCallback = std::function<void(Diagnostics)>;
@@ -312,7 +322,9 @@ public:
 	/// Call this before the pool is started (or resized) - the callback is read by the
 	/// worker threads without synchronization, so registering it on a running pool is a
 	/// data race.
-	/// @param callback callback function called at each shutdown thread with some diagnostics
+	/// @param callback callback function called at each shutdown thread with some diagnostics -
+	/// also when the pool shrinks: Diagnostics::Reason tells a stopping pool (None, Kill) from
+	/// one that goes on with fewer threads (Resize)
 	void register_shutdown_callback(ShutdownCallback callback)
 	//-----------------------------------------------------------------------------
 	{
@@ -746,13 +758,6 @@ private:
 		return Task(std::bind(std::forward<Function>(f), std::forward<Arg>(arg), std::forward<Args>(args)...));
 	}
 
-	enum eAbort
-	{
-		None,
-		Resize,
-		Stop
-	};
-
 	void push_packaged_task(Task task);
 	std::size_t calc_shrink(std::size_t iHaveIdle) const;
 
@@ -821,10 +826,10 @@ private:
 	bool run_thread( size_t i );
 
 	DEKAF2_PRIVATE
-	void notify_thread_shutdown(bool bWasIdle, eAbort abort);
+	void notify_thread_shutdown(bool bWasIdle, Abort abort);
 
 	std::vector<std::unique_ptr<std::thread>>             m_threads;
-	std::vector<std::shared_ptr<std::atomic<eAbort>>>     m_abort;
+	std::vector<std::shared_ptr<std::atomic<Abort>>>      m_abort;
 	std::unordered_map<Tag, TagState>                     m_Tags;          ///< per work-class state (DefaultTag created lazily)
 	std::vector<std::pair<Tag, TagState*>>                m_TagOrder;      ///< stable round-robin order of tags, with the state pointer cached to spare the hash lookup in the DRR scan (unordered_map references are rehash-stable)
 	std::size_t                                           m_iTagCursor   { 0 };  ///< DRR cursor into m_TagOrder

@@ -299,7 +299,7 @@ bool KThreadPool::grow(std::size_t iQueued)
 
 			for (std::size_t i = oldNThreads; i < iNewMax; ++i)
 			{
-				m_abort[i] = std::make_shared<std::atomic<eAbort>>(eAbort::None);
+				m_abort[i] = std::make_shared<std::atomic<Abort>>(Abort::None);
 
 				// counted before the start, the thread counts itself down once it holds
 				// m_cond_mutex (see bookkeep_enqueue())
@@ -384,7 +384,7 @@ bool KThreadPool::shrink(std::size_t iQueued)
 				// increase counter for threads that have to finish
 				// - they are now detached and cannot be joined anymore
 				++ma_iDetachedThreadsToFinish;
-				*m_abort[i] = eAbort::Resize; // this thread will finish
+				*m_abort[i] = Abort::Resize; // this thread will finish
 				m_threads[i]->detach();
 
 				if (i == 0)
@@ -529,7 +529,7 @@ void KThreadPool::stop(bool bKill)
 				// do not increase the counter for detached threads, as we
 				// want to finish these with join() - therefore set a different
 				// abort flag than for the resize case
-				*abort = eAbort::Stop; // command the threads to stop
+				*abort = Abort::Kill; // command the threads to stop
 			}
 		}
 
@@ -587,15 +587,15 @@ bool KThreadPool::run_thread(std::size_t i)
 //-----------------------------------------------------------------------------
 {
 	// a copy of the shared ptr to the abort
-	std::shared_ptr<std::atomic<eAbort>> abort_ptr(m_abort[i]);
+	std::shared_ptr<std::atomic<Abort>> abort_ptr(m_abort[i]);
 
 	auto f = [this, abort_ptr, i]()
 	{
 		// kSetupThreadSignalHandling() is done by kMakeThread() below - no
 		// need to call it explicitly here.
-		std::atomic<eAbort>& abort = *abort_ptr;
-		Task                       _f;
-		Tag                        _tag { DefaultTag };  // work-class of the task in _f
+		std::atomic<Abort>& abort = *abort_ptr;
+		Task _f;
+		Tag  _tag { DefaultTag };  // work-class of the task in _f
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
 
 		// from now on this thread takes a queued task or counts itself idle
@@ -655,7 +655,7 @@ bool KThreadPool::run_thread(std::size_t i)
 					m_cond_var.notify_one();
 				}
 
-				if (abort != eAbort::None)
+				if (abort != Abort::None)
 				{
 					lock.unlock();
 
@@ -685,7 +685,7 @@ bool KThreadPool::run_thread(std::size_t i)
 
 			m_cond_var.wait(lock, [this, &_f, &_tag, &bMoreTasks, &abort]()
 			{
-				if (abort != eAbort::None)
+				if (abort != Abort::None)
 				{
 					return true;
 				}
@@ -1201,7 +1201,7 @@ void KThreadPool::run_coalesce(Tag tag, uint64_t iKey)
 } // run_coalesce
 
 //-----------------------------------------------------------------------------
-KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
+KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle, Abort abort) const
 //-----------------------------------------------------------------------------
 {
 	Diagnostics Diag;
@@ -1217,28 +1217,29 @@ KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
 	Diag.iMaxWaitingTasks = ma_iMaxWaitingTasks;
 	Diag.iWaitingTasks    = n_queued();
 	Diag.bWasIdle         = bWasIdle;
+	Diag.Reason           = abort;
 
 	return Diag;
 
 } // get_diagnostics
 
 //-----------------------------------------------------------------------------
-void KThreadPool::notify_thread_shutdown(bool bWasIdle, eAbort abort)
+void KThreadPool::notify_thread_shutdown(bool bWasIdle, Abort abort)
 //-----------------------------------------------------------------------------
 {
-	if (abort == eAbort::Stop)
+	if (abort == Abort::Kill)
 	{
 		++ma_iAlreadyStopped;
 	}
 
 	if (m_shutdown_callback)
 	{
-		m_shutdown_callback(get_diagnostics(bWasIdle));
+		m_shutdown_callback(get_diagnostics(bWasIdle, abort));
 	}
 
 	// don't run this as an else of above - it has to happen past
 	// the shutdown callback, and the former before..
-	if (abort == eAbort::Resize)
+	if (abort == Abort::Resize)
 	{
 		// decrease the count of detached threads to wait for in the join()
 		std::lock_guard<std::mutex> lock(m_detached_mutex);

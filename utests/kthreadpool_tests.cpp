@@ -170,6 +170,73 @@ TEST_CASE("KThreadPool")
 		}
 	}
 
+	SECTION("shutdown callback tells why a thread ends")
+	{
+		// a callback that took every ending thread for a stopping pool misread
+		// the first shrink after a burst - the Reason tells them apart
+		std::mutex Mutex;
+		std::vector<KThreadPool::Abort> Reasons;
+
+		auto Count = [&](KThreadPool::Abort Reason)
+		{
+			std::lock_guard<std::mutex> Lock(Mutex);
+			return std::count(Reasons.begin(), Reasons.end(), Reason);
+		};
+
+		{
+			KThreadPool Pool;
+			Pool.register_shutdown_callback([&](KThreadPool::Diagnostics Diag)
+			{
+				std::lock_guard<std::mutex> Lock(Mutex);
+				Reasons.push_back(Diag.Reason);
+			});
+
+			CHECK ( Pool.resize(4) );
+			CHECK ( Pool.resize(2) );
+
+			// the two threads that go end on their own
+			for (int i = 0; i < 200 && Count(KThreadPool::Abort::Resize) < 2; ++i)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			}
+
+			CHECK ( Count(KThreadPool::Abort::Resize) == 2 );
+			CHECK ( Count(KThreadPool::Abort::None)   == 0 );
+
+			Pool.stop(false);
+
+			CHECK ( Count(KThreadPool::Abort::None)   == 2 );
+			CHECK ( Count(KThreadPool::Abort::Kill)   == 0 );
+		}
+
+		{
+			std::lock_guard<std::mutex> Lock(Mutex);
+			Reasons.clear();
+		}
+
+		{
+			KThreadPool Pool;
+			Pool.register_shutdown_callback([&](KThreadPool::Diagnostics Diag)
+			{
+				std::lock_guard<std::mutex> Lock(Mutex);
+				Reasons.push_back(Diag.Reason);
+			});
+
+			CHECK ( Pool.resize(3) );
+
+			for (int i = 0; i < 30; ++i)
+			{
+				Pool.push([]() { std::this_thread::sleep_for(std::chrono::milliseconds(20)); });
+			}
+
+			Pool.stop(true);
+
+			CHECK ( Count(KThreadPool::Abort::Kill)   == 3 );
+			CHECK ( Count(KThreadPool::Abort::Resize) == 0 );
+			CHECK ( Count(KThreadPool::Abort::None)   == 0 );
+		}
+	}
+
 	SECTION("stop(false) drains multiple tasks")
 	{
 		std::atomic<int> iCounter { 0 };

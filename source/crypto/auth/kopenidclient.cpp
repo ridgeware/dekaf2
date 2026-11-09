@@ -412,11 +412,13 @@ void KOpenIDClient::SetSessionCookie(KRESTServer& HTTP, KStringView sToken)
 {
 	// a session cookie ends with the browser session, a persistent one with the
 	// absolute lifetime of the server-side session - the session's own config
-	// decides, which is ours (MakeSessionConfig) or the shared one of the app
+	// decides, which is ours (MakeSessionConfig) or the shared one of the app.
+	// Without an absolute timeout the cookie stays a session cookie, as KSession
+	// does it: Max-Age=0 would make the browser delete it at once.
 	const auto& SessionConfig = m_pSession->GetConfig();
 	KString sMaxAge;
 
-	if (SessionConfig.bPersistentCookie)
+	if (SessionConfig.bPersistentCookie && SessionConfig.AbsoluteTimeout > KDuration::zero())
 	{
 		sMaxAge = kFormat("; Max-Age={}", SessionConfig.AbsoluteTimeout.seconds().count());
 	}

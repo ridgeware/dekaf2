@@ -139,10 +139,13 @@ public:
 		bool      bVerifyIDTokenSignature { true };
 		/// Give the session cookie (and its "_hint") a Max-Age of the session's
 		/// AbsoluteTimeout, so a login survives closing the browser - a web app
-		/// on a phone's home screen is closed often. Off by default: the cookie
-		/// then ends with the browser session, while the server-side session
-		/// lives on until it times out. With a shared KSession, that session's
-		/// own Config::bPersistentCookie and AbsoluteTimeout decide instead.
+		/// on a phone's home screen is closed often. The server-side session
+		/// still ends after IdleTimeout without a request, so raise IdleTimeout
+		/// as well. With an AbsoluteTimeout of zero the cookie stays a browser
+		/// session cookie. Off by default: the cookie then ends with the browser
+		/// session, while the server-side session lives on until it times out.
+		/// With a shared KSession, that session's own Config::bPersistentCookie
+		/// and AbsoluteTimeout decide instead.
 		bool      bPersistentCookie { false };
 	};
 

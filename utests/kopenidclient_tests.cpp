@@ -531,6 +531,27 @@ TEST_CASE("KOpenIDClient")
 		CHECK ( SetCookieOf(sLogout, "session_keep").contains("Max-Age=0") );
 	}
 
+	SECTION("a persistent cookie without absolute timeout ends with the browser session")
+	{
+		KOpenIDClient::Config cfgOpen = cfg;
+		cfgOpen.bPersistentCookie     = true;
+		cfgOpen.AbsoluteTimeout       = KDuration::zero();
+		cfgOpen.sSessionCookieName    = "session_open";
+
+		KString sDBo = kGenerateTempPath(".sqlite");
+		KOpenIDClient OIDCOpen(cfgOpen, sDBo);
+		KRESTRoutes AppRoutesOpen = BuildAppRoutes(OIDCOpen);
+
+		KString sCallback = LoginCallback(AppRoutesOpen, Mock);
+
+		KString sCookie = SetCookieOf(sCallback, "session_open");
+		KString sHint   = SetCookieOf(sCallback, "session_open_hint");
+		REQUIRE_FALSE ( sCookie.empty() );
+		REQUIRE_FALSE ( sHint.empty()   );
+		CHECK_FALSE   ( sCookie.contains("Max-Age") );
+		CHECK_FALSE   ( sHint.contains("Max-Age")   );
+	}
+
 	SECTION("a shared KSession decides about a persistent cookie")
 	{
 		KSession::Config sc;

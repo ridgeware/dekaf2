@@ -104,7 +104,17 @@
 	#define JSON_HAS_CPP_11
 #endif
 
+// with -fvisibility=hidden the type_info of the nlohmann exceptions would be
+// hidden, and a shared libdekaf2 and the program would each have their own: an
+// exception thrown in the library, e.g. by kjson::Parse(), would not be caught
+// as LJSON::exception in the program on macOS
+#if defined(__GNUC__) && !DEKAF2_IS_WINDOWS
+	#pragma GCC visibility push(default)
+#endif
 #include <nlohmann/json.hpp>
+#if defined(__GNUC__) && !DEKAF2_IS_WINDOWS
+	#pragma GCC visibility pop
+#endif
 
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>

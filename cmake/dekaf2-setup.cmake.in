@@ -284,6 +284,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			check_cxx_compiler_flag(-fconstexpr-ops-limit=400000000 DEKAF2_HAS_CONSTEXPR_OPS_LIMIT     )
 			check_cxx_compiler_flag(-fconstexpr-steps=400000000     DEKAF2_HAS_CONSTEXPR_STEPS         )
 			check_cxx_compiler_flag(-fconstexpr-depth=2048          DEKAF2_HAS_CONSTEXPR_DEPTH         )
+			check_cxx_compiler_flag(-fno-visibility-inlines-hidden-static-local-var DEKAF2_HAS_NO_INLINES_HIDDEN_STATIC_LOCAL)
 
 			add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 			add_compile_options($<$<CONFIG:DEBUG>:-Werror>)
@@ -300,6 +301,13 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
 				# satisfy new build mode of boost-1.69
 				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
+				if (DEKAF2_HAS_NO_INLINES_HIDDEN_STATIC_LOCAL)
+					# Apple clang hides the static variables of inline functions as well:
+					# a shared libdekaf2 and the program would each have their own
+					# KLog::getInstance() and Dekaf::getInstance(). Keep them visible,
+					# and merged by the loader, as GCC does
+					add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-visibility-inlines-hidden-static-local-var>)
+				endif()
 			endif()
 			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility=hidden>)
 

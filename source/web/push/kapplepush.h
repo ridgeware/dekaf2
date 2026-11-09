@@ -182,10 +182,12 @@ public:
 
 #if DEKAF2_HAS_SQLITE3
 	/// Convenience constructor — SQLite backend at the given path.
+	/// Defined in the ksqlite library - link dekaf2::ksqlite.
 	KApplePush(KStringViewZ sDatabase, Config cfg);
 #endif
 
 	/// Convenience constructor — KSQL backend on an existing connection.
+	/// Defined in the ksql2 library - link dekaf2::ksql2.
 	KApplePush(KSQL& db, Config cfg);
 
 	/// Store / upsert a device subscription. Keyed on (user, device_id).

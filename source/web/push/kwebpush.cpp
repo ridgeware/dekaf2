@@ -41,9 +41,6 @@
  */
 
 #include <dekaf2/web/push/kwebpush.h>
-#if DEKAF2_HAS_SQLITE3
-#include <dekaf2/web/push/bits/kwebpushsqlitedb.h>
-#endif
 #include <dekaf2/crypto/cipher/kaes.h>
 #include <dekaf2/crypto/ec/kecsign.h>
 #include <dekaf2/crypto/kdf/khkdf.h>
@@ -123,22 +120,13 @@ KWebPush::KWebPush(std::unique_ptr<DB> DB, KString sContact)
 
 } // ctor
 
-#if DEKAF2_HAS_SQLITE3
-//-----------------------------------------------------------------------------
-KWebPush::KWebPush(KStringViewZ sDatabase, KString sContact)
-//-----------------------------------------------------------------------------
-: m_DB(std::make_unique<KWebPushSQLiteDB>(KString(sDatabase)))
-, m_sContact(NormalizeContact(std::move(sContact)))
-{
-	Init();
-
-} // ctor (SQLite convenience)
-#endif
-
-// NOTE: KWebPush::KWebPush(KSQL&, KString) is implemented in
-// kwebpushksqldb.cpp so that kwebpush.o does not pull in KSQL symbols.
-// Consumers that do not link ksql2 can still use the SQLite or
-// custom-DB backends without encountering unresolved KSQL references.
+// NOTE: the store-backed convenience constructors are deliberately NOT defined
+// here: KWebPush(KStringViewZ, KString) lives in bits/kwebpushsqlitedb.cpp
+// (linked into the ksqlite library), KWebPush(KSQL&, KString) in
+// bits/kwebpushksqldb.cpp (linked into ksql2) - next to the database backends
+// they construct. This core TU carries no references to ksqlite or ksql2
+// symbols, and libdekaf2.a never needs a library that comes before it on the
+// link line: GNU ld reads each archive once.
 
 //-----------------------------------------------------------------------------
 bool KWebPush::Init()

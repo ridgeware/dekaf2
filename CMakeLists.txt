@@ -2293,11 +2293,7 @@ set (SOURCES
 	source/web/acme/kacmeclient.cpp
 	source/web/acme/kacmemanager.cpp
 	source/web/push/kwebpush.cpp
-	source/web/push/bits/kwebpushsqlitedb.cpp
-	source/web/push/bits/kwebpushksqldb.cpp
 	source/web/push/kapplepush.cpp
-	source/web/push/bits/kapplepushsqlitedb.cpp
-	source/web/push/bits/kapplepushksqldb.cpp
 	source/web/url/kurl.cpp
 	source/web/url/kurlencode.cpp
 	source/web/url/kuseragent.cpp
@@ -2736,6 +2732,8 @@ set(KSQL2_SOURCE_FILES
 	source/crypto/auth/bits/ksessionksqlstore.cpp
 	source/crypto/auth/bits/ksessionksqlstore.h
 	source/crypto/auth/bits/kopenidclientksql.cpp
+	source/web/push/bits/kwebpushksqldb.cpp
+	source/web/push/bits/kapplepushksqldb.cpp
 )
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${KSQL2_SOURCE_FILES})
 add_library                   (ksql2-objects OBJECT ${KSQL2_SOURCE_FILES})
@@ -2772,6 +2770,8 @@ if (SQLITE3_FOUND)
 		source/crypto/auth/bits/ksessionsqlitestore.cpp
 		source/crypto/auth/bits/ksessionsqlitestore.h
 		source/crypto/auth/bits/kopenidclientsqlite.cpp
+		source/web/push/bits/kwebpushsqlitedb.cpp
+		source/web/push/bits/kapplepushsqlitedb.cpp
 	)
 
 	if (DEKAF2_BUILD_SHARED_DEKAF2)

@@ -51,6 +51,25 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+// ---- KApplePush SQLite convenience constructor ---------------------------
+// Mirrors KWebPush's split: this constructor lives here, in the ksqlite
+// library next to the backend it creates, and not in kapplepush.cpp - a
+// reference from a static libdekaf2.a into libksqlite.a, which comes before
+// it on the link line, stays unresolved with GNU ld. Consumers that do not
+// link ksqlite keep working with the KSQL or custom-DB backends.
+
+//-----------------------------------------------------------------------------
+KApplePush::KApplePush(KStringViewZ sDatabase, Config cfg)
+//-----------------------------------------------------------------------------
+: m_DB(std::make_unique<KApplePushSQLiteDB>(sDatabase))
+, m_Config(std::move(cfg))
+{
+	Init();
+
+} // ctor (SQLite convenience)
+
+// ---- KApplePushSQLiteDB --------------------------------------------------
+
 //-----------------------------------------------------------------------------
 KApplePushSQLiteDB::KApplePushSQLiteDB(KString sDatabase)
 //-----------------------------------------------------------------------------

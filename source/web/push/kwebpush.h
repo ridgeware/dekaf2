@@ -219,7 +219,8 @@ public:
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// Abstract database backend interface.  Concrete implementations
 	/// (KWebPushSQLiteDB, KWebPushKSQLDB) are provided in
-	/// web/push/bits/.  Custom backends can be implemented by deriving
+	/// web/push/bits/, and defined in the ksqlite and ksql2 libraries
+	/// respectively.  Custom backends can be implemented by deriving
 	/// from this class and passing an instance to the KWebPush
 	/// constructor.
 	class DEKAF2_PUBLIC DB
@@ -261,7 +262,8 @@ public:
 	KWebPush(std::unique_ptr<DB> DB, KString sContact = {});
 
 #if DEKAF2_HAS_SQLITE3
-	/// convenience constructor — creates a KSQLite backend at the given path
+	/// convenience constructor — creates a KSQLite backend at the given path.
+	/// Defined in the ksqlite library - link dekaf2::ksqlite.
 	/// @param sDatabase path to the SQLite database file
 	/// @param sContact VAPID contact email (e.g. "admin@example.com" — "mailto:" prefix
 	/// is stripped if present and added automatically when building VAPID tokens).
@@ -269,7 +271,8 @@ public:
 	KWebPush(KStringViewZ sDatabase, KString sContact = {});
 #endif
 
-	/// convenience constructor — creates a KSQL backend with the given connection
+	/// convenience constructor — creates a KSQL backend with the given connection.
+	/// Defined in the ksql2 library - link dekaf2::ksql2.
 	/// @param db        reference to an open KSQL connection (caller manages lifetime)
 	/// @param sContact VAPID contact email (e.g. "admin@example.com" — "mailto:" prefix
 	/// is stripped if present and added automatically when building VAPID tokens).

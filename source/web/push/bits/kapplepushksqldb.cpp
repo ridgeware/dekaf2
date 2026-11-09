@@ -48,10 +48,10 @@
 DEKAF2_NAMESPACE_BEGIN
 
 // ---- KApplePush KSQL convenience constructor -----------------------------
-// Mirrors KWebPush's split: this constructor lives here (not in
-// kapplepush.cpp) so that kapplepush.o carries no references to KSQL
-// symbols. Consumers that do not link ksql2 keep working with the SQLite
-// or custom-DB backends.
+// Mirrors KWebPush's split: this constructor lives here, in the ksql2
+// library next to the backend it creates, and not in kapplepush.cpp, so that
+// kapplepush.o carries no references to KSQL symbols. Consumers that do not
+// link ksql2 keep working with the SQLite or custom-DB backends.
 
 //-----------------------------------------------------------------------------
 KApplePush::KApplePush(KSQL& db, Config cfg)

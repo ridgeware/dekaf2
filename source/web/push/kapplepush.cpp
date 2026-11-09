@@ -41,11 +41,7 @@
  */
 
 #include <dekaf2/web/push/kapplepush.h>
-#include <dekaf2/web/push/bits/kapplepushsqlitedb.h>
-// NOTE: deliberately no include of kapplepushksqldb.h here. The KSQL
-// convenience constructor lives in kapplepushksqldb.cpp so that kapplepush.o
-// has zero references to KSQL symbols — apps that don't link ksql2 can still
-// use the SQLite or custom-DB backends without unresolved symbols.
+// NOTE: deliberately no include of the database backends here, see below.
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
@@ -83,19 +79,13 @@ KApplePush::KApplePush(std::unique_ptr<DB> db, Config cfg)
 	Init();
 }
 
-#if DEKAF2_HAS_SQLITE3
-//-----------------------------------------------------------------------------
-KApplePush::KApplePush(KStringViewZ sDatabase, Config cfg)
-//-----------------------------------------------------------------------------
-: m_DB(std::make_unique<KApplePushSQLiteDB>(sDatabase))
-, m_Config(std::move(cfg))
-{
-	Init();
-}
-#endif
-
-// KApplePush::KApplePush(KSQL& db, Config cfg) lives in kapplepushksqldb.cpp
-// to keep this TU free of KSQL symbol references.
+// NOTE: the store-backed convenience constructors are deliberately NOT defined
+// here: KApplePush(KStringViewZ, Config) lives in bits/kapplepushsqlitedb.cpp
+// (linked into the ksqlite library), KApplePush(KSQL&, Config) in
+// bits/kapplepushksqldb.cpp (linked into ksql2) - next to the database backends
+// they construct. This core TU carries no references to ksqlite or ksql2
+// symbols, and libdekaf2.a never needs a library that comes before it on the
+// link line: GNU ld reads each archive once.
 
 //-----------------------------------------------------------------------------
 bool KApplePush::Init()

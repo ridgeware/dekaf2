@@ -157,14 +157,16 @@ public:
 	/// Standalone form with a SQLite-backed session store (KSessionSQLiteStore) at
 	/// the given filesystem path. The path must be a writable file location (the
 	/// tokens of every logged-in user are kept there server-side). The client owns
-	/// a private KSession. Only available when dekaf2 is built with SQLite support.
+	/// a private KSession. Only available when dekaf2 is built with SQLite support,
+	/// and defined in the ksqlite library - link dekaf2::ksqlite.
 	KOpenIDClient(Config config, KStringViewZ sSessionDBPath);
 #endif
 
 	/// Standalone form with a KSQL-backed session store (KSessionKSQLStore) on the
 	/// given, already-open KSQL connection. The caller owns the connection and must
 	/// keep it alive for the lifetime of this client. The client owns a private
-	/// KSession dedicated to OIDC logins.
+	/// KSession dedicated to OIDC logins. Defined in the ksql2 library - link
+	/// dekaf2::ksql2.
 	KOpenIDClient(Config config, KSQL& db);
 
 	/// Construct sharing an externally-owned KSession. Use this when the
@@ -282,8 +284,10 @@ private:
 	DEKAF2_PRIVATE void       Redirect           (KRESTServer& HTTP, KStringView sURL);
 	DEKAF2_PRIVATE KString    StateCookieName    () const;
 	/// Build the KSession::Config (cookie name, security flags, timeouts) from
-	/// m_Config — shared by the standalone constructors.
-	DEKAF2_PRIVATE KSession::Config MakeSessionConfig() const;
+	/// m_Config — shared by the standalone constructors. Not hidden: the SQLite
+	/// and KSQL constructors live in the ksqlite and ksql2 libraries and call it
+	/// across the shared-library boundary.
+	KSession::Config MakeSessionConfig() const;
 
 	Config                    m_Config;
 	std::shared_ptr<KSession> m_pSession;              ///< owned (standalone ctor) or shared (shared ctor)

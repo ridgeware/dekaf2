@@ -92,23 +92,14 @@ KOpenIDClient::KOpenIDClient(Config config)
 
 } // KOpenIDClient (standalone, in-memory)
 
-#if DEKAF2_HAS_SQLITE3
-//-----------------------------------------------------------------------------
-KOpenIDClient::KOpenIDClient(Config config, KStringViewZ sSessionDBPath)
-: m_Config(std::move(config))
-//-----------------------------------------------------------------------------
-{
-	// SQLite-backed store at sSessionDBPath
-	m_pSession = std::make_shared<KSession>(sSessionDBPath, MakeSessionConfig());
 
-} // KOpenIDClient (standalone, SQLite)
-#endif
-
-// NOTE: the KSQL-backed standalone constructor KOpenIDClient(Config, KSQL&) is
-// deliberately NOT defined here. It lives in bits/kopenidclientksql.cpp (which is
-// linked into the ksql2 library) so that this core TU carries no references to KSQL
-// symbols - applications that do not link ksql2 can still use the in-memory, SQLite,
-// or shared-KSession backends. See kwebpush/kapplepush for the same split.
+// NOTE: the store-backed standalone constructors are deliberately NOT defined
+// here: KOpenIDClient(Config, KStringViewZ) lives in bits/kopenidclientsqlite.cpp
+// (linked into the ksqlite library), KOpenIDClient(Config, KSQL&) in
+// bits/kopenidclientksql.cpp (linked into ksql2) - next to the session stores they
+// construct. This core TU carries no references to ksqlite or ksql2 symbols, and
+// libdekaf2.a never needs a library that comes before it on the link line: GNU ld
+// reads each archive once. See kwebpush/kapplepush for the same split.
 
 //-----------------------------------------------------------------------------
 KOpenIDClient::KOpenIDClient(Config config, std::shared_ptr<KSession> pSession)

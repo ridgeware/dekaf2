@@ -2123,7 +2123,6 @@ set (SOURCES
 	source/crypto/auth/kbcrypt.cpp
 	source/crypto/auth/kopenid.cpp
 	source/crypto/auth/kopenidclient.cpp
-	source/crypto/auth/bits/kopenidclientksql.cpp
 	source/crypto/auth/kopenidserver.cpp
 	source/crypto/auth/ksession.cpp
 	source/crypto/auth/ktotp.cpp
@@ -2736,6 +2735,7 @@ set(KSQL2_SOURCE_FILES
 	source/data/sql/bits/ksql_dbc.h
 	source/crypto/auth/bits/ksessionksqlstore.cpp
 	source/crypto/auth/bits/ksessionksqlstore.h
+	source/crypto/auth/bits/kopenidclientksql.cpp
 )
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${KSQL2_SOURCE_FILES})
 add_library                   (ksql2-objects OBJECT ${KSQL2_SOURCE_FILES})
@@ -2771,6 +2771,7 @@ if (SQLITE3_FOUND)
 		source/data/sql/ksqlite.h
 		source/crypto/auth/bits/ksessionsqlitestore.cpp
 		source/crypto/auth/bits/ksessionsqlitestore.h
+		source/crypto/auth/bits/kopenidclientsqlite.cpp
 	)
 
 	if (DEKAF2_BUILD_SHARED_DEKAF2)

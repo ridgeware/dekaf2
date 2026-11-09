@@ -52,6 +52,7 @@
 #include <cinttypes>
 #include <ostream>
 #include <fstream>
+#include <memory>
 
 #define DEKAF2_HAS_KWRITER_H 1
 

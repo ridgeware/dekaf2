@@ -99,8 +99,10 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 		RequestMethod != KHTTPMethod::CONNECT)
 	{
 		// we automatically create a www form as body data if there are
-		// query parms but no post data (and the method is not GET)
-		RequestURL.Query.Serialize(sWWWForm);
+		// query parms but no post data (and the method is not GET) -
+		// without the '?' that separates a query from the path of a URL,
+		// it is not part of a form
+		sWWWForm = RequestURL.Query.Serialize();
 		RequestURL.Query.clear();
 		// now point post data into the form
 		sRequestBody = sWWWForm;

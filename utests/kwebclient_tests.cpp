@@ -221,6 +221,56 @@ TEST_CASE("KWebClient") {
 		HTTP.Disconnect();
 	}
 
+	SECTION("query to form conversion")
+	{
+		// echoes the request: path with query, content type, body
+		KRESTRoutes Routes;
+		for (auto Method : { KHTTPMethod::POST, KHTTPMethod::DELETE })
+		{
+			Routes.AddRoute(KRESTRoute(Method, false, "/form", [](KRESTServer& REST)
+			{
+				REST.SetRawOutput(kFormat("{}|{}|{}",
+				                          REST.Request.Resource.Serialize(),
+				                          REST.Request.Headers.Get(KHTTPHeader::CONTENT_TYPE),
+				                          REST.GetRequestBody()));
+			}, KRESTRoute::PLAIN));
+		}
+
+		KREST::Options Options;
+		Options.Type      = KREST::HTTP;
+		Options.iPort     = 7661;
+		Options.bPollForDisconnect = false;
+		Options.bBlocking = false;
+		Options.bCreateEphemeralCert = false;
+
+		KREST REST;
+		REST.Execute(Options, Routes);
+
+		KWebClient HTTP;
+		HTTP.SetTimeout(chrono::seconds(2));
+
+		// no body, and the method is not GET: the query becomes a form body.
+		// It is a form then, without the '?' of the URL
+		auto sRet = HTTP.Post("http://localhost:7661/form?a=b&c=d%20e", "", KMIME{});
+		CHECK ( HTTP.GetStatusCode() == 200 );
+		CHECK ( sRet == "/form|application/x-www-form-urlencoded|a=b&c=d+e" );
+
+		sRet = HTTP.Delete("http://localhost:7661/form?t=abc.def-ghi_jkl");
+		CHECK ( HTTP.GetStatusCode() == 200 );
+		CHECK ( sRet == "/form|application/x-www-form-urlencoded|t=abc.def-ghi_jkl" );
+
+		// with a body the query stays where it is
+		sRet = HTTP.Post("http://localhost:7661/form?a=b", "some body", KMIME::TEXT_UTF8);
+		CHECK ( HTTP.GetStatusCode() == 200 );
+		CHECK ( sRet == "/form?a=b|text/plain; charset=UTF-8|some body" );
+
+		// and so it does when the conversion is switched off
+		HTTP.AllowQueryToWWWFormConversion(false);
+		sRet = HTTP.Delete("http://localhost:7661/form?t=abc.def-ghi_jkl");
+		CHECK ( HTTP.GetStatusCode() == 200 );
+		CHECK ( sRet == "/form?t=abc.def-ghi_jkl||" );
+	}
+
 	SECTION("TLS identity")
 	{
 		// a server cert for localhost, with the loopback address as IP SAN

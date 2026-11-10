@@ -59,8 +59,10 @@ DEKAF2_NAMESPACE_BEGIN
 /// of the cookie after "Set-Cookie:", the value of a parameter whose name denotes a credential
 /// (password, secret, api_key, ...), also in quotes as in SQL ("set password =
 /// 'value'"), the STRING value of a JSON field whose name
-/// does ("access_token", "ApiTokens", "client_secret", ...), and the password in
-/// the userinfo of a URL.
+/// does ("access_token", "ApiTokens", "client_secret", ...), the password in
+/// the userinfo of a URL, and the secret in the path of an incoming-webhook URL
+/// (hooks.slack.com/..., ".../api/webhooks/..."), where the URL IS the credential
+/// and the name it travels under ("SLACK_HOOK_URL") denotes none.
 /// A credential of 16 characters or more KEEPS ITS FIRST AND LAST THREE, as
 /// "sk-...redacted...890", so a line still answers which key it was and whether
 /// it changed; a shorter one is replaced by "[redacted]" entire, because six

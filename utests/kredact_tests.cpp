@@ -251,6 +251,72 @@ TEST_CASE("kRedactCredentials")
 		CHECK ( kRedactCredentials(R"({"access_token":"[redacted]"})", sBuffer) == false );
 		CHECK ( sBuffer == "unchanged" );
 	}
+
+	SECTION("the secret in the path of a webhook URL")
+	{
+		// A COMPLETE WEBHOOK URL CANNOT BE A LITERAL IN THIS FILE. Github's push
+		// protection matches the SHAPE of one, not whether it still works, and
+		// refuses the push of any commit that carries it - so a written-out fixture
+		// blocks the very test that proves we redact it. Host and path are joined
+		// here instead, which no scanner reassembles.
+		//
+		// EVERY ID BELOW IS INVENTED. The first draft of these tests used a real
+		// workspace id and a real channel hook, copied out of the inventory comment
+		// in xapis slack.cpp, and dekaf2 is a public repository: a fixture taken
+		// from a live hook is the same leak this code exists to prevent.
+		auto URL = [](KStringView sHost, KStringView sPath) { return KString(sHost) + sPath; };
+
+		constexpr KStringView sSlack = "https://hooks.slack.com";
+		constexpr KStringView sOther = "https://chat.example.com";
+
+		// THE URL IS THE CREDENTIAL. Anyone holding it can post into the channel,
+		// and the name it travels under ends in "url", so no name-based pass sees
+		// it. This is the shape that reached #klog-ivsearch on 2026-10-31 with the
+		// password beside it already masked.
+		CHECK ( kRedactCredentials(URL(sSlack, "/services/T0SAMPLE01/B0SAMPLE02/Zq7Kv2mXpL9wRt4bNc8dYh3F"))
+		        ==                 URL(sSlack, "/services/T0SAMPLE01/B0SAMPLE02/Zq7...redacted...h3F") );
+
+		// the workspace and application ids survive, so the line still answers
+		// WHICH hook it was - they are published identifiers, not credentials
+		auto sMasked = kRedactCredentials(KString("posting to ") + URL(sSlack, "/services/T0SAMPLE03/B0SAMPLE04/Wd4Tn8qZ2sVbXc6mKr9gLp1J") + " failed");
+		CHECK ( sMasked.contains("T0SAMPLE03") );
+		CHECK ( sMasked.contains("B0SAMPLE04") );
+		CHECK ( !sMasked.contains("Tn8qZ2sVbXc6mKr9g") );
+
+		// a slash-command response URL has the same shape under a different verb
+		CHECK ( kRedactCredentials(URL(sSlack, "/commands/T0SAMPLE01/1000000000001/Jfn7xQm2tP8ksZbR9vUcYl"))
+		        ==                 URL(sSlack, "/commands/T0SAMPLE01/1000000000001/Jfn...redacted...cYl") );
+
+		// the "/api/webhooks/" shape, whatever the host
+		CHECK ( kRedactCredentials(URL(sOther, "/api/webhooks/1000000000/Zq7Kv2mXpL9wRt4bNc8dYh3F"))
+		        ==                 URL(sOther, "/api/webhooks/1000000000/Zq7...redacted...h3F") );
+
+		// quoted, and with the rest of a command line around it, as it was logged
+		CHECK ( kRedactCredentials(KString("docker run -e 'SLACK_HOOK_URL=") + URL(sSlack, "/services/T0SAMPLE01/B0SAMPLE02/Zq7Kv2mXpL9wRt4bNc8dYh3F") + "' -i img")
+		        ==                 KString("docker run -e 'SLACK_HOOK_URL=") + URL(sSlack, "/services/T0SAMPLE01/B0SAMPLE02/Zq7...redacted...h3F") + "' -i img" );
+
+		// a second pass changes nothing
+		auto sOnce = kRedactCredentials(URL(sSlack, "/services/T0SAMPLE01/B0SAMPLE02/Zq7Kv2mXpL9wRt4bNc8dYh3F"));
+		CHECK ( kRedactCredentials(sOnce) == sOnce );
+	}
+
+	SECTION("a URL that carries no webhook secret")
+	{
+		KString sBuffer = "unchanged";
+
+		// A SINGLE SEGMENT IS NOT A HOOK. The host named in prose, and a URL cut
+		// short, both have to survive intact or ordinary output starts changing.
+		CHECK ( kRedactCredentials("see https://hooks.slack.com/ for the docs", sBuffer) == false );
+		CHECK ( sBuffer == "unchanged" );
+		CHECK ( kRedactCredentials("hooks.slack.com/services/", sBuffer) == false );
+		CHECK ( sBuffer == "unchanged" );
+		CHECK ( kRedactCredentials("reading hooks.slack.com/services/T0SAMPLE01 now", sBuffer) == false );
+		CHECK ( sBuffer == "unchanged" );
+
+		// an ordinary URL with a deep path is not a webhook
+		CHECK ( kRedactCredentials("GET https://example.com/api/v2/projects/42/assets ok", sBuffer) == false );
+		CHECK ( sBuffer == "unchanged" );
+	}
 }
 
 TEST_CASE("kRedactSQLCredentials")

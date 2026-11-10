@@ -681,6 +681,97 @@ static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_ty
 } // kFindUserinfoPassword
 
 //---------------------------------------------------------------------------
+/// Finds the secret in the path of an incoming-webhook URL, from iPos on.
+///
+/// A WEBHOOK URL CARRIES ITS CREDENTIAL IN THE PATH, which no other pass here
+/// looks at. There is no parameter name to key off, no userinfo, and the name it
+/// travels under says the opposite of what it is: "SLACK_HOOK_URL" ends in "url",
+/// so kEndsWithSecretName() passes it over. Posting to the URL needs nothing but
+/// the URL, which makes it a bearer credential written as a path.
+///
+/// This is not hypothetical. On 2026-10-31 a docker command line reached a Slack
+/// channel with its proxy password masked and the hook URL beside it intact: the
+/// redactor had run, recognised "PROXY_PASSWORD", and walked straight past the
+/// credential that let anyone post into the channel it was posting to.
+///
+/// ONLY THE LAST SEGMENT IS THE SECRET. The workspace and application ids before
+/// it are published identifiers - they sit in source and in the Slack admin UI -
+/// and keeping them lets a line still answer which hook it was, as kMaskSecret()
+/// does for a key.
+/// @param sText the text to search
+/// @param iPos the offset to start at
+/// @return the secret, or an empty view if there is none
+static KStringView kFindWebhookURLSecret(KStringView sText, KStringView::size_type iPos = 0)
+//---------------------------------------------------------------------------
+{
+	// host or path prefix of each known incoming-webhook form, with the character
+	// memchr scans for. THE ANCHOR HAS TO BE THE RAREST LETTER IN THE WORD: this
+	// runs on every log line at every level, and each entry costs one scan of it.
+	// Two entries, 'k' and 'w', cover Slack's hooks (both the permanent service
+	// hooks and the expiring slash-command response URLs) and the "/api/webhooks/"
+	// shape that Discord and others use, whatever the host.
+	// iMinSegments IS WHAT KEEPS ORDINARY OUTPUT INTACT: a Slack hook is
+	// "services|commands / <team> / <secret>", three segments, and nothing short of
+	// three is one. Without the count "hooks.slack.com/services/T0SAMPLE01" in a
+	// line of prose lost the workspace id, which is a published identifier and not
+	// a secret. Discord's form is "<id> / <token>", so two.
+	static constexpr struct { KStringView sPrefix; char chAnchor; KStringView::size_type iMinSegments; } Webhooks[]
+	{
+		{ "hooks.slack.com/", 'k', 3 },
+		{ "/api/webhooks/",   'w', 2 }
+	};
+
+	for (const auto& Webhook : Webhooks)
+	{
+		for (auto iFound = kFindAnyCase(sText, Webhook.sPrefix, Webhook.chAnchor, iPos);
+		          iFound != KStringView::npos;
+		          iFound = kFindAnyCase(sText, Webhook.sPrefix, Webhook.chAnchor, iFound + 1))
+		{
+			auto iSegment  = iFound + Webhook.sPrefix.size();
+			auto iEnd      = iSegment;
+			auto iLast     = iSegment;
+			auto iSegments = KStringView::size_type(1);
+
+			// walk to the end of the URL, remembering where the last segment began
+			while (iEnd < sText.size()
+			   && !kIsValueEnd(sText[iEnd])
+			   && sText[iEnd] != '&' && sText[iEnd] != '#' && sText[iEnd] != '<'
+			   && sText[iEnd] != '?' && sText[iEnd] != ')' && sText[iEnd] != ',')
+			{
+				if (sText[iEnd] == '/')
+				{
+					iLast = iEnd + 1;
+					++iSegments;
+				}
+
+				++iEnd;
+			}
+
+			// TOO FEW SEGMENTS IS NOT A HOOK. The host named in prose ("see
+			// hooks.slack.com/ for docs") and a truncated URL both land here, and
+			// redacting the workspace id of a URL that is not one buys nothing.
+			if (iSegments < Webhook.iMinSegments || iLast <= iSegment || iLast >= iEnd)
+			{
+				continue;
+			}
+
+			auto sSecret = sText.substr(iLast, iEnd - iLast);
+
+			if (sSecret.empty() || kIsRedacted(sSecret))
+			{
+				continue;
+			}
+
+			return sSecret;
+		}
+	}
+
+	return {};
+
+} // kFindWebhookURLSecret
+
+
+//---------------------------------------------------------------------------
 /// Redact bearer credentials from a log message before it is written anywhere.
 ///
 /// WHY THIS LIVES IN THE LOG WRITER rather than at each call site: in one sweep
@@ -707,6 +798,9 @@ static KStringView kFindUserinfoPassword(KStringView sText, KStringView::size_ty
 ///                         the name is kept (see kEndsWithSecretName())
 ///   user:<pass>@host      the password in the userinfo of a URL, with or
 ///                         without a scheme
+///   .../hooks/a/b/<tok>   the last path segment of an incoming-webhook URL
+///                         (hooks.slack.com, "/api/webhooks/"), which is a
+///                         bearer credential carried in the path
 /// Header names and authentication schemes are case insensitive in HTTP, so
 /// "Bearer" and "Authorization" are recognised in any case, and so are the
 /// names of parameters.
@@ -737,7 +831,8 @@ bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 	               && kFindAnyCase(sMessage, "cookie:",        'k') == KStringView::npos
 	               && kFindSecretParameter(sMessage).empty()
 	               && kFindSecretJSONColon(sMessage)                == KStringView::npos
-	               && kFindUserinfoPassword(sMessage).empty()))
+	               && kFindUserinfoPassword(sMessage).empty()
+	               && kFindWebhookURLSecret(sMessage).empty()))
 	{
 		return false;
 	}
@@ -1025,6 +1120,7 @@ bool kRedactCredentials(KStringView sMessage, KString& sBuffer)
 
 	RedactAll(kFindSecretParameter);
 	RedactAll(kFindUserinfoPassword);
+	RedactAll(kFindWebhookURLSecret);
 
 	// - - - '"name": "value"' in a JSON body - - -
 	// The passes above all key off a character that a JSON body does not use to

@@ -106,6 +106,19 @@
  *   - the tasks of a tag at its concurrency cap beyond its free slots do
  *     not count for the growth - they wait for a slot of their tag, not
  *     for a thread
+ *   - a shrink ends the idle threads, not the threads with the highest
+ *     index - a busy thread among those went on with its task outside of
+ *     the pool, which could then grow back to its maximum size on top of it
+ *   - a thread that a shrink ends leaves the idle count with the shrink,
+ *     not when it wakes up - until then a push took it for a thread that
+ *     takes a waiting task, and did not grow the pool
+ *   - restart() keeps the maximum size and the growth and shrink policies -
+ *     it took the current number of threads for the new maximum size, and
+ *     reset the policies to the defaults of resize()
+ *   - a shrink wakes the threads that it ends after the pool mutex is
+ *     released, not while it is held
+ *   - concurrent calls of stop() run one after the other - they joined the
+ *     same threads without a lock
  *
  *********************************************************/
 
@@ -168,9 +181,21 @@ std::size_t KThreadPool::n_queued() const
 bool KThreadPool::restart()
 //-----------------------------------------------------------------------------
 {
-	auto nsize = size();
+	GrowthPolicy Growth;
+	ShrinkPolicy Shrink;
+
+	{
+		std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
+		Growth = m_Growth;
+		Shrink = m_Shrink;
+	}
+
 	stop(false);
-	return resize(nsize);
+
+	// The pool restarts with its maximum size and its policies. The current number
+	// of threads is no measure for the size: a pool that grows on demand has fewer
+	// threads than its maximum, and none after a stop().
+	return resize(ma_iMaxThreads, Growth, Shrink);
 
 } // restart
 
@@ -247,7 +272,13 @@ bool KThreadPool::resize(std::size_t nThreads, GrowthPolicy Growth, ShrinkPolicy
 	}
 	else if (oldNThreads > nThreads)
 	{
-		shrink(iQueued);
+		if (shrink(iQueued))
+		{
+			// wake the threads that the shrink ended, in the unlocked state
+			lock.unlock();
+			cond_lock.unlock();
+			m_cond_var.notify_all();
+		}
 	}
 
 	return true;
@@ -296,10 +327,12 @@ bool KThreadPool::grow(std::size_t iQueued)
 
 			m_threads .resize(iNewMax);
 			m_abort   .resize(iNewMax);
+			m_idle    .resize(iNewMax);
 
 			for (std::size_t i = oldNThreads; i < iNewMax; ++i)
 			{
 				m_abort[i] = std::make_shared<std::atomic<Abort>>(Abort::None);
+				m_idle [i] = std::make_shared<bool>(false);
 
 				// counted before the start, the thread counts itself down once it holds
 				// m_cond_mutex (see bookkeep_enqueue())
@@ -311,6 +344,7 @@ bool KThreadPool::grow(std::size_t iQueued)
 					--ma_n_starting;
 					m_threads.resize(i);
 					m_abort  .resize(i);
+					m_idle   .resize(i);
 					return false;
 				}
 			}
@@ -379,6 +413,34 @@ bool KThreadPool::shrink(std::size_t iQueued)
 
 			kDebug(2, "shrinking threadpool by {} to {}", iShrinkImmediately, iNewMax);
 
+			// The threads from iNewMax on end. Exchange the busy ones among them with
+			// idle threads from below: an idle thread ends at once, a busy one only after
+			// its task, and until then it runs on top of the threads that the pool counts.
+			// Busy threads only remain when resize() takes away more threads than are idle.
+			std::size_t iLow = 0;
+
+			for (std::size_t i = iNewMax; i < oldNThreads; ++i)
+			{
+				if (*m_idle[i])
+				{
+					continue;
+				}
+
+				while (iLow < iNewMax && !*m_idle[iLow])
+				{
+					++iLow;
+				}
+
+				if (iLow == iNewMax)
+				{
+					break;
+				}
+
+				std::swap(m_threads[i], m_threads[iLow]);
+				std::swap(m_abort  [i], m_abort  [iLow]);
+				std::swap(m_idle   [i], m_idle   [iLow]);
+			}
+
 			for (size_t i = oldNThreads - 1; i >= iNewMax; --i)
 			{
 				// increase counter for threads that have to finish
@@ -387,17 +449,29 @@ bool KThreadPool::shrink(std::size_t iQueued)
 				*m_abort[i] = Abort::Resize; // this thread will finish
 				m_threads[i]->detach();
 
+				if (*m_idle[i])
+				{
+					// The thread waits for a task and ends when it wakes up. It leaves the
+					// idle count now: until it woke up, bookkeep_enqueue() would take it for
+					// a thread that takes a waiting task, and not grow the pool.
+					*m_idle[i] = false;
+					--ma_n_idle;
+				}
+
 				if (i == 0)
 				{
 					break;
 				}
 			}
 
-			// stop the detached threads that were waiting
-			m_cond_var.notify_all();
+			// The detached threads that were waiting still have to wake up. The caller
+			// notifies them once it released m_cond_mutex: they all were in their wait
+			// when the abort flags were set under that mutex, so the notification
+			// reaches them, and a thread that wakes up need not wait for the mutex.
 
 			m_threads .resize(iNewMax); // safe to delete because the threads are detached
 			m_abort   .resize(iNewMax); // safe to delete because the threads have copies of shared_ptr of the flags, not originals
+			m_idle    .resize(iNewMax); // same as for the abort flags
 
 			// This comes too early for most stopped threads, but we need to
 			// reset it as otherwise the count remains wrong forever. As we
@@ -509,6 +583,11 @@ void KThreadPool::clear()
 void KThreadPool::stop(bool bKill)
 //-----------------------------------------------------------------------------
 {
+	// One stop() at a time: the threads are joined below without the pool mutexes,
+	// and two callers would join the same threads. A second caller waits here, and
+	// then finds a pool without threads.
+	std::unique_lock<std::mutex> stop_lock(m_stop_mutex);
+
 	{
 		// The abort flags and ma_interrupt MUST be written under m_cond_mutex: the
 		// worker threads read them in the wait predicate under m_cond_mutex, and only
@@ -564,6 +643,7 @@ void KThreadPool::stop(bool bKill)
 	// we do not clear the task queue..
 	m_threads .clear();
 	m_abort   .clear();
+	m_idle    .clear();
 	ma_n_idle = 0;
 	ma_n_starting = 0;
 	ma_interrupt = false;
@@ -588,12 +668,17 @@ bool KThreadPool::run_thread(std::size_t i)
 {
 	// a copy of the shared ptr to the abort
 	std::shared_ptr<std::atomic<Abort>> abort_ptr(m_abort[i]);
+	// and to the idle flag
+	std::shared_ptr<bool> idle_ptr(m_idle[i]);
 
-	auto f = [this, abort_ptr, i]()
+	auto f = [this, abort_ptr, idle_ptr, i]()
 	{
 		// kSetupThreadSignalHandling() is done by kMakeThread() below - no
 		// need to call it explicitly here.
 		std::atomic<Abort>& abort = *abort_ptr;
+		// set while this thread waits for a task, guarded by m_cond_mutex - a shrink
+		// that ends the thread resets it, and takes the thread out of the idle count
+		bool& idle = *idle_ptr;
 		Task _f;
 		Tag  _tag { DefaultTag };  // work-class of the task in _f
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
@@ -682,6 +767,7 @@ bool KThreadPool::run_thread(std::size_t i)
 			// are completed
 
 			++ma_n_idle;
+			idle = true;
 
 			m_cond_var.wait(lock, [this, &_f, &_tag, &bMoreTasks, &abort]()
 			{
@@ -695,7 +781,12 @@ bool KThreadPool::run_thread(std::size_t i)
 				return bMoreTasks || ma_interrupt;
 			});
 
-			--ma_n_idle;
+			if (idle)
+			{
+				// otherwise a shrink already took this thread out of the idle count
+				idle = false;
+				--ma_n_idle;
+			}
 
 			if (!bMoreTasks)
 			{
@@ -925,7 +1016,7 @@ bool KThreadPool::sched_task_done(Tag tag)
 } // sched_task_done
 
 //-----------------------------------------------------------------------------
-void KThreadPool::bookkeep_enqueue(std::size_t iWaiting)
+bool KThreadPool::bookkeep_enqueue(std::size_t iWaiting)
 //-----------------------------------------------------------------------------
 {
 	if (iWaiting - 1 > ma_iMaxWaitingTasks)
@@ -980,9 +1071,11 @@ void KThreadPool::bookkeep_enqueue(std::size_t iWaiting)
 		}
 		else if (ma_n_idle > 0 && iWaiting <= 1 && ++ma_iShrinkCounter % 25 == 0)
 		{
-			shrink(iWaiting);
+			return shrink(iWaiting);
 		}
 	}
+
+	return false;
 
 } // bookkeep_enqueue
 
@@ -1007,7 +1100,7 @@ bool KThreadPool::push_to_tag(Task task, Tag tag)
 		return false;
 	}
 
-	bookkeep_enqueue(iWaiting);
+	bool bShrunk = bookkeep_enqueue(iWaiting);
 
 	// A worker counts itself idle under m_cond_mutex before it waits, and checks the queue
 	// under the same mutex before it counts itself idle - so with no idle worker, every
@@ -1016,7 +1109,12 @@ bool KThreadPool::push_to_tag(Task task, Tag tag)
 
 	lock.unlock();
 
-	if (bNotify)
+	if (bShrunk)
+	{
+		// wake the threads that the shrink ended - this also wakes a thread for the task
+		m_cond_var.notify_all();
+	}
+	else if (bNotify)
 	{
 		// notify in the unlocked state!
 		m_cond_var.notify_one();
@@ -1049,6 +1147,7 @@ std::shared_future<void> KThreadPool::push_coalesced_task(Tag tag, uint64_t iKey
 {
 	std::shared_future<void>   future;
 	bool                       bNotify { false };
+	bool                       bShrunk { false };
 	// both live until after the unlock: destroying user captures (the dropped task's, or an
 	// abandoned generation's callable) must not happen under m_cond_mutex, and destroying an
 	// abandoned generation's promise breaks the waiters' futures (broken_promise)
@@ -1084,7 +1183,7 @@ std::shared_future<void> KThreadPool::push_coalesced_task(Tag tag, uint64_t iKey
 
 			if (bAccepted)
 			{
-				bookkeep_enqueue(iWaiting);
+				bShrunk = bookkeep_enqueue(iWaiting);
 				bNotify = true;
 			}
 			else
@@ -1100,7 +1199,12 @@ std::shared_future<void> KThreadPool::push_coalesced_task(Tag tag, uint64_t iKey
 		// be served by that run (or, if it is running, by the rerun it triggers on completion)
 	}
 
-	if (bNotify)
+	if (bShrunk)
+	{
+		// wake the threads that the shrink ended - this also wakes a thread for the task
+		m_cond_var.notify_all();
+	}
+	else if (bNotify)
 	{
 		m_cond_var.notify_one();
 	}

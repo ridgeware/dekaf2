@@ -113,6 +113,19 @@
  *   - the tasks of a tag at its concurrency cap beyond its free slots do
  *     not count for the growth - they wait for a slot of their tag, not
  *     for a thread
+ *   - a shrink ends the idle threads, not the threads with the highest
+ *     index - a busy thread among those went on with its task outside of
+ *     the pool, which could then grow back to its maximum size on top of it
+ *   - a thread that a shrink ends leaves the idle count with the shrink,
+ *     not when it wakes up - until then a push took it for a thread that
+ *     takes a waiting task, and did not grow the pool
+ *   - restart() keeps the maximum size and the growth and shrink policies -
+ *     it took the current number of threads for the new maximum size, and
+ *     reset the policies to the defaults of resize()
+ *   - a shrink wakes the threads that it ends after the pool mutex is
+ *     released, not while it is held
+ *   - concurrent calls of stop() run one after the other - they joined the
+ *     same threads without a lock
 
  *********************************************************/
 
@@ -353,7 +366,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Restart the pool - this method blocks until all existing tasks have been serviced
+	/// Restart the pool - this method blocks until all existing tasks have been serviced.
+	/// The pool keeps its maximum size and its growth and shrink policies.
 	/// @return false if some threads could not be restarted - check new size with size() then
 	bool restart();
 	//-----------------------------------------------------------------------------
@@ -396,7 +410,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Stops all threads. Returns only after all threads are stopped.
+	/// Stops all threads. Returns only after all threads are stopped. Concurrent calls
+	/// run one after the other.
 	/// @param bKill if false, all the tasks in the queue are run, otherwise the threads are stopped without
 	/// running the outstanding tasks (but the tasks stay in the queue for an eventual later restart)
 	void stop(bool bKill = false);
@@ -799,8 +814,9 @@ private:
 	/// returns false if the tag's bounded queue rejected the task
 	bool        push_to_tag  (Task task, Tag tag);
 	/// stats and pool growth/shrink bookkeeping after a successful enqueue - call with
-	/// m_cond_mutex held, passing the total queue count returned by sched_enqueue()
-	void        bookkeep_enqueue(std::size_t iWaiting);
+	/// m_cond_mutex held, passing the total queue count returned by sched_enqueue().
+	/// Returns true if the pool shrank, see shrink() for what the caller has to do then
+	bool        bookkeep_enqueue(std::size_t iWaiting);
 
 	/// implementation of PushCoalesced (callable already bound to its args)
 	std::shared_future<void>   push_coalesced_task(Tag tag, uint64_t iKey, std::function<void()> callable);
@@ -818,6 +834,8 @@ private:
 	/// Must be called with m_cond_mutex held: shrink() sets thread abort flags that the workers'
 	/// wait predicate reads under m_cond_mutex - writing them under the same mutex prevents a
 	/// lost wakeup (lock order: m_cond_mutex before m_resize_mutex)
+	/// @return true if the pool shrank - the caller then has to call m_cond_var.notify_all()
+	/// after it released m_cond_mutex, to wake the threads that end
 	bool shrink(std::size_t iQueued);
 
 	/// start one thread
@@ -830,6 +848,7 @@ private:
 
 	std::vector<std::unique_ptr<std::thread>>             m_threads;
 	std::vector<std::shared_ptr<std::atomic<Abort>>>      m_abort;
+	std::vector<std::shared_ptr<bool>>                    m_idle;          ///< per thread: set while it waits for a task (guarded by m_cond_mutex)
 	std::unordered_map<Tag, TagState>                     m_Tags;          ///< per work-class state (DefaultTag created lazily)
 	std::vector<std::pair<Tag, TagState*>>                m_TagOrder;      ///< stable round-robin order of tags, with the state pointer cached to spare the hash lookup in the DRR scan (unordered_map references are rehash-stable)
 	std::size_t                                           m_iTagCursor   { 0 };  ///< DRR cursor into m_TagOrder
@@ -854,6 +873,7 @@ private:
 	std::condition_variable      m_cond_var;
 	mutable std::mutex           m_detached_mutex;
 	std::condition_variable      m_detached_cv;
+	std::mutex                   m_stop_mutex;                         ///< held by stop() from start to end
 	std::chrono::steady_clock::time_point
 	                             m_LastResize;
 	ShutdownCallback             m_shutdown_callback;

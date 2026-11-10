@@ -425,6 +425,168 @@ TEST_CASE("KThreadPool")
 			CHECK ( Pool.is_stopped() );
 		}
 	}
+
+	SECTION("a shrink ends the idle threads, not the busy ones")
+	{
+		// Ten of twenty threads run a task when the pool shrinks by ten. The idle
+		// threads have to end: a busy thread would go on with its task outside of the
+		// pool, which could then grow back to its maximum size on top of it.
+		constexpr std::size_t iBusy = 10;
+
+		KThreadPool Pool(2 * iBusy, KThreadPool::PrestartAll, KThreadPool::ShrinkNever);
+
+		std::atomic<bool>        bRelease { false };
+		std::atomic<std::size_t> iRunning { 0 };
+		std::atomic<std::size_t> iDone    { 0 };
+
+		auto Task = [&bRelease, &iRunning, &iDone]()
+		{
+			++iRunning;
+
+			while (!bRelease)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+
+			++iDone;
+		};
+
+		for (std::size_t i = 0; i < iBusy; ++i)
+		{
+			Pool.push(Task);
+		}
+
+		CHECK ( WaitUntil([&]() { return iRunning == iBusy && Pool.n_idle() == iBusy; }) );
+
+		// one thread less than the size forces the shrink, and ShrinkImmediately
+		// then ends all idle threads
+		Pool.resize(2 * iBusy - 1, KThreadPool::PrestartNone, KThreadPool::ShrinkImmediately);
+
+		CHECK ( Pool.size()   == iBusy );
+		CHECK ( Pool.n_idle() == 0     );
+
+		// the threads that the shrink ended are gone, and all tasks still run
+		CHECK ( WaitUntil([&]() { return Pool.get_diagnostics().iTotalThreads == iBusy; }) );
+		CHECK ( iRunning == iBusy );
+		CHECK ( iDone    == 0     );
+
+		// back at the old maximum size, the pool has room for ten more tasks
+		Pool.resize(2 * iBusy, KThreadPool::PrestartNone, KThreadPool::ShrinkNever);
+
+		for (std::size_t i = 0; i < iBusy + 5; ++i)
+		{
+			Pool.push(Task);
+		}
+
+		CHECK ( WaitUntil([&]() { return iRunning == 2 * iBusy; }) );
+		CHECK ( Pool.size()     == 2 * iBusy );
+		CHECK ( Pool.n_queued() == 5         );
+		CHECK ( iRunning        == 2 * iBusy );
+
+		bRelease = true;
+		Pool.stop(false);
+
+		CHECK ( iDone == 2 * iBusy + 5 );
+	}
+
+	SECTION("a burst of pushes after a shrink grows the pool")
+	{
+		// The threads that a shrink ends have to leave the idle count with the shrink,
+		// not when they wake up: until then a push would take them for threads that
+		// take a waiting task, and not grow the pool.
+		constexpr std::size_t iTasks = 30;
+
+		KThreadPool Pool(40, KThreadPool::PrestartAll, KThreadPool::ShrinkNever);
+
+		CHECK ( WaitUntil([&]() { return Pool.n_idle() == 40; }) );
+
+		// no thread takes a task, as in the burst tests above
+		Pool.pause(true);
+
+		// one thread less than the size forces the shrink, and ShrinkSome then ends
+		// all idle threads but ten
+		Pool.resize(39, KThreadPool::PrestartNone, KThreadPool::ShrinkSome);
+
+		CHECK ( Pool.size()   == 10 );
+		CHECK ( Pool.n_idle() == 10 );
+
+		std::atomic<std::size_t> iDone { 0 };
+
+		for (std::size_t i = 0; i < iTasks; ++i)
+		{
+			Pool.push([&iDone]() { ++iDone; });
+		}
+
+		// ten tasks for the idle threads, and one new thread for each other task
+		CHECK ( Pool.size() == iTasks );
+
+		Pool.pause(false);
+		Pool.stop(false);
+
+		CHECK ( iDone == iTasks );
+	}
+
+	SECTION("restart keeps the maximum size and the policies")
+	{
+		KThreadPool Pool(20, KThreadPool::PrestartNone, KThreadPool::ShrinkNever);
+		Pool.pause(true);
+
+		std::atomic<std::size_t> iDone { 0 };
+
+		for (std::size_t i = 0; i < 5; ++i)
+		{
+			Pool.push([&iDone]() { ++iDone; });
+		}
+
+		// the threads end, the tasks stay in the paused queue
+		Pool.stop(true);
+
+		CHECK ( Pool.size()     == 0 );
+		CHECK ( Pool.n_queued() == 5 );
+
+		CHECK ( Pool.restart() );
+
+		// PrestartNone starts one thread for each waiting task
+		CHECK ( Pool.size()                        == 5  );
+		CHECK ( Pool.get_diagnostics().iMaxThreads == 20 );
+
+		Pool.pause(false);
+		Pool.stop(false);
+
+		CHECK ( iDone == 5 );
+	}
+
+	SECTION("concurrent stops")
+	{
+		// Several threads stop the pool at the same time, as it happens when an
+		// application shuts down. All calls have to return, with all tasks run.
+		for (int iteration = 0; iteration < 50; ++iteration)
+		{
+			std::atomic<int> iCounter { 0 };
+
+			KThreadPool Pool(8, KThreadPool::PrestartAll, KThreadPool::ShrinkNever);
+
+			for (int i = 0; i < 20; ++i)
+			{
+				Pool.push([&iCounter]() { ++iCounter; });
+			}
+
+			std::vector<std::thread> Stoppers;
+
+			for (int i = 0; i < 4; ++i)
+			{
+				Stoppers.emplace_back([&Pool]() { Pool.stop(false); });
+			}
+
+			for (auto& Stopper : Stoppers)
+			{
+				Stopper.join();
+			}
+
+			CHECK ( Pool.is_stopped() );
+			CHECK ( iCounter == 20 );
+		}
+	}
 }
 
 TEST_CASE("KThreadPool fair scheduling")

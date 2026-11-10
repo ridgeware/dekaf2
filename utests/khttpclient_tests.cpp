@@ -12,6 +12,7 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/io/streams/koutstringstream.h>
+#include <dekaf2/io/streams/kinstringstream.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
@@ -319,6 +320,49 @@ TEST_CASE("KHTTPClient") {
 		CHECK ( InFilter.Fail() == false );
 		InFilter.FilteredStream();
 		CHECK ( InFilter.Count() == 0 );
+	}
+
+	SECTION("KInHTTPFilter Read returns the count of read bytes")
+	{
+		// into a stream: the input ends before the requested length
+		{
+			KString          sIn { "0123456789" };
+			KInStringStream  In (sIn);
+			KInHTTPFilter    Filter (In);
+			KString          sOut;
+			KOutStringStream Out (sOut);
+
+			CHECK ( Filter.Read(Out,  4) == 4 );
+			CHECK ( Filter.Read(Out, 20) == 6 );
+			CHECK ( Filter.Read(Out, 20) == 0 );
+			Out.Flush();
+			CHECK ( sOut == "0123456789" );
+		}
+
+		// into a string
+		{
+			KString         sIn { "0123456789" };
+			KInStringStream In (sIn);
+			KInHTTPFilter   Filter (In);
+			KString         sOut;
+
+			CHECK ( Filter.Read(sOut,  4) == 4 );
+			CHECK ( Filter.Read(sOut, 20) == 6 );
+			CHECK ( sOut == "0123456789" );
+		}
+
+		// until EOF
+		{
+			KString          sIn { "0123456789" };
+			KInStringStream  In (sIn);
+			KInHTTPFilter    Filter (In);
+			KString          sOut;
+			KOutStringStream Out (sOut);
+
+			CHECK ( Filter.Read(Out) == 10 );
+			Out.Flush();
+			CHECK ( sOut == "0123456789" );
+		}
 	}
 
 	SECTION("DigestAuthenticator RFC 2617 HA1 formula")

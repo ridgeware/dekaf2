@@ -114,11 +114,15 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Stream into OutStream
+	/// @param len the number of bytes to read, or npos to read until EOF
+	/// @return the count of read bytes, less than len if the input ended before
 	size_t Read(KOutStream& OutStream, size_t len = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Append to sBuffer
+	/// @param len the number of bytes to read, or npos to read until EOF
+	/// @return the count of read bytes, less than len if the input ended before
 	size_t Read(KStringRef& sBuffer, size_t len = npos);
 	//-----------------------------------------------------------------------------
 

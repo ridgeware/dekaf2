@@ -4,6 +4,7 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <map>
 #include <array>
+#include <thread>
 
 using namespace dekaf2;
 
@@ -63,4 +64,54 @@ TEST_CASE("KThreadSafe")
 	Array[1] = 2;
 
 	CHECK ( Array[1] == 2 );
+
+	KThreadSafe<KString> String7("content7");
+	String7.reset("content8");
+
+	CHECK ( String7.shared().get() == "content8" );
+
+	String7.reset();
+
+	CHECK ( String7.shared().get() == "" );
+
+	// The self assignments go through a reference, because the compiler
+	// warns about a self assignment that names the same variable twice.
+	auto& String7Ref = String7;
+	String7.reset("content9");
+	String7 = String7Ref;
+
+	CHECK ( String7.shared().get() == "content9" );
+
+	String7 = std::move(String7Ref);
+
+	CHECK ( String7.shared().get() == "content9" );
+
+	KThreadSafe<KString> String8("content8");
+	KThreadSafe<KString> String9("content9");
+
+	// Two threads assign in opposite directions. Both have to return.
+	std::thread Thread1([&]()
+	{
+		for (int iRound = 0; iRound < 10000; ++iRound)
+		{
+			String8 = String9;
+		}
+	});
+
+	std::thread Thread2([&]()
+	{
+		for (int iRound = 0; iRound < 10000; ++iRound)
+		{
+			String9 = String8;
+		}
+	});
+
+	Thread1.join();
+	Thread2.join();
+
+	auto sString8 = String8.shared().get();
+	auto sString9 = String9.shared().get();
+
+	CHECK ( (sString8 == "content8" || sString8 == "content9") );
+	CHECK ( (sString9 == "content8" || sString9 == "content9") );
 }

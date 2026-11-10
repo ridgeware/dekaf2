@@ -133,7 +133,11 @@ public:
 	KThreadSafe& operator=(const KThreadSafe& other)
 	//-----------------------------------------------------------------------------
 	{
-		unique().get() = other.shared().get();
+		// Copy while holding only the lock of other, then assign while holding
+		// only the own lock. Holding both locks at once deadlocks on self
+		// assignment and on two threads assigning in opposite directions.
+		T Value(other.shared().get());
+		unique().get() = std::move(Value);
 		return *this;
 	}
 
@@ -141,7 +145,10 @@ public:
 	KThreadSafe& operator=(KThreadSafe&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
-		unique().get() = std::move(other.unique().get());
+		// The two locks are not held at the same time, for the same reason
+		// as in the copy assignment.
+		T Value(std::move(other.unique().get()));
+		unique().get() = std::move(Value);
 		return *this;
 	}
 
@@ -183,7 +190,7 @@ public:
 	void reset(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		m_Shared = self_type(std::forward<Args>(args)...);
+		unique().get() = T(std::forward<Args>(args)...);
 	}
 
 	//-----------------------------------------------------------------------------

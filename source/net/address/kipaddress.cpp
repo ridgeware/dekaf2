@@ -64,6 +64,7 @@ KIPAddress4::Bytes4 KIPAddress4::FromString(KStringView sAddress, KIPError& ec) 
 	uint16_t iByte       {     0 };
 	uint16_t iBlocks     {     0 };
 	bool     bLastWasDot {  true };
+	bool     bOnlyDigits {  true };
 
 	for (auto ch : sAddress)
 	{
@@ -82,13 +83,20 @@ KIPAddress4::Bytes4 KIPAddress4::FromString(KStringView sAddress, KIPError& ec) 
 			if (++iBlocks > 4) break;
 		}
 
-		if (!KASCII::kIsDigit(ch)) break;
+		if (!KASCII::kIsDigit(ch))
+		{
+			// any other character ends the address, also behind its fourth block:
+			// a port or other text after the address is not part of it
+			bOnlyDigits = false;
+			break;
+		}
+
 		iByte *= 10;
 		iByte += ch - '0';
 		if (iByte > 255) break;
 	}
 
-	if (iBlocks == 4 && iByte <= 255 && !bLastWasDot)
+	if (bOnlyDigits && iBlocks == 4 && iByte <= 255 && !bLastWasDot)
 	{
 		IP[iBlocks-1] = iByte;
 	}
@@ -673,14 +681,26 @@ KIPAddress6 KIPAddress6::Next() const noexcept
 KIPAddress KIPAddress::FromString(KStringView sAddress, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
-	KIPAddress4 a4(sAddress, ec);
-
-	if (!ec)
+	// An IPv4 address has no colon. An IPv6 address has its first one after four
+	// hex digits at most, and maybe after an opening bracket: with a colon in the
+	// first six characters the IPv4 parser can only fail, and need not be tried.
+	// Looking at no more than these keeps the check short for a long text.
+	if (!sAddress.Left(6).contains(':'))
 	{
-		return KIPAddress(std::move(a4));
+		KIPAddress4 a4(sAddress, ec);
+
+		if (!ec)
+		{
+			return KIPAddress(std::move(a4));
+		}
 	}
 
-	ec = KIPError();
+	if (ec)
+	{
+		// drop the error of the IPv4 parser, or one that the caller came with -
+		// only then: a new error object allocates memory
+		ec = KIPError();
+	}
 
 	KIPAddress6 a6(sAddress, ec);
 

@@ -145,6 +145,13 @@ TEST_CASE("KIPAddress")
 			{ "1a.12.44.2"     , "0.0.0.0" },
 			{ "1:2:2:3"        , "0.0.0.0" },
 			{ "[1.2.3.4]"      , "0.0.0.0" },
+			// text behind a complete address
+			{ "1.2.3.4x"       , "0.0.0.0" },
+			{ "1.2.3.123x"     , "0.0.0.0" },
+			{ "1.2.3.4:80"     , "0.0.0.0" },
+			{ "1.2.3.4/24"     , "0.0.0.0" },
+			{ "1.2.3.4 "       , "0.0.0.0" },
+			{ " 1.2.3.4"       , "0.0.0.0" },
 		};
 
 		for (auto& t : Tests)
@@ -811,6 +818,71 @@ TEST_CASE("KIPAddress")
 		static_assert(KIPAddress(KIPAddress6(0xffff,0xfe35,0,0,0,0,0,0)).IsLoopback() == false, "must not be loopback");
 	}
 #endif
+
+	SECTION("either family from a string")
+	{
+		// text with a colon goes to the IPv6 parser only, text without one to the
+		// IPv4 parser first - the result has to be the same as from the parsers
+		// of the families
+		struct Sample
+		{
+			KStringView sAddress;
+			bool        bIs6;
+		};
+
+		for (const auto& Good : std::vector<Sample> {
+			{ "127.0.0.1"                    , false },
+			{ "0.0.0.0"                      , false },
+			{ "255.255.255.255"              , false },
+			{ "::1"                          , true  },
+			{ "::"                           , true  },
+			{ "[::1]"                        , true  },
+			{ "2001:db8:85a3::8a2e:370:7334" , true  },
+			{ "::ffff:10.1.2.3"              , true  },
+			{ "fe80::1%7"                    , true  } })
+		{
+			INFO ( Good.sAddress );
+			KIPError ec;
+			KIPAddress IP(Good.sAddress, ec);
+			CHECK ( ec.value() == 0     );
+			CHECK ( IP.Is6() == Good.bIs6 );
+
+			if (Good.bIs6)
+			{
+				CHECK ( IP.To6() == KIPAddress6(Good.sAddress) );
+			}
+			else
+			{
+				CHECK ( IP.To4() == KIPAddress4(Good.sAddress) );
+			}
+		}
+
+		CHECK ( KIPAddress("fe80::1%7").To6().Scope() == 7 );
+
+		// an error that the caller comes with does not stay for an IPv6 address
+		KIPError ecStale("an earlier error");
+		KIPAddress Six("::1", ecStale);
+		CHECK ( ecStale.value() == 0 );
+		CHECK ( Six.To6() == KIPAddress6::Loopback() );
+
+		for (KStringView sBad : { "", "1.2.3", "1.2.3.4.5", "256.1.1.1", "localhost", "not.an.ip.address",
+		                          ":", "12:34", "1.2:3.4", "::1::", "[::1", "gggg::1",
+		                          "1.2.3.4:80", "10.20.30.40:5", "1.2.3.4x", "1.2.3.4/24", "1.2.3.4 ", "::1x", "::1 " })
+		{
+			INFO ( sBad );
+			KIPError ec;
+			KIPAddress IP(sBad, ec);
+			CHECK ( ec.value() > 0     );
+			CHECK ( IP.IsUnspecified() );
+			CHECK_THROWS_AS ( KIPAddress(sBad), KIPError );
+
+			// the error is the one of the IPv6 parser, which is asked last
+			KIPError ec6;
+			KIPAddress6 IP6(sBad, ec6);
+			CHECK ( ec.value() == ec6.value() );
+			CHECK ( KStringView(ec.what()) == KStringView(ec6.what()) );
+		}
+	}
 
 #if DEKAF2_IPADDRESS_HAS_SOCKADDR
 	SECTION("from socket addresses")

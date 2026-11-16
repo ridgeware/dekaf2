@@ -814,6 +814,20 @@ bool KBlockCipher::StartNewData()
 
 	if (!m_evpctx || HasError()) return false;
 
+#if OPENSSL_VERSION_NUMBER < 0x030000000L
+	// Start every round with a clean cipher context. OpenSSL before 3.0 keeps what a
+	// finished round left in the context - the pending bytes of an encryption, the held
+	// back last block of a decryption - until the context is initialized again. Only
+	// the modes with an IV did that, when the IV was set. With ECB a second round with
+	// the same object started with the end of the first one, and for all padding modes
+	// a ciphertext of no bytes at all passed for a valid one after a first round (seen
+	// with OpenSSL 1.1.0). OpenSSL from 3.0 on leaves a finished context clean.
+	if (!::EVP_CipherInit(m_evpctx.get(), nullptr, nullptr, nullptr, -1))
+	{
+		return SetError(GetOpenSSLError(kFormat("cannot initialize cipher {}", m_sCipherName)));
+	}
+#endif
+
 	if (GetDirection() == Encrypt)
 	{
 		if (GetNeededIVLength() > 0)

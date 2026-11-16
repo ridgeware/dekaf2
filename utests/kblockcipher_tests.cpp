@@ -1008,6 +1008,43 @@ TEST_CASE("KBlockCipher empty text")
 		}
 	}
 
+	SECTION("several rounds with one object")
+	{
+		// Every round has to start from a clean state, whatever the round before left
+		// behind. The reference is a new object for every text.
+		for (auto Mode : { KBlockCipher::ECB, KBlockCipher::CBC, KBlockCipher::GCM })
+		{
+			INFO ( kFormat("mode {}", Mode == KBlockCipher::ECB ? "ECB" : Mode == KBlockCipher::CBC ? "CBC" : "GCM") );
+
+			auto Enc = Cipher(KBlockCipher::Encrypt, Mode, KBlockCipher::B256, true);
+			auto Dec = Cipher(KBlockCipher::Decrypt, Mode, KBlockCipher::B256, true);
+			const auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+			CHECK ( Enc.SetKey(sKey) );
+			CHECK ( Dec.SetKey(sKey) );
+
+			// texts that end inside a block, on a block boundary, and no text at all
+			for (KStringView sText : { "first text", "0123456789abcdef", "", "second text, longer than one block" })
+			{
+				INFO ( sText );
+
+				KString sCipher;
+				KString sClear;
+				CHECK ( Enc.SingleRound(sText, sCipher) );
+
+				// a new object reads what the reused one wrote
+				auto Fresh = Cipher(KBlockCipher::Decrypt, Mode, KBlockCipher::B256, true);
+				CHECK ( Fresh.SetKey(sKey) );
+				KString sFresh;
+				CHECK ( Fresh.SingleRound(sCipher, sFresh) );
+				CHECK ( sFresh == sText );
+
+				// and so does the reused one
+				CHECK ( Dec.SingleRound(sCipher, sClear) );
+				CHECK ( sClear == sText );
+			}
+		}
+	}
+
 	SECTION("CBC with a given IV: known answer")
 	{
 		// AES-128-CBC of the empty text is the encryption of one block of padding (16 times

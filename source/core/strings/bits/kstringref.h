@@ -68,4 +68,36 @@ using KStringRef = KString;
 using KStringRef = std::string;
 #endif
 
+// Before C++20 a reserve() of a string with less than its capacity is a request to
+// shrink the string, which moves its buffer. libstdc++ follows that request up to
+// version 10, also in its C++20 mode. Since C++20 reserve() never shrinks.
+#if !defined(DEKAF2_HAS_CPP_20) || (defined(DEKAF2_GLIBCXX_VERSION_MAJOR) && DEKAF2_GLIBCXX_VERSION_MAJOR < 11)
+	#define DEKAF2_STRING_RESERVE_MAY_SHRINK 1
+#endif
+
+namespace detail {
+
+//-----------------------------------------------------------------------------
+/// reserve() for a std::string (or any string type) that never shrinks the string, as
+/// reserve() itself does since C++20. Use it instead of sString.reserve(): a
+/// string that was given room before keeps it, and views into it stay valid.
+/// KString::reserve() does the same.
+template<class String>
+DEKAF2_CONSTEXPR_STRING
+void kReserve(String& sString, typename String::size_type iCapacity)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_STRING_RESERVE_MAY_SHRINK
+	if (iCapacity <= sString.capacity())
+	{
+		return;
+	}
+#endif
+
+	sString.reserve(iCapacity);
+
+} // kReserve
+
+} // end of namespace detail
+
 DEKAF2_NAMESPACE_END

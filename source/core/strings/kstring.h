@@ -314,7 +314,7 @@ public:
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	size_type               capacity()         const          { return m_rep.capacity();     }
 	DEKAF2_CONSTEXPR_STRING
-	void                    reserve(size_type res_arg = 0)    { m_rep.reserve(res_arg);      }
+	void                    reserve(size_type res_arg = 0)    { detail::kReserve(m_rep, res_arg); }
 	DEKAF2_CONSTEXPR_STRING
 	void                    clear()                           { m_rep.clear();               }
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_STRING

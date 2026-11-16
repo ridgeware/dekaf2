@@ -2255,7 +2255,7 @@ std::size_t DecodeInt(KStringRef& sRet, KStringView sIn, bool bAlsoNumeric)
 //-----------------------------------------------------------------------------
 {
 	std::size_t iReplaced { 0 };
-	sRet.reserve(sRet.size() + sIn.size());
+	detail::kReserve(sRet, sRet.size() + sIn.size());
 
 	for (auto it = sIn.cbegin(), ie = sIn.cend(); it != ie; )
 	{

@@ -202,7 +202,7 @@ void kUrlDecode (const StringView& sSource, String& sTarget, bool bPlusAsSpace =
 	}
 	// ------------------------------------------------------------------------
 
-	sTarget.reserve (sTarget.size() + sSource.size());
+	detail::kReserve(sTarget, sTarget.size() + sSource.size());
 	// copy the clean prefix (if any) in one shot, then fall through to the
 	// character-by-character loop for the remaining bytes
 	if (iSpecial > 0)
@@ -266,7 +266,7 @@ void kUrlEncode (const StringView& sSource, String& sTarget, const bool excludeT
 
 	size_t iSize = sSource.size();
 	// Pre-allocate to prevent potential multiple re-allocations.
-	sTarget.reserve (sTarget.size () + sSource.size ());
+	detail::kReserve(sTarget, sTarget.size () + sSource.size ());
 	for (size_t iIndex = 0; iIndex < iSize; ++iIndex)
 	{
 		auto ch = static_cast<unsigned char>(sSource[iIndex]);

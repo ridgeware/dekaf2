@@ -1052,7 +1052,7 @@ void Escape (KStringView sInput, KStringRef& sOutput)
 	static constexpr KStringView::value_type MAX_CONTROL_CHARS = 0x1f;
 
 	// reserve at least the bare size of sInput in sOutput
-	sOutput.reserve(sOutput.size() + sInput.size());
+	DEKAF2_PREFIX detail::kReserve(sOutput, sOutput.size() + sInput.size());
 
 	for (auto ch : sInput)
 	{

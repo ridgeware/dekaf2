@@ -68,7 +68,7 @@ void kHexAppend(KStringRef& sOut, char chIn)
 DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 void kHexAppend(KStringRef& sOut, KStringView sIn)
 {
-	sOut.reserve(sIn.size() * 2);
+	detail::kReserve(sOut, sOut.size() + sIn.size() * 2);
 
 	for (auto ch : sIn)
 	{

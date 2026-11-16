@@ -790,7 +790,8 @@ void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 		"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
 		"\"\\\x7f"_ksv);
 
-	sLog.reserve(sLog.size() + sInput.size());
+	// never shrinks: a line buffer that was reserved once keeps its room
+	detail::kReserve(sLog, sLog.size() + sInput.size());
 
 	for (KStringView::size_type iStart; (iStart = Escapables.find_first_in(sInput)) != KStringView::npos; )
 	{
@@ -848,8 +849,10 @@ void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 void kUnescapeFromLogging(KStringRef& sOutput, KStringView sInput)
 //-----------------------------------------------------------------------------
 {
-	// an unescaped string is never longer than the escaped one
-	sOutput.reserve(sOutput.size() + sInput.size());
+	// An unescaped string is never longer than the escaped one. This never shrinks the
+	// output: a caller that made room before, to keep views into the output valid,
+	// does not lose them.
+	detail::kReserve(sOutput, sOutput.size() + sInput.size());
 
 	for (KStringView::size_type iPos; (iPos = sInput.find('\\')) != KStringView::npos; )
 	{

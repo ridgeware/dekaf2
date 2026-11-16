@@ -2659,6 +2659,21 @@ TEST_CASE("KStringUtils") {
 
 	SECTION("kUnescapeFromLogging")
 	{
+		{
+			// An output with enough room is not moved: a caller may hold views into
+			// what it appended before, as the parser of the HTTP log does.
+			KString sOutput;
+			sOutput.reserve(200);
+			sOutput = "an earlier field";
+			KStringView sEarlier(sOutput);
+
+			kUnescapeFromLogging(sOutput, " and a \\\"later\\\" one");
+
+			CHECK ( sOutput == "an earlier field and a \"later\" one" );
+			CHECK ( sEarlier.data() == sOutput.data() );
+			CHECK ( sEarlier == "an earlier field" );
+		}
+
 		CHECK ( kUnescapeFromLogging("hello") == "hello" );
 		CHECK ( kUnescapeFromLogging("") == "" );
 		CHECK ( kUnescapeFromLogging("hello\\nworld") == "hello\nworld" );

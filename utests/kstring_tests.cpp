@@ -16,6 +16,46 @@
 using namespace dekaf2;
 
 TEST_CASE("KString") {
+	SECTION("reserve does not shrink")
+	{
+		// Before C++20 a reserve() below the capacity may shrink the string and move
+		// its buffer. KString::reserve() and detail::kReserve() never do that.
+		KString sString;
+		sString.reserve(200);
+		sString = "some content";
+
+		auto  iCapacity = sString.capacity();
+		auto* pData     = sString.data();
+
+		sString.reserve(sString.size() + 10);
+		CHECK ( sString.capacity() == iCapacity );
+		CHECK ( sString.data()     == pData     );
+
+		sString.reserve(0);
+		CHECK ( sString.capacity() == iCapacity );
+		CHECK ( sString.data()     == pData     );
+
+		// it still grows, and keeps the content
+		sString.reserve(iCapacity + 100);
+		CHECK ( sString.capacity() >= iCapacity + 100 );
+		CHECK ( sString == "some content" );
+
+		std::string sStd;
+		sStd.reserve(200);
+		sStd = "some content";
+
+		auto  iStdCapacity = sStd.capacity();
+		auto* pStdData     = sStd.data();
+
+		detail::kReserve(sStd, sStd.size() + 10);
+		CHECK ( sStd.capacity() == iStdCapacity );
+		CHECK ( sStd.data()     == pStdData     );
+
+		detail::kReserve(sStd, iStdCapacity + 100);
+		CHECK ( sStd.capacity() >= iStdCapacity + 100 );
+		CHECK ( sStd == "some content" );
+	}
+
 
 	SECTION("large allocation")
 	{

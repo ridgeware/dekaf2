@@ -776,6 +776,10 @@ bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 	m_iKeyLength  = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_key_length (m_evpctx.get()));
 	m_iIVLength   = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_iv_length  (m_evpctx.get()));
 	m_iTagLength  = static_cast<uint16_t>(::EVP_CIPHER_CTX_get_tag_length (m_evpctx.get()));
+	// ChaCha20-Poly1305 reports a tag length of 0 as long as none was set (seen with
+	// OpenSSL 4.0.3) - with which we wrote no tag when encrypting, and never passed one on
+	// when decrypting, which then failed for every ciphertext. A Poly1305 tag has 16 bytes.
+	if (!m_iTagLength && algorithm == ChaCha20_Poly1305) m_iTagLength = 16;
 #else
 	m_iBlockSize  = static_cast<uint16_t>(::EVP_CIPHER_CTX_block_size     (m_evpctx.get()));
 	m_iKeyLength  = static_cast<uint16_t>(::EVP_CIPHER_CTX_key_length     (m_evpctx.get()));
@@ -1108,26 +1112,70 @@ bool KBlockCipher::FinalizeString()
 {
 	if (!m_evpctx || HasError()) return false;
 
-#if OPENSSL_VERSION_NUMBER < 0x030000000L
-	// do not call EVP_CipherFinal_ex() in CCM mode - it fails with old OpenSSL versions
-	// (and is not needed). Still reset the per-round state and detach the output exactly
-	// like the normal completion path below, so the instance can be reused (a further
-	// SingleRound / SetOutput) and its destructor's finalize stays a harmless no-op
-	// instead of leaving m_OutString dangling at a now-out-of-scope buffer.
-	if (GetDirection() == Decrypt && GetMode() == Mode::CCM)
-	{
-		PrepareNextRound();
-		m_OutString = nullptr;
-		return true;
-	}
-#endif
-
 	// clear the outstring on any error return
 	// we use a named lambda because we want compatibility with C++11, which needs
 	// a type for KScopeGuard..
 	auto namedLambdaGuard  = [this]() noexcept { m_OutString->resize(m_iStartOfString); };
 	// construct the scope guard with a type
 	auto guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
+
+	// A text of no bytes at all is a text, too. But everything that hands the IV and the
+	// authentication tag to OpenSSL happens with the first input (StartNewData() and the
+	// head of AddString()) - and never happened when there was none: Add() returns at once
+	// for an empty string, and nobody is obliged to call it. Finalizing then ran on a
+	// context that had seen neither. Encrypting an empty text "succeeded" with an IV that
+	// OpenSSL made up on the spot (so every call returned another tag, none of which could
+	// be verified), an inlined tag was written behind the end of the output string, and
+	// decrypting failed. So catch up here.
+	if (!m_bInitCompleted && !StartNewData()) return false;
+
+	if (GetDirection() == Decrypt)
+	{
+		// (also where the input ended inside an inlined tag or IV: SetTag() / SetIV() say
+		// what is missing, which is clearer than OpenSSL's "finalization failed")
+		if (m_iTagLength && !m_bTagIsSet && !SetTag()) return false;
+
+		// Without a tag an input of nothing at all stays what it always was, for the modes
+		// that took it (the stream modes return an empty text): no IV is asked for where
+		// none was given.
+		if (m_iIVLength && !m_bIVIsSet && (m_iTagLength || !m_sIV.empty()) && !SetIV()) return false;
+	}
+
+	if (GetMode() == Mode::CCM && !m_bCCMDataAdded && m_iTagLength)
+	{
+		// CCM takes its text in one piece, and has to be told the length of it before -
+		// also when that is nothing. (It computes or checks its tag in this call, not in
+		// the finalization.)
+		unsigned char NoInput  { 0 };
+		unsigned char NoOutput { 0 };
+		int iNoLen { 0 };
+
+		if (!::EVP_CipherUpdate(m_evpctx.get(), nullptr, &iNoLen, nullptr, 0) ||
+		    !::EVP_CipherUpdate(m_evpctx.get(), &NoOutput, &iNoLen, &NoInput, 0))
+		{
+			return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
+		}
+
+		m_bCCMDataAdded = true;
+	}
+
+#if OPENSSL_VERSION_NUMBER < 0x030000000L
+	// do not call EVP_CipherFinal_ex() in CCM mode - it fails with old OpenSSL versions
+	// (and is not needed). Still reset the per-round state and detach the output exactly
+	// like the normal completion path below, so the instance can be reused (a further
+	// SingleRound / SetOutput) and its destructor's finalize stays a harmless no-op
+	// instead of leaving m_OutString dangling at a now-out-of-scope buffer.
+	// (This stands behind the catching up above, and not at the head of the function
+	// where it was: there it declared a ciphertext of no bytes authentic without anybody
+	// ever having looked at its tag.)
+	if (GetDirection() == Decrypt && GetMode() == Mode::CCM)
+	{
+		guard.release();
+		PrepareNextRound();
+		m_OutString = nullptr;
+		return true;
+	}
+#endif
 
 	auto iOrigSize = m_OutString->size();
 
@@ -1229,11 +1277,14 @@ bool KBlockCipher::FinalizeStream()
 	    m_bInlineTag &&
 	    m_OutStream)
 	{
+		// the tag of this round is in m_sLastTag: FinalizeString() has prepared the next
+		// round already, which starts without one. (m_sTag was written here, empty - and
+		// the placeholder at the head of the stream stayed 16 zero bytes.)
 		kDebug(3, "{}: inserting tag of size {} inline at pos {}: {}",
 		          "encryption",
-		          m_sTag.size(),
+		          m_sLastTag.size(),
 		          static_cast<size_t>(m_iStartOfStream),
-		          KEncode::Hex(m_sTag));
+		          KEncode::Hex(m_sLastTag));
 
 		// insert the auth tag right at the begin of the stream
 		auto CurPos = kGetWritePosition(*m_OutStream);
@@ -1241,7 +1292,7 @@ bool KBlockCipher::FinalizeStream()
 		if (m_iStartOfStream < 0                               ||
 			CurPos < 0                                         ||
 			!kSetWritePosition(*m_OutStream, m_iStartOfStream) ||
-			!m_OutStream->Write(m_sTag)                        ||
+			!m_OutStream->Write(m_sLastTag)                    ||
 			!kSetWritePosition(*m_OutStream, CurPos))
 		{
 			return SetError("cannot insert authentication tag into stream");

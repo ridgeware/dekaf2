@@ -3,6 +3,9 @@
 #include <dekaf2/crypto/kdf/khkdf.h>
 #include <dekaf2/crypto/encoding/khex.h>
 #include <dekaf2/crypto/random/krandom.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <sstream>
+#include <dekaf2/core/format/kformat.h>
 #include <memory>
 #include <vector>
 
@@ -610,6 +613,442 @@ TEST_CASE("KBlockCipher move construction")
 		CHECK ( Dec.Add(sEncrypted) );
 		CHECK ( Dec.Finalize() );
 		CHECK ( sDecrypted == sClear );
+	}
+}
+
+TEST_CASE("KBlockCipher empty text")
+{
+	// A text of no bytes is a text: an authenticating mode has a tag for it, and the tag
+	// has to hold. Everything that passes IV and tag on to OpenSSL used to happen with the
+	// first input only - so with an empty Add(), or without any, finalizing worked on a
+	// cipher that had seen neither.
+
+	const auto Hex = [](KStringView sHex) { return kUnHex(sHex); };
+
+	const auto Cipher = [](KBlockCipher::Direction Direction, KBlockCipher::Mode Mode, KBlockCipher::Bits Bits, bool bInline)
+	{
+		return KBlockCipher(Direction, KBlockCipher::AES, Mode, Bits, bInline, bInline);
+	};
+
+	SECTION("GCM known answers (McGrew/Viega, The Galois/Counter Mode of Operation, test cases 1 and 13)")
+	{
+		struct Case { KBlockCipher::Bits Bits; std::size_t iKeyLen; KStringView sTag; };
+
+		for (const auto& C : { Case { KBlockCipher::B128, 16, "58e2fccefa7e3061367f1d57a4e7455a" },
+		                       Case { KBlockCipher::B256, 32, "530f8afbc74536b9a963b4f1c4cb738b" } })
+		{
+			const KString sKey (C.iKeyLen, '\0');
+			const KString sIV  (12, '\0');
+
+			for (int iHow = 0; iHow < 3; ++iHow)
+			{
+				INFO ( kFormat("key of {} bytes, variant {}", C.iKeyLen, iHow) );
+
+				KString sOut;
+				auto Enc = Cipher(KBlockCipher::Encrypt, KBlockCipher::GCM, C.Bits, false);
+				CHECK ( Enc.SetKey(sKey) );
+				CHECK ( Enc.SetInitializationVector(sIV) );
+
+				if (iHow == 2)
+				{
+					CHECK ( Enc.SingleRound("", sOut) );
+				}
+				else
+				{
+					CHECK ( Enc.SetOutput(sOut) );
+					if (iHow == 1) CHECK ( Enc.Add("") );   // iHow == 0: no Add() at all
+					CHECK ( Enc.Finalize() );
+				}
+
+				CHECK ( sOut.empty() );
+				CHECK ( kHex(Enc.GetAuthenticationTag()) == C.sTag );
+				CHECK ( Enc.GetInitializationVector() == sIV );
+
+				// and back
+				KString sClear { "untouched" };
+				sClear.clear();
+				auto Dec = Cipher(KBlockCipher::Decrypt, KBlockCipher::GCM, C.Bits, false);
+				CHECK ( Dec.SetKey(sKey) );
+				CHECK ( Dec.SetInitializationVector(sIV) );
+				CHECK ( Dec.SetAuthenticationTag(Hex(C.sTag)) );
+
+				if (iHow == 2)
+				{
+					CHECK ( Dec.SingleRound("", sClear) );
+				}
+				else
+				{
+					CHECK ( Dec.SetOutput(sClear) );
+					if (iHow == 1) CHECK ( Dec.Add("") );
+					CHECK ( Dec.Finalize() );
+				}
+
+				CHECK ( sClear.empty() );
+			}
+		}
+	}
+
+	SECTION("the tag of an empty text is checked")
+	{
+		for (auto Mode : { KBlockCipher::GCM, KBlockCipher::CCM })
+		{
+			INFO ( kFormat("mode {}", Mode == KBlockCipher::GCM ? "GCM" : "CCM") );
+
+			auto Enc = Cipher(KBlockCipher::Encrypt, Mode, KBlockCipher::B256, false);
+			const auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+			const auto sIV  = kGetRandom(Enc.GetNeededIVLength());
+
+			KString sOut;
+			CHECK ( Enc.SetKey(sKey) );
+			CHECK ( Enc.SetInitializationVector(sIV) );
+			CHECK ( Enc.SetOutput(sOut) );
+			CHECK ( Enc.Finalize() );
+			CHECK ( sOut.empty() );
+
+			const KString sTag = Enc.GetAuthenticationTag();
+			CHECK ( sTag.size() == (Mode == KBlockCipher::GCM ? 16u : 12u) );
+
+			// the same key and IV make the same tag, every time
+			{
+				KString sOut2;
+				auto Enc2 = Cipher(KBlockCipher::Encrypt, Mode, KBlockCipher::B256, false);
+				CHECK ( Enc2.SetKey(sKey) );
+				CHECK ( Enc2.SetInitializationVector(sIV) );
+				CHECK ( Enc2.SetOutput(sOut2) );
+				CHECK ( Enc2.Add("") );
+				CHECK ( Enc2.Finalize() );
+				CHECK ( Enc2.GetAuthenticationTag() == sTag );
+			}
+
+			// the right tag
+			{
+				KString sClear;
+				auto Dec = Cipher(KBlockCipher::Decrypt, Mode, KBlockCipher::B256, false);
+				CHECK ( Dec.SetKey(sKey) );
+				CHECK ( Dec.SetInitializationVector(sIV) );
+				CHECK ( Dec.SetAuthenticationTag(sTag) );
+				CHECK ( Dec.SetOutput(sClear) );
+				CHECK ( Dec.Finalize() );
+				CHECK ( sClear.empty() );
+			}
+
+			// a wrong tag
+			{
+				KString sWrong = sTag;
+				sWrong.back() = static_cast<char>(sWrong.back() ^ 0x01);
+
+				KString sClear;
+				auto Dec = Cipher(KBlockCipher::Decrypt, Mode, KBlockCipher::B256, false);
+				CHECK ( Dec.SetKey(sKey) );
+				CHECK ( Dec.SetInitializationVector(sIV) );
+				CHECK ( Dec.SetAuthenticationTag(sWrong) );
+				CHECK ( Dec.SetOutput(sClear) );
+				CHECK_FALSE ( Dec.Finalize() );
+				CHECK ( sClear.empty() );
+			}
+
+			// another key
+			{
+				KString sClear;
+				auto Dec = Cipher(KBlockCipher::Decrypt, Mode, KBlockCipher::B256, false);
+				CHECK ( Dec.SetKey(kGetRandom(Dec.GetNeededKeyLength())) );
+				CHECK ( Dec.SetInitializationVector(sIV) );
+				CHECK ( Dec.SetAuthenticationTag(sTag) );
+				CHECK ( Dec.SetOutput(sClear) );
+				CHECK_FALSE ( Dec.Finalize() );
+			}
+
+			// no tag at all
+			{
+				KString sClear;
+				auto Dec = Cipher(KBlockCipher::Decrypt, Mode, KBlockCipher::B256, false);
+				CHECK ( Dec.SetKey(sKey) );
+				CHECK ( Dec.SetInitializationVector(sIV) );
+				CHECK ( Dec.SetOutput(sClear) );
+				CHECK_FALSE ( Dec.Finalize() );
+			}
+		}
+	}
+
+	SECTION("inline IV and tag: the ciphertext of an empty text is tag and IV, and decrypts")
+	{
+		for (auto Mode : { KBlockCipher::GCM, KBlockCipher::CCM })
+		{
+			for (int iHow = 0; iHow < 3; ++iHow)
+			{
+				INFO ( kFormat("mode {}, variant {}", Mode == KBlockCipher::GCM ? "GCM" : "CCM", iHow) );
+
+				auto Enc = Cipher(KBlockCipher::Encrypt, Mode, KBlockCipher::B256, true);
+				const auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+				CHECK ( Enc.SetKey(sKey) );
+
+				// something is in the output already: the ciphertext is appended
+				KString sOut { "head" };
+
+				if (iHow == 2)
+				{
+					CHECK ( Enc.SingleRound("", sOut) );
+				}
+				else
+				{
+					CHECK ( Enc.SetOutput(sOut) );
+					if (iHow == 1) CHECK ( Enc.Add("") );
+					CHECK ( Enc.Finalize() );
+				}
+
+				const std::size_t iTag = Enc.GetAuthenticationTag().size();
+				const std::size_t iIV  = Enc.GetNeededIVLength();
+
+				REQUIRE ( iTag >= 12 );
+				REQUIRE ( sOut.size() == 4 + iTag + iIV );
+				CHECK   ( sOut.starts_with("head") );
+				CHECK   ( sOut.substr(4, iTag)    == Enc.GetAuthenticationTag()    );
+				CHECK   ( sOut.substr(4 + iTag)   == Enc.GetInitializationVector() );
+				CHECK   ( Enc.GetAuthenticationTag() != KString(iTag, '\0') );
+
+				const KString sCipher = sOut.substr(4);
+
+				{
+					KString sClear;
+					auto Dec = Cipher(KBlockCipher::Decrypt, Mode, KBlockCipher::B256, true);
+					CHECK ( Dec.SetKey(sKey) );
+					CHECK ( Dec.SingleRound(sCipher, sClear) );
+					CHECK ( sClear.empty() );
+				}
+
+				// one bit of the tag, and one of the IV
+				for (std::size_t iPos : { std::size_t(0), iTag })
+				{
+					KString sBad = sCipher;
+					sBad[iPos] = static_cast<char>(sBad[iPos] ^ 0x80);
+
+					KString sClear;
+					auto Dec = Cipher(KBlockCipher::Decrypt, Mode, KBlockCipher::B256, true);
+					CHECK ( Dec.SetKey(sKey) );
+					CHECK_FALSE ( Dec.SingleRound(sBad, sClear) );
+					CHECK ( sClear.empty() );
+				}
+
+				// cut off inside the tag, inside the IV, and nothing at all
+				for (std::size_t iLen : { std::size_t(0), iTag / 2, iTag, iTag + iIV - 1 })
+				{
+					KString sClear;
+					auto Dec = Cipher(KBlockCipher::Decrypt, Mode, KBlockCipher::B256, true);
+					CHECK ( Dec.SetKey(sKey) );
+					CHECK_FALSE ( Dec.SingleRound(sCipher.substr(0, iLen), sClear) );
+					CHECK ( sClear.empty() );
+				}
+			}
+		}
+	}
+
+	SECTION("a cipher is good for the next round after an empty one, and for an empty one after a full")
+	{
+		KToAES   Enc;
+		KFromAES Dec;
+		CHECK ( Enc.SetPassword("MySecretPassword") );
+		CHECK ( Dec.SetPassword("MySecretPassword") );
+
+		for (KStringView sText : { "", "first", "", "", "a longer text of more than one block of sixteen bytes", "" })
+		{
+			KString sCipher;
+			KString sClear;
+			CHECK ( Enc.SingleRound(sText, sCipher) );
+			CHECK ( sCipher.size() == sText.size() + 16 + Enc.GetNeededIVLength() );
+			CHECK ( Dec.SingleRound(sCipher, sClear) );
+			CHECK ( sClear == sText );
+		}
+	}
+
+	SECTION("ChaCha20-Poly1305")
+	{
+		KBlockCipher Enc(KBlockCipher::Encrypt, KBlockCipher::ChaCha20_Poly1305);
+		KBlockCipher Dec(KBlockCipher::Decrypt, KBlockCipher::ChaCha20_Poly1305);
+		const auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+		CHECK ( Enc.SetKey(sKey) );
+		CHECK ( Dec.SetKey(sKey) );
+
+		for (KStringView sText : { "hello", "", "a longer text of more than one block of sixteen bytes" })
+		{
+			INFO ( kFormat("text of {} bytes", sText.size()) );
+
+			KString sCipher;
+			KString sClear;
+			CHECK ( Enc.SingleRound(sText, sCipher) );
+			// a Poly1305 tag of 16 bytes, the nonce, the text
+			CHECK ( Enc.GetAuthenticationTag().size() == 16 );
+			CHECK ( sCipher.size() == 16u + Enc.GetNeededIVLength() + sText.size() );
+			CHECK ( sCipher.substr(0, 16) == Enc.GetAuthenticationTag() );
+			CHECK ( Dec.SingleRound(sCipher, sClear) );
+			CHECK ( sClear == sText );
+
+			// one bit of the tag, and one of the last byte (nonce or text)
+			for (std::size_t iPos : { std::size_t(0), sCipher.size() - 1 })
+			{
+				KString sBad = sCipher;
+				sBad[iPos] = static_cast<char>(sBad[iPos] ^ 0x01);
+				KString sNot;
+				// (a cipher of its own: one that has failed stays failed)
+				KBlockCipher Dec2(KBlockCipher::Decrypt, KBlockCipher::ChaCha20_Poly1305);
+				CHECK ( Dec2.SetKey(sKey) );
+				CHECK_FALSE ( Dec2.SingleRound(sBad, sNot) );
+				CHECK ( sNot.empty() );
+			}
+		}
+	}
+
+	SECTION("ChaCha20-Poly1305 known answer (RFC 8439, 2.8.2)")
+	{
+		// the RFC's AEAD example has additional data, which this class does not take. What
+		// can be compared without is the keystream: the text is encrypted with the block
+		// counter starting at 1 - the same bytes as plain ChaCha20 in RFC 8439, 2.4.2,
+		// which uses another nonce, though. So only the shape is checked against the RFC
+		// here, and the tag by decrypting: see the section above.
+		KBlockCipher Enc(KBlockCipher::Encrypt, KBlockCipher::ChaCha20_Poly1305, KBlockCipher::GCM, KBlockCipher::B256, false, false);
+		const KString sKey = kUnHex("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f");
+		const KString sIV  = kUnHex("070000004041424344454647");
+		const KStringView sText = "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
+
+		KString sCipher;
+		CHECK ( Enc.SetKey(sKey) );
+		CHECK ( Enc.SetInitializationVector(sIV) );
+		CHECK ( Enc.SingleRound(sText, sCipher) );
+		// the ciphertext does not depend on the additional data, the tag does
+		CHECK ( kHex(sCipher) ==
+			"d31a8d34648e60db7b86afbc53ef7ec2"
+			"a4aded51296e08fea9e2b5a736ee62d6"
+			"3dbea45e8ca9671282fafb69da92728b"
+			"1a71de0a9e060b2905d6a5b67ecd3b36"
+			"92ddbd7f2d778b8c9803aee328091b58"
+			"fab324e4fad675945585808b4831d7bc"
+			"3ff4def08e4b7a9de576d26586cec64b"
+			"6116" );
+		CHECK ( Enc.GetAuthenticationTag().size() == 16 );
+	}
+
+	SECTION("to a stream")
+	{
+		for (KStringView sText : { "", "a text that goes to a stream" })
+		{
+			INFO ( kFormat("text of {} bytes", sText.size()) );
+
+			KToAES Enc;
+			CHECK ( Enc.SetPassword("MySecretPassword") );
+
+			KString sCipher;
+			{
+				// (a stream that can be repositioned: the tag is written to the front at the end)
+				std::ostringstream oss;
+				KOutStream Out(oss);
+				CHECK ( Enc.SetOutput(Out) );
+				if (!sText.empty()) CHECK ( Enc.Add(sText) );
+				CHECK ( Enc.Finalize() );
+				sCipher = oss.str();
+			}
+
+			CHECK ( sCipher.size() == 16u + Enc.GetNeededIVLength() + sText.size() );
+			CHECK ( Enc.GetAuthenticationTag().size() == 16 );
+			CHECK ( sCipher.substr(0, 16) == Enc.GetAuthenticationTag() );
+
+			KString  sClear;
+			KFromAES Dec;
+			CHECK ( Dec.SetPassword("MySecretPassword") );
+			CHECK ( Dec.SingleRound(sCipher, sClear) );
+			CHECK ( sClear == sText );
+		}
+	}
+
+	SECTION("the destructor finalizes an empty text, too")
+	{
+		KString sCipher;
+		std::size_t iExpected { 0 };
+		{
+			KToAES Enc;
+			CHECK ( Enc.SetPassword("MySecretPassword") );
+			CHECK ( Enc.SetOutput(sCipher) );
+			iExpected = 16u + Enc.GetNeededIVLength();
+		}
+		CHECK ( sCipher.size() == iExpected );
+
+		KString  sClear;
+		KFromAES Dec;
+		CHECK ( Dec.SetPassword("MySecretPassword") );
+		CHECK ( Dec.SingleRound(sCipher, sClear) );
+		CHECK ( sClear.empty() );
+	}
+
+	SECTION("modes without a tag")
+	{
+		// CBC and ECB pad: no text is one block of padding
+		for (auto Mode : { KBlockCipher::CBC, KBlockCipher::ECB })
+		{
+			INFO ( kFormat("mode {}", Mode == KBlockCipher::CBC ? "CBC" : "ECB") );
+
+			auto Enc = Cipher(KBlockCipher::Encrypt, Mode, KBlockCipher::B256, true);
+			auto Dec = Cipher(KBlockCipher::Decrypt, Mode, KBlockCipher::B256, true);
+			const auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+			CHECK ( Enc.SetKey(sKey) );
+			CHECK ( Dec.SetKey(sKey) );
+
+			KString sCipher;
+			KString sClear;
+			CHECK ( Enc.SingleRound("", sCipher) );
+			CHECK ( sCipher.size() == Enc.GetNeededIVLength() + 16 );
+			if (Enc.GetNeededIVLength())
+			{
+				// the IV in the output is the one that was used
+				CHECK ( sCipher.substr(0, Enc.GetNeededIVLength()) == Enc.GetInitializationVector() );
+			}
+			CHECK ( Dec.SingleRound(sCipher, sClear) );
+			CHECK ( sClear.empty() );
+
+			// no input is not a ciphertext for them: not even the padding is there
+			KString sNothing;
+			CHECK_FALSE ( Dec.SingleRound("", sNothing) );
+		}
+	}
+
+	SECTION("CBC with a given IV: known answer")
+	{
+		// AES-128-CBC of the empty text is the encryption of one block of padding (16 times
+		// 0x10) xored with the IV. With key and IV zero that is AES-128-ECB of that block
+		// under the zero key - which the ECB mode of this same class computes, from input.
+		const KString sKey (16, '\0');
+		const KString sIV  (16, '\0');
+
+		KString sExpected;
+		{
+			KString sBoth;
+			auto Ecb = Cipher(KBlockCipher::Encrypt, KBlockCipher::ECB, KBlockCipher::B128, false);
+			CHECK ( Ecb.SetKey(sKey) );
+			CHECK ( Ecb.SingleRound(KString(16, '\x10'), sBoth) );
+			REQUIRE ( sBoth.size() == 32 );
+			sExpected = sBoth.substr(0, 16);
+		}
+
+		KString sCipher;
+		auto Enc = Cipher(KBlockCipher::Encrypt, KBlockCipher::CBC, KBlockCipher::B128, false);
+		CHECK ( Enc.SetKey(sKey) );
+		CHECK ( Enc.SetInitializationVector(sIV) );
+		CHECK ( Enc.SetOutput(sCipher) );
+		CHECK ( Enc.Finalize() );
+		CHECK ( kHex(sCipher) == kHex(sExpected) );
+
+		// and with another IV another ciphertext: the IV is in it
+		KString sCipher2;
+		auto Enc2 = Cipher(KBlockCipher::Encrypt, KBlockCipher::CBC, KBlockCipher::B128, false);
+		CHECK ( Enc2.SetKey(sKey) );
+		CHECK ( Enc2.SetInitializationVector(KString(16, '\x01')) );
+		CHECK ( Enc2.SingleRound("", sCipher2) );
+		CHECK ( sCipher2.size() == 16 );
+		CHECK ( sCipher2 != sCipher );
+
+		KString sClear;
+		auto Dec = Cipher(KBlockCipher::Decrypt, KBlockCipher::CBC, KBlockCipher::B128, false);
+		CHECK ( Dec.SetKey(sKey) );
+		CHECK ( Dec.SetInitializationVector(KString(16, '\x01')) );
+		CHECK ( Dec.SingleRound(sCipher2, sClear) );
+		CHECK ( sClear.empty() );
 	}
 }
 

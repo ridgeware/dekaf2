@@ -246,7 +246,9 @@ public:
 		Add(std::move(InputStream));
 	}
 
-	/// finalize by padding output to full block size (if necessary for the selected mode) - will also called by destructor if not done before
+	/// finalize by padding output to full block size (if necessary for the selected mode) - will also called by destructor if not done before.
+	/// A text of no bytes (no Add() at all, or only empty ones) is a text like any other: encrypting it yields the IV and the
+	/// authentication tag (or the padding block), decrypting it checks the tag.
 	bool Finalize();
 
 	/// for encryption: get the initialization vector as string - you will only need this if you do not want to pass

@@ -784,14 +784,18 @@ bool KOpenIDClient::RenewTokens(KRESTServer& HTTP, KStringView sToken, KSession:
 
 	// removes the session from m_Renewals and wakes up the waiting threads at the
 	// end of the renewal, also when it throws
-	KScopeGuard Guard([this, &sSessionToken, &RenewalDone]()
+	// (a named lambda, because compilers without class template argument
+	// deduction need a type for KScopeGuard)
+	auto namedLambdaGuard = [this, &sSessionToken, &RenewalDone]()
 	{
 		{
 			std::lock_guard<std::mutex> Lock(m_RenewalMutex);
 			m_Renewals.erase(sSessionToken);
 		}
 		RenewalDone.set_value();
-	});
+	};
+
+	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
 	// another renewal may have ended after this request read the session and before
 	// this thread registered its own renewal

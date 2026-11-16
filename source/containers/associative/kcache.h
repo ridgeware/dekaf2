@@ -468,14 +468,18 @@ public:
 		}
 
 		// removes the key from m_Loading and wakes up the waiting threads if the loader throws
-		KScopeGuard Guard([this, &kk, &LoadDone]()
+		// (a named lambda, because compilers without class template argument
+		// deduction need a type for KScopeGuard)
+		auto namedLambdaGuard = [this, &kk, &LoadDone]()
 		{
 			{
 				std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 				m_Loading.erase(kk);
 			}
 			LoadDone.set_value();
-		});
+		};
+
+		auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
 		// load the new value without holding the lock
 		value_type NewValue = Load()(std::forward<K>(key), std::forward<Args>(args)...);

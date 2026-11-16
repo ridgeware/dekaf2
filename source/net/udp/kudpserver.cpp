@@ -51,6 +51,11 @@ KUDPServer::KUDPServer(uint16_t iPort, KStreamOptions::Family Family)
 //-----------------------------------------------------------------------------
 : m_iPort(iPort)
 {
+	// A server waits for datagrams for as long as it runs. A timeout while
+	// nobody sends must not close its socket: it would lose its port, and
+	// every later receive would fail at once.
+	m_Socket.SetCancelOnTimeout();
+
 	if (!m_Socket.Bind(iPort, Family))
 	{
 		SetError(m_Socket.Error());
@@ -153,10 +158,21 @@ void KUDPServer::RunLoop(DatagramCallback Callback)
 
 		if (iReceived < 0)
 		{
-			if (m_Socket.is_open())
+			if (m_Socket.IsTimedOut())
 			{
-				kDebug(2, "UDP receive error: {}", m_Socket.Error());
+				// nobody sent anything for the length of the timeout - wait on
+				continue;
 			}
+
+			if (!m_Socket.is_open())
+			{
+				// the socket is gone, and not through Stop(): every further
+				// receive would fail at once, so this loop has nothing left to do
+				kDebug(1, "UDP server socket on port {} is closed, leaving the receive loop", m_iPort);
+				break;
+			}
+
+			kDebug(2, "UDP receive error: {}", m_Socket.Error());
 			continue;
 		}
 

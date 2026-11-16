@@ -128,6 +128,12 @@ bool KUDPSocket::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	m_Timeout = Options.GetTimeout();
 	m_Endpoint = Endpoint;
 
+	// only ever switch it on here: a SetCancelOnTimeout() before stays
+	if (Options.IsSet(KStreamOptions::CancelOnTimeout))
+	{
+		m_bCancelOnTimeout = true;
+	}
+
 	auto& sHostname = Endpoint.Domain.get();
 
 	auto hosts = KResolve::ResolveUDP(sHostname, Endpoint.Port.get(), Options.GetFamily(), m_IOService, m_ec);
@@ -183,6 +189,12 @@ bool KUDPSocket::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	kDebug(3, "trying to connect UDP to {}", Endpoint);
 
 	RunTimed();
+
+	if (m_bTimedOut)
+	{
+		// with cancel on timeout the socket is still open, but not connected
+		return SetError(kFormat("cannot connect UDP to {}: timeout after {}", Endpoint, m_Timeout));
+	}
 
 	if (!Good() || !m_Socket.is_open())
 	{
@@ -288,6 +300,12 @@ std::streamsize KUDPSocket::Send(const void* pBuffer, std::streamsize iCount)
 		return -1;
 	}
 
+	if (m_bTimedOut)
+	{
+		// cancelled on timeout: nothing was sent, the socket stays usable
+		return -1;
+	}
+
 	return iSent;
 
 } // Send
@@ -321,6 +339,12 @@ std::streamsize KUDPSocket::Receive(void* pBuffer, std::streamsize iCount)
 		{
 			SetError(kFormat("cannot receive UDP data: {}", m_ec.message()));
 		}
+		return -1;
+	}
+
+	if (m_bTimedOut)
+	{
+		// cancelled on timeout: no datagram came, the socket stays usable
 		return -1;
 	}
 
@@ -376,6 +400,12 @@ std::streamsize KUDPSocket::SendTo(const void* pBuffer, std::streamsize iCount, 
 		return -1;
 	}
 
+	if (m_bTimedOut)
+	{
+		// cancelled on timeout: nothing was sent, the socket stays usable
+		return -1;
+	}
+
 	return iSent;
 
 } // SendTo
@@ -409,6 +439,12 @@ std::streamsize KUDPSocket::ReceiveFrom(void* pBuffer, std::streamsize iCount, e
 		{
 			SetError(kFormat("cannot receive UDP data: {}", m_ec.message()));
 		}
+		return -1;
+	}
+
+	if (m_bTimedOut)
+	{
+		// cancelled on timeout: no datagram came, the socket stays usable
 		return -1;
 	}
 
@@ -566,6 +602,60 @@ KUDPSocket::native_socket_type KUDPSocket::GetNativeSocket()
 } // GetNativeSocket
 
 //-----------------------------------------------------------------------------
+int KUDPSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAnError)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Socket.is_open())
+	{
+		SetError("UDP socket is not open");
+		return 0;
+	}
+
+	// only the descriptor is asked: neither the timer of the socket nor its
+	// event loop take part, so this timeout never closes or cancels anything
+	auto iResult = kPoll(GetNativeSocket(), what, Timeout);
+
+	if (iResult == 0)
+	{
+		// timed out, no events
+		if (bTimeoutIsAnError)
+		{
+			SetError(kFormat("UDP socket {} timed out after {}", m_Endpoint, Timeout));
+		}
+		return 0;
+	}
+	else if (iResult < 0)
+	{
+		SetErrnoError("error during poll: ");
+		return 0;
+	}
+
+	return iResult;
+
+} // CheckIfReady
+
+//-----------------------------------------------------------------------------
+KTCPEndPoint KUDPSocket::GetLocalEndPoint() const
+//-----------------------------------------------------------------------------
+{
+	boost::system::error_code ec;
+
+	auto Local = m_Socket.local_endpoint(ec);
+
+	if (ec)
+	{
+		// not open, or not yet bound to anything
+		return {};
+	}
+
+	// an IPv6 address needs its brackets to be told from the port
+	return KTCPEndPoint(Local.address().is_v6()
+	                    ? kFormat("[{}]:{}", Local.address().to_string(), Local.port())
+	                    : kFormat("{}:{}"  , Local.address().to_string(), Local.port()));
+
+} // GetLocalEndPoint
+
+//-----------------------------------------------------------------------------
 void KUDPSocket::ResetTimer()
 //-----------------------------------------------------------------------------
 {
@@ -600,9 +690,24 @@ void KUDPSocket::CheckTimer()
 #endif
 	{
 		boost::system::error_code ec;
-		m_Socket.close(ec);
+
+		// the operation will end with operation_aborted - keep the cause
+		m_bTimedOut = true;
+
+		if (m_bCancelOnTimeout)
+		{
+			// cancel the pending operation, but keep the socket with its
+			// binding and its peer - the caller may simply try again
+			m_Socket.cancel(ec);
+			kDebug(3, "UDP operation timeout ({}), canceled: {}", m_Timeout, m_Endpoint);
+		}
+		else
+		{
+			m_Socket.close(ec);
+			kDebug(2, "UDP connection timeout ({}): {}", m_Timeout, m_Endpoint);
+		}
+
 		ClearTimer();
-		kDebug(2, "UDP connection timeout ({}): {}", m_Timeout, m_Endpoint);
 	}
 
 	m_Timer.async_wait(std::bind(&KUDPSocket::CheckTimer, this));
@@ -627,6 +732,7 @@ void KUDPSocket::RunTimed()
 	}
 
 	ResetTimer();
+	m_bTimedOut = false;
 
 	try
 	{
@@ -643,6 +749,21 @@ void KUDPSocket::RunTimed()
 	}
 
 	ClearTimer();
+
+	if (m_bTimedOut && m_bCancelOnTimeout)
+	{
+		if (m_ec == boost::asio::error::operation_aborted)
+		{
+			// a canceled operation is a repeatable timeout, not a socket
+			// error - it must not fail Good()
+			m_ec.clear();
+		}
+		else
+		{
+			// the operation completed just before the timer cancelled it
+			m_bTimedOut = false;
+		}
+	}
 
 	m_bInRun = false;
 

@@ -50,6 +50,7 @@
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/net/tcp/bits/kasio.h>
 #include <dekaf2/net/util/kstreamoptions.h>
+#include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/time/duration/kduration.h>
 
@@ -72,6 +73,17 @@ DEKAF2_NAMESPACE_BEGIN
 /// completion state, so concurrent operations consume each other's
 /// completions. They trip an assert in debug builds and a kWarning in
 /// release builds.
+///
+/// ### Timeouts
+/// By default an operation that runs into the timeout CLOSES the socket, as
+/// with the socket streams: a bound socket loses its port, a connected one
+/// its peer. A caller that waits for datagrams in a loop wants neither. Two
+/// ways around it, as with the streams:
+/// - SetCancelOnTimeout() (or KStreamOptions::CancelOnTimeout in Connect()):
+///   a timed out operation is cancelled, the socket stays as it is. The
+///   operation returns -1, IsTimedOut() is true, Good() stays true.
+/// - IsReadReady(Timeout): wait for a datagram first, receive only when one
+///   is there. This is the way for a caller with timers of its own.
 class DEKAF2_PUBLIC KUDPSocket : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -119,10 +131,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Connect to a remote endpoint (sets the default destination for Send/Receive).
+	/// A socket that was bound with Bind() before keeps its local port.
 	/// @param Endpoint
 	/// The remote endpoint to connect to
 	/// @param Options
-	/// set options like IPv4 or IPv6, and the timeout
+	/// set options like IPv4 or IPv6, the timeout, and KStreamOptions::CancelOnTimeout
 	/// @return true on success
 	bool Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
@@ -152,7 +165,8 @@ public:
 	/// Receive a datagram from the connected endpoint.
 	/// @param pBuffer pointer to the receive buffer
 	/// @param iCount maximum number of bytes to receive
-	/// @return the number of bytes received, or -1 on error
+	/// @return the number of bytes received (0 is an empty datagram), or -1
+	/// on error and on timeout - see IsTimedOut() to tell the two apart
 	std::streamsize Receive(void* pBuffer, std::streamsize iCount);
 	//-----------------------------------------------------------------------------
 
@@ -195,7 +209,8 @@ public:
 	/// @param pBuffer pointer to the receive buffer
 	/// @param iCount maximum number of bytes to receive
 	/// @param Endpoint [out] will be set to the sender's endpoint
-	/// @return the number of bytes received, or -1 on error
+	/// @return the number of bytes received (0 is an empty datagram), or -1
+	/// on error and on timeout - see IsTimedOut() to tell the two apart
 	std::streamsize ReceiveFrom(void* pBuffer, std::streamsize iCount, endpoint_type& Endpoint);
 	//-----------------------------------------------------------------------------
 
@@ -258,6 +273,33 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Get the current I/O timeout.
 	KDuration GetTimeout() const { return m_Timeout; }
+
+	/// Keep the socket open when an operation times out. The default is to
+	/// close it. With this set, a timed out operation is cancelled and
+	/// returns -1, IsTimedOut() is true, and the socket keeps its binding
+	/// and its peer - the timeout becomes a repeatable condition.
+	/// @param bYesNo true to cancel on timeout, false to close
+	void SetCancelOnTimeout(bool bYesNo = true) { m_bCancelOnTimeout = bYesNo; }
+
+	/// Does a timed out operation cancel instead of closing the socket?
+	bool GetCancelOnTimeout() const { return m_bCancelOnTimeout; }
+
+	/// Returns true if the last operation ended because its timeout fired.
+	bool IsTimedOut() const { return m_bTimedOut; }
+
+	/// Is a datagram waiting to be received? Returns with false after the general timeout
+	bool IsReadReady()              { return CheckIfReady(POLLIN,  m_Timeout, true);              }
+	/// Is a datagram waiting to be received? Returns with false after the specified timeout.
+	/// The socket is not touched by this timeout, whatever SetCancelOnTimeout() says.
+	bool IsReadReady(KDuration Timeout, bool bTimeoutIsAnError = false)
+	                                { return CheckIfReady(POLLIN,  Timeout , bTimeoutIsAnError ); }
+	/// Can a datagram be sent? Returns with false after the general timeout
+	bool IsWriteReady()             { return CheckIfReady(POLLOUT, m_Timeout, true);              }
+	/// Can a datagram be sent? Returns with false after the specified timeout
+	bool IsWriteReady(KDuration Timeout, bool bTimeoutIsAnError = false)
+	                                { return CheckIfReady(POLLOUT, Timeout , bTimeoutIsAnError ); }
+	/// check any ::poll() flag with the specified timeout - returns 0 or the event(s) that triggered
+	int CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAnError = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -291,6 +333,14 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Get the endpoint we are connected or bound to.
 	const KTCPEndPoint& GetEndPoint() const { return m_Endpoint; }
+
+	/// Get the local end of the socket: the address and port datagrams are
+	/// sent from and received at. After Connect() this is the address of
+	/// the interface that leads to the peer, and the port the system chose
+	/// unless Bind() set one before. After Bind() alone the address is the
+	/// wildcard address.
+	/// @return the local endpoint, or an empty endpoint if the socket is not open
+	KTCPEndPoint GetLocalEndPoint() const;
 	//-----------------------------------------------------------------------------
 
 //----------
@@ -314,6 +364,10 @@ private:
 	KDuration                   m_Timeout;
 	std::size_t                 m_iMaxDatagramSize { s_iDefaultMaxDatagramSize };
 	KTCPEndPoint                m_Endpoint;
+	/// cancel operations on timeout instead of closing the socket
+	bool                        m_bCancelOnTimeout { false };
+	/// the last operation ended because its timeout fired
+	bool                        m_bTimedOut        { false };
 	/// tripwire against concurrent operations, see RunTimed()
 	std::atomic<bool>           m_bInRun           { false };
 

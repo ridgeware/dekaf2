@@ -189,6 +189,155 @@ TEST_CASE("KUDPSocket")
 		CHECK ( iReceived <= 0 );
 	}
 
+	SECTION("a timeout closes the socket by default")
+	{
+		KUDPSocket Socket(chrono::milliseconds(150));
+		REQUIRE ( Socket.Bind(44361)  == true );
+		CHECK   ( Socket.GetCancelOnTimeout() == false );
+		CHECK   ( Socket.IsTimedOut() == false );
+
+		KUDPSocket::endpoint_type sender_ep;
+		char buf[64]{};
+		CHECK ( Socket.ReceiveFrom(buf, sizeof(buf), sender_ep) == -1 );
+		CHECK ( Socket.IsTimedOut() == true  );
+		// the port is gone with it
+		CHECK ( Socket.is_open()    == false );
+	}
+
+	SECTION("cancel on timeout keeps the socket")
+	{
+		KUDPSocket Receiver(chrono::milliseconds(150));
+		Receiver.SetCancelOnTimeout();
+		REQUIRE ( Receiver.Bind(44362) == true );
+
+		KUDPSocket::endpoint_type sender_ep;
+		char buf[64]{};
+
+		// twice: the timeout is a repeatable condition
+		for (int i = 0; i < 2; ++i)
+		{
+			CHECK ( Receiver.ReceiveFrom(buf, sizeof(buf), sender_ep) == -1 );
+			CHECK ( Receiver.IsTimedOut() == true );
+			CHECK ( Receiver.Good()       == true );
+			CHECK ( Receiver.is_open()    == true );
+		}
+
+		// still bound to its port: a datagram sent there now arrives
+		KUDPSocket Sender(KTCPEndPoint("localhost:44362"), KStreamOptions(KStreamOptions::None, chrono::seconds(2)));
+		REQUIRE ( Sender.is_open() == true );
+		KStringView sMessage = "after the timeout";
+		CHECK ( Sender.Send(sMessage) == static_cast<std::streamsize>(sMessage.size()) );
+
+		auto iReceived = Receiver.ReceiveFrom(buf, sizeof(buf), sender_ep);
+		REQUIRE ( iReceived > 0 );
+		CHECK   ( KStringView(buf, static_cast<std::size_t>(iReceived)) == sMessage );
+		CHECK   ( Receiver.IsTimedOut() == false );
+
+		// the string variant returns an empty string on timeout
+		CHECK ( Receiver.ReceiveFrom(64, sender_ep).empty() );
+		CHECK ( Receiver.IsTimedOut() == true );
+		CHECK ( Receiver.is_open()    == true );
+	}
+
+	SECTION("cancel on timeout through the connect options")
+	{
+		KUDPSocket Receiver(chrono::seconds(2));
+		REQUIRE ( Receiver.Bind(44363) == true );
+
+		KUDPSocket Sender(KTCPEndPoint("localhost:44363"),
+		                  KStreamOptions(KStreamOptions::CancelOnTimeout, chrono::milliseconds(150)));
+		REQUIRE ( Sender.is_open() == true );
+		CHECK   ( Sender.GetCancelOnTimeout() == true );
+
+		// nobody answers: a timeout, and the socket stays connected
+		char buf[64]{};
+		CHECK ( Sender.Receive(buf, sizeof(buf)) == -1 );
+		CHECK ( Sender.IsTimedOut() == true );
+		CHECK ( Sender.is_open()    == true );
+		CHECK ( Sender.Receive().empty() );
+
+		// connected as before: Send() needs no endpoint
+		KStringView sMessage = "still connected";
+		CHECK ( Sender.Send(sMessage) == static_cast<std::streamsize>(sMessage.size()) );
+		CHECK ( Sender.IsTimedOut() == false );
+
+		KUDPSocket::endpoint_type sender_ep;
+		auto iReceived = Receiver.ReceiveFrom(buf, sizeof(buf), sender_ep);
+		REQUIRE ( iReceived > 0 );
+		CHECK   ( KStringView(buf, static_cast<std::size_t>(iReceived)) == sMessage );
+	}
+
+	SECTION("IsReadReady")
+	{
+		// a short socket timeout that must not matter here
+		KUDPSocket Receiver(chrono::milliseconds(100));
+		REQUIRE ( Receiver.Bind(44364) == true );
+
+		// nothing there: false after the given time, and nothing happened to the socket
+		CHECK ( Receiver.IsReadReady(chrono::milliseconds(250)) == false );
+		CHECK ( Receiver.is_open()  == true  );
+		CHECK ( Receiver.HasError() == false );
+		CHECK ( Receiver.IsWriteReady(chrono::milliseconds(250)) == true );
+
+		KUDPSocket Sender(KTCPEndPoint("localhost:44364"), KStreamOptions(KStreamOptions::None, chrono::seconds(2)));
+		REQUIRE ( Sender.is_open() == true );
+		KStringView sMessage = "ready";
+		CHECK ( Sender.Send(sMessage) == static_cast<std::streamsize>(sMessage.size()) );
+
+		// now there is a datagram, and receiving it does not wait
+		CHECK ( Receiver.IsReadReady(chrono::seconds(2)) == true );
+
+		KUDPSocket::endpoint_type sender_ep;
+		char buf[64]{};
+		auto iReceived = Receiver.ReceiveFrom(buf, sizeof(buf), sender_ep);
+		REQUIRE ( iReceived > 0 );
+		CHECK   ( KStringView(buf, static_cast<std::size_t>(iReceived)) == sMessage );
+
+		// taken: not ready again, and on request the timeout is an error
+		CHECK ( Receiver.IsReadReady(chrono::milliseconds(50), true) == false );
+		CHECK ( Receiver.HasError() == true );
+		CHECK ( Receiver.is_open()  == true );
+
+		// a socket that is not open is never ready
+		KUDPSocket Closed;
+		CHECK ( Closed.IsReadReady(chrono::milliseconds(10)) == false );
+	}
+
+	SECTION("local endpoint")
+	{
+		// not open: empty
+		KUDPSocket Unused;
+		CHECK ( Unused.GetLocalEndPoint().empty() );
+
+		// bound: the port, on the wildcard address
+		KUDPSocket Receiver(chrono::seconds(2));
+		REQUIRE ( Receiver.Bind(44365, KStreamOptions::Family::IPv4) == true );
+		CHECK   ( Receiver.GetLocalEndPoint().Port.get() == 44365 );
+		CHECK   ( Receiver.GetLocalEndPoint().Domain.get() == "0.0.0.0" );
+
+		// connected: the address that leads to the peer, and the port the system chose
+		KUDPSocket Sender(KTCPEndPoint("127.0.0.1:44365"), KStreamOptions(KStreamOptions::ForceIPv4, chrono::seconds(2)));
+		REQUIRE ( Sender.is_open() == true );
+		auto Local = Sender.GetLocalEndPoint();
+		CHECK ( Local.Domain.get() == "127.0.0.1" );
+		CHECK ( Local.Port.get()   != 0 );
+
+		// the receiver sees a datagram come from exactly there
+		CHECK ( Sender.Send("who am I") > 0 );
+		KUDPSocket::endpoint_type sender_ep;
+		char buf[64]{};
+		REQUIRE ( Receiver.ReceiveFrom(buf, sizeof(buf), sender_ep) > 0 );
+		CHECK   ( sender_ep.port() == Local.Port.get() );
+		CHECK   ( sender_ep.address().to_string() == Local.Domain.get() );
+
+		// a socket that is bound before it connects keeps its port
+		KUDPSocket Both(chrono::seconds(2));
+		REQUIRE ( Both.Bind(44366, KStreamOptions::Family::IPv4) == true );
+		REQUIRE ( Both.Connect(KTCPEndPoint("127.0.0.1:44365"), KStreamOptions(KStreamOptions::ForceIPv4, chrono::seconds(2))) == true );
+		CHECK   ( Both.GetLocalEndPoint().Port.get()   == 44366 );
+		CHECK   ( Both.GetLocalEndPoint().Domain.get() == "127.0.0.1" );
+	}
+
 	SECTION("large datagram")
 	{
 		KUDPSocket Receiver(chrono::seconds(2));
@@ -260,6 +409,45 @@ TEST_CASE("KUDPServer")
 		REQUIRE ( iReceived > 0 );
 		CHECK   ( KStringView(buf, static_cast<std::size_t>(iReceived)) == sMessage );
 		CHECK   ( Server.IsRunning() == false );
+	}
+
+	SECTION("idle longer than the timeout")
+	{
+		// A server waits for as long as it runs. With a socket that closes on
+		// a timeout it lost its port after the first idle period, and every
+		// later datagram went nowhere.
+		std::atomic<int> iCallbackCount { 0 };
+
+		KUDPServer Server(44367);
+		REQUIRE ( !Server.HasError() );
+		Server.GetSocket().SetTimeout(chrono::milliseconds(150));
+
+		REQUIRE ( Server.Start(
+			[&](KStringView sData, const KUDPSocket::endpoint_type& Sender, KUDPSocket& Socket)
+			{
+				++iCallbackCount;
+				Socket.SendTo(sData, Sender);
+			},
+			false) == true );
+
+		// several timeouts pass with nobody sending
+		std::this_thread::sleep_for(std::chrono::milliseconds(600));
+		CHECK ( Server.IsRunning() == true );
+
+		KUDPSocket Client(KTCPEndPoint("localhost:44367"), KStreamOptions(KStreamOptions::None, chrono::seconds(2)));
+		REQUIRE ( Client.is_open() == true );
+
+		KStringView sMessage = "anybody there";
+		Client.Send(sMessage);
+
+		char buf[256]{};
+		auto iReceived = Client.Receive(buf, sizeof(buf));
+
+		Server.Stop();
+
+		CHECK   ( iCallbackCount == 1 );
+		REQUIRE ( iReceived > 0 );
+		CHECK   ( KStringView(buf, static_cast<std::size_t>(iReceived)) == sMessage );
 	}
 
 	SECTION("multiple clients")

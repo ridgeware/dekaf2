@@ -177,6 +177,7 @@ set (USOURCES
 	ktimeseries_tests.cpp
 	ktlscontext_tests.cpp
 	ktotp_tests.cpp
+	kdigestauth_tests.cpp
 	ktunnel_tests.cpp
 	kuntar_tests.cpp
 	kurl_tests.cpp

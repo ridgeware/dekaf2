@@ -171,6 +171,7 @@
 #include <dekaf2/net/address/knetworkinterface.h>
 #include <dekaf2/util/text/kngram.h>
 #include <dekaf2/crypto/auth/kopenid.h>
+#include <dekaf2/crypto/auth/kdigestauth.h>
 #include <dekaf2/crypto/auth/kopenidclient.h>
 #include <dekaf2/crypto/auth/kopenidserver.h>
 #include <dekaf2/util/cli/koptions.h>

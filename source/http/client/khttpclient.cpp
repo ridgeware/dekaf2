@@ -42,6 +42,7 @@
 #include <dekaf2/http/client/khttpclient.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/crypto/auth/kdigestauth.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kcaseless.h>
@@ -123,109 +124,25 @@ KHTTPClient::DigestAuthenticator::DigestAuthenticator(KString _sUsername,
 const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody)
 //-----------------------------------------------------------------------------
 {
-	/*
-	 Authorization: Digest username="Mufasa",
-		 realm="testrealm@host.com",
-		 nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
-		 uri="/dir/index.html",
-		 qop=auth,
-		 nc=00000001,
-		 cnonce="0a4f113b",
-		 response="6629fae49393a05397450978507c4ef1",
-		 opaque="5ccc069c403ebaf9f0171e9517f40e41"
-	 */
+	// the client nonce: eight random hex digits
+	KString sCNonce = KString::to_hexstring(kRandom32(), true, false);
 
-	uint32_t iCNonce    = kRandom32();
-	KString sCNonce     = KString::to_hexstring(iCNonce, true, false);
-	KString sNonceCount = KString::to_hexstring(++iNonceCount);
-	sNonceCount.PadLeft(8, '0');
+	// The request URI as it goes into the uri parameter - the encoded path.
+	// The server hashes what it reads there, so the hash is computed over
+	// this very string.
+	KString sURI    = Request.Resource.Path.Serialize();
 
-	KMD5 HA1;
-	KMD5 HA2;
-	KMD5 Response;
-
-	// RFC 2617: HA1 = MD5(username:realm:password)
-	HA1 = sUsername;
-	HA1 += ":";
-	HA1 += sRealm;
-	HA1 += ":";
-	HA1 += sPassword;
-
-	// different calculation for auth-int
-	// auth or any: HA2 = MD5(method:digestURI)
-	// auth-int:    HA2 = MD5(method:digestURI:MD5(entityBody))
-
-	HA2 = Request.Method.Serialize();
-	HA2 += ":";
-	HA2 += Request.Resource.Path;
-
-	if (sQoP == "auth-int")
-	{
-		HA2 += ":";
-		HA2 += KMD5(sBody).HexDigest();
-	}
-
-	bool bSimpleResponse = sQoP != "auth" && sQoP != "auth-int";
-
-	Response = HA1.HexDigest();
-	Response += ":";
-	Response += sNonce;
-	Response += ":";
-
-	if (!bSimpleResponse)
-	{
-		Response += sNonceCount;
-		Response += ":";
-		Response += sCNonce;
-		Response += ":";
-		Response += sQoP;
-		Response += ":";
-	}
-
-	Response += HA2.HexDigest();
-
-	if (bSimpleResponse)
-	{
-		sResponse = kFormat(
-				   "Digest"
-				   " username=\"{}\","
-				   " realm=\"{}\","
-				   " nonce=\"{}\","
-				   " uri=\"{}\","
-				   " response=\"{}\","
-				   " opaque=\"{}\"",
-				   sUsername,
-				   sRealm,
-				   sNonce,
-				   Request.Resource.Path, // uri
-				   Response.HexDigest(),
-				   sOpaque
-				);
-	}
-	else
-	{
-		sResponse = kFormat(
-				   "Digest"
-				   " username=\"{}\","
-				   " realm=\"{}\","
-				   " nonce=\"{}\","
-				   " uri=\"{}\","
-				   " qop={},"
-				   " nc={},"
-				   " cnonce=\"{}\","
-				   " response=\"{}\","
-				   " opaque=\"{}\"",
-				   sUsername,
-				   sRealm,
-				   sNonce,
-				   Request.Resource.Path, // uri
-				   sQoP,
-				   sNonceCount, // nc
-				   sCNonce,
-				   Response.HexDigest(),
-				   sOpaque
-				);
-	}
+	sResponse = kDigestAuthorization(sUsername,
+	                                 sPassword,
+	                                 sRealm,
+	                                 sNonce,
+	                                 sOpaque,
+	                                 sQoP,
+	                                 Request.Method.Serialize(),
+	                                 sURI,
+	                                 ++iNonceCount,
+	                                 sCNonce,
+	                                 sBody);
 
 	return sResponse;
 

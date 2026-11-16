@@ -575,6 +575,11 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	// allow re-use of a previously disconnected stream
 	ResetDisconnectingState();
 
+	// the timeout of the options counts from here on, as in KTCPStream::Connect() -
+	// without this a stream that was constructed without an endpoint (as
+	// CreateKTLSClient(EndPoint, Options) does) connects with the default timeout
+	SetTimeout(Options.GetTimeout());
+
 	m_StreamOptions = Options;
 	m_Stream.bCancelOnTimeout = Options.IsSet(KStreamOptions::CancelOnTimeout);
 	m_Stream.bNeedHandshake = true;

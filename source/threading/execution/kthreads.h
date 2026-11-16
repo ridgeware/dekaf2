@@ -47,8 +47,10 @@
 #include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <thread>
 #include <utility>
+#include <type_traits>
 #include <functional>
 #include <future>
 #include <memory>
@@ -147,6 +149,12 @@ public:
 			// the crash handler (sigaltstack is per-thread and not inherited)
 			kSetupThreadSignalHandling();
 
+#ifdef DEKAF2_IS_LINUX
+			// On Linux the thread starts with the name of the thread that created it.
+			// With that name it would show up in the log as if it were its creator.
+			kClearThreadName();
+#endif
+
 			// call the callable
 			DEKAF2_TRY
 			{
@@ -194,11 +202,47 @@ public:
 
 }; // KThreads
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The name for a thread that kMakeThread() starts: a base name, and how a
+/// number is added to it if another thread has the name - see KUniqueName
+class KThreadName
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// no name
+	KThreadName () = default;
+	/// @param sBaseName the base name, or empty for no name
+	/// @param Format how the number is added to the base name
+	KThreadName (KStringView sBaseName, KUniqueName::Format Format = KUniqueName::Format::Suffix)
+	: m_sBaseName(sBaseName)
+	, m_Format(Format)
+	{
+	}
+
+	DEKAF2_NODISCARD
+	const KString&      GetBaseName () const { return m_sBaseName; }
+	DEKAF2_NODISCARD
+	KUniqueName::Format GetFormat   () const { return m_Format;    }
+
+//------
+private:
+//------
+
+	KString             m_sBaseName;
+	KUniqueName::Format m_Format { KUniqueName::Format::Suffix };
+
+}; // KThreadName
+
 //-----------------------------------------------------------------------------
 /// Drop-in replacement for std::thread() that, before invoking the user
 /// callable, calls kSetupThreadSignalHandling() on the new thread. This
 /// installs the per-thread signal mask and the alternate signal stack used
-/// by the crash handler (SIGSEGV/SIGFPE/SIGILL/SIGBUS).
+/// by the crash handler (SIGSEGV/SIGFPE/SIGILL/SIGBUS). On Linux it also
+/// removes the name that the new thread inherited from its creator.
 ///
 /// On platforms without a registered crash handler, kSetupThreadSignalHandling()
 /// is a no-op, so this helper is safe to use everywhere.
@@ -216,8 +260,11 @@ public:
 ///
 /// Note: the signal handler thread itself MUST NOT use this (it has to keep
 /// signals deliverable to call sigwait()).
+///
+/// With a KThreadName as the first argument the new thread gets a name that no
+/// other thread has at the same time, and keeps it until it ends.
 template<class Function, class... Args>
-std::thread kMakeThread(Function&& f, Args&&... args)
+std::thread kMakeThread(KThreadName Name, Function&& f, Args&&... args)
 //-----------------------------------------------------------------------------
 {
 	// package up the callable + args via std::bind (C++11/14 compatible, and
@@ -225,11 +272,20 @@ std::thread kMakeThread(Function&& f, Args&&... args)
 	// packs into a lambda - same workaround as in KThreads::Create above)
 	auto Callable = std::bind(std::forward<Function>(f), std::forward<Args>(args)...);
 
-	return std::thread([Func = std::move(Callable)]() mutable
+	return std::thread([Func = std::move(Callable), Name = std::move(Name)]() mutable
 	{
 		// set up per-thread signal mask and alternate signal stack for the
 		// crash handler (sigaltstack is per-thread and not inherited)
 		kSetupThreadSignalHandling();
+
+#ifdef DEKAF2_IS_LINUX
+		// On Linux the thread starts with the name of the thread that created it.
+		// With that name it would show up in the log as if it were its creator.
+		kClearThreadName();
+#endif
+
+		// the thread has its name until it ends (an empty name does nothing)
+		KUniqueThreadName ThreadName(Name.GetBaseName(), Name.GetFormat());
 
 		// never let an uncaught exception tear down the whole process -
 		// std::thread's default behavior (std::terminate) is hostile to
@@ -248,6 +304,17 @@ std::thread kMakeThread(Function&& f, Args&&... args)
 		}
 
 	});
+
+} // kMakeThread
+
+//-----------------------------------------------------------------------------
+/// kMakeThread() for a thread without a name - see the overload above
+template<class Function, class... Args>
+typename std::enable_if<!std::is_same<typename std::decay<Function>::type, KThreadName>::value, std::thread>::type
+kMakeThread(Function&& f, Args&&... args)
+//-----------------------------------------------------------------------------
+{
+	return kMakeThread(KThreadName(), std::forward<Function>(f), std::forward<Args>(args)...);
 
 } // kMakeThread
 

@@ -140,4 +140,50 @@ TEST_CASE("KThreads")
 		fut.get();
 		CHECK ( counter.load() == 1 );
 	}
+
+	SECTION("kMakeThread with a thread name")
+	{
+		// run in a thread of its own: the arguments go to the callable as before
+		KString sFirst;
+		KString sSecond;
+		KString sAfter;
+		int     iSum { 0 };
+
+		kMakeThread(KThreadName("utestmade"), [&](int a, int b)
+		{
+			iSum   = a + b;
+			sFirst = kGetThreadName();
+
+			// a second thread at the same time gets a number
+			kMakeThread(KThreadName("utestmade"), [&]() { sSecond = kGetThreadName(); }).join();
+
+		}, 1, 2).join();
+
+		// the name is free again when the thread has ended
+		kMakeThread(KThreadName("utestmade", KUniqueName::Format::Suffix), [&]() { sAfter = kGetThreadName(); }).join();
+
+		CHECK ( iSum == 3 );
+
+		// empty on a platform that cannot name its threads
+		if (!sFirst.empty())
+		{
+			CHECK ( sFirst  == "utestmade"  );
+			CHECK ( sSecond == "utestmade1" );
+			CHECK ( sAfter  == "utestmade"  );
+		}
+
+		// a thread without a name
+		KString sUnnamed { "not noted" };
+		kMakeThread([&]() { sUnnamed = kGetThreadName(); }).join();
+		CHECK ( sUnnamed == "" );
+
+		// with the numbers after a colon
+		KString sColon;
+		kMakeThread(KThreadName("utestmade", KUniqueName::Format::Colon), [&]() { sColon = kGetThreadName(); }).join();
+
+		if (!sFirst.empty())
+		{
+			CHECK ( sColon == "utestmade:0" );
+		}
+	}
 }

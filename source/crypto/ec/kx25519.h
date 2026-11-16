@@ -83,6 +83,17 @@
 ///   KString sNonce  = KHKDF::DeriveKey({}, sSecret, "nonce",   12);
 /// @endcode
 ///
+/// @par JWK (JSON Web Key, RFC 8037)
+/// @code
+///   // a peer's key as it arrives from a browser (WebCrypto exportKey("jwk"))
+///   KX25519 Peer;
+///   Peer.CreateFromJWK(jTheirKey);                // { "kty":"OKP", "crv":"X25519", "x":.. }
+///   KString sSecret = Mine.DeriveSharedSecret(Peer.GetPublicKeyRaw());
+///
+///   // the own public key, e.g. as the "epk" of an ECDH-ES exchange
+///   KJSON jMine = Mine.GetPublicJWK();
+/// @endcode
+///
 /// @par Comparison with KECKey (P-256)
 /// | Feature         | KECKey (P-256)       | KX25519 (Curve25519)      |
 /// |-----------------|----------------------|---------------------------|
@@ -104,6 +115,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/data/json/kjson.h>
 
 #include <openssl/opensslv.h>
 
@@ -191,6 +203,15 @@ public:
 	/// @return true on success
 	bool CreateFromRaw(KStringView sRawKey, bool bIsPrivateKey = false);
 
+	/// load a key from a JWK (JSON Web Key, RFC 8037):
+	/// { "kty":"OKP", "crv":"X25519", "x":... } is a public key, with the
+	/// additional member "d" it is a private key. All other members ("kid",
+	/// "use", ..) are ignored. A private key whose "d" does not belong to
+	/// "x" is refused.
+	/// @param jJWK the JWK object
+	/// @return true on success
+	bool CreateFromJWK(const KJSON& jJWK);
+
 	/// test if key is set
 	DEKAF2_NODISCARD
 	bool empty() const { return !m_EVPPKey; }
@@ -216,6 +237,20 @@ public:
 	/// @return PEM string, empty on error
 	DEKAF2_NODISCARD
 	KString GetPEM(bool bPrivateKey = true) const;
+
+	/// Export the public key as a JWK (JSON Web Key, RFC 8037):
+	/// { "kty":"OKP", "crv":"X25519", "x":... }, with the key
+	/// base64url-encoded. This is the form of the "epk" of an ECDH-ES key
+	/// agreement and of a key exchanged with WebCrypto.
+	/// @return the JWK object, or an empty KJSON if no key is set
+	DEKAF2_NODISCARD
+	KJSON GetPublicJWK() const;
+
+	/// Export the private key as a JWK (JSON Web Key, RFC 8037): the members
+	/// of GetPublicJWK() plus the private key "d".
+	/// @return the JWK object, or an empty KJSON if this is not a private key
+	DEKAF2_NODISCARD
+	KJSON GetPrivateJWK() const;
 
 	/// perform X25519 Diffie-Hellman key agreement with a peer's public key.
 	///

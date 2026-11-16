@@ -73,35 +73,14 @@ KOpenIDKeys::WebKey::WebKey(const KJSON& parms)
 	}
 	else if (sKeyType == "EC")
 	{
-		if (kjson::GetStringRef(parms, "crv") == "P-256")
-		{
-			auto sX = KBase64Url::Decode(kjson::GetStringRef(parms, "x"));
-			auto sY = KBase64Url::Decode(kjson::GetStringRef(parms, "y"));
-
-			if (sX.size() == 32 && sY.size() == 32)
-			{
-				// build 65-byte uncompressed point: 0x04 || x || y
-				KString sRaw;
-				sRaw.reserve(65);
-				sRaw += '\x04';
-				sRaw += sX;
-				sRaw += sY;
-				ECKey.CreateFromRaw(sRaw, false);
-			}
-		}
+		// P-256 only, any other curve leaves the key empty
+		ECKey.CreateFromJWK(parms);
 	}
 #if DEKAF2_HAS_ED25519
 	else if (sKeyType == "OKP")
 	{
-		if (kjson::GetStringRef(parms, "crv") == "Ed25519")
-		{
-			auto sX = KBase64Url::Decode(kjson::GetStringRef(parms, "x"));
-
-			if (sX.size() == 32)
-			{
-				Ed25519Key.CreateFromRaw(sX, false);
-			}
-		}
+		// Ed25519 only, any other curve leaves the key empty
+		Ed25519Key.CreateFromJWK(parms);
 	}
 #endif
 

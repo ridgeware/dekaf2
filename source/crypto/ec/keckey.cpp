@@ -485,7 +485,56 @@ KString KECKey::GetPEM(bool bPrivateKey) const
 } // GetPEM
 
 //-----------------------------------------------------------------------------
-KJSON KECKey::GetPublicJWK(KStringView sKid, KStringView sAlg) const
+bool KECKey::CreateFromJWK(const KJSON& jJWK)
+//-----------------------------------------------------------------------------
+{
+	clear();
+
+	if (kjson::GetStringRef(jJWK, "kty") != "EC" || kjson::GetStringRef(jJWK, "crv") != "P-256")
+	{
+		return SetError("JWK is not an EC key on the curve P-256");
+	}
+
+	auto sX = KBase64Url::Decode(kjson::GetStringRef(jJWK, "x"));
+	auto sY = KBase64Url::Decode(kjson::GetStringRef(jJWK, "y"));
+
+	if (sX.size() != 32 || sY.size() != 32)
+	{
+		return SetError("JWK coordinates x and y must be 32 bytes each");
+	}
+
+	// uncompressed P-256 point: 0x04 || x (32 bytes) || y (32 bytes)
+	KString sPoint;
+	sPoint.reserve(65);
+	sPoint += '\x04';
+	sPoint += sX;
+	sPoint += sY;
+
+	auto& sPrivate = kjson::GetStringRef(jJWK, "d");
+
+	if (sPrivate.empty())
+	{
+		return CreateFromRaw(sPoint, false);
+	}
+
+	if (!CreateFromRaw(KBase64Url::Decode(sPrivate), true))
+	{
+		return false;
+	}
+
+	// the point was computed from d - it has to be the one the JWK names
+	if (GetPublicKeyRaw() != sPoint)
+	{
+		clear();
+		return SetError("private and public key of the JWK do not match");
+	}
+
+	return true;
+
+} // CreateFromJWK
+
+//-----------------------------------------------------------------------------
+KJSON KECKey::GetPublicJWK() const
 //-----------------------------------------------------------------------------
 {
 	auto sRaw = GetPublicKeyRaw();
@@ -502,13 +551,49 @@ KJSON KECKey::GetPublicJWK(KStringView sKid, KStringView sAlg) const
 		{ "kty", "EC"                                     },
 		{ "crv", "P-256"                                  },
 		{ "x",   KBase64Url::Encode(sPoint.substr( 1, 32))},
-		{ "y",   KBase64Url::Encode(sPoint.substr(33, 32))},
-		{ "kid", KString(sKid)                            },
-		{ "alg", KString(sAlg)                            },
-		{ "use", "sig"                                    }
+		{ "y",   KBase64Url::Encode(sPoint.substr(33, 32))}
 	};
 
 } // GetPublicJWK
+
+//-----------------------------------------------------------------------------
+KJSON KECKey::GetPublicJWK(KStringView sKid, KStringView sAlg) const
+//-----------------------------------------------------------------------------
+{
+	auto jJWK = GetPublicJWK();
+
+	if (!jJWK.empty())
+	{
+		jJWK["kid"] = KString(sKid);
+		jJWK["alg"] = KString(sAlg);
+		jJWK["use"] = "sig";
+	}
+
+	return jJWK;
+
+} // GetPublicJWK
+
+//-----------------------------------------------------------------------------
+KJSON KECKey::GetPrivateJWK() const
+//-----------------------------------------------------------------------------
+{
+	auto sPrivate = GetPrivateKeyRaw();
+
+	if (sPrivate.size() != 32)
+	{
+		return KJSON{};
+	}
+
+	auto jJWK = GetPublicJWK();
+
+	if (!jJWK.empty())
+	{
+		jJWK["d"] = KBase64Url::Encode(sPrivate);
+	}
+
+	return jJWK;
+
+} // GetPrivateJWK
 
 //---------------------------------------------------------------------------
 KString KECKey::DeriveSharedSecret(KStringView sPeerPublicRaw) const

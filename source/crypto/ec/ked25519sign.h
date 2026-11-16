@@ -102,6 +102,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/data/json/kjson.h>
 
 #include <openssl/opensslv.h>
 
@@ -185,6 +186,15 @@ public:
 	/// @return true on success
 	bool CreateFromRaw(KStringView sRawKey, bool bIsPrivateKey = false);
 
+	/// load a key from a JWK (JSON Web Key, RFC 8037):
+	/// { "kty":"OKP", "crv":"Ed25519", "x":... } is a public key, with the
+	/// additional member "d" it is a private key. All other members ("kid",
+	/// "alg", "use", ..) are ignored. A private key whose "d" does not
+	/// belong to "x" is refused.
+	/// @param jJWK the JWK object
+	/// @return true on success
+	bool CreateFromJWK(const KJSON& jJWK);
+
 	/// test if key is set
 	DEKAF2_NODISCARD
 	bool empty() const { return !m_EVPPKey; }
@@ -210,6 +220,19 @@ public:
 	/// @return PEM string, empty on error
 	DEKAF2_NODISCARD
 	KString GetPEM(bool bPrivateKey = true) const;
+
+	/// Export the public key as a JWK (JSON Web Key, RFC 8037) with nothing
+	/// but the key parameters: { "kty":"OKP", "crv":"Ed25519", "x":... },
+	/// with the key base64url-encoded.
+	/// @return the JWK object, or an empty KJSON if no key is set
+	DEKAF2_NODISCARD
+	KJSON GetPublicJWK() const;
+
+	/// Export the private key as a JWK (JSON Web Key, RFC 8037): the members
+	/// of GetPublicJWK() plus the private key (seed) "d".
+	/// @return the JWK object, or an empty KJSON if this is not a private key
+	DEKAF2_NODISCARD
+	KJSON GetPrivateJWK() const;
 
 	/// get the underlying OpenSSL key handle
 	DEKAF2_NODISCARD

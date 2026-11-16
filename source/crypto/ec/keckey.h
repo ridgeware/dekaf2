@@ -108,6 +108,17 @@
 ///   KString sRawPub = Key.GetPublicKeyRaw();      // 65 bytes
 /// @endcode
 ///
+/// @par JWK (JSON Web Key, RFC 7517 / RFC 7518)
+/// @code
+///   // a peer's key as it arrives from a browser (WebCrypto exportKey("jwk"))
+///   KECKey Peer;
+///   Peer.CreateFromJWK(jTheirKey);                // { "kty":"EC", "crv":"P-256", "x":.., "y":.. }
+///
+///   // the own public key with nothing but the key parameters, e.g. as the
+///   // "epk" of an ECDH-ES exchange or as the "jwk" of a JWS header
+///   KJSON jMine = Key.GetPublicJWK();
+/// @endcode
+///
 /// @note Move-only type — copy construction/assignment is deleted
 ///       because the class owns an OpenSSL EVP_PKEY handle.
 ///
@@ -190,6 +201,15 @@ public:
 	/// @return true on success
 	bool CreateFromRaw(KStringView sRawKey, bool bIsPrivateKey = false);
 
+	/// load a key from a JWK (JSON Web Key, RFC 7518 section 6.2):
+	/// { "kty":"EC", "crv":"P-256", "x":..., "y":... } is a public key, with
+	/// the additional member "d" it is a private key. All other members
+	/// ("kid", "alg", "use", ..) are ignored. A private key whose "d" does
+	/// not belong to the point (x, y) is refused.
+	/// @param jJWK the JWK object
+	/// @return true on success
+	bool CreateFromJWK(const KJSON& jJWK);
+
 	/// test if key is set
 	DEKAF2_NODISCARD
 	bool empty() const { return !m_EVPPKey; }
@@ -216,6 +236,16 @@ public:
 	DEKAF2_NODISCARD
 	KString GetPEM(bool bPrivateKey = true) const;
 
+	/// Export the public key as a JWK (JSON Web Key) with nothing but the key
+	/// parameters: { "kty":"EC", "crv":"P-256", "x":..., "y":... }.
+	/// This is the form for a key that is not (only) a signing key: the "epk"
+	/// of an ECDH-ES key agreement (RFC 7518 section 4.6), the "jwk" of a JWS
+	/// header, the input of a JWK thumbprint (RFC 7638), or a key exchanged
+	/// with WebCrypto. The coordinates are base64url-encoded big-endian.
+	/// @return the JWK object, or an empty KJSON if no key is set
+	DEKAF2_NODISCARD
+	KJSON GetPublicJWK() const;
+
 	/// Export the public key as a JWK (JSON Web Key) suitable for a JWKS
 	/// document: { "kty":"EC", "crv":"P-256", "x":..., "y":..., "kid":..., "alg":..., "use":"sig" }.
 	/// The coordinates are base64url-encoded big-endian (JWK spec).
@@ -224,6 +254,12 @@ public:
 	/// @return the JWK object, or an empty KJSON if no key is set
 	DEKAF2_NODISCARD
 	KJSON GetPublicJWK(KStringView sKid, KStringView sAlg = "ES256") const;
+
+	/// Export the private key as a JWK (JSON Web Key): the key parameters of
+	/// GetPublicJWK() plus the private scalar "d".
+	/// @return the JWK object, or an empty KJSON if this is not a private key
+	DEKAF2_NODISCARD
+	KJSON GetPrivateJWK() const;
 
 	/// perform ECDH key derivation with a peer's public key
 	/// @param sPeerPublicRaw the peer's uncompressed public key (65 bytes)

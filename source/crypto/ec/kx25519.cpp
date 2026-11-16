@@ -47,6 +47,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
@@ -215,6 +216,41 @@ bool KX25519::CreateFromRaw(KStringView sRawKey, bool bIsPrivateKey)
 } // CreateFromRaw
 
 //---------------------------------------------------------------------------
+bool KX25519::CreateFromJWK(const KJSON& jJWK)
+//---------------------------------------------------------------------------
+{
+	clear();
+
+	if (kjson::GetStringRef(jJWK, "kty") != "OKP" || kjson::GetStringRef(jJWK, "crv") != "X25519")
+	{
+		return SetError("JWK is not an OKP key on the curve X25519");
+	}
+
+	auto  sPublic  = KBase64Url::Decode(kjson::GetStringRef(jJWK, "x"));
+	auto& sPrivate = kjson::GetStringRef(jJWK, "d");
+
+	if (sPrivate.empty())
+	{
+		return CreateFromRaw(sPublic, false);
+	}
+
+	if (!CreateFromRaw(KBase64Url::Decode(sPrivate), true))
+	{
+		return false;
+	}
+
+	// the public key was computed from d - it has to be the one the JWK names
+	if (GetPublicKeyRaw() != sPublic)
+	{
+		clear();
+		return SetError("private and public key of the JWK do not match");
+	}
+
+	return true;
+
+} // CreateFromJWK
+
+//---------------------------------------------------------------------------
 KString KX25519::GetPrivateKeyRaw() const
 //---------------------------------------------------------------------------
 {
@@ -297,6 +333,47 @@ KString KX25519::GetPEM(bool bPrivateKey) const
 	return KString(pPEM, static_cast<std::size_t>(iLen));
 
 } // GetPEM
+
+//---------------------------------------------------------------------------
+KJSON KX25519::GetPublicJWK() const
+//---------------------------------------------------------------------------
+{
+	auto sPublic = GetPublicKeyRaw();
+
+	if (sPublic.size() != 32)
+	{
+		return KJSON{};
+	}
+
+	return KJSON {
+		{ "kty", "OKP"                       },
+		{ "crv", "X25519"                    },
+		{ "x",   KBase64Url::Encode(sPublic) }
+	};
+
+} // GetPublicJWK
+
+//---------------------------------------------------------------------------
+KJSON KX25519::GetPrivateJWK() const
+//---------------------------------------------------------------------------
+{
+	auto sPrivate = GetPrivateKeyRaw();
+
+	if (sPrivate.size() != 32)
+	{
+		return KJSON{};
+	}
+
+	auto jJWK = GetPublicJWK();
+
+	if (!jJWK.empty())
+	{
+		jJWK["d"] = KBase64Url::Encode(sPrivate);
+	}
+
+	return jJWK;
+
+} // GetPrivateJWK
 
 //---------------------------------------------------------------------------
 KString KX25519::DeriveSharedSecret(KStringView sPeerPublicRaw) const

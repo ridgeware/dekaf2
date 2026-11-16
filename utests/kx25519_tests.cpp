@@ -5,6 +5,7 @@
 #if DEKAF2_HAS_X25519
 
 #include <dekaf2/crypto/encoding/khex.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
 #include <vector>
 
 using namespace dekaf2;
@@ -263,6 +264,99 @@ TEST_CASE("KX25519")
 		// and the key still agrees with a proper peer
 		KX25519 Peer(true);
 		CHECK ( Key.DeriveSharedSecret(Peer.GetPublicKeyRaw()).size() == 32 );
+	}
+
+	SECTION("JWK round-trip (public key)")
+	{
+		KX25519 Key(true);
+
+		auto jJWK = Key.GetPublicJWK();
+		CHECK ( jJWK.size() == 3 );
+		CHECK ( jJWK["kty"] == "OKP"    );
+		CHECK ( jJWK["crv"] == "X25519" );
+		CHECK ( KBase64Url::Decode(jJWK["x"].String()) == Key.GetPublicKeyRaw() );
+
+		KX25519 Key2;
+		REQUIRE     ( Key2.CreateFromJWK(jJWK) );
+		CHECK_FALSE ( Key2.IsPrivateKey() );
+		CHECK       ( Key2.GetPublicKeyRaw() == Key.GetPublicKeyRaw() );
+		CHECK       ( Key2.GetPrivateJWK().empty() );
+	}
+
+	SECTION("JWK round-trip (private key)")
+	{
+		KX25519 Key(true);
+
+		auto jJWK = Key.GetPrivateJWK();
+		CHECK ( jJWK.size() == 4 );
+		CHECK ( KBase64Url::Decode(jJWK["d"].String()) == Key.GetPrivateKeyRaw() );
+
+		KX25519 Key2;
+		REQUIRE ( Key2.CreateFromJWK(jJWK) );
+		CHECK   ( Key2.IsPrivateKey() );
+		CHECK   ( Key2.GetPrivateKeyRaw() == Key.GetPrivateKeyRaw() );
+		CHECK   ( Key2.GetPublicKeyRaw()  == Key.GetPublicKeyRaw()  );
+	}
+
+	SECTION("JWK known-answer test (RFC 8037 Appendix A.6)")
+	{
+		// the keys of RFC 7748 section 6.1 as RFC 8037 writes them
+		KJSON jBob {
+			{ "kty", "OKP"    },
+			{ "crv", "X25519" },
+			{ "kid", "Bob"    },
+			{ "x"  , "3p7bfXt9wbTTW2HC7OQ1Nz-DQ8hbeGdNrfx-FG-IK08" }
+		};
+
+		KJSON jEphemeral {
+			{ "kty", "OKP"    },
+			{ "crv", "X25519" },
+			{ "x"  , "hSDwCYkwp1R0i33ctD73Wg2_Og0mOBr066SpjqqbTmo" }
+		};
+
+		KX25519 Bob;
+		REQUIRE ( Bob.CreateFromJWK(jBob) );
+		CHECK   ( kHex(Bob.GetPublicKeyRaw()) == "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f" );
+
+		KX25519 Ephemeral;
+		REQUIRE ( Ephemeral.CreateFromRaw(kUnHex("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a"), true) );
+		CHECK   ( Ephemeral.GetPublicJWK() == jEphemeral );
+
+		CHECK   ( kHex(Ephemeral.DeriveSharedSecret(Bob.GetPublicKeyRaw()))
+		          == "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742" );
+	}
+
+	SECTION("CreateFromJWK refuses what is not an X25519 key")
+	{
+		KX25519 Good(true);
+		auto jGood = Good.GetPrivateJWK();
+
+		KX25519 Key;
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON{}) );
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON::array()) );
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON{{ "kty", "OKP" }, { "crv", "X25519" }}) );
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON{{ "kty", "OKP" }, { "crv", "X25519" }, { "x", "AAAA" }}) );
+
+		auto jBad = jGood;
+		jBad["kty"] = "EC";
+		CHECK_FALSE ( Key.CreateFromJWK(jBad) );
+
+		// an Ed25519 key is not an X25519 key
+		jBad = jGood;
+		jBad["crv"] = "Ed25519";
+		CHECK_FALSE ( Key.CreateFromJWK(jBad) );
+
+		// a private key that does not belong to the public key
+		jBad = jGood;
+		jBad["x"] = KX25519(true).GetPublicJWK()["x"];
+		CHECK_FALSE ( Key.CreateFromJWK(jBad) );
+		CHECK       ( Key.empty() );
+		CHECK       ( Key.HasError() );
+
+		// and a failed load leaves no earlier key behind
+		REQUIRE     ( Key.CreateFromJWK(jGood) );
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON{}) );
+		CHECK       ( Key.empty() );
 	}
 }
 

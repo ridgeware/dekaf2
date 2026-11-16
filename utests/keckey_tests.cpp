@@ -3,6 +3,7 @@
 #include <dekaf2/crypto/ec/keckey.h>
 #include <dekaf2/crypto/ec/kecsign.h>
 #include <dekaf2/crypto/encoding/khex.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
 
 using namespace dekaf2;
 
@@ -195,6 +196,124 @@ TEST_CASE("KECKey")
 		REQUIRE ( sPeer.size() == 65 );
 		sPeer[64] ^= 0x01;
 		CHECK ( Key.DeriveSharedSecret(sPeer).empty() );
+	}
+
+	SECTION("JWK round-trip (public key)")
+	{
+		KECKey Key(true);
+		auto sRaw = Key.GetPublicKeyRaw();
+		REQUIRE ( sRaw.size() == 65 );
+
+		auto jJWK = Key.GetPublicJWK();
+		CHECK ( jJWK.size() == 4 );
+		CHECK ( jJWK["kty"] == "EC"    );
+		CHECK ( jJWK["crv"] == "P-256" );
+		CHECK ( KBase64Url::Decode(jJWK["x"].String()) == sRaw.ToView( 1, 32) );
+		CHECK ( KBase64Url::Decode(jJWK["y"].String()) == sRaw.ToView(33, 32) );
+
+		KECKey Key2;
+		REQUIRE     ( Key2.CreateFromJWK(jJWK) );
+		CHECK_FALSE ( Key2.IsPrivateKey() );
+		CHECK       ( Key2.GetPublicKeyRaw() == sRaw );
+		CHECK       ( Key2.GetPrivateJWK().empty() );
+	}
+
+	SECTION("JWK round-trip (private key)")
+	{
+		KECKey Key(true);
+
+		auto jJWK = Key.GetPrivateJWK();
+		CHECK ( jJWK.size() == 5 );
+		CHECK ( KBase64Url::Decode(jJWK["d"].String()) == Key.GetPrivateKeyRaw() );
+
+		KECKey Key2;
+		REQUIRE ( Key2.CreateFromJWK(jJWK) );
+		CHECK   ( Key2.IsPrivateKey() );
+		CHECK   ( Key2.GetPrivateKeyRaw() == Key.GetPrivateKeyRaw() );
+		CHECK   ( Key2.GetPublicKeyRaw()  == Key.GetPublicKeyRaw()  );
+	}
+
+	SECTION("JWK with key id and algorithm is the bare JWK plus three members")
+	{
+		KECKey Key(true);
+
+		auto jBare = Key.GetPublicJWK();
+		auto jFull = Key.GetPublicJWK("key-1");
+		CHECK ( jFull.size()  == 7       );
+		CHECK ( jFull["kid"]  == "key-1" );
+		CHECK ( jFull["alg"]  == "ES256" );
+		CHECK ( jFull["use"]  == "sig"   );
+		CHECK ( jFull["x"]    == jBare["x"] );
+		CHECK ( jFull["y"]    == jBare["y"] );
+
+		// the additional members do not disturb the import
+		KECKey Key2;
+		REQUIRE ( Key2.CreateFromJWK(jFull) );
+		CHECK   ( Key2.GetPublicKeyRaw() == Key.GetPublicKeyRaw() );
+	}
+
+	SECTION("JWK known-answer test (RFC 7517 Appendix A.2)")
+	{
+		KJSON jJWK {
+			{ "kty", "EC"    },
+			{ "crv", "P-256" },
+			{ "x"  , "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4" },
+			{ "y"  , "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM" },
+			{ "d"  , "870MB6gfuTJ4HtUnUvYMyJpr5eUZNP4Bk43bVdj3eAE" },
+			{ "use", "enc"   },
+			{ "kid", "1"     }
+		};
+
+		// the import computes the point from d and compares it with x and y
+		KECKey Key;
+		REQUIRE ( Key.CreateFromJWK(jJWK) );
+		CHECK   ( Key.IsPrivateKey() );
+
+		auto jOut = Key.GetPrivateJWK();
+		CHECK ( jOut["x"] == jJWK["x"] );
+		CHECK ( jOut["y"] == jJWK["y"] );
+		CHECK ( jOut["d"] == jJWK["d"] );
+	}
+
+	SECTION("CreateFromJWK refuses what is not a P-256 key")
+	{
+		KECKey Good(true);
+		auto jGood = Good.GetPrivateJWK();
+
+		KECKey Key;
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON{}) );
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON::array()) );
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON{{ "kty", "EC" }, { "crv", "P-256" }, { "x", jGood["x"] }}) );
+
+		auto jBad = jGood;
+		jBad["kty"] = "OKP";
+		CHECK_FALSE ( Key.CreateFromJWK(jBad) );
+
+		jBad = jGood;
+		jBad["crv"] = "P-384";
+		CHECK_FALSE ( Key.CreateFromJWK(jBad) );
+
+		// no curve at all is not P-256 either
+		jBad = jGood;
+		jBad.erase("crv");
+		CHECK_FALSE ( Key.CreateFromJWK(jBad) );
+
+		// a public key that is not on the curve
+		jBad = Good.GetPublicJWK();
+		jBad["y"] = jBad["x"];
+		CHECK_FALSE ( Key.CreateFromJWK(jBad) );
+
+		// a private key that does not belong to the public key
+		jBad = jGood;
+		jBad["d"] = KECKey(true).GetPrivateJWK()["d"];
+		CHECK_FALSE ( Key.CreateFromJWK(jBad) );
+		CHECK       ( Key.empty() );
+		CHECK       ( Key.HasError() );
+
+		// and a failed load leaves no earlier key behind
+		REQUIRE     ( Key.CreateFromJWK(jGood) );
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON{}) );
+		CHECK       ( Key.empty() );
 	}
 }
 

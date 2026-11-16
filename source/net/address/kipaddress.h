@@ -180,14 +180,14 @@ public:
 #if DEKAF2_IPADDRESS_HAS_SOCKADDR
 	/// construct from in_addr - bytes in network byte order
 	DEKAF2_LE_BE_CONSTEXPR
-	                   KIPAddress4(const in_addr& in4)
+	                   KIPAddress4(const in_addr& in4) noexcept
 	                   : m_IP { NetworkByte(in4.s_addr, 0), NetworkByte(in4.s_addr, 1),
 	                            NetworkByte(in4.s_addr, 2), NetworkByte(in4.s_addr, 3) }
 	                   {}
 
 	/// construct from sockaddr_in - bytes in network byte order
 	DEKAF2_LE_BE_CONSTEXPR
-	                   KIPAddress4(const sockaddr_in& in4)
+	                   KIPAddress4(const sockaddr_in& in4) noexcept
 					   : KIPAddress4(in4.sin_addr)
 					   {}
 #endif
@@ -534,7 +534,7 @@ public:
 
 #if DEKAF2_IPADDRESS_HAS_SOCKADDR
 	/// construct from in6_addr - bytes in network byte order
-	constexpr          KIPAddress6(const in6_addr& in6, ScopeT Scope = 0)
+	constexpr          KIPAddress6(const in6_addr& in6, ScopeT Scope = 0) noexcept
 	                   : m_IP(BytesT{ in6.s6_addr[ 0], in6.s6_addr[ 1], in6.s6_addr[ 2], in6.s6_addr[ 3],
 	                                  in6.s6_addr[ 4], in6.s6_addr[ 5], in6.s6_addr[ 6], in6.s6_addr[ 7],
 	                                  in6.s6_addr[ 8], in6.s6_addr[ 9], in6.s6_addr[10], in6.s6_addr[11],
@@ -543,7 +543,7 @@ public:
 	                   {}
 
 	/// construct from sockaddr_in6 - bytes in network byte order
-	constexpr          KIPAddress6(const sockaddr_in6& in6)
+	constexpr          KIPAddress6(const sockaddr_in6& in6) noexcept
 	                   : KIPAddress6(in6.sin6_addr, in6.sin6_scope_id)
 	                   {}
 #endif

@@ -188,4 +188,107 @@ EBrURx/EsHSk
 		CHECK ( Key2.IsPrivateKey() == true  );
 		CHECK ( Key2.GetPEM(false)  == Key.GetPEM(false) );
 	}
+
+	SECTION("JWK known-answer test (public key)")
+	{
+		KRSAKey Key(sPubKey);
+
+		// the modulus of the key above, and 65537
+		auto jJWK = Key.GetPublicJWK();
+		CHECK ( jJWK.size() == 3 );
+		CHECK ( jJWK["kty"] == "RSA"  );
+		CHECK ( jJWK["e"]   == "AQAB" );
+		CHECK ( jJWK["n"]   == "tzi2xywytzA-oK6fXCtqFmETiy56Ame2J30CSsIrpt-QgAr07gDN7EAuUxCVKOMdn2PYSWnXislYrzU6x4P7fA-gTS2JXHukJaF-wJSQU9vS0C155g4jOmp2l4TkP_-x1mHwc3mF8qtZNl0gD0VKe4QPIfRru6WLrUaFPwLrqq8" );
+
+		// a private key has the same public JWK
+		CHECK ( KRSAKey(sPrivKey).GetPublicJWK() == jJWK );
+
+		KRSAKey Key2;
+		REQUIRE ( Key2.CreateFromJWK(jJWK) );
+		CHECK   ( Key2.IsPrivateKey() == false );
+		CHECK   ( Key2.GetPEM(false)  == sPubKey );
+		CHECK   ( Key2.GetPrivateJWK().empty() );
+	}
+
+	SECTION("JWK with key id and algorithm is the bare JWK plus three members")
+	{
+		KRSAKey Key(sPubKey);
+
+		auto jBare = Key.GetPublicJWK();
+		auto jFull = Key.GetPublicJWK("key-1");
+		CHECK ( jFull.size() == 6       );
+		CHECK ( jFull["kid"] == "key-1" );
+		CHECK ( jFull["alg"] == "RS256" );
+		CHECK ( jFull["use"] == "sig"   );
+		CHECK ( jFull["n"]   == jBare["n"] );
+		CHECK ( jFull["e"]   == jBare["e"] );
+
+		// the additional members do not disturb the import
+		KRSAKey Key2;
+		REQUIRE ( Key2.CreateFromJWK(jFull) );
+		CHECK   ( Key2.GetPEM(false) == sPubKey );
+	}
+
+	SECTION("JWK round-trip (private key)")
+	{
+		KRSAKey Key(sPrivKey);
+		REQUIRE ( Key.IsPrivateKey() );
+
+		auto jJWK = Key.GetPrivateJWK();
+		CHECK ( jJWK.size() == 9 );
+
+		for (auto sMember : { "n", "e", "d", "p", "q", "dp", "dq", "qi" })
+		{
+			INFO  ( sMember );
+			CHECK ( jJWK[sMember].String().empty() == false );
+		}
+
+		// the same key again: it writes the same PEM
+		KRSAKey Key2;
+		REQUIRE ( Key2.CreateFromJWK(jJWK) );
+		CHECK   ( Key2.IsPrivateKey() );
+		CHECK   ( Key2.GetPEM(true)   == Key.GetPEM(true) );
+		CHECK   ( Key2.GetPEM(false)  == sPubKey          );
+		CHECK   ( Key2.GetPrivateJWK() == jJWK            );
+	}
+
+	SECTION("JWK round-trip (new key)")
+	{
+		KRSAKey Key(2048);
+		REQUIRE ( Key.IsPrivateKey() );
+
+		KRSAKey Key2;
+		REQUIRE ( Key2.CreateFromJWK(Key.GetPrivateJWK()) );
+		CHECK   ( Key2.GetPEM(true) == Key.GetPEM(true) );
+
+		KRSAKey Public;
+		REQUIRE ( Public.CreateFromJWK(Key.GetPublicJWK()) );
+		CHECK   ( Public.IsPrivateKey() == false );
+		CHECK   ( Public.GetPEM(false)  == Key.GetPEM(false) );
+	}
+
+	SECTION("CreateFromJWK refuses what is not an RSA key")
+	{
+		KRSAKey Good(sPrivKey);
+		auto jGood = Good.GetPrivateJWK();
+
+		KRSAKey Key;
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON{}) );
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON::array()) );
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON{{ "kty", "RSA" }, { "e", "AQAB" }}) );
+
+		auto jBad = jGood;
+		jBad["kty"] = "EC";
+		CHECK_FALSE ( Key.CreateFromJWK(jBad) );
+
+		// Create() reads the same members, but does not ask for the key type
+		jBad.erase("kty");
+		CHECK_FALSE ( Key.CreateFromJWK(jBad) );
+		CHECK       ( Key.Create(jBad)        );
+
+		// and a failed load leaves no earlier key behind
+		CHECK_FALSE ( Key.CreateFromJWK(KJSON{}) );
+		CHECK       ( Key.empty() );
+		CHECK       ( Key.HasError() );
+	}
 }

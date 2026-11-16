@@ -136,6 +136,16 @@ public:
 	{
 		return Create(Parameters(json));
 	}
+	/// create the key from a JWK (JSON Web Key, RFC 7518 section 6.3):
+	/// { "kty":"RSA", "n":..., "e":... } is a public key, with the additional
+	/// member "d" (and the CRT members "p", "q", "dp", "dq", "qi", if the
+	/// key has them) it is a private key. All other members ("kid", "alg",
+	/// "use", ..) are ignored. This reads the same members as
+	/// Create(const KJSON&), but insists on the key type "RSA". The parts of
+	/// a private key are not checked against each other.
+	/// @param jJWK the JWK object
+	/// @return true on success
+	bool CreateFromJWK(const KJSON& jJWK);
 	/// get the key from a PEM string
 	/// @param sPEMKey the string containing the PEM key
 	/// @param sPassword the password to read the PEM key, defaults to no password
@@ -151,6 +161,14 @@ public:
 	bool Load(KStringViewZ sFilename, KStringViewZ sPassword = KStringViewZ{});
 	/// save key to file (PEM format)
 	bool Save(KStringViewZ sFilename, bool bPrivateKey, KStringView sPassword = KStringView{});
+	/// Export the public key as a JWK (JSON Web Key) with nothing but the key
+	/// parameters: { "kty":"RSA", "n":..., "e":... }. This is the form for
+	/// the "jwk" of a JWS header, for the input of a JWK thumbprint
+	/// (RFC 7638), or for a key exchanged with WebCrypto. Modulus and
+	/// exponent are base64url-encoded big-endian.
+	/// @return the JWK object, or an empty KJSON if no key is set
+	DEKAF2_NODISCARD
+	KJSON GetPublicJWK() const;
 	/// Export the public key as a JWK (JSON Web Key) suitable for a JWKS
 	/// document: { "kty":"RSA", "n":..., "e":..., "kid":..., "alg":..., "use":"sig" }.
 	/// Modulus and exponent are base64url-encoded big-endian (JWK spec, the
@@ -161,6 +179,13 @@ public:
 	/// @return the JWK object, or an empty KJSON if no key is set
 	DEKAF2_NODISCARD
 	KJSON GetPublicJWK(KStringView sKid, KStringView sAlg = "RS256") const;
+	/// Export the private key as a JWK (JSON Web Key): the key parameters of
+	/// GetPublicJWK() plus the private exponent "d" and, if the key has all
+	/// of them, the CRT members "p", "q", "dp", "dq" and "qi" (RFC 7518
+	/// section 6.3.2).
+	/// @return the JWK object, or an empty KJSON if this is not a private key
+	DEKAF2_NODISCARD
+	KJSON GetPrivateJWK() const;
 
 //------
 private:

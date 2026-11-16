@@ -136,7 +136,7 @@ KAcmeClient::KAcmeClient(Options Options)
 KString KAcmeClient::JWKThumbprint(const KRSAKey& Key)
 //-----------------------------------------------------------------------------
 {
-	auto jJWK = Key.GetPublicJWK("", "RS256");
+	auto jJWK = Key.GetPublicJWK();
 
 	if (jJWK.empty())
 	{
@@ -214,23 +214,7 @@ KJSON KAcmeClient::AccountJWK() const
 //-----------------------------------------------------------------------------
 {
 	// the account JWK in a JWS header carries only the key parameters
-	if (m_bAccountIsEC)
-	{
-		return m_AccountKeyEC.GetPublicJWK();
-	}
-
-	auto jFull = m_AccountKey.GetPublicJWK("", "RS256");
-
-	if (jFull.empty())
-	{
-		return KJSON{};
-	}
-
-	return KJSON {
-		{ "e"  , jFull["e"  ].String() },
-		{ "kty", jFull["kty"].String() },
-		{ "n"  , jFull["n"  ].String() }
-	};
+	return m_bAccountIsEC ? m_AccountKeyEC.GetPublicJWK() : m_AccountKey.GetPublicJWK();
 
 } // AccountJWK
 

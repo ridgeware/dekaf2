@@ -108,6 +108,116 @@ BIGNUM* Base64ToBignum(KStringView sBase64)
 
 } // Base64ToBignum
 
+//---------------------------------------------------------------------------
+/// big-endian BIGNUM bytes -> base64url (the inverse of Base64ToBignum)
+KString BignumToBase64(const BIGNUM* bn)
+//---------------------------------------------------------------------------
+{
+	if (!bn)
+	{
+		return {};
+	}
+
+	KString sBin;
+	sBin.resize(static_cast<std::size_t>(BN_num_bytes(bn))); // BN_num_bytes is a macro, do not qualify
+	auto iLen = ::BN_bn2bin(bn, reinterpret_cast<unsigned char*>(&sBin[0]));
+	sBin.resize(iLen < 0 ? 0 : static_cast<std::size_t>(iLen));
+
+	return KBase64Url::Encode(sBin);
+
+} // BignumToBase64
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// the parts of an RSA key as a JWK names them, base64url-encoded - a part
+/// the key does not have stays empty
+struct KeyParts
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KString n;
+	KString e;
+	KString d;
+	KString p;
+	KString q;
+	KString dp;
+	KString dq;
+	KString qi;
+};
+
+//---------------------------------------------------------------------------
+/// read the parts of an RSA key, the private ones only when asked for
+KeyParts GetKeyParts(EVP_PKEY* pKey, bool bWithPrivateParts)
+//---------------------------------------------------------------------------
+{
+	KeyParts Parts;
+
+#if OPENSSL_VERSION_NUMBER >= 0x030000000
+
+	auto Get = [pKey](const char* sName) -> KString
+	{
+		BIGNUM* pBN = nullptr;
+
+		// a part the key does not have is no error - leave no trace of the
+		// failed lookup in the error queue
+		::ERR_set_mark();
+		bool bHave = ::EVP_PKEY_get_bn_param(pKey, sName, &pBN) == 1;
+		::ERR_pop_to_mark();
+
+		KUniquePtr<BIGNUM, ::BN_clear_free> bn(pBN);
+
+		return bHave ? BignumToBase64(bn.get()) : KString{};
+	};
+
+	Parts.n = Get("n");
+	Parts.e = Get("e");
+
+	if (bWithPrivateParts)
+	{
+		Parts.d  = Get("d");
+		Parts.p  = Get("rsa-factor1");
+		Parts.q  = Get("rsa-factor2");
+		Parts.dp = Get("rsa-exponent1");
+		Parts.dq = Get("rsa-exponent2");
+		Parts.qi = Get("rsa-coefficient1");
+	}
+
+#else
+
+	const RSA* rsa = ::EVP_PKEY_get0_RSA(pKey);
+
+	if (rsa)
+	{
+		// const pointers owned by the RSA
+		const BIGNUM* pN  = nullptr;
+		const BIGNUM* pE  = nullptr;
+		const BIGNUM* pD  = nullptr;
+		::RSA_get0_key(rsa, &pN, &pE, &pD);
+		Parts.n = BignumToBase64(pN);
+		Parts.e = BignumToBase64(pE);
+
+		if (bWithPrivateParts)
+		{
+			const BIGNUM* pP  = nullptr;
+			const BIGNUM* pQ  = nullptr;
+			const BIGNUM* pDP = nullptr;
+			const BIGNUM* pDQ = nullptr;
+			const BIGNUM* pQI = nullptr;
+			::RSA_get0_factors   (rsa, &pP, &pQ);
+			::RSA_get0_crt_params(rsa, &pDP, &pDQ, &pQI);
+			Parts.d  = BignumToBase64(pD );
+			Parts.p  = BignumToBase64(pP );
+			Parts.q  = BignumToBase64(pQ );
+			Parts.dp = BignumToBase64(pDP);
+			Parts.dq = BignumToBase64(pDQ);
+			Parts.qi = BignumToBase64(pQI);
+		}
+	}
+
+#endif
+
+	return Parts;
+
+} // GetKeyParts
+
 } // end of anonymous namespace
 
 //---------------------------------------------------------------------------
@@ -330,6 +440,20 @@ bool KRSAKey::Create(const Parameters& parms)
 } // Create
 
 //---------------------------------------------------------------------------
+bool KRSAKey::CreateFromJWK(const KJSON& jJWK)
+//---------------------------------------------------------------------------
+{
+	if (kjson::GetStringRef(jJWK, "kty") != "RSA")
+	{
+		clear();
+		return SetError("JWK is not an RSA key");
+	}
+
+	return Create(Parameters(jJWK));
+
+} // CreateFromJWK
+
+//---------------------------------------------------------------------------
 bool KRSAKey::Create(KStringView sPEMKey, KStringViewZ sPassword)
 //---------------------------------------------------------------------------
 {
@@ -471,7 +595,7 @@ bool KRSAKey::Save(KStringViewZ sFilename, bool bPrivateKey, KStringView sPasswo
 } // Save
 
 //---------------------------------------------------------------------------
-KJSON KRSAKey::GetPublicJWK(KStringView sKid, KStringView sAlg) const
+KJSON KRSAKey::GetPublicJWK() const
 //---------------------------------------------------------------------------
 {
 	if (!m_EVPPKey)
@@ -479,73 +603,76 @@ KJSON KRSAKey::GetPublicJWK(KStringView sKid, KStringView sAlg) const
 		return KJSON{};
 	}
 
-	// big-endian BIGNUM bytes -> base64url (the inverse of Base64ToBignum)
-	auto BignumToBase64 = [](const BIGNUM* bn) -> KString
+	auto Parts = GetKeyParts(m_EVPPKey, false);
+
+	if (Parts.n.empty() || Parts.e.empty())
 	{
-		if (!bn)
-		{
-			return {};
-		}
-		KString sBin;
-		sBin.resize(static_cast<std::size_t>(BN_num_bytes(bn))); // BN_num_bytes is a macro, do not qualify
-		auto iLen = ::BN_bn2bin(bn, reinterpret_cast<unsigned char*>(&sBin[0]));
-		sBin.resize(iLen < 0 ? 0 : static_cast<std::size_t>(iLen));
-		return KBase64Url::Encode(sBin);
-	};
-
-	KString sN, sE;
-
-#if OPENSSL_VERSION_NUMBER >= 0x030000000
-
-	BIGNUM* pN = nullptr;
-	BIGNUM* pE = nullptr;
-
-	if (::EVP_PKEY_get_bn_param(m_EVPPKey, "n", &pN) != 1 ||
-	    ::EVP_PKEY_get_bn_param(m_EVPPKey, "e", &pE) != 1)
-	{
-		if (pN) ::BN_free(pN);
-		if (pE) ::BN_free(pE);
-		kDebug(1, KDigest::GetOpenSSLError("cannot read RSA public parameters"));
-		return KJSON{};
-	}
-
-	KUniquePtr<BIGNUM, ::BN_free> bnN(pN);
-	KUniquePtr<BIGNUM, ::BN_free> bnE(pE);
-	sN = BignumToBase64(bnN.get());
-	sE = BignumToBase64(bnE.get());
-
-#else
-
-	const RSA* rsa = ::EVP_PKEY_get0_RSA(m_EVPPKey);
-
-	if (!rsa)
-	{
-		return KJSON{};
-	}
-
-	const BIGNUM* pN = nullptr;
-	const BIGNUM* pE = nullptr;
-	::RSA_get0_key(rsa, &pN, &pE, nullptr); // const pointers owned by the RSA
-	sN = BignumToBase64(pN);
-	sE = BignumToBase64(pE);
-
-#endif
-
-	if (sN.empty() || sE.empty())
-	{
+		kDebug(1, "cannot read RSA public parameters");
 		return KJSON{};
 	}
 
 	return KJSON {
-		{ "kty", "RSA"          },
-		{ "n",   std::move(sN)  },
-		{ "e",   std::move(sE)  },
-		{ "kid", KString(sKid)  },
-		{ "alg", KString(sAlg)  },
-		{ "use", "sig"          }
+		{ "kty", "RSA"              },
+		{ "n",   std::move(Parts.n) },
+		{ "e",   std::move(Parts.e) }
 	};
 
 } // GetPublicJWK
+
+//---------------------------------------------------------------------------
+KJSON KRSAKey::GetPublicJWK(KStringView sKid, KStringView sAlg) const
+//---------------------------------------------------------------------------
+{
+	auto jJWK = GetPublicJWK();
+
+	if (!jJWK.empty())
+	{
+		jJWK["kid"] = KString(sKid);
+		jJWK["alg"] = KString(sAlg);
+		jJWK["use"] = "sig";
+	}
+
+	return jJWK;
+
+} // GetPublicJWK
+
+//---------------------------------------------------------------------------
+KJSON KRSAKey::GetPrivateJWK() const
+//---------------------------------------------------------------------------
+{
+	if (!m_EVPPKey || !m_bIsPrivateKey)
+	{
+		return KJSON{};
+	}
+
+	auto Parts = GetKeyParts(m_EVPPKey, true);
+
+	if (Parts.n.empty() || Parts.e.empty() || Parts.d.empty())
+	{
+		kDebug(1, "cannot read RSA private parameters");
+		return KJSON{};
+	}
+
+	KJSON jJWK {
+		{ "kty", "RSA"              },
+		{ "n",   std::move(Parts.n) },
+		{ "e",   std::move(Parts.e) },
+		{ "d",   std::move(Parts.d) }
+	};
+
+	// the CRT members only as a whole (RFC 7518 section 6.3.2)
+	if (!Parts.p.empty() && !Parts.q.empty() && !Parts.dp.empty() && !Parts.dq.empty() && !Parts.qi.empty())
+	{
+		jJWK["p" ] = std::move(Parts.p );
+		jJWK["q" ] = std::move(Parts.q );
+		jJWK["dp"] = std::move(Parts.dp);
+		jJWK["dq"] = std::move(Parts.dq);
+		jJWK["qi"] = std::move(Parts.qi);
+	}
+
+	return jJWK;
+
+} // GetPrivateJWK
 
 //---------------------------------------------------------------------------
 KRSAKey::Parameters::Parameters(const KJSON& json)

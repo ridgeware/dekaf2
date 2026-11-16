@@ -178,7 +178,8 @@ public:
 	/// stop the watcher
 	void Stop();
 	/// set the name of the watcher thread, as shown by debugging tools like ps, top,
-	/// or gdb (default "kpoll") - call before the watcher is started
+	/// or gdb (default "kpoll") - call before the watcher is started. If another thread
+	/// has the name already, the name gets a number ('kpoll1', 'kpoll2', ..).
 	void SetThreadName(KStringView sName);
 
 //----------

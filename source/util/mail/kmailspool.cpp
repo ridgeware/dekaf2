@@ -216,7 +216,7 @@ void KMailSpool::StartThread()
 void KMailSpool::Run()
 //-----------------------------------------------------------------------------
 {
-	kSetThreadName("mailspool");
+	KUniqueThreadName ThreadName("mailspool");
 
 	std::unique_lock<std::mutex> Lock(m_Mutex);
 

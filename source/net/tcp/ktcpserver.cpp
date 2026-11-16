@@ -1089,16 +1089,18 @@ bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 	}
 	else
 	{
-		m_IOThread = std::make_unique<std::thread>(kMakeThread(
-			[this, Promise = std::move(promise), sPoolName = m_ThreadPool.get_thread_name()]() mutable
-			{
-				if (!sPoolName.empty())
-				{
-					// name the IO thread for debugging tools - in the blocking case
-					// above the caller's own thread runs the server and keeps its name
-					kSetThreadName(kFormat("{}:io", sPoolName));
-				}
+		// name the IO thread for debugging tools - in the blocking case
+		// above the caller's own thread runs the server and keeps its name
+		KString sIOThreadName = m_ThreadPool.get_thread_name();
 
+		if (!sIOThreadName.empty())
+		{
+			sIOThreadName += ":io";
+		}
+
+		m_IOThread = std::make_unique<std::thread>(kMakeThread(KThreadName(sIOThreadName),
+			[this, Promise = std::move(promise)]() mutable
+			{
 				Promise.set_value_at_thread_exit(0);
 				RunServer();
 

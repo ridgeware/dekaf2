@@ -123,10 +123,9 @@ public:
 		// create the thread and start it - use kMakeThread() so that the new
 		// thread has the per-thread signal mask and crash-handler alt stack
 		// installed before the user callable runs
-		return Store(kMakeThread([Callable = std::move(Callable), iThread = m_iThreadNum++]() mutable
+		// the name is for debugging tools like ps, top, or gdb, and for the log
+		return Store(kMakeThread(KThreadName("parallel", KUniqueName::Format::Colon), [Callable = std::move(Callable)]() mutable
 		{
-			// name the thread for debugging tools like ps, top, or gdb
-			kSetThreadName(kFormat("parallel:{}", iThread));
 			Callable();
 		}));
 	}
@@ -166,7 +165,6 @@ private:
 //----------
 
 	std::size_t m_numThreads     { 0 };
-	std::atomic<std::size_t> m_iThreadNum { 0 };  ///< running number for the thread names
 	bool        m_start_detached { false };
 
 }; // KRunThreads

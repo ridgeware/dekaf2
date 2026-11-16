@@ -170,12 +170,11 @@ bool KDTLSServer::Start(DatagramCallback Callback, bool bBlock)
 	else
 	{
 		kDebug(1, "DTLS server starting on port {} (background)", m_iPort);
-		m_Thread = std::make_unique<std::thread>(kMakeThread(
+		// name the IO thread for debugging tools - in the blocking case
+		// above the caller's own thread runs the server and keeps its name
+		m_Thread = std::make_unique<std::thread>(kMakeThread(KThreadName("dtls:io"),
 			[this, Callback = std::move(Callback)]() mutable
 			{
-				// name the IO thread for debugging tools - in the blocking case
-				// above the caller's own thread runs the server and keeps its name
-				kSetThreadName("dtls:io");
 				RunLoop(std::move(Callback));
 			}));
 	}

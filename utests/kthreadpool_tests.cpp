@@ -2,6 +2,7 @@
 
 #include <dekaf2/threading/execution/kthreadpool.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <vector>
 #include <memory>
 #include <mutex>
@@ -33,6 +34,21 @@ struct PostTarget
 	void Add(int i) { iSum += i; }
 
 	std::atomic<int> iSum { 0 };
+};
+
+// notes the name of its thread when it is destroyed - as an object that is local to a
+// thread this happens when the thread ends
+struct NameAtThreadEnd
+{
+	~NameAtThreadEnd()
+	{
+		if (pName)
+		{
+			*pName = kGetThreadName();
+		}
+	}
+
+	KString* pName { nullptr };
 };
 
 } // anonymous namespace
@@ -586,6 +602,173 @@ TEST_CASE("KThreadPool")
 			CHECK ( Pool.is_stopped() );
 			CHECK ( iCounter == 20 );
 		}
+	}
+
+	SECTION("the names of the worker threads are unique")
+	{
+		// klog shows the name of a thread, not its id. Two threads that run at the same
+		// time must not have the same name, their log lines could not be told apart.
+		constexpr std::size_t iHalf = 10;
+
+		KThreadPool Pool(2 * iHalf, "utest", KThreadPool::PrestartNone, KThreadPool::ShrinkNever);
+
+		std::mutex               NamesMutex;
+		std::vector<KString>     Names;
+		std::atomic<bool>        bRelease        { false };
+		std::atomic<bool>        bReleaseFillers { false };
+		std::atomic<std::size_t> iRunning        { 0 };
+		std::atomic<std::size_t> iFillers        { 0 };
+
+		// notes the name of its thread and then blocks, so that all noted names belong
+		// to threads that run at the same time
+		auto NoteName = [&]()
+		{
+			{
+				std::lock_guard<std::mutex> Lock(NamesMutex);
+				Names.push_back(kGetThreadName());
+			}
+
+			++iRunning;
+
+			while (!bRelease)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+		};
+
+		auto Filler = [&]()
+		{
+			++iFillers;
+
+			while (!bReleaseFillers)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+		};
+
+		auto AllNamesDiffer = [&]()
+		{
+			std::lock_guard<std::mutex> Lock(NamesMutex);
+
+			std::sort(Names.begin(), Names.end());
+
+			// a platform that cannot name its threads reports empty names
+			return Names.front().empty() || std::adjacent_find(Names.begin(), Names.end()) == Names.end();
+		};
+
+		SECTION("after a shrink moved busy threads")
+		{
+			// the first ten threads run the fillers, the second ten note their names
+			for (std::size_t i = 0; i < iHalf; ++i)
+			{
+				Pool.push(Filler);
+			}
+
+			CHECK ( WaitUntil([&]() { return iFillers == iHalf; }) );
+			CHECK ( Pool.size() == iHalf );
+
+			for (std::size_t i = 0; i < iHalf; ++i)
+			{
+				Pool.push(NoteName);
+			}
+
+			CHECK ( WaitUntil([&]() { return iRunning == iHalf; }) );
+			CHECK ( Pool.size() == 2 * iHalf );
+
+			bReleaseFillers = true;
+
+			CHECK ( WaitUntil([&]() { return Pool.n_idle() == iHalf; }) );
+
+			// the shrink ends the ten idle threads, and keeps the busy ones in the pool
+			Pool.resize(2 * iHalf - 1, KThreadPool::PrestartNone, KThreadPool::ShrinkImmediately);
+
+			CHECK ( Pool.size() == iHalf );
+
+			// ten new threads start while the ten busy ones still run
+			Pool.resize(2 * iHalf, KThreadPool::PrestartAll, KThreadPool::ShrinkNever);
+
+			CHECK ( Pool.size() == 2 * iHalf );
+
+			for (std::size_t i = 0; i < iHalf; ++i)
+			{
+				Pool.push(NoteName);
+			}
+
+			CHECK ( WaitUntil([&]() { return iRunning == 2 * iHalf; }) );
+			CHECK ( AllNamesDiffer() );
+		}
+
+		SECTION("after a shrink ended busy threads")
+		{
+			for (std::size_t i = 0; i < 2 * iHalf; ++i)
+			{
+				Pool.push(NoteName);
+			}
+
+			CHECK ( WaitUntil([&]() { return iRunning == 2 * iHalf; }) );
+			CHECK ( Pool.size() == 2 * iHalf );
+
+			// no thread is idle: ten of the busy threads leave the pool, and go on with
+			// their tasks
+			Pool.resize(iHalf, KThreadPool::PrestartNone, KThreadPool::ShrinkNever);
+
+			CHECK ( Pool.size() == iHalf );
+
+			// ten new threads start while the ten that left the pool still run
+			Pool.resize(2 * iHalf, KThreadPool::PrestartAll, KThreadPool::ShrinkNever);
+
+			CHECK ( Pool.size() == 2 * iHalf );
+
+			for (std::size_t i = 0; i < iHalf; ++i)
+			{
+				Pool.push(NoteName);
+			}
+
+			CHECK ( WaitUntil([&]() { return iRunning == 3 * iHalf; }) );
+			CHECK ( AllNamesDiffer() );
+		}
+
+		SECTION("in two pools with the same base name")
+		{
+			KThreadPool Pool2(iHalf, "utest", KThreadPool::PrestartNone, KThreadPool::ShrinkNever);
+
+			// the second pool gets a number for its base name
+			CHECK ( Pool .get_thread_name() == "utest"  );
+			CHECK ( Pool2.get_thread_name() == "utest1" );
+
+			for (std::size_t i = 0; i < iHalf; ++i)
+			{
+				Pool .push(NoteName);
+				Pool2.push(NoteName);
+			}
+
+			CHECK ( WaitUntil([&]() { return iRunning == 2 * iHalf; }) );
+			CHECK ( AllNamesDiffer() );
+
+			bRelease = true;
+			Pool2.stop(false);
+		}
+
+		SECTION("a thread that ends has dropped its name")
+		{
+			// The number of an ending thread is free for a new thread. What the ending
+			// thread still logs must not show the name any more.
+			KString sNameAtThreadEnd { "not noted" };
+
+			Pool.push([&sNameAtThreadEnd]()
+			{
+				thread_local NameAtThreadEnd AtThreadEnd;
+				AtThreadEnd.pName = &sNameAtThreadEnd;
+			});
+
+			Pool.stop(false);
+
+			CHECK ( sNameAtThreadEnd == "" );
+		}
+
+		bRelease        = true;
+		bReleaseFillers = true;
+		Pool.stop(false);
 	}
 }
 

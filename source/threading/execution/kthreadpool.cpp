@@ -119,6 +119,12 @@
  *     released, not while it is held
  *   - concurrent calls of stop() run one after the other - they joined the
  *     same threads without a lock
+ *   - the number in the name of a worker thread is no longer its index in
+ *     the pool, but the lowest number that no other thread has for this
+ *     name, and a thread drops its name when it ends - after a shrink a
+ *     new thread could get the name of a thread that still ran
+ *   - the base name of a pool gets a number if another pool has the same
+ *     base name - the threads of both pools had the same names
  *
  *********************************************************/
 
@@ -145,7 +151,7 @@ KThreadPool::KThreadPool(std::size_t nThreads, GrowthPolicy Growth, ShrinkPolicy
 //-----------------------------------------------------------------------------
 KThreadPool::KThreadPool(std::size_t nThreads, KStringView sThreadName, GrowthPolicy Growth, ShrinkPolicy Shrink)
 //-----------------------------------------------------------------------------
-: m_sThreadName(sThreadName)
+: m_ThreadName(sThreadName, KUniqueName::Format::Suffix)
 {
 	resize(nThreads ? nThreads : std::thread::hardware_concurrency(), Growth, Shrink);
 
@@ -214,10 +220,10 @@ void KThreadPool::set_strategy(GrowthPolicy Growth, ShrinkPolicy Shrink)
 void KThreadPool::set_thread_name(KStringView sName)
 //-----------------------------------------------------------------------------
 {
-	// the workers read the name under m_cond_mutex when they start
+	// the name is read under m_cond_mutex when a worker is started
 	std::unique_lock<std::mutex> lock(m_cond_mutex);
 
-	m_sThreadName = sName;
+	m_ThreadName.Acquire(sName, KUniqueName::Format::Suffix);
 
 } // set_thread_name
 
@@ -227,7 +233,7 @@ KString KThreadPool::get_thread_name() const
 {
 	std::unique_lock<std::mutex> lock(m_cond_mutex);
 
-	return m_sThreadName;
+	return m_ThreadName.GetName();
 
 } // get_thread_name
 
@@ -671,7 +677,7 @@ bool KThreadPool::run_thread(std::size_t i)
 	// and to the idle flag
 	std::shared_ptr<bool> idle_ptr(m_idle[i]);
 
-	auto f = [this, abort_ptr, idle_ptr, i]()
+	auto f = [this, abort_ptr, idle_ptr]()
 	{
 		// kSetupThreadSignalHandling() is done by kMakeThread() below - no
 		// need to call it explicitly here.
@@ -685,12 +691,6 @@ bool KThreadPool::run_thread(std::size_t i)
 
 		// from now on this thread takes a queued task or counts itself idle
 		--ma_n_starting;
-
-		if (!m_sThreadName.empty())
-		{
-			// name this worker for debugging tools (the name is guarded by m_cond_mutex)
-			kSetThreadName(kFormat("{}:{}", m_sThreadName, i));
-		}
 
 		bool bMoreTasks = sched_dequeue(_f, _tag);
 
@@ -809,7 +809,13 @@ bool KThreadPool::run_thread(std::size_t i)
 
 	try
 	{
-		m_threads[i] = std::make_unique<std::thread>(kMakeThread(std::move(f)));
+		// The worker gets a name for debugging tools and for the log (the base name
+		// is guarded by m_cond_mutex, which the caller holds). It has the name before
+		// it takes the pool mutex, and until it ends, which may be after it left the
+		// pool, and after the pool is gone. The number is not the index of the
+		// thread in the pool: a shrink moves threads to other indexes, and a thread
+		// that it ends may still run its task when a new thread starts at its index.
+		m_threads[i] = std::make_unique<std::thread>(kMakeThread(KThreadName(m_ThreadName.GetName(), KUniqueName::Format::Colon), std::move(f)));
 		return true;
 	}
 	catch (const std::exception& ex)

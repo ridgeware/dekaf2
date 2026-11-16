@@ -368,7 +368,7 @@ void KSignals::WaitForSignals()
 //-----------------------------------------------------------------------------
 {
 	// name this thread for debugging tools like ps, top, or gdb
-	kSetThreadName("ksignals");
+	KUniqueThreadName ThreadName("ksignals");
 
 	// this is the thread that waits for signals
 	// first set up the default handler

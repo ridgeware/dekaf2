@@ -430,8 +430,9 @@ void KTunnel::Connection::Pump()
 		return;
 	}
 
-	// name this thread for debugging tools like ps, top, or gdb
-	kSetThreadName("tunnelpump");
+	// name this thread for debugging tools like ps, top, or gdb, for as long as it
+	// pumps - it is the thread of the caller
+	KUniqueThreadName ThreadName("tunnelpump");
 
 	try
 	{

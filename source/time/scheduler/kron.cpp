@@ -678,7 +678,7 @@ Kron::Kron(bool bAllowLaunches, KDuration CheckEvery, SharedScheduler Scheduler)
 		kDebug(1, "starting");
 
 		// start the time keeper
-		m_Chronos = std::make_unique<std::thread>(kMakeThread(&Kron::Launcher, this, CheckEvery));
+		m_Chronos = std::make_unique<std::thread>(kMakeThread(KThreadName("kron"), &Kron::Launcher, this, CheckEvery));
 	}
 
 } // ctor
@@ -769,9 +769,6 @@ std::size_t Kron::FinishWaitingJobs()
 void Kron::Launcher(KDuration CheckEvery)
 //-----------------------------------------------------------------------------
 {
-	// name this thread for debugging tools like ps, top, or gdb
-	kSetThreadName("kron");
-
 	if (CheckEvery == KDuration::zero())
 	{
 		CheckEvery = std::chrono::seconds(1);

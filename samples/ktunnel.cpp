@@ -1128,10 +1128,8 @@ void RelayServer::InletStream (std::unique_ptr<KIOStreamSocket> Stream)
 		// other on a helper - both end as soon as either side closes.
 		std::atomic<bool> bQuit { false };
 
-		auto OutletToInlet = kMakeThread([&bQuit, OutletChannel, InletChannel]()
+		auto OutletToInlet = kMakeThread(KThreadName("clientrelay"), [&bQuit, OutletChannel, InletChannel]()
 		{
-			kSetThreadName("clientrelay");
-
 			KString sData;
 			while (!bQuit.load(std::memory_order_acquire) && OutletChannel->ReadData(sData))
 			{

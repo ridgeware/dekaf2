@@ -277,7 +277,7 @@ public:
 	//-----------------------------------------------------------------------------
 	KLoggerQueue()
 	//-----------------------------------------------------------------------------
-	: m_Writer(kMakeThread([this]() { Write(); }))
+	: m_Writer(kMakeThread(KThreadName("kLogger"), [this]() { Write(); }))
 	{
 	}
 
@@ -351,8 +351,6 @@ private:
 	void Write()
 	//-----------------------------------------------------------------------------
 	{
-		kSetThreadName("kLogger");
-
 		// swapped with m_Lines, so that both vectors keep their capacity
 		std::vector<Line> Lines;
 

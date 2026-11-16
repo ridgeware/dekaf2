@@ -6,6 +6,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/init/dekaf2.h>
 #include <atomic>
+#include <future>
 
 using namespace dekaf2;
 
@@ -31,6 +32,36 @@ TEST_CASE("KTimer")
 		CHECK ( Timer.Cancel(ID) );
 		CHECK ( iCalled >= 2 );
 		CHECK ( iCalled <= 11 );
+	}
+
+	SECTION("the threads of two timers have different names")
+	{
+		KTimer Timer1(chrono::milliseconds(10));
+		KTimer Timer2(chrono::milliseconds(10));
+
+		std::promise<KString> Name1;
+		std::promise<KString> Name2;
+
+		// called in the thread of the timer
+		Timer1.CallOnce(chrono::milliseconds(0), [&](KUnixTime) { Name1.set_value(kGetThreadName()); }, false);
+		Timer2.CallOnce(chrono::milliseconds(0), [&](KUnixTime) { Name2.set_value(kGetThreadName()); }, false);
+
+		auto Future1 = Name1.get_future();
+		auto Future2 = Name2.get_future();
+
+		REQUIRE ( Future1.wait_for(std::chrono::seconds(5)) == std::future_status::ready );
+		REQUIRE ( Future2.wait_for(std::chrono::seconds(5)) == std::future_status::ready );
+
+		auto sName1 = Future1.get();
+		auto sName2 = Future2.get();
+
+		// empty on a platform that cannot name its threads
+		if (!sName1.empty())
+		{
+			CHECK ( sName1.starts_with("ktimer") );
+			CHECK ( sName2.starts_with("ktimer") );
+			CHECK ( sName1 != sName2 );
+		}
 	}
 
 	SECTION("Cancel waits for a running callback")

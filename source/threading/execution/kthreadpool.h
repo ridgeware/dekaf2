@@ -126,6 +126,12 @@
  *     released, not while it is held
  *   - concurrent calls of stop() run one after the other - they joined the
  *     same threads without a lock
+ *   - the number in the name of a worker thread is no longer its index in
+ *     the pool, but the lowest number that no other thread has for this
+ *     name, and a thread drops its name when it ends - after a shrink a
+ *     new thread could get the name of a thread that still ran
+ *   - the base name of a pool gets a number if another pool has the same
+ *     base name - the threads of both pools had the same names
 
  *********************************************************/
 
@@ -135,6 +141,7 @@
 #include <dekaf2/core/init/kdefinitions.h> // for DEKAF2_NAMESPACE, DEKAF2_NODISCARD and DEKAF2_PUBLIC
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/system/os/ksystem.h>      // for KUniqueName
 #include <functional>
 #include <thread>
 #include <atomic>
@@ -391,7 +398,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the base name for the pool's worker threads, as shown by debugging tools
-	/// like ps, top, or gdb - each worker names itself '<name>:<index>' when it starts.
+	/// like ps, top, or gdb, and by klog. If another pool has the same base name at the
+	/// same time, the name gets a number ('name', 'name1', 'name2', ..). Each worker
+	/// names itself '<name>:<number>' when it starts, with the lowest number that no
+	/// other thread has for this name. A thread keeps its name until it ends, also when
+	/// it ends after it left the pool.
 	/// Threads already running keep their current name, so call this before the pool
 	/// is started (or resized) to have all workers named.
 	/// @param sName the base name, or empty to not name the threads
@@ -399,7 +410,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Get the base name for the pool's worker threads (empty if unnamed)
+	/// Get the base name for the pool's worker threads, with the number that it got if
+	/// another pool had the same base name (empty if unnamed)
 	DEKAF2_NODISCARD
 	KString get_thread_name() const;
 	//-----------------------------------------------------------------------------
@@ -855,7 +867,7 @@ private:
 	std::size_t                                           m_iTotalQueued { 0 };  ///< total tasks queued across all tags
 	std::size_t                                           m_iCappedTags  { 0 };  ///< number of tags with a concurrency cap
 	bool                                                  m_bQueuePaused { false };
-	KString                                               m_sThreadName;   ///< base name for the worker threads (guarded by m_cond_mutex)
+	KUniqueName                                           m_ThreadName;    ///< base name for the worker threads (guarded by m_cond_mutex)
 
 	std::atomic<std::size_t>     ma_iMaxThreadsEver          { 0 };
 	std::atomic<std::size_t>     ma_iMaxThreads              { 0 };

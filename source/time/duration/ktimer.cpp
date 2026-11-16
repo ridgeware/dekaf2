@@ -169,7 +169,7 @@ KTimer::ID_t KTimer::AddTimer(Timer timer)
 
 	if (!m_TimingThread)
 	{
-		m_TimingThread = std::make_unique<std::thread>(kMakeThread(&KTimer::TimingLoop, this, m_MaxIdle));
+		m_TimingThread = std::make_unique<std::thread>(kMakeThread(KThreadName("ktimer"), &KTimer::TimingLoop, this, m_MaxIdle));
 	}
 
 	return ID;
@@ -456,9 +456,6 @@ void KTimer::Resume()
 void KTimer::TimingLoop(KDuration MaxIdle)
 //---------------------------------------------------------------------------
 {
-	// name this thread for debugging tools like ps, top, or gdb
-	kSetThreadName("ktimer");
-
 	// make sure we do not catch signals in this thread (this can happen if
 	// the signal handler thread had not been started at init of dekaf2)
 	kBlockAllSignals();

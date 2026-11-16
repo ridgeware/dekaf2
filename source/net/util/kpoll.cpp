@@ -155,7 +155,8 @@ void KPoll::StartLocked()
 	{
 		kDebug(1, "starting watcher");
 		m_bStop  = false;
-		m_Thread = std::make_unique<std::thread>(kMakeThread(&KPoll::Watch, this));
+		// the name is for debugging tools like ps, top, or gdb, and for the log
+		m_Thread = std::make_unique<std::thread>(kMakeThread(KThreadName(m_sThreadName), &KPoll::Watch, this));
 	}
 
 } // Start
@@ -200,7 +201,7 @@ void KPoll::Stop()
 void KPoll::SetThreadName(KStringView sName)
 //-----------------------------------------------------------------------------
 {
-	// the watcher thread reads the name under m_Mutex when it starts
+	// the name is read under m_Mutex when the watcher thread is started
 	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
 	m_sThreadName = sName;
@@ -475,12 +476,6 @@ void KPoll::DispatchTriggered(int fd, uint16_t events)
 void KPoll::Watch()
 //-----------------------------------------------------------------------------
 {
-	{
-		// name this thread for debugging tools like ps, top, or gdb
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
-		kSetThreadName(m_sThreadName);
-	}
-
 	// force an initial build so the interruptor gets into the poll vector
 	m_bModified = true;
 

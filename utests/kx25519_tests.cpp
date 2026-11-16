@@ -5,6 +5,7 @@
 #if DEKAF2_HAS_X25519
 
 #include <dekaf2/crypto/encoding/khex.h>
+#include <vector>
 
 using namespace dekaf2;
 
@@ -220,6 +221,48 @@ TEST_CASE("KX25519")
 
 		CHECK ( sSecretA == sSharedExpected );
 		CHECK ( sSecretB == sSharedExpected );
+	}
+
+	SECTION("X25519 DH with a peer key of small order is refused")
+	{
+		// the points of small order on Curve25519 and its twist: with any of
+		// them as the peer's key the shared secret would be all zeros,
+		// whatever the own key is (RFC 7748 section 6.1)
+		const std::vector<KStringView> SmallOrder {
+			// 0, order 4
+			"0000000000000000000000000000000000000000000000000000000000000000",
+			// 1, order 1
+			"0100000000000000000000000000000000000000000000000000000000000000",
+			// order 8
+			"e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800",
+			// order 8
+			"5f9c95bca3508c24b1d0b1559c83ef5b04445cc4581c8e86d8224eddd09f1157",
+			// p - 1, order 2
+			"ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+			// p, the same as 0
+			"edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+			// p + 1, the same as 1
+			"eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
+		};
+
+		KX25519 Key(true);
+		REQUIRE_FALSE ( Key.empty() );
+
+		for (auto sHex : SmallOrder)
+		{
+			INFO  ( sHex );
+			auto sPeer = kUnHex(sHex);
+			REQUIRE ( sPeer.size() == 32 );
+			CHECK   ( Key.DeriveSharedSecret(sPeer).empty() );
+
+			// the highest bit of the peer's key is ignored (RFC 7748 section 5)
+			sPeer[31] |= 0x80;
+			CHECK   ( Key.DeriveSharedSecret(sPeer).empty() );
+		}
+
+		// and the key still agrees with a proper peer
+		KX25519 Peer(true);
+		CHECK ( Key.DeriveSharedSecret(Peer.GetPublicKeyRaw()).size() == 32 );
 	}
 }
 

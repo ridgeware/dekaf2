@@ -179,6 +179,23 @@ TEST_CASE("KECKey")
 		KECKey Key2(true);
 		CHECK ( Key1.GetPublicKeyRaw() != Key2.GetPublicKeyRaw() );
 	}
+
+	SECTION("ECDH with a peer key that is not on the curve fails")
+	{
+		KECKey Key(true);
+		REQUIRE_FALSE ( Key.empty() );
+
+		// (0, 0) is no point of P-256
+		KString sPeer(65, '\0');
+		sPeer[0] = '\x04';
+		CHECK ( Key.DeriveSharedSecret(sPeer).empty() );
+
+		// a proper point with one bit of y changed
+		sPeer = KECKey(true).GetPublicKeyRaw();
+		REQUIRE ( sPeer.size() == 65 );
+		sPeer[64] ^= 0x01;
+		CHECK ( Key.DeriveSharedSecret(sPeer).empty() );
+	}
 }
 
 TEST_CASE("KECSign")

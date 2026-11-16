@@ -352,6 +352,8 @@ KString KX25519::DeriveSharedSecret(KStringView sPeerPublicRaw) const
 
 	KString sSecret(iSecretLen, '\0');
 
+	// a peer key of small order ends here: the derivation fails when its
+	// result is all zeros (the unit test holds every crypto library to that)
 	if (::EVP_PKEY_derive(ctx.get(), reinterpret_cast<unsigned char*>(sSecret.data()), &iSecretLen) <= 0)
 	{
 		kDebug(1, "X25519 derive failed: {}", KDigest::GetOpenSSLError());

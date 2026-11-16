@@ -217,7 +217,14 @@ public:
 	DEKAF2_NODISCARD
 	KString GetPEM(bool bPrivateKey = true) const;
 
-	/// perform X25519 Diffie-Hellman key agreement with a peer's public key
+	/// perform X25519 Diffie-Hellman key agreement with a peer's public key.
+	///
+	/// A peer key of small order is refused: with such a key the shared
+	/// secret would be all zeros, whatever the own private key is, and a
+	/// peer could so force a secret it knows without owning a key
+	/// (RFC 7748 section 6.1). The result is then empty, like for any other
+	/// error - a caller only has to test for an empty return, and must not
+	/// use an empty secret.
 	/// @param sPeerPublicRaw the peer's public key (32 bytes)
 	/// @return the shared secret (32 bytes), empty on error
 	DEKAF2_NODISCARD

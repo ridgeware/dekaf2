@@ -79,8 +79,8 @@ TEST_CASE("KString") {
 		KString s("12345");
 		KString s2;
 #ifdef DEKAF2_EXCEPTIONS
-		CHECK_THROWS_AS ( s.insert(10, "aaaaa"), std::exception );
-		CHECK_THROWS_AS( (s2 = s.substr(20, 6)), std::exception );
+		CHECK_THROWS_AS ( s.insert(10, "aaaaa"), const std::exception& );
+		CHECK_THROWS_AS( (s2 = s.substr(20, 6)), const std::exception& );
 #else
 		s.insert(10, "aaaaa");
 		s2 = s.substr(20, 6);

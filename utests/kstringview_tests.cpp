@@ -646,7 +646,7 @@ TEST_CASE("KStringView") {
 		CHECK( svd == sve );
 		svd = sv;
 #ifdef DEKAF2_EXCEPTIONS
-		CHECK_THROWS_AS( svd.erase(4, 2), std::runtime_error );
+		CHECK_THROWS_AS( svd.erase(4, 2), const std::runtime_error& );
 #else
 		svd.erase(4, 2);
 		sve = "0123456789abcdefgh";
@@ -669,7 +669,7 @@ TEST_CASE("KStringView") {
 		CHECK( it == svd.begin() );
 		svd = sv;
 #ifdef DEKAF2_EXCEPTIONS
-		CHECK_THROWS_AS( it = svd.erase(svd.begin()+2), std::runtime_error );
+		CHECK_THROWS_AS( it = svd.erase(svd.begin()+2), const std::runtime_error& );
 #else
 		it = svd.erase(svd.begin()+2);
 		sve = "0123456789abcdefgh";
@@ -683,7 +683,7 @@ TEST_CASE("KStringView") {
 		CHECK( it == svd.end() );
 		svd = sv;
 #ifdef DEKAF2_EXCEPTIONS
-		CHECK_THROWS_AS(it = svd.erase(svd.end()-2), std::runtime_error);
+		CHECK_THROWS_AS(it = svd.erase(svd.end()-2), const std::runtime_error&);
 #else
 		it = svd.erase(svd.end()-2);
 		sve = "0123456789abcdefgh";
@@ -708,7 +708,7 @@ TEST_CASE("KStringView") {
 		CHECK( it == svd.begin() );
 		svd = sv;
 #ifdef DEKAF2_EXCEPTIONS
-		CHECK_THROWS_AS( it = svd.erase(svd.begin()+2, svd.begin() + 4), std::runtime_error );
+		CHECK_THROWS_AS( it = svd.erase(svd.begin()+2, svd.begin() + 4), const std::runtime_error& );
 #else
 		it = svd.erase(svd.begin()+2, svd.begin() + 4);
 		sve = "0123456789abcdefgh";

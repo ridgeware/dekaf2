@@ -874,7 +874,7 @@ TEST_CASE("KIPAddress")
 			KIPAddress IP(sBad, ec);
 			CHECK ( ec.value() > 0     );
 			CHECK ( IP.IsUnspecified() );
-			CHECK_THROWS_AS ( KIPAddress(sBad), KIPError );
+			CHECK_THROWS_AS ( KIPAddress(sBad), const KIPError& );
 
 			// the error is the one of the IPv6 parser, which is asked last
 			KIPError ec6;

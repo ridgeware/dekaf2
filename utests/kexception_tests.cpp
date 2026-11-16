@@ -288,11 +288,11 @@ TEST_CASE("KErrorBase")
 		// switching it on with an error already there throws
 		WithError Late;
 		Late.Fail("an earlier error", 2);
-		CHECK_THROWS_AS ( Late.SetThrowOnError(true), KException );
+		CHECK_THROWS_AS ( Late.SetThrowOnError(true), const KException& );
 		CHECK ( Late.WouldThrowOnError() == true );
 
 		// it can be caught as the standard exception, too
-		CHECK_THROWS_AS ( Late.Fail("once more"), std::exception );
+		CHECK_THROWS_AS ( Late.Fail("once more"), const std::exception& );
 
 		Late.SetThrowOnError(false);
 		CHECK ( Late.Fail("no longer thrown") == false );

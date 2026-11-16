@@ -384,6 +384,12 @@ bool KRSAKey::Create(const Parameters& parms)
 
 	RSA_set0_key(rsa.get(), Base64ToBignum(parms.n), Base64ToBignum(parms.e), Base64ToBignum(parms.d));
 
+	if (!parms.d.empty())
+	{
+		// the private exponent alone makes a private key, also without the CRT parts
+		m_bIsPrivateKey = true;
+	}
+
 	if (!parms.p.empty() && !parms.q.empty())
 	{
 		RSA_set0_factors(rsa.get(), Base64ToBignum(parms.p), Base64ToBignum(parms.q));
@@ -401,6 +407,12 @@ bool KRSAKey::Create(const Parameters& parms)
 	rsa->n = Base64ToBignum(parms.n);
 	rsa->e = Base64ToBignum(parms.e);
 	rsa->d = Base64ToBignum(parms.d);
+
+	if (!parms.d.empty())
+	{
+		// the private exponent alone makes a private key, also without the CRT parts
+		m_bIsPrivateKey = true;
+	}
 
 	if (!parms.p.empty() && !parms.q.empty())
 	{

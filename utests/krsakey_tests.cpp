@@ -267,6 +267,30 @@ EBrURx/EsHSk
 		CHECK   ( Public.GetPEM(false)  == Key.GetPEM(false) );
 	}
 
+	SECTION("JWK private key without the CRT members")
+	{
+		KRSAKey Full(sPrivKey);
+		auto jFull = Full.GetPrivateJWK();
+
+		// the private exponent alone makes a private key
+		KJSON jSmall {
+			{ "kty", "RSA"      },
+			{ "n"  , jFull["n"] },
+			{ "e"  , jFull["e"] },
+			{ "d"  , jFull["d"] }
+		};
+
+		KRSAKey Key;
+		REQUIRE ( Key.CreateFromJWK(jSmall) );
+		CHECK   ( Key.IsPrivateKey() );
+		CHECK   ( Key.GetPEM(false) == sPubKey );
+
+		// and it is written as it was read: no CRT members that were not there
+		auto jOut = Key.GetPrivateJWK();
+		CHECK ( jOut.size() == 4 );
+		CHECK ( jOut == jSmall   );
+	}
+
 	SECTION("CreateFromJWK refuses what is not an RSA key")
 	{
 		KRSAKey Good(sPrivKey);

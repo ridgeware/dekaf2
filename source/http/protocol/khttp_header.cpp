@@ -908,7 +908,9 @@ uint16_t KHTTPTrustedRemoteEndpoint::GetAndRemovePortnumber(KStringView& sAddres
 	// 192.168.1.1:12345 -> 12345
 	// [1234:5678:90ab:cdef:0123:4567:89ab:cdef]       -> 0
 	// [1234:5678:90ab:cdef:0123:4567:89ab:cdef]:12345 -> 12345
-	// the [] for IPv6 is required!
+	// 1234:5678:90ab:cdef:0123:4567:89ab:1234         -> 0
+	// the [] for an IPv6 address with a port is required: without them the
+	// last group of the address could not be told from a port
 	uint16_t iPortnumber { 0 };
 	uint16_t iFactor     { 1 };
 
@@ -918,6 +920,12 @@ uint16_t KHTTPTrustedRemoteEndpoint::GetAndRemovePortnumber(KStringView& sAddres
 
 		if (ch == ']' || ch == ':')
 		{
+			if (ch == ':' && i > 0 && sAddress[i-1] != ']' && sAddress.Left(i).contains(':'))
+			{
+				// an IPv6 address without brackets - these digits are its last group
+				return 0;
+			}
+
 			auto iDelete = sAddress.size() - i;
 
 			if (iDelete > 1)
@@ -1068,8 +1076,16 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 				RemoteIP      = std::move(IP);
 				// save last port as remote port
 				iRemotePort   = iPort;
-				// check if we have 'by'
-				m_RemoteProxy = KIPAddress(Parts["by"], ec);
+				// check if we have 'by' - it may have quotes and a :port, as 'for' has
+				auto sBy = Parts["by"];
+
+				if (sBy.remove_prefix('"'))
+				{
+					sBy.remove_suffix('"');
+				}
+
+				GetAndRemovePortnumber(sBy);
+				m_RemoteProxy = KIPAddress(sBy, ec);
 				// check if we have 'host'
 				m_RemoteHost  = url::KDomain(Parts["host"]);
 				// check if we have 'proto'
@@ -1123,8 +1139,12 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 						break;
 					}
 
+					// some proxies add a :port to the address
+					KStringView sAddress = sForward;
+					GetAndRemovePortnumber(sAddress);
+
 					KIPError ec;
-					KIPAddress IP(sForward, ec);
+					KIPAddress IP(sAddress, ec);
 
 					if (ec)
 					{

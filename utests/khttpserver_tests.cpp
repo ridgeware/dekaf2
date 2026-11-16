@@ -325,5 +325,52 @@ Forwarded: for=192.0.2.43:1234, for=198.51.100.17; proto=https
 		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
 	}
 
+	SECTION("forwarded addresses with a port")
+	{
+		struct Sample
+		{
+			KStringView sHeader;
+			KStringView sRemoteIP;
+			KStringView sRemoteProxy; // empty = not checked
+		};
+
+		for (const auto& Test : std::vector<Sample> {
+			// some proxies add the port to the address
+			{ "X-Forwarded-For: 203.0.113.195:4711"                          , "203.0.113.195"     , ""                  },
+			{ "X-Forwarded-For: [2001:db8:cafe::17]:4711"                    , "2001:db8:cafe::17" , ""                  },
+			{ "X-Forwarded-For: [2001:db8:cafe::17]"                         , "2001:db8:cafe::17" , ""                  },
+			// without brackets the last group of an IPv6 address is no port
+			{ "X-Forwarded-For: 2001:db8:cafe::17"                           , "2001:db8:cafe::17" , ""                  },
+			{ "X-Forwarded-For: 2001:db8:cafe::4711"                         , "2001:db8:cafe::4711", ""                 },
+			// the node of 'by' may have a port as the one of 'for' (RFC 7239)
+			{ "Forwarded: for=192.0.2.60; by=203.0.113.43"                   , "192.0.2.60"        , "203.0.113.43"      },
+			{ "Forwarded: for=192.0.2.60; by=203.0.113.43:8080"              , "192.0.2.60"        , "203.0.113.43"      },
+			{ "Forwarded: for=192.0.2.60; by=\"[2001:db8:cafe::43]:8080\""   , "192.0.2.60"        , "2001:db8:cafe::43" },
+			{ "Forwarded: for=192.0.2.60; by=\"[2001:db8:cafe::43]\""        , "192.0.2.60"        , "2001:db8:cafe::43" },
+			// other text behind the address is no address: the direct peer stays
+			{ "X-Forwarded-For: 203.0.113.195x"                              , "192.168.178.1"     , ""                  },
+			{ "X-Forwarded-For: 203.0.113.195/24"                            , "192.168.178.1"     , ""                  },
+			{ "X-Forwarded-For: 203.0.113.195:4711x"                         , "192.168.178.1"     , ""                  },
+			{ "Forwarded: for=192.0.2.60x"                                   , "192.168.178.1"     , ""                  } })
+		{
+			INFO ( Test.sHeader );
+
+			auto sRequest = kFormat("GET / HTTP/1.1\nHost: www.test.com\n{}\n\n", Test.sHeader);
+			KString sResponse;
+			KInStringStream iss(sRequest);
+			KOutStringStream oss(sResponse);
+			KStream stream(iss, oss);
+			KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80, 5);
+			Browser.Parse();
+
+			CHECK ( Browser.GetRemoteIP() == Test.sRemoteIP );
+
+			if (!Test.sRemoteProxy.empty())
+			{
+				CHECK ( Browser.GetRemoteProxy() == Test.sRemoteProxy );
+			}
+		}
+	}
+
 }
 

@@ -51,6 +51,9 @@
 #include <dekaf2/core/strings/kutf.h>             // for Windows API conversions
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/core/types/kctype.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/containers/associative/kassociative.h> // for the registry of KUniqueName
+#include <mutex>           // for the registry of KUniqueName
 #include <thread>
 #include <cstdlib>
 #include <cstring>         // for std::memcpy() - kSetThreadName()
@@ -678,6 +681,33 @@ static KString kGetThreadNameRaw ()
 
 } // kGetThreadNameRaw
 
+#if defined(DEKAF2_IS_LINUX)
+
+namespace {
+
+//-----------------------------------------------------------------------------
+// The name that the process got at its start. A thread inherits the name of the
+// thread that creates it, so this is the name of all threads that were never
+// named. It is the name of the thread that calls this first.
+const KString& GetProcessThreadName ()
+//-----------------------------------------------------------------------------
+{
+	static const KString s_sProcessName = kGetThreadNameRaw();
+
+	return s_sProcessName;
+
+} // GetProcessThreadName
+
+// Call it when the library is loaded: that happens in the main thread, and before
+// the main thread can be renamed. Called at the first kGetThreadName() only, it
+// would return the new name of a main thread that was renamed before that call,
+// and the threads without a name would not be recognized.
+DEKAF2_MAYBE_UNUSED const bool s_bHaveProcessThreadName = !GetProcessThreadName().empty();
+
+} // end of anonymous namespace
+
+#endif
+
 //-----------------------------------------------------------------------------
 KString kGetThreadName ()
 //-----------------------------------------------------------------------------
@@ -688,14 +718,7 @@ KString kGetThreadName ()
 
 	// unnamed threads inherit the process name on Linux - report them as unnamed,
 	// so that callers can apply their own fallback (like klog's thread id)
-	static const KString s_sProcessName = []() -> KString
-	{
-		KString sComm = kReadAll("/proc/self/comm");
-		sComm.TrimRight();
-		return sComm;
-	}();
-
-	if (sName == s_sProcessName)
+	if (sName == GetProcessThreadName())
 	{
 		sName.clear();
 	}
@@ -705,6 +728,31 @@ KString kGetThreadName ()
 	return sName;
 
 } // kGetThreadName
+
+//-----------------------------------------------------------------------------
+void kClearThreadName ()
+//-----------------------------------------------------------------------------
+{
+#if defined(DEKAF2_IS_LINUX)
+
+	// a thread without a name has the name of the process
+	const auto& sProcessName = GetProcessThreadName();
+
+	if (kGetThreadNameRaw() != sProcessName)
+	{
+		kSetThreadName(sProcessName);
+	}
+
+#else
+
+	if (!kGetThreadNameRaw().empty())
+	{
+		kSetThreadName(KStringView{});
+	}
+
+#endif
+
+} // kClearThreadName
 
 //-----------------------------------------------------------------------------
 void KThreadNameScope::Rename (KStringView sName)
@@ -737,6 +785,141 @@ void KThreadNameScope::Restore ()
 	}
 
 } // KThreadNameScope::Restore
+
+namespace {
+
+// the unique names in use, and per base name and format the lowest number that may be free
+struct UniqueNames
+{
+	using Numbers = std::array<std::size_t, 3>;
+
+	std::mutex                      Mutex;
+	KUnorderedSet<KString>          Names;
+	KUnorderedMap<KString, Numbers> Lowest;
+};
+
+//-----------------------------------------------------------------------------
+UniqueNames& GetUniqueNames()
+//-----------------------------------------------------------------------------
+{
+	// never destroyed: a thread may give back its name while the process ends
+	static UniqueNames* s_UniqueNames = new UniqueNames;
+
+	return *s_UniqueNames;
+
+} // GetUniqueNames
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+void KUniqueName::Acquire (KStringView sBaseName, Format format)
+//-----------------------------------------------------------------------------
+{
+	Release();
+
+	if (sBaseName.empty())
+	{
+		return;
+	}
+
+	m_sBaseName = sBaseName;
+	m_Format    = format;
+
+	auto& UniqueNames = GetUniqueNames();
+
+	std::lock_guard<std::mutex> Lock(UniqueNames.Mutex);
+
+	auto& iLowest = UniqueNames.Lowest[m_sBaseName][static_cast<std::size_t>(m_Format)];
+
+	// A name of one base name can equal a name of another one, like the second
+	// 'pool' and the first 'pool1'. Therefore the set of all names decides.
+	for (m_iNumber = iLowest;; ++m_iNumber)
+	{
+		switch (m_Format)
+		{
+			case Format::Suffix:
+				if (m_iNumber == 0)
+				{
+					m_sName = m_sBaseName;
+				}
+				else
+				{
+					m_sName = kFormat("{}{}", m_sBaseName, m_iNumber);
+				}
+				break;
+
+			case Format::Index:
+				m_sName = kFormat("{}{}", m_sBaseName, m_iNumber);
+				break;
+
+			case Format::Colon:
+				m_sName = kFormat("{}:{}", m_sBaseName, m_iNumber);
+				break;
+		}
+
+		if (UniqueNames.Names.insert(m_sName).second)
+		{
+			break;
+		}
+	}
+
+	iLowest = m_iNumber + 1;
+
+} // KUniqueName::Acquire
+
+//-----------------------------------------------------------------------------
+void KUniqueName::Release ()
+//-----------------------------------------------------------------------------
+{
+	if (m_sName.empty())
+	{
+		return;
+	}
+
+	auto& UniqueNames = GetUniqueNames();
+
+	{
+		std::lock_guard<std::mutex> Lock(UniqueNames.Mutex);
+
+		UniqueNames.Names.erase(m_sName);
+
+		auto it = UniqueNames.Lowest.find(m_sBaseName);
+
+		if (it != UniqueNames.Lowest.end())
+		{
+			auto& iLowest = it->second[static_cast<std::size_t>(m_Format)];
+
+			if (m_iNumber < iLowest)
+			{
+				iLowest = m_iNumber;
+			}
+
+			if (it->second == UniqueNames::Numbers{})
+			{
+				// a base name without an entry starts at 0
+				UniqueNames.Lowest.erase(it);
+			}
+		}
+	}
+
+	m_sName.clear();
+	m_sBaseName.clear();
+
+} // KUniqueName::Release
+
+//-----------------------------------------------------------------------------
+void KUniqueThreadName::Rename (KStringView sBaseName, KUniqueName::Format format)
+//-----------------------------------------------------------------------------
+{
+	if (!sBaseName.empty())
+	{
+		// the thread drops a previous unique name before that name is given back
+		m_Scope.Restore();
+		m_Name.Acquire(sBaseName, format);
+		m_Scope.Rename(m_Name.GetName());
+	}
+
+} // KUniqueThreadName::Rename
 
 //-----------------------------------------------------------------------------
 pid_t kGetPpid()

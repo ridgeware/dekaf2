@@ -177,6 +177,12 @@ bool kSetThreadName (KStringView sName);
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kGetThreadName ();
 
+/// Remove the name of the calling thread. On Linux a new thread has the name of the
+/// thread that created it, until this is called - kMakeThread() and KThreads do that
+/// for their threads.
+DEKAF2_PUBLIC
+void kClearThreadName ();
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Renames the calling thread for the lifetime of this object and restores the
 /// previous name at destruction - shows the current work of a pool thread in
@@ -214,6 +220,94 @@ private:
 	bool    m_bRestore { false };
 
 }; // KThreadNameScope
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A name that no other object of this class has at the same time. It consists
+/// of a base name and the lowest number that is free for it. The number is free
+/// again when the object gives back the name.
+class DEKAF2_PUBLIC KUniqueName
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// how the number is added to the base name
+	enum class Format
+	{
+		Suffix, ///< 'name', 'name1', 'name2', .. - the first object has the base name itself
+		Index,  ///< 'name0', 'name1', 'name2', .. - as for the names of devices
+		Colon   ///< 'name:0', 'name:1', 'name:2', ..
+	};
+
+	/// construct without a name - call Acquire() later
+	KUniqueName () = default;
+	/// acquire a unique name for @p sBaseName (an empty base name acquires nothing)
+	KUniqueName (KStringView sBaseName, Format format) { Acquire(sBaseName, format); }
+	~KUniqueName () { Release(); }
+
+	KUniqueName(const KUniqueName&)            = delete;
+	KUniqueName(KUniqueName&&)                 = delete;
+	KUniqueName& operator=(const KUniqueName&) = delete;
+	KUniqueName& operator=(KUniqueName&&)      = delete;
+
+	/// give back the current name, and acquire a unique name for @p sBaseName (an
+	/// empty base name acquires nothing)
+	void Acquire (KStringView sBaseName, Format format);
+	/// give back the name now instead of at destruction
+	void Release ();
+	/// @return the unique name, or the empty string if none is acquired
+	DEKAF2_NODISCARD
+	const KString& GetName () const { return m_sName; }
+
+//------
+private:
+//------
+
+	KString     m_sName;
+	KString     m_sBaseName;
+	std::size_t m_iNumber { 0 };
+	Format      m_Format  { Format::Suffix };
+
+}; // KUniqueName
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Gives the calling thread a name that no other thread has at the same time,
+/// for the lifetime of this object - see KUniqueName for the names, and
+/// KThreadNameScope for the renaming. klog shows the name of a thread in place
+/// of its id, therefore two threads should not have the same name.
+class DEKAF2_PUBLIC KUniqueThreadName
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// construct without renaming - call Rename() later
+	KUniqueThreadName () = default;
+	/// rename the calling thread to a unique name for @p sBaseName (an empty base
+	/// name does nothing)
+	KUniqueThreadName (KStringView sBaseName, KUniqueName::Format format = KUniqueName::Format::Suffix) { Rename(sBaseName, format); }
+
+	/// rename the calling thread to a unique name for @p sBaseName (an empty base
+	/// name does nothing)
+	void Rename (KStringView sBaseName, KUniqueName::Format format = KUniqueName::Format::Suffix);
+	/// @return the unique name, or the empty string if the thread was not renamed
+	DEKAF2_NODISCARD
+	const KString& GetName () const { return m_Name.GetName(); }
+
+//------
+private:
+//------
+
+	// the scope is destroyed first: the thread no longer has the name when the
+	// name is given back
+	KUniqueName      m_Name;
+	KThreadNameScope m_Scope;
+
+}; // KUniqueThreadName
 
 /// return own UID
 DEKAF2_NODISCARD DEKAF2_PUBLIC

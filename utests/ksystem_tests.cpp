@@ -2,6 +2,7 @@
 
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/types/kscopeguard.h>
@@ -149,6 +150,106 @@ TEST_CASE("KSystem")
 				CHECK ( kGetThreadName() == "scopedname" );
 			}
 			CHECK ( kGetThreadName().empty() );
+		}).join();
+	}
+
+	SECTION("KUniqueName")
+	{
+		// the first object has the base name itself, the next ones get a number
+		KUniqueName First ("utestname", KUniqueName::Format::Suffix);
+		KUniqueName Second("utestname", KUniqueName::Format::Suffix);
+
+		CHECK ( First .GetName() == "utestname"  );
+		CHECK ( Second.GetName() == "utestname1" );
+
+		{
+			KUniqueName Third("utestname", KUniqueName::Format::Suffix);
+			CHECK ( Third.GetName() == "utestname2" );
+		}
+
+		// a name that was given back is free again, and the lowest free number is taken
+		First.Release();
+		CHECK ( First.GetName() == "" );
+
+		KUniqueName Fourth("utestname", KUniqueName::Format::Suffix);
+		KUniqueName Fifth ("utestname", KUniqueName::Format::Suffix);
+
+		CHECK ( Fourth.GetName() == "utestname"  );
+		CHECK ( Fifth .GetName() == "utestname2" );
+
+		// a name of another base name that looks the same is not taken twice
+		KUniqueName Other("utestname3", KUniqueName::Format::Suffix);
+		KUniqueName Sixth("utestname" , KUniqueName::Format::Suffix);
+
+		CHECK ( Other.GetName() == "utestname3" );
+		CHECK ( Sixth.GetName() == "utestname4" );
+
+		// an index starts at 0
+		KUniqueName Index1("utestindex", KUniqueName::Format::Index);
+		KUniqueName Index2("utestindex", KUniqueName::Format::Index);
+
+		CHECK ( Index1.GetName() == "utestindex0" );
+		CHECK ( Index2.GetName() == "utestindex1" );
+
+		// with a colon the first object has a number, too
+		KUniqueName Colon1("utestname", KUniqueName::Format::Colon);
+		KUniqueName Colon2("utestname", KUniqueName::Format::Colon);
+
+		CHECK ( Colon1.GetName() == "utestname:0" );
+		CHECK ( Colon2.GetName() == "utestname:1" );
+
+		// acquiring again gives back the old name first
+		Colon1.Acquire("utestname", KUniqueName::Format::Colon);
+		CHECK ( Colon1.GetName() == "utestname:0" );
+
+		// an empty base name acquires nothing
+		KUniqueName Empty("", KUniqueName::Format::Colon);
+		CHECK ( Empty.GetName() == "" );
+	}
+
+	SECTION("KUniqueThreadName")
+	{
+		std::thread([]()
+		{
+			{
+				KUniqueThreadName First("utestthread");
+				CHECK ( First.GetName() == "utestthread" );
+
+				std::thread([]()
+				{
+					KUniqueThreadName Second("utestthread");
+					CHECK ( Second.GetName() == "utestthread1" );
+#ifndef DEKAF2_IS_WINDOWS
+					CHECK ( kGetThreadName() == "utestthread1" );
+#endif
+
+					KUniqueThreadName Third("utestthread", KUniqueName::Format::Colon);
+					CHECK ( Third.GetName() == "utestthread:0" );
+				}).join();
+
+#ifndef DEKAF2_IS_WINDOWS
+				CHECK ( kGetThreadName() == "utestthread" );
+#endif
+			}
+
+			// the thread has dropped the name
+			CHECK ( kGetThreadName().empty() );
+		}).join();
+	}
+
+	SECTION("a new thread does not inherit a thread name")
+	{
+		std::thread([]()
+		{
+			KUniqueThreadName Parent("utestparent");
+
+			// on Linux a thread starts with the name of the thread that created it
+			KString sChild { "not noted" };
+			kMakeThread([&sChild]() { sChild = kGetThreadName(); }).join();
+			CHECK ( sChild == "" );
+
+			kClearThreadName();
+			CHECK ( kGetThreadName() == "" );
 		}).join();
 	}
 

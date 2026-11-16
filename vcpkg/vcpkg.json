@@ -46,9 +46,9 @@
   ],
   "overrides": [
     {
-      "$comment": "from/simdutf vendors 9.3.0, vcpkg has at most 9.1.1 - 8.1.0 to 9.2.0 write past the end of an output buffer of exactly binary_length_from_base64() when decoding base64 with white space (fixed in 9.2.1), so stay with 8.0.0 until vcpkg has 9.2.1 or newer",
+      "$comment": "from/simdutf vendors 9.4.0, the newest in vcpkg is 9.3.3, and the baseline below has 9.1.1 - 8.1.0 to 9.2.0 write past the end of an output buffer of exactly binary_length_from_base64() when decoding base64 with white space (fixed in 9.2.1), so never pin a version from 8.1.0 to 9.2.0",
       "name": "simdutf",
-      "version": "8.0.0"
+      "version": "9.3.3"
     }
   ],
   "builtin-baseline": "58845ed63eb19aff55e896ea1f5d51f2a0df5b66"

@@ -280,6 +280,69 @@ bool KUDPSocket::Bind(uint16_t iPort, KStreamOptions::Family Family)
 } // Bind
 
 //-----------------------------------------------------------------------------
+bool KUDPSocket::Bind(KStringView sAddress, uint16_t iPort)
+//-----------------------------------------------------------------------------
+{
+	// an IPv6 address may come in the brackets an endpoint writes it with
+	if (sAddress.size() > 2 && sAddress.front() == '[' && sAddress.back() == ']')
+	{
+		sAddress.remove_prefix(1);
+		sAddress.remove_suffix(1);
+	}
+
+	boost::system::error_code ec;
+
+#if (DEKAF2_CLASSIC_ASIO)
+	// Boost < 1.66 does not have boost::asio::ip::make_address; the legacy
+	// name is boost::asio::ip::address::from_string.
+	auto Address = boost::asio::ip::address::from_string(KString(sAddress).c_str(), ec);
+#else
+	auto Address = boost::asio::ip::make_address(KString(sAddress).c_str(), ec);
+#endif
+
+	if (ec)
+	{
+		return SetError(kFormat("invalid bind address '{}': {}", sAddress, ec.message()));
+	}
+
+	// the address determines the family - no dual stack handling
+	const bool bWasOpen = m_Socket.is_open();
+
+	if (!OpenSocket(Address.is_v6() ? KStreamOptions::Family::IPv6 : KStreamOptions::Family::IPv4))
+	{
+		return false;
+	}
+
+	// as in Bind(iPort): allow address reuse for multicast
+	m_Socket.set_option(boost::asio::socket_base::reuse_address(true), ec);
+
+	const endpoint_type ep(Address, iPort);
+
+	m_Socket.bind(ep, ec);
+
+	if (ec)
+	{
+		if (!bWasOpen)
+		{
+			// do not leave a socket of this family behind: the caller may
+			// want to try an address of the other one next
+			boost::system::error_code ecClose;
+			m_Socket.close(ecClose);
+		}
+
+		return SetError(kFormat("cannot bind UDP socket to {}: {}",
+		                        Address.is_v6() ? kFormat("[{}]:{}", sAddress, iPort)
+		                                        : kFormat("{}:{}"  , sAddress, iPort),
+		                        ec.message()));
+	}
+
+	kDebug(2, "UDP socket bound to {}", GetLocalEndPoint());
+
+	return true;
+
+} // Bind
+
+//-----------------------------------------------------------------------------
 std::streamsize KUDPSocket::Send(const void* pBuffer, std::streamsize iCount)
 //-----------------------------------------------------------------------------
 {

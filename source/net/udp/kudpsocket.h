@@ -131,7 +131,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Connect to a remote endpoint (sets the default destination for Send/Receive).
-	/// A socket that was bound with Bind() before keeps its local port.
+	/// A socket that was bound with Bind() before keeps its local port, and its
+	/// local address if Bind() was given one.
 	/// @param Endpoint
 	/// The remote endpoint to connect to
 	/// @param Options
@@ -185,6 +186,28 @@ public:
 	/// @param Family address family (Any, IPv4, IPv6)
 	/// @return true on success
 	bool Bind(uint16_t iPort, KStreamOptions::Family Family = KStreamOptions::Family::Any);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Bind to one local address and a port, instead of to all interfaces.
+	/// Datagrams are received at that address only, and they are sent from it -
+	/// also after Connect(), which otherwise lets the system choose the local
+	/// address by the route to the peer. That choice is not the same for every
+	/// peer, and with temporary IPv6 addresses (RFC 8981) not the same for
+	/// every day: a socket whose address was announced to somebody has to be
+	/// bound to it.
+	///
+	/// The address alone determines the address family, there is no dual stack
+	/// handling: a socket bound to an IPv4 address does not connect to an IPv6
+	/// peer, and vice versa.
+	/// @param sAddress the local address, e.g. "127.0.0.1", "10.0.0.5" or
+	/// "fd00::5" - an IPv6 address also in brackets, as GetLocalEndPoint() and
+	/// KTCPEndPoint write it. Not a hostname.
+	/// @param iPort the local port to bind to, 0 for any free one
+	/// @return true on success. False if sAddress is no address or none of
+	/// this host, or if the port is taken there: a socket that this call
+	/// opened is closed again then, and may be bound anew.
+	bool Bind(KStringView sAddress, uint16_t iPort);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -338,7 +361,7 @@ public:
 	/// sent from and received at. After Connect() this is the address of
 	/// the interface that leads to the peer, and the port the system chose
 	/// unless Bind() set one before. After Bind() alone the address is the
-	/// wildcard address.
+	/// wildcard address, or the one Bind() was given.
 	/// @return the local endpoint, or an empty endpoint if the socket is not open
 	KTCPEndPoint GetLocalEndPoint() const;
 	//-----------------------------------------------------------------------------

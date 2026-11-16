@@ -338,6 +338,134 @@ TEST_CASE("KUDPSocket")
 		CHECK   ( Both.GetLocalEndPoint().Domain.get() == "127.0.0.1" );
 	}
 
+	SECTION("bind to an address")
+	{
+		// the address, and a port of the system's choice
+		KUDPSocket Bound(chrono::seconds(2));
+		REQUIRE ( Bound.Bind("127.0.0.1", 0) == true );
+		const auto iBoundPort = Bound.GetLocalEndPoint().Port.get();
+		CHECK   ( Bound.GetLocalEndPoint().Domain.get() == "127.0.0.1" );
+		CHECK   ( iBoundPort != 0 );
+
+		// ... or the port asked for
+		KUDPSocket Receiver(chrono::seconds(2));
+		REQUIRE ( Receiver.Bind("127.0.0.1", 44368) == true );
+		CHECK   ( Receiver.GetLocalEndPoint().Domain.get() == "127.0.0.1" );
+		CHECK   ( Receiver.GetLocalEndPoint().Port.get()   == 44368 );
+
+		// connecting keeps both, and the peer sees the datagram come from there
+		REQUIRE ( Bound.Connect(KTCPEndPoint("127.0.0.1:44368"), KStreamOptions(KStreamOptions::ForceIPv4, chrono::seconds(2))) == true );
+		CHECK   ( Bound.GetLocalEndPoint().Domain.get() == "127.0.0.1" );
+		CHECK   ( Bound.GetLocalEndPoint().Port.get()   == iBoundPort );
+		CHECK   ( Bound.Send("from a bound socket") > 0 );
+		KUDPSocket::endpoint_type sender_ep;
+		char buf[64]{};
+		REQUIRE ( Receiver.ReceiveFrom(buf, sizeof(buf), sender_ep) > 0 );
+		CHECK   ( sender_ep.port() == iBoundPort );
+		CHECK   ( sender_ep.address().to_string() == "127.0.0.1" );
+
+		// An address of this host that is not the loopback, if it has one:
+		// connecting a socket sends nothing, it makes the system choose the
+		// route and with it our address (192.0.2.1 is a documentation address)
+		KString sOwn;
+		{
+			KUDPSocket Probe(KTCPEndPoint("192.0.2.1:9"), KStreamOptions(KStreamOptions::ForceIPv4, chrono::seconds(2)));
+			if (Probe.is_open()) sOwn = Probe.GetLocalEndPoint().Domain.get();
+		}
+
+		if (sOwn.empty() || sOwn == "127.0.0.1" || sOwn == "0.0.0.0")
+		{
+			WARN("no IPv4 address but the loopback here: binding is not tested against a second address");
+		}
+		else
+		{
+			// A socket bound to one address sends from it, also where the
+			// route to the peer would have chosen another: left alone, a
+			// datagram to the loopback comes from the loopback
+			KUDPSocket Other(chrono::seconds(2));
+			REQUIRE ( Other.Bind(sOwn, 0) == true );
+			CHECK   ( Other.GetLocalEndPoint().Domain.get() == sOwn );
+			REQUIRE ( Other.Connect(KTCPEndPoint("127.0.0.1:44368"), KStreamOptions(KStreamOptions::ForceIPv4, chrono::seconds(2))) == true );
+			CHECK   ( Other.GetLocalEndPoint().Domain.get() == sOwn );
+			CHECK   ( Other.Send("from another address") > 0 );
+			REQUIRE ( Receiver.ReceiveFrom(buf, sizeof(buf), sender_ep) > 0 );
+			CHECK   ( sender_ep.address().to_string() == sOwn );
+
+			// ... and it receives at that address only: what goes to another
+			// address of the host does not arrive, whatever the port
+			KUDPSocket Only(chrono::seconds(2));
+			REQUIRE ( Only.Bind(sOwn, 0) == true );
+			const auto iOnlyPort = Only.GetLocalEndPoint().Port.get();
+
+			KUDPSocket Wrong(KTCPEndPoint(kFormat("127.0.0.1:{}", iOnlyPort)), KStreamOptions(KStreamOptions::ForceIPv4, chrono::seconds(2)));
+			REQUIRE ( Wrong.is_open() == true );
+			Wrong.Send("to the wrong address");
+			CHECK   ( Only.IsReadReady(chrono::milliseconds(200)) == false );
+
+			KUDPSocket Right(KTCPEndPoint(kFormat("{}:{}", sOwn, iOnlyPort)), KStreamOptions(KStreamOptions::ForceIPv4, chrono::seconds(2)));
+			REQUIRE ( Right.is_open() == true );
+			CHECK   ( Right.Send("to the right address") > 0 );
+			CHECK   ( Only.IsReadReady(chrono::seconds(2)) == true );
+		}
+
+		// what is no address, or none of this host
+		KUDPSocket Odd(chrono::seconds(2));
+		CHECK ( Odd.Bind("no address", 0) == false );
+		CHECK ( Odd.Error().contains("invalid bind address") );
+		CHECK ( Odd.Bind("localhost", 0) == false );
+		CHECK ( Odd.Bind("", 0) == false );
+		CHECK ( Odd.is_open() == false );
+		CHECK ( Odd.Bind("192.0.2.1", 0) == false );
+		CHECK ( Odd.Error().contains("cannot bind UDP socket to 192.0.2.1:0") );
+		// a failed attempt leaves nothing behind
+		CHECK ( Odd.is_open() == false );
+		CHECK ( Odd.Bind("127.0.0.1", 0) == true );
+		CHECK ( Odd.GetLocalEndPoint().Domain.get() == "127.0.0.1" );
+		// a socket binds once
+		CHECK ( Odd.Bind("127.0.0.1", 0) == false );
+		CHECK ( Odd.is_open() == true );
+
+		// IPv6, where the host has it: with or without brackets
+		bool bHaveIPv6 { false };
+		{
+			KUDPSocket Probe(KTCPEndPoint("[::1]:9"), KStreamOptions(KStreamOptions::ForceIPv6, chrono::seconds(2)));
+			bHaveIPv6 = Probe.is_open();
+		}
+
+		if (!bHaveIPv6)
+		{
+			WARN("no IPv6 loopback here: binding to an IPv6 address is not tested");
+		}
+		else
+		{
+			KUDPSocket Six(chrono::seconds(2));
+			REQUIRE ( Six.Bind("::1", 44369) == true );
+			CHECK   ( Six.GetLocalEndPoint().Domain.get() == "[::1]" );
+			CHECK   ( Six.GetLocalEndPoint().Port.get()   == 44369 );
+
+			KUDPSocket Bracketed(chrono::seconds(2));
+			REQUIRE ( Bracketed.Bind("[::1]", 0) == true );
+			const auto iPort = Bracketed.GetLocalEndPoint().Port.get();
+			REQUIRE ( Bracketed.Connect(KTCPEndPoint("[::1]:44369"), KStreamOptions(KStreamOptions::ForceIPv6, chrono::seconds(2))) == true );
+			CHECK   ( Bracketed.GetLocalEndPoint().Domain.get() == "[::1]" );
+			CHECK   ( Bracketed.GetLocalEndPoint().Port.get()   == iPort );
+			CHECK   ( Bracketed.Send("six") > 0 );
+			REQUIRE ( Six.ReceiveFrom(buf, sizeof(buf), sender_ep) > 0 );
+			CHECK   ( sender_ep.port() == iPort );
+			CHECK   ( sender_ep.address().is_v6() );
+
+			// the address is the family: no way from one to the other
+			KUDPSocket Four(chrono::seconds(2));
+			REQUIRE ( Four.Bind("127.0.0.1", 0) == true );
+			CHECK   ( Four.Connect(KTCPEndPoint("[::1]:44369"), KStreamOptions(KStreamOptions::ForceIPv6, chrono::seconds(2))) == false );
+
+			// an address of the other family after a failed attempt
+			KUDPSocket Again(chrono::seconds(2));
+			CHECK ( Again.Bind("192.0.2.1", 0) == false );
+			CHECK ( Again.Bind("::1", 0) == true );
+		}
+	}
+
 	SECTION("large datagram")
 	{
 		KUDPSocket Receiver(chrono::seconds(2));

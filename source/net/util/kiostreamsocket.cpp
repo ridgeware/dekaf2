@@ -49,6 +49,12 @@
 #include <dekaf2/net/util/kpoll.h>
 #include <openssl/ssl.h>
 
+#if !DEKAF2_IS_WINDOWS
+	#include <sys/types.h>
+	#include <sys/socket.h>
+	#include <netinet/in.h>
+#endif
+
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
@@ -336,6 +342,42 @@ void KIOStreamSocket::SetConnectedEndPointAddress(const KTCPEndPoint& Endpoint)
 	SetEndPointAddress(Endpoint);
 }
 
+
+//-----------------------------------------------------------------------------
+KTCPEndPoint KIOStreamSocket::GetLocalEndPoint()
+//-----------------------------------------------------------------------------
+{
+	// asked of the socket itself: that holds for every kind of stream that
+	// has one (TCP, TLS, QUIC), whoever opened it and in whichever role
+	sockaddr_storage Address {};
+	socklen_t        iLen = sizeof(Address);
+
+	if (::getsockname(GetNativeSocket(), reinterpret_cast<sockaddr*>(&Address), &iLen) != 0)
+	{
+		// not open, or no socket at all (a wrapped std::iostream)
+		return {};
+	}
+
+	switch (Address.ss_family)
+	{
+		case AF_INET:
+		{
+			auto& in4 = reinterpret_cast<const sockaddr_in&>(Address);
+			return KTCPEndPoint(KIPAddress(KIPAddress4(in4)), ntohs(in4.sin_port));
+		}
+
+		case AF_INET6:
+		{
+			auto& in6 = reinterpret_cast<const sockaddr_in6&>(Address);
+			return KTCPEndPoint(KIPAddress(KIPAddress6(in6)), ntohs(in6.sin6_port));
+		}
+
+		default:
+			// a unix domain socket: the end that connected has no name
+			return {};
+	}
+
+} // GetLocalEndPoint
 
 //-----------------------------------------------------------------------------
 std::unique_ptr<KIOStreamSocket> KIOStreamSocket::Create(const KURL& URL, bool bForceTLS, KStreamOptions Options, KStringView sTLSHostname)

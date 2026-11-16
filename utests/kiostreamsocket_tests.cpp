@@ -4,6 +4,9 @@
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/format/kformat.h>
+
+#include <atomic>
 
 using namespace dekaf2;
 
@@ -52,6 +55,31 @@ protected:
 	}
 
 }; // KSilentServer
+
+/// notes the local end of the connection it accepted
+class KLocalEndServer : public KTCPServer
+{
+
+public:
+
+	using KTCPServer::KTCPServer;
+
+	std::atomic<uint16_t> iAcceptedAtPort { 0 };
+	std::atomic<bool>     bAcceptedAtLoopback { false };
+
+protected:
+
+	virtual void Session(std::unique_ptr<KIOStreamSocket>& stream) override
+	{
+		auto Local = stream->GetLocalEndPoint();
+		// a listener for both families reports an IPv4 peer's connection
+		// in the mapped form, ::ffff:127.0.0.1
+		bAcceptedAtLoopback = (Local.Domain.get() == "127.0.0.1" || Local.Domain.get().contains("::ffff:127.0.0.1"));
+		iAcceptedAtPort     = Local.Port.get();
+		kSleep(chrono::milliseconds(500));
+	}
+
+}; // KLocalEndServer
 
 } // end of anonymous namespace
 
@@ -145,5 +173,45 @@ TEST_CASE("KIOStreamSocket")
 		CHECK ( Stream.is_open()                                   == true  );
 		CHECK ( Stream.Good()                                      == true  );
 		CHECK ( Stream.IsReadReady(chrono::milliseconds(0), false) == false );
+	}
+
+	SECTION("GetLocalEndPoint")
+	{
+		KLocalEndServer Server(7616, false, 2);
+		Server.Start(chrono::seconds(5), false);
+
+		{
+			// never connected: no local end
+			KTCPStream Idle;
+			CHECK ( Idle.GetLocalEndPoint().empty() == true );
+		}
+
+		KTCPStream Stream(KTCPEndPoint("127.0.0.1:7616"), KStreamOptions(chrono::seconds(2)));
+
+		CHECK ( Stream.Good() == true );
+
+		// the connecting end: the loopback address, and a port of the
+		// system's choosing - not the one we connected to
+		auto Local = Stream.GetLocalEndPoint();
+
+		CHECK ( Local.empty()      == false       );
+		CHECK ( Local.Domain.get() == "127.0.0.1" );
+		CHECK ( Local.Port.get()   != 0           );
+		CHECK ( Local.Port.get()   != 7616        );
+		CHECK ( Local.Serialize()  == kFormat("127.0.0.1:{}", Local.Port.get()) );
+
+		// the same through the base class, as a protocol implementation holds it
+		KIOStreamSocket& Base = Stream;
+		CHECK ( Base.GetLocalEndPoint().Serialize() == Local.Serialize() );
+
+		// the accepting end: the address and port it listens at
+		for (int i = 0; i < 100 && Server.iAcceptedAtPort == 0; ++i) kSleep(chrono::milliseconds(10));
+
+		CHECK ( Server.iAcceptedAtPort     == 7616 );
+		CHECK ( Server.bAcceptedAtLoopback == true );
+
+		// gone with the connection
+		Stream.Disconnect();
+		CHECK ( Stream.GetLocalEndPoint().empty() == true );
 	}
 }

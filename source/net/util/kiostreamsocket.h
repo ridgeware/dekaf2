@@ -239,6 +239,16 @@ public:
 		return m_EndpointAddress;
 	}
 
+	/// Get the local end of the connection: the address of the interface it runs over, and the
+	/// port the system chose for it - or, for an accepted connection, the address and port it
+	/// was accepted at. This is what a protocol has to name when it tells its peer where it
+	/// speaks from, and the counterpart of GetEndPointAddress(). The address is given as the
+	/// socket has it: a connection from an IPv4 peer that a listener for both families accepted
+	/// shows in the mapped form (::ffff:a.b.c.d), as its remote end does.
+	/// @return the local endpoint, or an empty endpoint if the stream is not connected or is
+	/// no IP connection (a unix domain socket, a wrapped std::iostream)
+	KTCPEndPoint GetLocalEndPoint();
+
 	/// set the unresolved endpoint, only useful if this stream is proxied to a new endpoint, otherwise don't touch
 	void SetProxiedEndPoint(KTCPEndPoint Endpoint) 
 	{

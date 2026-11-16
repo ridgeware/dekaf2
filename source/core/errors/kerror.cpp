@@ -50,11 +50,11 @@ DEKAF2_NAMESPACE_BEGIN
 void KErrorBase::SetThrowOnError(bool bYes)
 //-----------------------------------------------------------------------------
 {
-	m_bThrow = bYes;
+	m_State.SetFlag(bYes);
 
-	if (m_bThrow && HasError())
+	if (bYes && HasError())
 	{
-		throw base(*this);
+		throw KError(m_State);
 	}
 
 } // SetThrowOnError
@@ -63,8 +63,8 @@ void KErrorBase::SetThrowOnError(bool bYes)
 bool KErrorBase::SetError(const KErrorBase& Error) const
 //-----------------------------------------------------------------------------
 {
-	// keeps this classes members as they are, but copies over all from the base class
-	const_cast<base*>(static_cast<const base*>(this))->operator=(Error);
+	// keeps the throw flag of this class as it is, and takes over the error
+	m_State.SetError(Error.m_State);
 	return false;
 }
 
@@ -84,9 +84,9 @@ bool KErrorBase::SetError(KStringViewZ sError, uint16_t iErrorCode, KStringView 
 
 	SetError(KErrorBase(sError, iErrorCode));
 
-	if (m_bThrow && HasError())
+	if (WouldThrowOnError() && HasError())
 	{
-		throw base(*this);
+		throw KError(m_State);
 	}
 
 	return false;
@@ -111,16 +111,17 @@ bool KErrorBase::SetErrnoError(KStringView sPrefix, KStringView sFunction) const
 void KErrorBase::ClearError()
 //-----------------------------------------------------------------------------
 {
-	clear();
+	m_State.clear();
 }
 
-#if 0
-// test for debugging ..
-static_assert(std::is_nothrow_move_constructible<std::runtime_error>::value, "std::runtime_error is not nothrow move constructible, but should be");
-#endif
-
-static_assert(!std::is_nothrow_move_constructible<std::runtime_error>::value || std::is_nothrow_move_constructible<KErrorBase>::value,
+static_assert(std::is_nothrow_move_constructible<KErrorBase>::value,
 			  "KErrorBase is intended to be nothrow move constructible, but is not!");
+
+static_assert(sizeof(KErrorBase) == sizeof(void*),
+			  "KErrorBase is intended to have the size of one pointer, but has not!");
+
+static_assert(sizeof(KException) == 2 * sizeof(void*),
+			  "KException is intended to have the size of two pointers, but has not!");
 
 
 DEKAF2_NAMESPACE_END

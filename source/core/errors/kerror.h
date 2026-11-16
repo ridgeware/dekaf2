@@ -58,24 +58,23 @@ DEKAF2_NAMESPACE_BEGIN
 /// @{
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// dekaf2 error base class
-#if !DEKAF2_IS_MSC
-class DEKAF2_PUBLIC KErrorBase : private KError
-#else
-class DEKAF2_PUBLIC KErrorBase : protected KError
-#endif
+/// dekaf2 error base class. It has the size of one pointer, and allocates
+/// nothing as long as there is no error.
+class DEKAF2_PUBLIC KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
-	using base = KError;
 
 //----------
 public:
 //----------
 
-	KErrorBase() = default;
+	KErrorBase() noexcept = default;
 
-	using base::base;
+	/// constructs with error message and error code (default UINT16_MAX)
+	KErrorBase(KStringViewZ sError, uint16_t iErrorCode = -1)
+	: m_State(sError, iErrorCode)
+	{
+	}
 
 	/// should we throw on errors, or should they only be noted in GetError() (on construction, throwing is off
 	/// - once we switch this on, any already collected error leads to throwing, too)
@@ -83,15 +82,15 @@ public:
 
 	/// returns true if this class would throw on error
 	DEKAF2_NODISCARD
-	bool WouldThrowOnError() const { return m_bThrow; }
+	bool WouldThrowOnError() const { return m_State.GetFlag(); }
 
 	/// Returns the cause of an error if the return string is non-empty. Otherwise no error occured.
 	DEKAF2_NODISCARD
-	KStringViewZ GetLastError() const { return message(); }
+	KStringViewZ GetLastError() const { return m_State.message(); }
 
 	/// returns the uint16_t error code of this error (0 if no error)
 	DEKAF2_NODISCARD
-	uint16_t GetLastErrorCode() const { return value(); }
+	uint16_t GetLastErrorCode() const { return m_State.value(); }
 
 	/// Returns the cause of an error if the return string is non-empty. Otherwise no error occured.
 	/// Redirects to GetLastError()
@@ -104,16 +103,12 @@ public:
 
 	/// returns true if an error is set
 	DEKAF2_NODISCARD
-	bool HasError() const { return value(); }
+	bool HasError() const { return m_State.value() != 0; }
 
 	/// clear the error, if any
 	void ClearError();
 
-	/// KError converts implicitly to bool. Through the non-public base that
-	/// conversion is inaccessible, but overload resolution still considers it:
-	/// in a derived class with an operator[] for strings, a subscript with a
-	/// string literal would be ambiguous with the built-in subscript of a
-	/// pointer. This declaration hides the conversion of the base. Use HasError().
+	/// A KErrorBase does not convert to bool. Use HasError().
 	explicit operator bool() const = delete;
 
 //----------
@@ -133,8 +128,9 @@ protected:
 private:
 //----------
 
-	// throw when setting error string?
-	bool m_bThrow { false };
+	// The error. Its flag says whether to throw when an error is set. The error is
+	// set from const functions.
+	mutable detail::KErrorState m_State;
 
 }; // KErrorBase
 

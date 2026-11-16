@@ -414,6 +414,10 @@ TEST_CASE("KUDPSocket")
 		CHECK ( Odd.Error().contains("invalid bind address") );
 		CHECK ( Odd.Bind("localhost", 0) == false );
 		CHECK ( Odd.Bind("", 0) == false );
+		// text behind an address
+		CHECK ( Odd.Bind("127.0.0.1x", 0)    == false );
+		CHECK ( Odd.Bind("127.0.0.1:80", 0)  == false );
+		CHECK ( Odd.Bind("127.0.0.1/8", 0)   == false );
 		CHECK ( Odd.is_open() == false );
 		CHECK ( Odd.Bind("192.0.2.1", 0) == false );
 		CHECK ( Odd.Error().contains("cannot bind UDP socket to 192.0.2.1:0") );
@@ -464,6 +468,130 @@ TEST_CASE("KUDPSocket")
 			CHECK ( Again.Bind("192.0.2.1", 0) == false );
 			CHECK ( Again.Bind("::1", 0) == true );
 		}
+	}
+
+	SECTION("bind to an address as KIPAddress")
+	{
+		KUDPSocket Receiver(chrono::seconds(2));
+		REQUIRE ( Receiver.Bind(KIPAddress(KIPAddress4(127,0,0,1)), 44371) == true );
+		CHECK   ( Receiver.GetLocalEndPoint().Domain.get() == "127.0.0.1" );
+		CHECK   ( Receiver.GetLocalEndPoint().Port.get()   == 44371 );
+
+		// the address goes to the system as bytes: the peer sees it
+		KUDPSocket Sender(chrono::seconds(2));
+		REQUIRE ( Sender.Bind(KIPAddress(KIPAddress4(127,0,0,1)), 0) == true );
+		REQUIRE ( Sender.Connect(KTCPEndPoint("127.0.0.1:44371"), KStreamOptions(KStreamOptions::ForceIPv4, chrono::seconds(2))) == true );
+		CHECK   ( Sender.Send("from a KIPAddress") > 0 );
+
+		char buf[100];
+		KUDPSocket::endpoint_type sender_ep;
+		REQUIRE ( Receiver.ReceiveFrom(buf, sizeof(buf), sender_ep) > 0 );
+		CHECK   ( sender_ep.address().to_string() == "127.0.0.1" );
+		CHECK   ( sender_ep.port() == Sender.GetLocalEndPoint().Port.get() );
+
+		// An unspecified address is what a failed conversion from a string leaves.
+		// It is refused, and does not bind to all interfaces.
+		KIPError ec;
+		KIPAddress Failed("no address", ec);
+		CHECK ( ec );
+
+		KUDPSocket Odd(chrono::seconds(2));
+		CHECK ( Odd.Bind(Failed, 0) == false );
+		CHECK ( Odd.Error().contains("unspecified address") );
+		CHECK ( Odd.is_open() == false );
+		// an address that is none of this host (TEST-NET-1, RFC 5737)
+		CHECK ( Odd.Bind(KIPAddress(KIPAddress4(192,0,2,1)), 0) == false );
+		CHECK ( Odd.Error().contains("cannot bind UDP socket to 192.0.2.1:0") );
+		CHECK ( Odd.is_open() == false );
+
+		// as text the wildcard address of a family is a valid address
+		KUDPSocket Wildcard(chrono::seconds(2));
+		CHECK ( Wildcard.Bind("0.0.0.0", 0) == true );
+		CHECK ( Wildcard.GetLocalEndPoint().Domain.get() == "0.0.0.0" );
+
+		bool bHaveIPv6 { false };
+		{
+			KUDPSocket Probe(KTCPEndPoint("[::1]:9"), KStreamOptions(KStreamOptions::ForceIPv6, chrono::seconds(2)));
+			bHaveIPv6 = Probe.is_open();
+		}
+
+		if (!bHaveIPv6)
+		{
+			WARN("no IPv6 loopback here: binding to an IPv6 KIPAddress is not tested");
+		}
+		else
+		{
+			KUDPSocket Six(chrono::seconds(2));
+			REQUIRE ( Six.Bind(KIPAddress(KIPAddress6::Loopback()), 0) == true );
+			CHECK   ( Six.GetLocalEndPoint().Domain.get() == "[::1]" );
+		}
+	}
+
+	SECTION("multicast groups")
+	{
+		// 239.255.0.0/16 is the IPv4 local scope (RFC 2365)
+		KUDPSocket Socket(chrono::seconds(2));
+		REQUIRE ( Socket.Bind(0, KStreamOptions::Family::IPv4) == true );
+
+		// what is no address, as text
+		CHECK ( Socket.JoinMulticastGroup("no address")  == false );
+		CHECK ( Socket.Error().contains("invalid multicast address 'no address'") );
+		CHECK ( Socket.LeaveMulticastGroup("no address") == false );
+		CHECK ( Socket.JoinMulticastGroup("")            == false );
+		CHECK ( Socket.JoinMulticastGroup("239.255.77.1x") == false );
+		CHECK ( Socket.Error().contains("invalid multicast address '239.255.77.1x'") );
+
+		// what is no multicast address
+		CHECK ( Socket.JoinMulticastGroup(KIPAddress(KIPAddress4(127,0,0,1))) == false );
+		CHECK ( Socket.Error().contains("cannot join multicast group '127.0.0.1'") );
+		CHECK ( Socket.JoinMulticastGroup(KIPAddress()) == false );
+
+		// A host without a multicast route cannot join any group: then both forms
+		// have to fail alike.
+		bool bJoined = Socket.JoinMulticastGroup(KIPAddress(KIPAddress4(239,255,77,1)));
+
+		if (!bJoined)
+		{
+			WARN("cannot join a multicast group here: " << Socket.Error());
+			CHECK ( Socket.JoinMulticastGroup("239.255.77.2") == false );
+		}
+		else
+		{
+			CHECK ( Socket.LeaveMulticastGroup(KIPAddress(KIPAddress4(239,255,77,1))) == true );
+			// leaving twice fails
+			CHECK ( Socket.LeaveMulticastGroup(KIPAddress(KIPAddress4(239,255,77,1))) == false );
+			CHECK ( Socket.Error().contains("cannot leave multicast group '239.255.77.1'") );
+
+			CHECK ( Socket.JoinMulticastGroup("239.255.77.2")  == true );
+			CHECK ( Socket.LeaveMulticastGroup("239.255.77.2") == true );
+		}
+	}
+
+	SECTION("KIPAddress to asio address")
+	{
+		auto Four = detail::kToAsioAddress(KIPAddress(KIPAddress4(192,168,1,2)));
+		CHECK ( Four.is_v4() );
+		CHECK ( Four.to_string() == "192.168.1.2" );
+
+		auto Six = detail::kToAsioAddress(KIPAddress(KIPAddress6(0x2001, 0x0db8, 0, 0, 0, 0, 0x1234, 0x5678)));
+		CHECK ( Six.is_v6() );
+		CHECK ( Six.to_string() == "2001:db8::1234:5678" );
+		CHECK ( Six.to_v6().scope_id() == 0 );
+
+		// the zone of a link local address
+		auto Scoped = detail::kToAsioAddress(KIPAddress(KIPAddress6(0xfe80, 0, 0, 0, 0, 0, 0, 1, 7)));
+		CHECK ( Scoped.is_v6() );
+		CHECK ( Scoped.to_v6().scope_id() == 7 );
+
+		// a mapped IPv4 address stays an IPv6 address
+		auto Mapped = detail::kToAsioAddress(KIPAddress(KIPAddress6(KIPAddress4(10,1,2,3))));
+		CHECK ( Mapped.is_v6() );
+		CHECK ( Mapped.to_v6().is_v4_mapped() );
+
+		// the unspecified address is the IPv4 wildcard
+		auto None = detail::kToAsioAddress(KIPAddress());
+		CHECK ( None.is_v4() );
+		CHECK ( None.is_unspecified() );
 	}
 
 	SECTION("large datagram")

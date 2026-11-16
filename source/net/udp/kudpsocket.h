@@ -49,6 +49,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/net/tcp/bits/kasio.h>
+#include <dekaf2/net/address/kipaddress.h>
 #include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/web/url/kurl.h>
@@ -200,13 +201,25 @@ public:
 	/// The address alone determines the address family, there is no dual stack
 	/// handling: a socket bound to an IPv4 address does not connect to an IPv6
 	/// peer, and vice versa.
+	/// @param Address the local address. An unspecified address is refused:
+	/// it is what a failed conversion from a string leaves, and would bind to
+	/// all interfaces. Use Bind(iPort, Family) for that.
+	/// @param iPort the local port to bind to, 0 for any free one
+	/// @return true on success. False if Address is unspecified or none of
+	/// this host, or if the port is taken there: a socket that this call
+	/// opened is closed again then, and may be bound anew.
+	bool Bind(const KIPAddress& Address, uint16_t iPort);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Bind to one local address and a port, with the address as text - see
+	/// Bind(const KIPAddress&, uint16_t).
 	/// @param sAddress the local address, e.g. "127.0.0.1", "10.0.0.5" or
 	/// "fd00::5" - an IPv6 address also in brackets, as GetLocalEndPoint() and
 	/// KTCPEndPoint write it. Not a hostname.
 	/// @param iPort the local port to bind to, 0 for any free one
 	/// @return true on success. False if sAddress is no address or none of
-	/// this host, or if the port is taken there: a socket that this call
-	/// opened is closed again then, and may be bound anew.
+	/// this host, or if the port is taken there.
 	bool Bind(KStringView sAddress, uint16_t iPort);
 	//-----------------------------------------------------------------------------
 
@@ -249,15 +262,29 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Join a multicast group.
-	/// @param sMulticastAddress the multicast group address
+	/// @param MulticastAddress the multicast group address
 	/// @return true on success
+	bool JoinMulticastGroup(const KIPAddress& MulticastAddress);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Join a multicast group, with the address as text.
+	/// @param sMulticastAddress the multicast group address
+	/// @return true on success, false also if sMulticastAddress is no address
 	bool JoinMulticastGroup(KStringView sMulticastAddress);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Leave a multicast group.
-	/// @param sMulticastAddress the multicast group address
+	/// @param MulticastAddress the multicast group address
 	/// @return true on success
+	bool LeaveMulticastGroup(const KIPAddress& MulticastAddress);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Leave a multicast group, with the address as text.
+	/// @param sMulticastAddress the multicast group address
+	/// @return true on success, false also if sMulticastAddress is no address
 	bool LeaveMulticastGroup(KStringView sMulticastAddress);
 	//-----------------------------------------------------------------------------
 
@@ -375,6 +402,8 @@ private:
 	void CheckTimer();
 	void RunTimed();
 	bool OpenSocket(KStreamOptions::Family Family);
+	/// bind to an address and a port - the address may be unspecified here
+	bool BindAddress(const KIPAddress& Address, uint16_t iPort);
 
 	boost::asio::io_service m_IOService { 1 };
 	asio_socket_type        m_Socket    { m_IOService };

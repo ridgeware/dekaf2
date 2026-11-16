@@ -72,6 +72,7 @@
 /// TCP server implementation with TLS
 
 #include <dekaf2/net/tcp/bits/kasio.h>
+#include <dekaf2/net/address/kipaddress.h>
 #include <dekaf2/io/streams/kstream.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/threading/execution/kthreadpool.h>
@@ -206,17 +207,25 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Bind the listening socket to one address, e.g. "127.0.0.1" or "10.0.0.5"
-	/// or "fd00::5", instead of all interfaces (the default). The address alone
-	/// determines the address family - the v4_Only()/v6_Only() selection is then
-	/// ignored, and there is no dual stack handling. An invalid address makes
-	/// Start() fail instead of falling back to the wildcard.
-	/// @param sAddress the address to bind to, empty = all interfaces
-	void SetBindAddress(KString sAddress)
+	/// Bind the listening socket to one address instead of all interfaces (the
+	/// default). The address alone determines the address family - the
+	/// v4_Only()/v6_Only() selection is then ignored, and there is no dual stack
+	/// handling.
+	/// @param Address the address to bind to. An unspecified address is refused
+	/// and makes Start() fail: it is what a failed conversion from a string
+	/// leaves, and would listen on all interfaces.
+	/// @return false if Address is unspecified
+	bool SetBindAddress(const KIPAddress& Address);
 	//-----------------------------------------------------------------------------
-	{
-		m_sBindAddress = std::move(sAddress);
-	}
+
+	//-----------------------------------------------------------------------------
+	/// Bind the listening socket to one address, with the address as text, e.g.
+	/// "127.0.0.1" or "10.0.0.5" or "fd00::5" - see SetBindAddress(const KIPAddress&).
+	/// An invalid address makes Start() fail instead of falling back to the
+	/// wildcard.
+	/// @param sAddress the address to bind to, empty = all interfaces
+	/// @return false if sAddress is no IP address
+	bool SetBindAddress(KStringView sAddress);
 
 	//-----------------------------------------------------------------------------
 	/// Load the TLS certificates from files (.pem format)
@@ -325,6 +334,14 @@ public:
 	{
 		return m_iStarted;
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Checks if the given port can be bound to
+	/// @param iPort the port to check
+	/// @param BindAddress check binding to this address, an unspecified address
+	/// = the IPv4 wildcard
+	static bool IsPortAvailable(uint16_t iPort, const KIPAddress& BindAddress);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Checks if the given port can be bound to
@@ -518,7 +535,8 @@ private:
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	KString           m_sSocketFile;
 #endif
-	KString           m_sBindAddress;
+	KIPAddress        m_BindAddress;                  ///< the address to bind to, if m_bHaveBindAddress
+	KString           m_sInvalidBindAddress;          ///< a bind address that was refused - Start() fails with it
 	KString           m_sCert;
 	KString           m_sKey;
 	KString           m_sPassword;
@@ -535,6 +553,7 @@ private:
 	bool              m_bStartIPv6            {  true };
 	bool              m_bIsTLS                { false };
 	bool              m_bStoreNewCerts        {  true };
+	bool              m_bHaveBindAddress      { false };
 	SelfSignedCertSANPolicy    m_SANPolicy     { SelfSignedCertSANPolicy::AllLocalNets };
 	std::vector<KString>       m_SANDomains;
 

@@ -294,32 +294,13 @@ void KTCPServer::RunSession(std::unique_ptr<KIOStreamSocket>& stream)
 
 //-----------------------------------------------------------------------------
 // static
-bool KTCPServer::IsPortAvailable(uint16_t iPort, KStringViewZ sBindAddress/*={}*/)
+bool KTCPServer::IsPortAvailable(uint16_t iPort, const KIPAddress& BindAddress)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY
 	{
 		boost::asio::io_service io_service;
-		tcp::endpoint local_endpoint(tcp::v4(), iPort);
-
-		if (!sBindAddress.empty())
-		{
-			boost::system::error_code ec;
-
-#if (DEKAF2_CLASSIC_ASIO)
-			auto Address = boost::asio::ip::address::from_string(sBindAddress.c_str(), ec);
-#else
-			auto Address = boost::asio::ip::make_address(sBindAddress.c_str(), ec);
-#endif
-
-			if (ec)
-			{
-				kDebug(1, "invalid bind address '{}': {}", sBindAddress, ec.message());
-				return false;
-			}
-
-			local_endpoint = tcp::endpoint(Address, iPort);
-		}
+		tcp::endpoint local_endpoint(detail::kToAsioAddress(BindAddress), iPort);
 
 		tcp::acceptor acceptor(io_service, local_endpoint, true); // true means reuse_addr
 		acceptor.close();
@@ -336,6 +317,81 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort, KStringViewZ sBindAddress/*={}*
 	return false;
 
 } // IsPortAvailable
+
+//-----------------------------------------------------------------------------
+// static
+bool KTCPServer::IsPortAvailable(uint16_t iPort, KStringViewZ sBindAddress/*={}*/)
+//-----------------------------------------------------------------------------
+{
+	// an empty address is the IPv4 wildcard, as the unspecified address is
+	KIPAddress BindAddress;
+
+	if (!sBindAddress.empty())
+	{
+		KIPError ec;
+		BindAddress = KIPAddress(sBindAddress, ec);
+
+		if (ec)
+		{
+			kDebug(1, "invalid bind address '{}'", sBindAddress);
+			return false;
+		}
+	}
+
+	return IsPortAvailable(iPort, BindAddress);
+
+} // IsPortAvailable
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::SetBindAddress(const KIPAddress& Address)
+//-----------------------------------------------------------------------------
+{
+	m_BindAddress      = Address;
+	m_bHaveBindAddress = !Address.IsUnspecified();
+
+	if (!m_bHaveBindAddress)
+	{
+		m_sInvalidBindAddress = Address.ToString();
+		return false;
+	}
+
+	m_sInvalidBindAddress.clear();
+
+	return true;
+
+} // SetBindAddress
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::SetBindAddress(KStringView sAddress)
+//-----------------------------------------------------------------------------
+{
+	m_BindAddress.clear();
+	m_bHaveBindAddress = false;
+	m_sInvalidBindAddress.clear();
+
+	if (sAddress.empty())
+	{
+		// all interfaces
+		return true;
+	}
+
+	KIPError ec;
+	KIPAddress Address(sAddress, ec);
+
+	if (ec)
+	{
+		m_sInvalidBindAddress = sAddress;
+		return false;
+	}
+
+	// the text may name the wildcard address of a family ("0.0.0.0", "::"),
+	// which is no failed conversion here
+	m_BindAddress      = Address;
+	m_bHaveBindAddress = true;
+
+	return true;
+
+} // SetBindAddress
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::CreateSelfSignedCertAndKey()
@@ -499,39 +555,30 @@ bool KTCPServer::SetupTCPAcceptors()
 		m_TCPAcceptors.push_back(std::move(acceptor));
 	};
 
-	if (!m_sBindAddress.empty())
+	if (!m_sInvalidBindAddress.empty())
+	{
+		// no wildcard fallback for a bind address that was refused
+		return SetError(kFormat("invalid bind address '{}'", m_sInvalidBindAddress));
+	}
+
+	if (m_bHaveBindAddress)
 	{
 		// an explicit bind address determines the address family by itself -
 		// no dual stack handling, and no wildcard fallback on failure
 		bTryIPv6  = false;
 		bNeedIPv4 = false;
 
-		boost::system::error_code ec;
-
-#if (DEKAF2_CLASSIC_ASIO)
-		// Boost < 1.66 does not have boost::asio::ip::make_address; the legacy
-		// name is boost::asio::ip::address::from_string.
-		auto Address = boost::asio::ip::address::from_string(m_sBindAddress.c_str(), ec);
-#else
-		auto Address = boost::asio::ip::make_address(m_sBindAddress.c_str(), ec);
-#endif
-
-		if (ec)
-		{
-			return SetError(kFormat("invalid bind address '{}': {}", m_sBindAddress, ec.message()));
-		}
-
 		DEKAF2_TRY
 		{
-			kDebug(2, "opening {} listener on {}:{}", IsTLS() ? "TLS" : "TCP", m_sBindAddress, m_iPort);
+			kDebug(2, "opening {} listener on {}:{}", IsTLS() ? "TLS" : "TCP", m_BindAddress.ToString(true), m_iPort);
 
-			tcp::endpoint local_endpoint(Address, m_iPort);
+			tcp::endpoint local_endpoint(detail::kToAsioAddress(m_BindAddress), m_iPort);
 			auto acceptor = std::make_shared<tcp::acceptor>(m_asio, local_endpoint, true); // true means reuse_addr
 			AddAcceptor(std::move(acceptor));
 		}
 		DEKAF2_CATCH(const std::exception& e)
 		{
-			return SetError(kFormat("cannot bind to {}:{}: {}", m_sBindAddress, m_iPort, e.what()));
+			return SetError(kFormat("cannot bind to {}:{}: {}", m_BindAddress.ToString(true), m_iPort, e.what()));
 		}
 	}
 

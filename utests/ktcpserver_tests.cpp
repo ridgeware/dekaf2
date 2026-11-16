@@ -21,6 +21,13 @@ TEST_CASE("KTCPServer::IsPortAvailable")
 	CHECK ( KTCPServer::IsPortAvailable(30306, "127.0.0.1") == true  );
 	// an invalid address is not available, whatever the port
 	CHECK ( KTCPServer::IsPortAvailable(30306, "not.an.ip.address") == false );
+	CHECK ( KTCPServer::IsPortAvailable(30306, "127.0.0.1x")        == false );
+	CHECK ( KTCPServer::IsPortAvailable(30306, "127.0.0.1:80")      == false );
+	// the address as KIPAddress: an unspecified address is the wildcard
+	CHECK ( KTCPServer::IsPortAvailable(30306, KIPAddress())                   == true );
+	CHECK ( KTCPServer::IsPortAvailable(30306, KIPAddress(KIPAddress4(127,0,0,1))) == true );
+	// an address that is none of this host (TEST-NET-1, RFC 5737)
+	CHECK ( KTCPServer::IsPortAvailable(30306, KIPAddress(KIPAddress4(192,0,2,1))) == false );
 }
 
 namespace {
@@ -68,6 +75,70 @@ bool Echo(KStringView sEndpoint)
 }
 
 } // end of anonymous namespace
+
+TEST_CASE("KTCPServer bind address")
+{
+	SECTION("as KIPAddress")
+	{
+		EchoServer Server(0);
+		CHECK   ( Server.SetBindAddress(KIPAddress(KIPAddress4(127,0,0,1))) == true );
+		REQUIRE ( Server.Start(chrono::seconds(2), false) == true );
+		CHECK   ( Echo(kFormat("127.0.0.1:{}", Server.GetPort())) == true );
+		Server.Stop();
+	}
+
+	SECTION("an unspecified KIPAddress is refused")
+	{
+		// this is what a failed conversion from a string leaves: the server must
+		// not listen on all interfaces then
+		KIPError ec;
+		KIPAddress Failed("not.an.ip.address", ec);
+		CHECK ( ec );
+
+		EchoServer Server(0);
+		CHECK ( Server.SetBindAddress(Failed) == false );
+		CHECK ( Server.Start(chrono::seconds(2), false) == false );
+		CHECK ( Server.Error().contains("invalid bind address") );
+		// a failed start still has to be stopped before the next one
+		Server.Stop();
+
+		// a valid address after that makes the server start
+		CHECK   ( Server.SetBindAddress(KIPAddress(KIPAddress4(127,0,0,1))) == true );
+		REQUIRE ( Server.Start(chrono::seconds(2), false) == true );
+		Server.Stop();
+	}
+
+	SECTION("as text")
+	{
+		EchoServer Server(0);
+		CHECK ( Server.SetBindAddress("not.an.ip.address") == false );
+		CHECK ( Server.Start(chrono::seconds(2), false) == false );
+		CHECK ( Server.Error().contains("invalid bind address 'not.an.ip.address'") );
+		// a failed start still has to be stopped before the next one
+		Server.Stop();
+
+		// text behind an address makes it invalid
+		CHECK ( Server.SetBindAddress("127.0.0.1x")    == false );
+		CHECK ( Server.SetBindAddress("127.0.0.1:80")  == false );
+		CHECK ( Server.SetBindAddress("127.0.0.1/8")   == false );
+
+		// the wildcard address of a family is a valid bind address as text
+		CHECK   ( Server.SetBindAddress("0.0.0.0") == true );
+		REQUIRE ( Server.Start(chrono::seconds(2), false) == true );
+		CHECK   ( Echo(kFormat("127.0.0.1:{}", Server.GetPort())) == true );
+		Server.Stop();
+	}
+
+	SECTION("an empty text is all interfaces")
+	{
+		EchoServer Server(0);
+		CHECK   ( Server.SetBindAddress("127.0.0.1") == true );
+		CHECK   ( Server.SetBindAddress("")          == true );
+		REQUIRE ( Server.Start(chrono::seconds(2), false) == true );
+		CHECK   ( Echo(kFormat("127.0.0.1:{}", Server.GetPort())) == true );
+		Server.Stop();
+	}
+}
 
 TEST_CASE("KTCPServer ephemeral port")
 {

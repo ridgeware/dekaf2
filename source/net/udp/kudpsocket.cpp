@@ -280,30 +280,41 @@ bool KUDPSocket::Bind(uint16_t iPort, KStreamOptions::Family Family)
 } // Bind
 
 //-----------------------------------------------------------------------------
+bool KUDPSocket::Bind(const KIPAddress& Address, uint16_t iPort)
+//-----------------------------------------------------------------------------
+{
+	if (Address.IsUnspecified())
+	{
+		return SetError("cannot bind UDP socket to an unspecified address");
+	}
+
+	return BindAddress(Address, iPort);
+
+} // Bind
+
+//-----------------------------------------------------------------------------
 bool KUDPSocket::Bind(KStringView sAddress, uint16_t iPort)
 //-----------------------------------------------------------------------------
 {
-	// an IPv6 address may come in the brackets an endpoint writes it with
-	if (sAddress.size() > 2 && sAddress.front() == '[' && sAddress.back() == ']')
+	// the text may name the wildcard address of a family ("0.0.0.0", "::"),
+	// which is no failed conversion here
+	KIPError ec;
+	KIPAddress Address(sAddress, ec);
+
+	if (ec || sAddress.empty())
 	{
-		sAddress.remove_prefix(1);
-		sAddress.remove_suffix(1);
+		return SetError(kFormat("invalid bind address '{}'", sAddress));
 	}
 
-	boost::system::error_code ec;
+	return BindAddress(Address, iPort);
 
-#if (DEKAF2_CLASSIC_ASIO)
-	// Boost < 1.66 does not have boost::asio::ip::make_address; the legacy
-	// name is boost::asio::ip::address::from_string.
-	auto Address = boost::asio::ip::address::from_string(KString(sAddress).c_str(), ec);
-#else
-	auto Address = boost::asio::ip::make_address(KString(sAddress).c_str(), ec);
-#endif
+} // Bind
 
-	if (ec)
-	{
-		return SetError(kFormat("invalid bind address '{}': {}", sAddress, ec.message()));
-	}
+//-----------------------------------------------------------------------------
+bool KUDPSocket::BindAddress(const KIPAddress& IP, uint16_t iPort)
+//-----------------------------------------------------------------------------
+{
+	auto Address = detail::kToAsioAddress(IP);
 
 	// the address determines the family - no dual stack handling
 	const bool bWasOpen = m_Socket.is_open();
@@ -312,6 +323,8 @@ bool KUDPSocket::Bind(KStringView sAddress, uint16_t iPort)
 	{
 		return false;
 	}
+
+	boost::system::error_code ec;
 
 	// as in Bind(iPort): allow address reuse for multicast
 	m_Socket.set_option(boost::asio::socket_base::reuse_address(true), ec);
@@ -330,17 +343,14 @@ bool KUDPSocket::Bind(KStringView sAddress, uint16_t iPort)
 			m_Socket.close(ecClose);
 		}
 
-		return SetError(kFormat("cannot bind UDP socket to {}: {}",
-		                        Address.is_v6() ? kFormat("[{}]:{}", sAddress, iPort)
-		                                        : kFormat("{}:{}"  , sAddress, iPort),
-		                        ec.message()));
+		return SetError(kFormat("cannot bind UDP socket to {}:{}: {}", IP.ToString(true), iPort, ec.message()));
 	}
 
 	kDebug(2, "UDP socket bound to {}", GetLocalEndPoint());
 
 	return true;
 
-} // Bind
+} // BindAddress
 
 //-----------------------------------------------------------------------------
 std::streamsize KUDPSocket::Send(const void* pBuffer, std::streamsize iCount)
@@ -536,64 +546,72 @@ KString KUDPSocket::ReceiveFrom(std::size_t iMaxSize, endpoint_type& Endpoint)
 } // ReceiveFrom
 
 //-----------------------------------------------------------------------------
-bool KUDPSocket::JoinMulticastGroup(KStringView sMulticastAddress)
+bool KUDPSocket::JoinMulticastGroup(const KIPAddress& MulticastAddress)
 //-----------------------------------------------------------------------------
 {
 	boost::system::error_code ec;
 
-#if (DEKAF2_CLASSIC_ASIO)
-	// Boost < 1.66 does not have boost::asio::ip::make_address; the legacy
-	// name is boost::asio::ip::address::from_string.
-	auto address = boost::asio::ip::address::from_string(KString(sMulticastAddress).c_str(), ec);
-#else
-	auto address = boost::asio::ip::make_address(KString(sMulticastAddress).c_str(), ec);
-#endif
+	m_Socket.set_option(boost::asio::ip::multicast::join_group(detail::kToAsioAddress(MulticastAddress)), ec);
 
 	if (ec)
 	{
-		return SetError(kFormat("invalid multicast address '{}': {}", sMulticastAddress, ec.message()));
+		return SetError(kFormat("cannot join multicast group '{}': {}", MulticastAddress.ToString(), ec.message()));
 	}
 
-	m_Socket.set_option(boost::asio::ip::multicast::join_group(address), ec);
-
-	if (ec)
-	{
-		return SetError(kFormat("cannot join multicast group '{}': {}", sMulticastAddress, ec.message()));
-	}
-
-	kDebug(2, "joined multicast group {}", sMulticastAddress);
+	kDebug(2, "joined multicast group {}", MulticastAddress.ToString());
 
 	return true;
 
 } // JoinMulticastGroup
 
 //-----------------------------------------------------------------------------
-bool KUDPSocket::LeaveMulticastGroup(KStringView sMulticastAddress)
+bool KUDPSocket::JoinMulticastGroup(KStringView sMulticastAddress)
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	KIPAddress MulticastAddress(sMulticastAddress, ec);
+
+	if (ec || sMulticastAddress.empty())
+	{
+		return SetError(kFormat("invalid multicast address '{}'", sMulticastAddress));
+	}
+
+	return JoinMulticastGroup(MulticastAddress);
+
+} // JoinMulticastGroup
+
+//-----------------------------------------------------------------------------
+bool KUDPSocket::LeaveMulticastGroup(const KIPAddress& MulticastAddress)
 //-----------------------------------------------------------------------------
 {
 	boost::system::error_code ec;
 
-#if (DEKAF2_CLASSIC_ASIO)
-	auto address = boost::asio::ip::address::from_string(KString(sMulticastAddress).c_str(), ec);
-#else
-	auto address = boost::asio::ip::make_address(KString(sMulticastAddress).c_str(), ec);
-#endif
+	m_Socket.set_option(boost::asio::ip::multicast::leave_group(detail::kToAsioAddress(MulticastAddress)), ec);
 
 	if (ec)
 	{
-		return SetError(kFormat("invalid multicast address '{}': {}", sMulticastAddress, ec.message()));
+		return SetError(kFormat("cannot leave multicast group '{}': {}", MulticastAddress.ToString(), ec.message()));
 	}
 
-	m_Socket.set_option(boost::asio::ip::multicast::leave_group(address), ec);
-
-	if (ec)
-	{
-		return SetError(kFormat("cannot leave multicast group '{}': {}", sMulticastAddress, ec.message()));
-	}
-
-	kDebug(2, "left multicast group {}", sMulticastAddress);
+	kDebug(2, "left multicast group {}", MulticastAddress.ToString());
 
 	return true;
+
+} // LeaveMulticastGroup
+
+//-----------------------------------------------------------------------------
+bool KUDPSocket::LeaveMulticastGroup(KStringView sMulticastAddress)
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	KIPAddress MulticastAddress(sMulticastAddress, ec);
+
+	if (ec || sMulticastAddress.empty())
+	{
+		return SetError(kFormat("invalid multicast address '{}'", sMulticastAddress));
+	}
+
+	return LeaveMulticastGroup(MulticastAddress);
 
 } // LeaveMulticastGroup
 

@@ -94,3 +94,38 @@
 #ifdef __clang__
 	#pragma clang diagnostic pop
 #endif
+
+#include <dekaf2/net/address/kipaddress.h>
+#include <algorithm>
+
+DEKAF2_NAMESPACE_BEGIN
+
+namespace detail {
+
+//-----------------------------------------------------------------------------
+/// @return the asio address for an IP address, made of its bytes and, for IPv6,
+/// its zone - without the detour through the string form
+// this conversion looks costly, but isn't. It moves a few bytes.
+inline boost::asio::ip::address kToAsioAddress(const KIPAddress& IP)
+//-----------------------------------------------------------------------------
+{
+	if (IP.Is4())
+	{
+		boost::asio::ip::address_v4::bytes_type Bytes;
+		const auto& Bytes4 = IP.ToBytes4();
+		std::copy(Bytes4.begin(), Bytes4.end(), Bytes.begin());
+
+		return boost::asio::ip::address_v4(Bytes);
+	}
+
+	boost::asio::ip::address_v6::bytes_type Bytes;
+	const auto& Bytes6 = IP.ToBytes6();
+	std::copy(Bytes6.begin(), Bytes6.end(), Bytes.begin());
+
+	return boost::asio::ip::address_v6(Bytes, IP.To6().Scope());
+
+} // kToAsioAddress
+
+} // end of namespace detail
+
+DEKAF2_NAMESPACE_END

@@ -203,7 +203,8 @@ void kFromLittleEndian(T& value) noexcept
 	}
 }
 
-#undef DEKAF2_LE_BE_CONSTEXPR
+// DEKAF2_LE_BE_CONSTEXPR stays defined: code that calls kIsBigEndian() in a
+// function that shall be constexpr needs it for that function, too
 
 namespace detail {
 

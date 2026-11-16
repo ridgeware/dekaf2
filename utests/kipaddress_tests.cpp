@@ -1,6 +1,8 @@
 #include "catch.hpp"
 #include <dekaf2/net/address/kipaddress.h>
 #include <vector>
+#include <array>
+#include <cstring>
 
 
 using namespace dekaf2;
@@ -807,6 +809,34 @@ TEST_CASE("KIPAddress")
 		static_assert(KIPAddress(KIPAddress6(0,0,0,0,0,0,0,1)).IsLoopback(), "must be loopback");
 		static_assert(KIPAddress(KIPAddress6(0,0,0,0,0,0,0,0)).IsLoopback() == false, "must not be loopback");
 		static_assert(KIPAddress(KIPAddress6(0xffff,0xfe35,0,0,0,0,0,0)).IsLoopback() == false, "must not be loopback");
+	}
+#endif
+
+#if DEKAF2_IPADDRESS_HAS_SOCKADDR
+	SECTION("from socket addresses")
+	{
+		// The system fills these structures with the address bytes in network byte
+		// order. Copy the bytes in as the system does: an integer value for s_addr
+		// would depend on the byte order of the host.
+		const std::array<uint8_t, 4> Bytes4 {{ 192, 168, 1, 2 }};
+
+		sockaddr_in sin4 {};
+		std::memcpy(&sin4.sin_addr, Bytes4.data(), Bytes4.size());
+
+		CHECK ( KIPAddress4(sin4.sin_addr).ToString() == "192.168.1.2" );
+		CHECK ( KIPAddress4(sin4).ToString()          == "192.168.1.2" );
+		CHECK ( KIPAddress4(sin4).ToBytes()           == Bytes4        );
+		CHECK ( KIPAddress4(sin4).ToUInt()            == 0xC0A80102    );
+
+		const std::array<uint8_t, 16> Bytes6 {{ 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0x12, 0x34, 0x56, 0x78 }};
+
+		sockaddr_in6 sin6 {};
+		std::memcpy(&sin6.sin6_addr, Bytes6.data(), Bytes6.size());
+		sin6.sin6_scope_id = 7;
+
+		CHECK ( KIPAddress6(sin6.sin6_addr).ToString() == "2001:db8::1234:5678" );
+		CHECK ( KIPAddress6(sin6).ToBytes()            == Bytes6                );
+		CHECK ( KIPAddress6(sin6).Scope()              == 7                     );
 	}
 #endif
 

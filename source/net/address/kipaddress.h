@@ -60,6 +60,7 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/crypto/hash/khash.h>
 #include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/core/types/kbit.h>
 #include <array>
 
 #if DEKAF2_HAS_INCLUDE(<netinet/in.h>)
@@ -178,13 +179,15 @@ public:
 
 #if DEKAF2_IPADDRESS_HAS_SOCKADDR
 	/// construct from in_addr - bytes in network byte order
-	constexpr          KIPAddress4(const in_addr& in4)
-	                   : m_IP { static_cast<uint8_t>(in4.s_addr), static_cast<uint8_t>(in4.s_addr >> 8),
-	                            static_cast<uint8_t>(in4.s_addr >> 16) , static_cast<uint8_t>(in4.s_addr >> 24) }
+	DEKAF2_LE_BE_CONSTEXPR
+	                   KIPAddress4(const in_addr& in4)
+	                   : m_IP { NetworkByte(in4.s_addr, 0), NetworkByte(in4.s_addr, 1),
+	                            NetworkByte(in4.s_addr, 2), NetworkByte(in4.s_addr, 3) }
 	                   {}
 
 	/// construct from sockaddr_in - bytes in network byte order
-	constexpr          KIPAddress4(const sockaddr_in& in4)
+	DEKAF2_LE_BE_CONSTEXPR
+	                   KIPAddress4(const sockaddr_in& in4)
 					   : KIPAddress4(in4.sin_addr)
 					   {}
 #endif
@@ -401,6 +404,13 @@ private:
 		     | (static_cast<uint32_t>(a[1]) << 16)
 		     | (static_cast<uint32_t>(a[2]) <<  8)
 		     |  static_cast<uint32_t>(a[3]);
+	}
+
+	/// @return the byte at position iPos (0..3) of a value that is stored in network byte
+	/// order: the integer that holds these bytes differs with the byte order of the host
+	static DEKAF2_LE_BE_CONSTEXPR value_type NetworkByte(uint32_t iValue, uint8_t iPos) noexcept
+	{
+		return static_cast<value_type>(iValue >> ((kIsBigEndian() ? 3 - iPos : iPos) * 8));
 	}
 
 	static void Dec(value_type* a) noexcept;

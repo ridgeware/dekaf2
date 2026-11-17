@@ -2572,6 +2572,7 @@ bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 		// we convert into an intermediate type and back to the requested output type
 		// do it in chunks to limit memory consumption for large strings
 		std::u32string sTemp;
+		auto iOriginalSize = Output.size();
 
 		for (; it != ie; )
 		{
@@ -2582,11 +2583,20 @@ bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 
 			Sync(ie2, ie);
 
-			if (!Convert(it, ie2, sTemp)) return false;
+			if (!Convert(it, ie2, sTemp))
+			{
+				// the input is not valid - remove the output of the chunks before
+				Output.resize(iOriginalSize);
+				return false;
+			}
 
 			std::transform(sTemp.begin(), sTemp.end(), sTemp.begin(), [&func](codepoint_t cp) { return func(cp); });
 
-			if (!Convert(sTemp, Output)) return false;
+			if (!Convert(sTemp, Output))
+			{
+				Output.resize(iOriginalSize);
+				return false;
+			}
 
 			it = ie2;
 			sTemp.clear();

@@ -1553,6 +1553,28 @@ TEST_CASE("UTF") {
 				CHECK ( (s32 == U"keep") );
 			}
 		}
+		{
+			// an invalid byte behind the first chunks of a transformation
+			for (std::size_t iBefore : { 0, 10, 999, 1000, 1001, 2500 })
+			{
+				INFO ( iBefore );
+
+				std::string sInput(iBefore, 'a');
+				sInput += "\xE4";
+				sInput += std::string(600, 'b');
+
+				std::string sUpper = "keep";
+
+				if (kutf::ToUpper(sInput, sUpper))
+				{
+					CHECK ( sUpper == "keep" + std::string(iBefore, 'A') + "\xEF\xBF\xBD" + std::string(600, 'B') );
+				}
+				else
+				{
+					CHECK ( sUpper == "keep" );
+				}
+			}
+		}
 	}
 
 	SECTION("transformations across the chunks of a long input")

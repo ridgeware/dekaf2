@@ -4,6 +4,7 @@
 #include <dekaf2/core/strings/kcesu8.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstringutils.h>
 #include <vector>
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	#include <string_view>
@@ -1439,6 +1440,52 @@ TEST_CASE("UTF") {
 			std::size_t iBOMSize = 0;
 			CHECK ( kutf::DetectBOM(sBytes, iBOMSize) == Enc );
 			CHECK ( iBOMSize == kutf::ByteOrderMark<std::string>(Enc).size() );
+		}
+	}
+
+	SECTION("CodepointFromUTF8 keeps the bytes behind a broken sequence")
+	{
+		constexpr auto Bad = uint32_t(kutf::INVALID_CODEPOINT);
+
+		struct Case
+		{
+			KStringView           sInput;
+			std::vector<uint32_t> Expected;
+		};
+
+		std::vector<Case> Cases {
+			// Latin1 text read as UTF8: the start byte of a three byte sequence, followed by ASCII
+			{ "M\xE4" "dchen",        { 'M', Bad, 'd', 'c', 'h', 'e', 'n' } },
+			// the start byte of a two byte sequence, followed by ASCII
+			{ "\xC3" "AB",            { Bad, 'A', 'B' }                     },
+			// the start byte of a four byte sequence, followed by another start byte
+			{ "gr\xF6\xDF" "er",      { 'g', 'r', Bad, Bad, 'e', 'r' }      },
+			// a sequence that breaks off after its first continuation byte
+			{ "\xE4\xBD" "A",         { Bad, 'A' }                          },
+			{ "\xF0\x9F\x98" "A",     { Bad, 'A' }                          },
+			// a sequence that is cut off by the end of the input
+			{ "x\xE4",                { 'x', Bad }                          },
+			{ "x\xF0\x9F",            { 'x', Bad }                          },
+			// a valid sequence right behind a broken one
+			{ "\xE4\xC3\xA4",         { Bad, 0xE4 }                         },
+			// continuation bytes without a start byte are one invalid codepoint
+			{ "a\x80\x80" "b",        { 'a', Bad, 'b' }                     },
+		};
+
+		for (auto& Test : Cases)
+		{
+			INFO ( kEscapeForLogging(Test.sInput) );
+
+			std::vector<uint32_t> Decoded;
+			auto it = Test.sInput.begin();
+			auto ie = Test.sInput.end();
+
+			while (it != ie)
+			{
+				Decoded.push_back(uint32_t(kutf::CodepointFromUTF8(it, ie)));
+			}
+
+			CHECK ( Decoded == Test.Expected );
 		}
 	}
 }

@@ -915,6 +915,39 @@ void Sync(Iterator& it, Iterator ie)
 	}
 }
 
+namespace KUTF_detail {
+
+//-----------------------------------------------------------------------------
+/// reads the next continuation byte of a UTF8 sequence and advances the iterator. A byte that is no
+/// continuation byte is left in the input, as it starts the next sequence.
+/// @param it the iterator to read from, advanced when a continuation byte was read
+/// @param ie the end of the iterator range
+/// @param ch receives the byte at it
+/// @returns false at the end of the input or when the byte at it is no continuation byte
+template<typename Iterator>
+KUTF_CONSTEXPR_14
+bool NextContinuationByte(Iterator& it, Iterator ie, codepoint_t& ch)
+//-----------------------------------------------------------------------------
+{
+	if (it == ie)
+	{
+		return false;
+	}
+
+	ch = CodepointCast(*it);
+
+	if (!IsContinuationByte(ch))
+	{
+		return false;
+	}
+
+	++it;
+
+	return true;
+}
+
+} // end of namespace KUTF_detail
+
 //-----------------------------------------------------------------------------
 /// Return next codepoint at position it in range it-ie, increment it to point
 /// to the begin of the following codepoint. If at time of call it == ie -> undefined behavior
@@ -946,11 +979,12 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 		if ((ch & 0x0e0) == 0x0c0)
 		{
 			codepoint_t codepoint = (ch & 0x01f) << 6;
+			codepoint_t ch1       = 0;
 
-			if (it == ie) break;
-			auto ch1 = CodepointCast(*it); ++it;
-
-			if (!IsContinuationByte(ch1)) break;
+			if (!KUTF_detail::NextContinuationByte(it, ie, ch1))
+			{
+				break;
+			}
 
 			codepoint |= (ch1 & 0x03f);
 
@@ -963,14 +997,18 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 		{
 			codepoint_t codepoint    = (ch & 0x0f) << 12;
 			bool bCheckForSurrogates = ch == 0xed;
+			codepoint_t ch1          = 0;
+			codepoint_t ch2          = 0;
 
-			if (it == ie) break;
-			auto ch1 = CodepointCast(*it); ++it;
-			if (it == ie) break;
-			auto ch2 = CodepointCast(*it); ++it;
+			if (!KUTF_detail::NextContinuationByte(it, ie, ch1))
+			{
+				break;
+			}
 
-			if (!IsContinuationByte(ch1)) break;
-			if (!IsContinuationByte(ch2)) break;
+			if (!KUTF_detail::NextContinuationByte(it, ie, ch2))
+			{
+				break;
+			}
 
 			ch1 &= 0x03f;
 			ch2 &= 0x03f;
@@ -990,17 +1028,24 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 			// (ch >= 0x0f5) as apparently that deranges the pipeline.
 			// Testing the final codepoint value below is about 10% faster.
 			codepoint_t codepoint = (ch & 0x07) << 18;
+			codepoint_t ch1       = 0;
+			codepoint_t ch2       = 0;
+			codepoint_t ch3       = 0;
 
-			if (it == ie) break;
-			auto ch1 = CodepointCast(*it); ++it;
-			if (it == ie) break;
-			auto ch2 = CodepointCast(*it); ++it;
-			if (it == ie) break;
-			auto ch3 = CodepointCast(*it); ++it;
+			if (!KUTF_detail::NextContinuationByte(it, ie, ch1))
+			{
+				break;
+			}
 
-			if (!IsContinuationByte(ch1)) break;
-			if (!IsContinuationByte(ch2)) break;
-			if (!IsContinuationByte(ch3)) break;
+			if (!KUTF_detail::NextContinuationByte(it, ie, ch2))
+			{
+				break;
+			}
+
+			if (!KUTF_detail::NextContinuationByte(it, ie, ch3))
+			{
+				break;
+			}
 
 			ch1 &= 0x03f;
 			ch2 &= 0x03f;

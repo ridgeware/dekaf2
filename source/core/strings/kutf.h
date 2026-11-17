@@ -2565,6 +2565,65 @@ ByteString Encode(const InpType& sInput, Encoding Enc, bool bWithBOM = true)
 	return sBytes;
 }
 
+#if KUTF_WITH_SIMDUTF
+
+namespace KUTF_detail {
+
+// ForEach() and Transform() convert this many input code units at once, through buffers on the stack
+static constexpr std::size_t iChunkSize       = 512;
+// Sync() moves the end of a chunk behind up to three continuation bytes
+static constexpr std::size_t iChunkBufferSize = iChunkSize + 3;
+
+using ChunkBuffer = std::array<char32_t, iChunkBufferSize>;
+
+//-----------------------------------------------------------------------------
+/// converts a chunk of UTF8 or UTF16 into UTF32
+/// @param it the begin iterator of the chunk
+/// @param ie the end iterator of the chunk
+/// @param Buffer receives the codepoints
+/// @returns the count of codepoints written, 0 for invalid input
+template<typename Iterator>
+std::size_t ChunkToUTF32(Iterator it, Iterator ie, ChunkBuffer& Buffer)
+//-----------------------------------------------------------------------------
+{
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
+
+	auto iInputSize = static_cast<std::size_t>(std::distance(it, ie));
+
+	if (iInputSize > Buffer.size())
+	{
+		// more than three continuation bytes in a row
+		return 0;
+	}
+
+	const void* pIn = &*it;
+
+	return (iInputWidth == 1)
+		? simd::convert_utf8_to_utf32 (static_cast<const char*    >(pIn), iInputSize, Buffer.data())
+		: simd::convert_utf16_to_utf32(static_cast<const char16_t*>(pIn), iInputSize, Buffer.data());
+}
+
+//-----------------------------------------------------------------------------
+/// converts a chunk of UTF32 into UTF8 or UTF16
+/// @param Buffer the codepoints
+/// @param iCodepoints the count of codepoints in Buffer
+/// @param Output receives the code units, needs room for four UTF8 or two UTF16 code units per codepoint
+/// @returns the count of code units written, 0 for invalid input
+template<typename OutBuffer>
+std::size_t ChunkFromUTF32(const ChunkBuffer& Buffer, std::size_t iCodepoints, OutBuffer& Output)
+//-----------------------------------------------------------------------------
+{
+	void* pOut = Output.data();
+
+	return (sizeof(typename OutBuffer::value_type) == 1)
+		? simd::convert_utf32_to_utf8 (Buffer.data(), iCodepoints, static_cast<char*    >(pOut))
+		: simd::convert_utf32_to_utf16(Buffer.data(), iCodepoints, static_cast<char16_t*>(pOut));
+}
+
+} // end of namespace KUTF_detail
+
+#endif // KUTF_WITH_SIMDUTF
+
 //-----------------------------------------------------------------------------
 /// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every
 /// codepoint (which may be INVALID_CODEPOINT for input parsing errors). If the functor returns
@@ -2592,29 +2651,28 @@ bool ForEach(Iterator it, Iterator ie, Functor func)
 	else
 	{
 #if KUTF_WITH_SIMDUTF
-		// we convert into an intermediate type
-		// do it in chunks to limit memory consumption for large strings
-		std::u32string sTemp;
+		// we convert into an intermediate buffer, in chunks
+		KUTF_detail::ChunkBuffer Buffer;
 
 		for (; it != ie; )
 		{
-			constexpr std::size_t ChunkSize = 1000;
 			// do not form an iterator behind the end of the input
-			auto ie2 = (static_cast<std::size_t>(std::distance(it, ie)) > ChunkSize) ? it + ChunkSize : ie;
+			auto ie2 = (static_cast<std::size_t>(std::distance(it, ie)) > KUTF_detail::iChunkSize) ? it + KUTF_detail::iChunkSize : ie;
 
 			Sync(ie2, ie);
 
-			if (!Convert(it, ie2, sTemp)) return false;
+			auto iCodepoints = KUTF_detail::ChunkToUTF32(it, ie2, Buffer);
+
+			if (!iCodepoints) return false;
 
 			// we cannot use std::for_each here, because existing code expects this loop to
 			// abort once false is returned by func() (std::for_each ignores all functor returns)
-			for (const auto ch : sTemp)
+			for (std::size_t i = 0; i < iCodepoints; ++i)
 			{
-				if (!func(ch)) return false;
+				if (!func(Buffer[i])) return false;
 			}
 
 			it = ie2;
-			sTemp.clear();
 		}
 		return true;
 #else
@@ -2679,37 +2737,58 @@ bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 	else
 	{
 #if KUTF_WITH_SIMDUTF
-		// we convert into an intermediate type and back to the requested output type
-		// do it in chunks to limit memory consumption for large strings
-		std::u32string sTemp;
+		// we convert into an intermediate buffer and back to the requested output type, in chunks
+		using value_type = typename OutType::value_type;
+
+		KUTF_detail::ChunkBuffer Buffer;
+		// four UTF8 or two UTF16 code units per codepoint
+		std::array<value_type, KUTF_detail::iChunkBufferSize * (iOutputWidth == 1 ? 4 : 2)> OutBuffer;
 		auto iOriginalSize = Output.size();
 
 		for (; it != ie; )
 		{
-			constexpr std::size_t ChunkSize = 1000;
-
 			// do not form an iterator behind the end of the input
-			auto ie2 = (static_cast<std::size_t>(std::distance(it, ie)) > ChunkSize) ? it + ChunkSize : ie;
+			auto ie2 = (static_cast<std::size_t>(std::distance(it, ie)) > KUTF_detail::iChunkSize) ? it + KUTF_detail::iChunkSize : ie;
 
-			Sync(ie2, ie);
+			std::size_t iCodepoints = 0;
 
-			if (!Convert(it, ie2, sTemp))
+			if (iInputWidth == 4)
 			{
-				// the input is not valid - remove the output of the chunks before
+				for (auto it2 = it; it2 != ie2; ++it2)
+				{
+					Buffer[iCodepoints++] = func(CodepointCast(*it2));
+				}
+			}
+			else
+			{
+				Sync(ie2, ie);
+
+				iCodepoints = KUTF_detail::ChunkToUTF32(it, ie2, Buffer);
+
+				if (!iCodepoints)
+				{
+					// the input is not valid - remove the output of the chunks before
+					Output.resize(iOriginalSize);
+					return false;
+				}
+
+				for (std::size_t i = 0; i < iCodepoints; ++i)
+				{
+					Buffer[i] = func(Buffer[i]);
+				}
+			}
+
+			auto iUnits = KUTF_detail::ChunkFromUTF32(Buffer, iCodepoints, OutBuffer);
+
+			if (!iUnits)
+			{
 				Output.resize(iOriginalSize);
 				return false;
 			}
 
-			std::transform(sTemp.begin(), sTemp.end(), sTemp.begin(), [&func](codepoint_t cp) { return func(cp); });
-
-			if (!Convert(sTemp, Output))
-			{
-				Output.resize(iOriginalSize);
-				return false;
-			}
+			KUTF_detail::Append(Output, OutBuffer.begin(), OutBuffer.begin() + iUnits, 0);
 
 			it = ie2;
-			sTemp.clear();
 		}
 		return true;
 #else

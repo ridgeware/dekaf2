@@ -1763,6 +1763,121 @@ TEST_CASE("UTF") {
 		CHECK ( kutf::Convert(std::u16string(1500, u'ä'), Bytes) == true );
 		CHECK ( std::string(Bytes.begin(), Bytes.end()) == "x" + sUTF8 );
 	}
+
+	SECTION("transformations with multi unit codepoints at every offset of a long input")
+	{
+		for (std::size_t iBefore = 0; iBefore <= 1100; ++iBefore)
+		{
+			INFO ( iBefore );
+
+			auto s8      = std::string   (iBefore,  'a') +  "ä日𐑅b";
+			auto s16     = std::u16string(iBefore, u'a') + u"ä日𐑅b";
+			auto s32     = std::u32string(iBefore, U'a') + U"ä日𐑅b";
+			auto sUpper8 = std::string   (iBefore,  'A') +  "Ä日𐐝B";
+			auto sUpper16= std::u16string(iBefore, u'A') + u"Ä日𐐝B";
+
+			std::string    sOut8;
+			std::u16string sOut16;
+
+			CHECK ( kutf::ToUpper(s8, sOut8) );
+			CHECK ( sOut8 == sUpper8 );
+			CHECK ( kutf::ToUpper(s8, sOut16) );
+			CHECK ( (sOut16 == sUpper16) );
+
+			sOut8.clear();
+			sOut16.clear();
+
+			CHECK ( kutf::ToUpper(s16, sOut8) );
+			CHECK ( sOut8 == sUpper8 );
+			CHECK ( kutf::ToUpper(s16, sOut16) );
+			CHECK ( (sOut16 == sUpper16) );
+
+			sOut8.clear();
+			sOut16.clear();
+
+			CHECK ( kutf::ToUpper(s32, sOut8) );
+			CHECK ( sOut8 == sUpper8 );
+			CHECK ( kutf::ToUpper(s32, sOut16) );
+			CHECK ( (sOut16 == sUpper16) );
+
+			std::u32string sSeen;
+			CHECK ( kutf::ForEach(s8, [&sSeen](kutf::codepoint_t cp) { sSeen += char32_t(cp); return true; }) );
+			CHECK ( (sSeen == s32) );
+
+			sSeen.clear();
+			CHECK ( kutf::ForEach(s16, [&sSeen](kutf::codepoint_t cp) { sSeen += char32_t(cp); return true; }) );
+			CHECK ( (sSeen == s32) );
+		}
+
+		// a functor that returns longer sequences than it gets
+		{
+			auto Widen = [](kutf::codepoint_t) -> kutf::codepoint_t { return 0x10445; };
+
+			std::string    sInput(3000, 'a');
+			std::string    sWide8;
+			std::u16string sWide16;
+			std::string    sExpected8;
+			std::u16string sExpected16;
+
+			for (int i = 0; i < 3000; ++i)
+			{
+				sExpected8  +=  "𐑅";
+				sExpected16 += u"𐑅";
+			}
+
+			CHECK ( kutf::Transform(sInput, sWide8, Widen) );
+			CHECK ( sWide8 == sExpected8 );
+			CHECK ( kutf::Transform(sInput, sWide16, Widen) );
+			CHECK ( (sWide16 == sExpected16) );
+		}
+
+		// a functor that returns a value which is no codepoint: either the operation
+		// fails without output, or the value becomes the replacement character
+		{
+			std::size_t iCount { 0 };
+			auto Break = [&iCount](kutf::codepoint_t cp) -> kutf::codepoint_t { return (++iCount == 600) ? 0xD800 : cp; };
+
+			std::string sInput(700, 'a');
+			std::string sOut = "keep";
+
+			if (kutf::Transform(sInput, sOut, Break))
+			{
+				CHECK ( sOut == "keep" + std::string(599, 'a') + "\xEF\xBF\xBD" + std::string(100, 'a') );
+			}
+			else
+			{
+				CHECK ( sOut == "keep" );
+			}
+		}
+
+		// a long row of continuation bytes behind valid text: either the operation
+		// fails, or the row is one invalid codepoint
+		{
+			auto sInput = std::string(600, 'a') + std::string(2000, '\x80') + "b";
+
+			std::size_t iCodepoints { 0 };
+
+			if (kutf::ForEach(sInput, [&iCodepoints](kutf::codepoint_t) { ++iCodepoints; return true; }))
+			{
+				CHECK ( iCodepoints == 602 );
+			}
+			else
+			{
+				CHECK ( iCodepoints <= 600 );
+			}
+
+			std::string sOut = "keep";
+
+			if (kutf::ToUpper(sInput, sOut))
+			{
+				CHECK ( sOut == "keep" + std::string(600, 'A') + "\xEF\xBF\xBD" + "B" );
+			}
+			else
+			{
+				CHECK ( sOut == "keep" );
+			}
+		}
+	}
 }
 
 

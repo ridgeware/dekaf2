@@ -1649,6 +1649,59 @@ TEST_CASE("UTF") {
 			CHECK ( kutf::Count(s16, iMax) <= 100  );
 		}
 	}
+
+	SECTION("Encode and Decode of a long text")
+	{
+		// longer than the internal buffer of a string, with sequences of every length
+		std::string sText;
+
+		for (int i = 0; i < 300; ++i)
+		{
+			sText += "aä日𐑅 ";
+		}
+
+		for (auto Enc : { kutf::Encoding::UTF8, kutf::Encoding::UTF16LE, kutf::Encoding::UTF16BE, kutf::Encoding::UTF32LE, kutf::Encoding::UTF32BE })
+		{
+			INFO ( static_cast<int>(Enc) );
+
+			// both append to the content of their output
+			std::string sBytes = "keep";
+			CHECK ( kutf::Encode(sText, sBytes, Enc, false) == true );
+			CHECK ( sBytes.substr(0, 4) == "keep" );
+
+			std::string sDecoded = "keep";
+			CHECK ( kutf::Decode(sBytes.begin() + 4, sBytes.end(), Enc, sDecoded) == true );
+			CHECK ( sDecoded == "keep" + sText );
+
+			KString sKDecoded;
+			CHECK ( kutf::Decode(KStringView(sBytes).substr(4), Enc, sKDecoded) == true );
+			CHECK ( sKDecoded == KStringView(sText) );
+		}
+
+		// the bytes of the first code units and the size, in all byte orders
+		auto sBytes = kutf::Encode<std::string>(sText, kutf::Encoding::UTF16LE, false);
+		CHECK ( sBytes.size() == 300 * 6 * 2 );
+		CHECK ( sBytes.substr(0, 12) == std::string("a\x00\xE4\x00\xE5\x65\x01\xD8\x45\xDC \x00", 12) );
+
+		sBytes = kutf::Encode<std::string>(sText, kutf::Encoding::UTF16BE, false);
+		CHECK ( sBytes.size() == 300 * 6 * 2 );
+		CHECK ( sBytes.substr(0, 12) == std::string("\x00" "a\x00\xE4\x65\xE5\xD8\x01\xDC\x45\x00 ", 12) );
+
+		sBytes = kutf::Encode<std::string>(sText, kutf::Encoding::UTF32LE, false);
+		CHECK ( sBytes.size() == 300 * 5 * 4 );
+		CHECK ( sBytes.substr(0, 20) == std::string("a\x00\x00\x00\xE4\x00\x00\x00\xE5\x65\x00\x00\x45\x04\x01\x00 \x00\x00\x00", 20) );
+
+		sBytes = kutf::Encode<std::string>(sText, kutf::Encoding::UTF32BE, false);
+		CHECK ( sBytes.size() == 300 * 5 * 4 );
+		CHECK ( sBytes.substr(0, 20) == std::string("\x00\x00\x00" "a\x00\x00\x00\xE4\x00\x00\x65\xE5\x00\x01\x04\x45\x00\x00\x00 ", 20) );
+
+		// no input
+		std::string sEmpty = "keep";
+		CHECK ( kutf::Encode(std::string(), sEmpty, kutf::Encoding::UTF32BE, false) == true );
+		CHECK ( sEmpty == "keep" );
+		CHECK ( kutf::Decode(std::string(), kutf::Encoding::UTF8, sEmpty) == true );
+		CHECK ( sEmpty == "keep" );
+	}
 }
 
 

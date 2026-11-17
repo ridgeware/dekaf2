@@ -2052,16 +2052,34 @@ Unit ReadUnit(const unsigned char* pBytes, bool bBigEndian)
 }
 
 //-----------------------------------------------------------------------------
-/// appends the bytes of a code unit in the given byte order
-template<typename Unit, typename ByteString>
+/// writes the bytes of a code unit in the given byte order
+/// @param it the output iterator to write at, is advanced behind the bytes
+template<typename Unit, typename Iterator>
 KUTF_CONSTEXPR_14
-void WriteUnit(Unit ch, bool bBigEndian, ByteString& sBytes)
+void WriteUnit(Unit ch, bool bBigEndian, Iterator& it)
 //-----------------------------------------------------------------------------
 {
 	for (std::size_t i = 0; i < sizeof(Unit); ++i)
 	{
 		auto iShift = 8 * (bBigEndian ? sizeof(Unit) - 1 - i : i);
-		sBytes += static_cast<typename ByteString::value_type>((ch >> iShift) & 0xFF);
+		*it++ = static_cast<typename std::iterator_traits<Iterator>::value_type>((ch >> iShift) & 0xFF);
+	}
+}
+
+//-----------------------------------------------------------------------------
+/// appends the bytes of UTF16 or UTF32 code units in the given byte order
+template<typename Unit, typename ByteString>
+KUTF_CONSTEXPR_14
+void EncodeUnits(const std::basic_string<Unit>& Units, bool bBigEndian, ByteString& sBytes)
+//-----------------------------------------------------------------------------
+{
+	auto iOldSize = sBytes.size();
+	sBytes.resize(iOldSize + Units.size() * sizeof(Unit));
+	auto it = sBytes.begin() + iOldSize;
+
+	for (auto ch : Units)
+	{
+		WriteUnit(ch, bBigEndian, it);
 	}
 }
 
@@ -2082,8 +2100,8 @@ bool DecodeUnits(Iterator it, Iterator ie, bool bBigEndian, OutType& Output)
 		return false;
 	}
 
-	std::basic_string<Unit> Units;
-	Units.reserve(iBytes / sizeof(Unit));
+	std::basic_string<Unit> Units(iBytes / sizeof(Unit), Unit(0));
+	auto itUnit = Units.begin();
 
 	while (it != ie)
 	{
@@ -2099,7 +2117,7 @@ bool DecodeUnits(Iterator it, Iterator ie, bool bBigEndian, OutType& Output)
 			Bytes[i] = static_cast<unsigned char>(*it);
 		}
 
-		Units += ReadUnit<Unit>(Bytes, bBigEndian);
+		*itUnit++ = ReadUnit<Unit>(Bytes, bBigEndian);
 	}
 
 	return Convert(Units.begin(), Units.end(), Output);
@@ -2250,10 +2268,7 @@ bool Decode(Iterator it, Iterator ie, Encoding Enc, OutType& Output)
 		case Encoding::UTF8:
 			if KUTF_CONSTEXPR_IF (sizeof(typename OutType::value_type) == 1)
 			{
-				for (; it != ie; ++it)
-				{
-					Output += static_cast<typename OutType::value_type>(*it);
-				}
+				Output.append(it, ie);
 
 				return true;
 			}
@@ -2413,10 +2428,7 @@ bool Encode(const InpType& sInput, ByteString& sBytes, Encoding Enc, bool bWithB
 				return false;
 			}
 
-			for (auto ch : Units)
-			{
-				KUTF_detail::WriteUnit(ch, Enc == Encoding::UTF16BE, sBytes);
-			}
+			KUTF_detail::EncodeUnits(Units, Enc == Encoding::UTF16BE, sBytes);
 
 			return true;
 		}
@@ -2432,10 +2444,7 @@ bool Encode(const InpType& sInput, ByteString& sBytes, Encoding Enc, bool bWithB
 				return false;
 			}
 
-			for (auto ch : Units)
-			{
-				KUTF_detail::WriteUnit(ch, Enc == Encoding::UTF32BE, sBytes);
-			}
+			KUTF_detail::EncodeUnits(Units, Enc == Encoding::UTF32BE, sBytes);
 
 			return true;
 		}

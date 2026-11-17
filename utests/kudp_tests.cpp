@@ -385,10 +385,25 @@ TEST_CASE("KUDPSocket")
 			KUDPSocket Other(chrono::seconds(2));
 			REQUIRE ( Other.Bind(sOwn, 0) == true );
 			CHECK   ( Other.GetLocalEndPoint().Domain.get() == sOwn );
-			REQUIRE ( Other.Connect(KTCPEndPoint("127.0.0.1:44368"), KStreamOptions(KStreamOptions::ForceIPv4, chrono::seconds(2))) == true );
+#ifdef DEKAF2_IS_WINDOWS
+			// Windows does not let a socket that is bound to the address of one
+			// interface send to the loopback: the peer is at the same address there
+			KUDPSocket OtherReceiver(chrono::seconds(2));
+			REQUIRE ( OtherReceiver.Bind(sOwn, 0) == true );
+			KTCPEndPoint Peer(kFormat("{}:{}", sOwn, OtherReceiver.GetLocalEndPoint().Port.get()));
+			auto& PeerSocket = OtherReceiver;
+#else
+			KTCPEndPoint Peer("127.0.0.1:44368");
+			auto& PeerSocket = Receiver;
+#endif
+			{
+				bool bConnected = Other.Connect(Peer, KStreamOptions(KStreamOptions::ForceIPv4, chrono::seconds(2)));
+				INFO    ( Other.Error() );
+				REQUIRE ( bConnected == true );
+			}
 			CHECK   ( Other.GetLocalEndPoint().Domain.get() == sOwn );
 			CHECK   ( Other.Send("from another address") > 0 );
-			REQUIRE ( Receiver.ReceiveFrom(buf, sizeof(buf), sender_ep) > 0 );
+			REQUIRE ( PeerSocket.ReceiveFrom(buf, sizeof(buf), sender_ep) > 0 );
 			CHECK   ( sender_ep.address().to_string() == sOwn );
 
 			// ... and it receives at that address only: what goes to another

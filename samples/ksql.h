@@ -65,6 +65,15 @@ public:
 
 	int Main (int argc, char** argv);
 	int Diff (KStringViewZ sLeftDBC, KStringViewZ sRightDBC, KStringView sTableList);
+	/// mysqldump's options that change what dump writes
+	struct DumpOptions
+	{
+		bool bNoData       { false };  ///< table definitions only
+		bool bNoCreateInfo { false };  ///< rows only
+		bool bAddDropTable { true  };  ///< DROP TABLE IF EXISTS before each CREATE TABLE
+	};
+
+	int Dump (KSQL& SQL, const std::vector<KStringViewZ>& Patterns, const DumpOptions& Dumping);
 
 	static constexpr KStringViewZ s_sProjectName    { "ksql"  };
 	static constexpr KStringViewZ s_sProjectVersion { "1.0.0" };

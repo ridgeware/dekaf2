@@ -1554,6 +1554,31 @@ TEST_CASE("UTF") {
 			}
 		}
 	}
+
+	SECTION("transformations across the chunks of a long input")
+	{
+		// a multi byte codepoint at every position around the chunk boundaries
+		for (std::size_t iBefore : { 0, 997, 998, 999, 1000, 1001, 1998, 1999, 2000, 2001, 5000 })
+		{
+			INFO ( iBefore );
+
+			std::string sInput(iBefore, 'a');
+			sInput += "ä日𐑅";
+			sInput += std::string(iBefore, 'b');
+
+			std::string sExpected(iBefore, 'A');
+			sExpected += "Ä日𐐝";
+			sExpected += std::string(iBefore, 'B');
+
+			std::string sUpper;
+			CHECK ( kutf::ToUpper(sInput, sUpper) );
+			CHECK ( sUpper == sExpected );
+
+			std::size_t iCodepoints { 0 };
+			CHECK ( kutf::ForEach(sInput, [&iCodepoints](kutf::codepoint_t) { ++iCodepoints; return true; }) );
+			CHECK ( iCodepoints == 2 * iBefore + 3 );
+		}
+	}
 }
 
 

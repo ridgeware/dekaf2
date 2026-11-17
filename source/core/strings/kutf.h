@@ -1562,7 +1562,7 @@ std::size_t Count(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(
 		}
 		case 2:
 		{
-			if (iMaxCount != std::size_t(-1) && std::distance(it, ie) > static_cast<std::ptrdiff_t>(iMaxCount))
+			if (iMaxCount != std::size_t(-1) && static_cast<std::size_t>(std::distance(it, ie)) > iMaxCount)
 			{
 				// reduce the end iterator
 				ie = it + iMaxCount;
@@ -1576,7 +1576,7 @@ std::size_t Count(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(
 		}
 		case 1:
 		{
-			if (iMaxCount != std::size_t(-1) && std::distance(it, ie) > static_cast<std::ptrdiff_t>(iMaxCount * 4 + 3))
+			if (iMaxCount != std::size_t(-1) && static_cast<std::size_t>(std::distance(it, ie)) / 4 > iMaxCount)
 			{
 				// assuming a max of 4 bytes per codepoint, reduce the end iterator
 				ie = it + iMaxCount * 4;

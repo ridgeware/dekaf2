@@ -1624,6 +1624,31 @@ TEST_CASE("UTF") {
 			CHECK ( iCodepoints == 2 * iBefore + 3 );
 		}
 	}
+
+	SECTION("Count with a large iMaxCount")
+	{
+		std::string    s8 (100, 'a');
+		std::u16string s16(100, u'a');
+		std::u32string s32(100, U'a');
+
+		for (std::size_t iMax : { std::size_t(100), std::size_t(-1) / 4, std::size_t(-1) / 4 + 2, std::size_t(-1) / 2, std::size_t(-1) / 2 + 2, std::size_t(-1) - 1, std::size_t(-1) })
+		{
+			INFO ( iMax );
+			CHECK ( kutf::Count(s8,  iMax) == 100 );
+			CHECK ( kutf::Count(s16, iMax) == 100 );
+			CHECK ( kutf::Count(s32, iMax) == 100 );
+		}
+
+		// a limit below the size stops at the limit or some more, never before it
+		for (std::size_t iMax : { 0, 1, 7, 24, 25, 26, 99 })
+		{
+			INFO ( iMax );
+			CHECK ( kutf::Count(s8,  iMax) >= iMax );
+			CHECK ( kutf::Count(s8,  iMax) <= 100  );
+			CHECK ( kutf::Count(s16, iMax) >= iMax );
+			CHECK ( kutf::Count(s16, iMax) <= 100  );
+		}
+	}
 }
 
 

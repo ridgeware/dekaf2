@@ -219,6 +219,9 @@ GetOS ()
 		CHECKINSTALLED="${INSTALLER} list | grep"
 		STARTSERVICE="brew services start"
 		STOPSERVICE="brew services stop"
+		# newer versions of brew ask before they install a package with dependencies -
+		# the installers of the other systems run with -y
+		export HOMEBREW_NO_ASK=1
 		DISTRIB="darwin"
 		DVERSION="$(sw_vers -ProductVersion) | tr '.' ' ' | awk '{printf ("%d", $1)}'"
 		DEVPKG=""

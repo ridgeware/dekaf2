@@ -692,9 +692,9 @@ void WriteUTF(codepoint_t cp, Iterator& it)
 		{
 			// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
 			// for invalid Unicode codepoints
-			*it++ = 0xef;
-			*it++ = 0xbf;
-			*it++ = 0xbd;
+			*it++ = static_cast<output_value_type>(0xef);
+			*it++ = static_cast<output_value_type>(0xbf);
+			*it++ = static_cast<output_value_type>(0xbd);
 		}
 	}
 	else if (iOutputWidth == 2 && NeedsSurrogates(cp))

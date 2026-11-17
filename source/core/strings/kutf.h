@@ -60,7 +60,7 @@
 /// and 10 times (for validation and count) compared to the discrete template code. simdutf is wrapped seamlessly
 /// into the existing template interface. Performance measurements were done on both amd64 and aarch64 with
 /// (nearly) comparable results. When using this header standalone, please \#define KUTF_WITH_SIMDUTF 1
-/// and make sure <simdutf.h> is in the include path.
+/// and make sure <simdutf.h> is in the include path. Current versions of simdutf need C++17 then.
 ///
 /// PLEASE NOTE: When using simdutf, invalid codepoints will not be marked with the REPLACEMENT_CHARACTER,
 /// but instead lead to an abort of the entire operation. Nothing is appended to result strings, and boolean return
@@ -163,7 +163,7 @@
  --- ToUTF
 
  /// Convert a codepoint into a UTF8/16/32 sequence written at iterator it
- void ToUTF(Char codepoint, Iterator& it)
+ void ToUTF(Char codepoint, Iterator it)
 
  /// Convert a codepoint into a UTF8/16/32 sequence appended to UTF
  void ToUTF(Char codepoint, UTFContainer& UTF)

@@ -47,9 +47,9 @@ VcpkgSetup ()
 {
 	# the tools of a vcpkg build, the libraries come from vcpkg: vcpkg itself needs
 	# git, curl, zip, unzip, tar and pkg-config, OpenSSL perl and make, libpq bison
-	# and flex, meson python3 - ninja is optional, but faster
+	# and flex, meson python3 from version 3.10 on - ninja is optional, but faster
 	flagfile="/tmp/installflag-dekaf2-vcpkg-setup"
-	flagversion="1"
+	flagversion="2"
 
 	if [ ! -f "${flagfile}" ] || [ "$(cat ${flagfile})" != "${flagversion}" ]
 	then
@@ -58,8 +58,9 @@ VcpkgSetup ()
 
 		case "${DISTRIB}" in
 			darwin)
-				# the rest comes with the command line tools of Xcode
-				InstallSystemPackages cmake ninja pkg-config
+				# the rest comes with the command line tools of Xcode - but their
+				# python3 is 3.9, which is too old for meson
+				InstallSystemPackages cmake ninja pkg-config python
 				;;
 			debian)
 				sudo apt-get update -y

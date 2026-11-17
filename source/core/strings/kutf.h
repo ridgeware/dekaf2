@@ -332,6 +332,14 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 	#define KUTF_UNLIKELY(expression) (expression)
 #endif
 
+#if defined(__GNUC__) && __GNUC__ >= 4
+	// for the decoder: when it is called as a function, the iterator of the caller
+	// has to live in memory
+	#define KUTF_ALWAYS_INLINE __attribute__((__always_inline__))
+#else
+	#define KUTF_ALWAYS_INLINE
+#endif
+
 #if __cplusplus >= 201402L
 	#define KUTF_CONSTEXPR_14 constexpr
 #else
@@ -926,7 +934,7 @@ namespace KUTF_detail {
 /// @param ch receives the byte at it
 /// @returns false at the end of the input or when the byte at it is no continuation byte
 template<typename Iterator>
-KUTF_CONSTEXPR_14
+KUTF_CONSTEXPR_14 KUTF_ALWAYS_INLINE
 bool NextContinuationByte(Iterator& it, Iterator ie, codepoint_t& ch)
 //-----------------------------------------------------------------------------
 {
@@ -956,7 +964,7 @@ bool NextContinuationByte(Iterator& it, Iterator ie, codepoint_t& ch)
 /// @param ie the end of an iterator range to read from
 /// @returns an assembled codepoint
 template<typename Iterator>
-KUTF_CONSTEXPR_14
+KUTF_CONSTEXPR_14 KUTF_ALWAYS_INLINE
 codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
@@ -1076,7 +1084,7 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 /// @param ie the end of an iterator range to read from
 /// @returns an assembled codepoint
 template<typename Iterator>
-KUTF_CONSTEXPR_14
+KUTF_CONSTEXPR_14 KUTF_ALWAYS_INLINE
 codepoint_t Codepoint(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {

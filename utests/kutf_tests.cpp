@@ -1575,6 +1575,29 @@ TEST_CASE("UTF") {
 				}
 			}
 		}
+		{
+			std::string sBytes = "keep";
+
+			if (kutf::Encode(KStringView("abc\xFF"), sBytes, kutf::Encoding::UTF16LE))
+			{
+				CHECK ( sBytes == std::string("keep\xFF\xFE" "a\0b\0c\0\xFD\xFF", 14) );
+			}
+			else
+			{
+				CHECK ( sBytes == "keep" );
+			}
+
+			sBytes = "keep";
+
+			if (kutf::Encode(std::u16string(1, char16_t(0xD800)), sBytes, kutf::Encoding::UTF8))
+			{
+				CHECK ( sBytes == "keep\xEF\xBB\xBF\xEF\xBF\xBD" );
+			}
+			else
+			{
+				CHECK ( sBytes == "keep" );
+			}
+		}
 	}
 
 	SECTION("transformations across the chunks of a long input")

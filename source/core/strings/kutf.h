@@ -2376,13 +2376,15 @@ bool DecodeInPlace(ByteString& sBytes)
 /// @param sBytes the 8 bit output string, will be appended to
 /// @param Enc the encoding of the output, not Unknown
 /// @param bWithBOM start the output with the byte order mark of the encoding
-/// @return false in case of decoding errors or with Encoding::Unknown, else true
+/// @return false in case of decoding errors or with Encoding::Unknown, else true - nothing is appended then
 template<typename ByteString, typename InpType,
          typename std::enable_if<KUTF_detail::HasSize<InpType>::value, int>::type = 0>
 inline
 bool Encode(const InpType& sInput, ByteString& sBytes, Encoding Enc, bool bWithBOM = true)
 //-----------------------------------------------------------------------------
 {
+	auto iOriginalSize = sBytes.size();
+
 	if (bWithBOM)
 	{
 		sBytes += ByteOrderMark<ByteString>(Enc);
@@ -2391,7 +2393,14 @@ bool Encode(const InpType& sInput, ByteString& sBytes, Encoding Enc, bool bWithB
 	switch (Enc)
 	{
 		case Encoding::UTF8:
-			return Convert(sInput, sBytes);
+			if (!Convert(sInput, sBytes))
+			{
+				// remove the byte order mark as well
+				sBytes.resize(iOriginalSize);
+				return false;
+			}
+
+			return true;
 
 		case Encoding::UTF16LE:
 		case Encoding::UTF16BE:
@@ -2400,6 +2409,7 @@ bool Encode(const InpType& sInput, ByteString& sBytes, Encoding Enc, bool bWithB
 
 			if (!Convert(sInput, Units))
 			{
+				sBytes.resize(iOriginalSize);
 				return false;
 			}
 
@@ -2418,6 +2428,7 @@ bool Encode(const InpType& sInput, ByteString& sBytes, Encoding Enc, bool bWithB
 
 			if (!Convert(sInput, Units))
 			{
+				sBytes.resize(iOriginalSize);
 				return false;
 			}
 

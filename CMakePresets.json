@@ -41,6 +41,7 @@
       "cacheVariables": {
         "DEKAF2_VCPKG_BUILD": "ON",
         "VCPKG_MANIFEST_DIR": "${sourceDir}/vcpkg",
+        "VCPKG_INSTALL_OPTIONS": "--clean-after-build",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },

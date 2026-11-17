@@ -12,6 +12,11 @@
 #include <stdio.h>
 #ifdef DEKAF2_IS_UNIX
 	#include <fcntl.h>
+	#include <pthread.h>
+	#include <unistd.h>
+	#include <atomic>
+	#include <csignal>
+	#include <mutex>
 #endif
 
 #define KInPipeCleanup 1
@@ -119,6 +124,49 @@ TEST_CASE("KInPipe")
 		CHECK_FALSE(pipe.IsRunning());
 		CHECK(EINVAL == pipe.Close());
 	}
+
+#ifdef DEKAF2_HAS_ASAN
+	SECTION("KInPipe with a child that ends inside fork()")
+	{
+		// with AddressSanitizer a child can end inside fork(), in the fork handlers of the
+		// system, when another thread holds a lock of the sanitizer. A fork handler of
+		// this test does the same to the child
+		static std::atomic<bool> s_bEndInFork { false };
+		static std::once_flag    s_Once;
+
+		std::call_once(s_Once, []()
+		{
+			::pthread_atfork(nullptr, nullptr, []()
+			{
+				if (s_bEndInFork)
+				{
+					::kill(::getpid(), SIGKILL);
+				}
+			});
+		});
+
+		s_bEndInFork = true;
+
+		KInPipe pipe;
+		bool bOpened = pipe.Open(std::vector<KString>{ "echo", "hello" });
+
+		s_bEndInFork = false;
+
+		// the pipe reports the lost child instead of an output that ends at once
+		CHECK ( bOpened == false );
+		CHECK ( pipe.IsRunning() == false );
+		CHECK ( pipe.GetProcessID() == 0 );
+		CHECK ( pipe.Close() == -1 );
+
+		// the next child is not affected
+		KInPipe pipe2(std::vector<KString>{ "echo", "hello" });
+		CHECK ( pipe2.is_open() );
+		KString sLine;
+		CHECK ( pipe2.ReadLine(sLine) );
+		CHECK ( sLine == "hello" );
+		CHECK ( 0 == pipe2.Close() );
+	}
+#endif
 
 #if KInPipeCleanup
 	SECTION("KInPipe cleanup test")

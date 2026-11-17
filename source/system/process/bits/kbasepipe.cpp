@@ -55,6 +55,10 @@
 	#include <windows.h>
 	#include <io.h>
 	#include <fcntl.h>
+#else
+	#include <fcntl.h>
+	#include <poll.h>
+	#include <unistd.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -225,6 +229,137 @@ bool KBasePipe::Kill(KDuration Timeout)
 
 #else // DEKAF2_IS_WINDOWS
 
+#ifdef DEKAF2_HAS_ASAN
+
+namespace {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Detects a child that does not get out of fork(). The runtime of AddressSanitizer
+/// is not safe to fork while another thread holds one of its locks: the fork handlers
+/// of the system allocate in the child, the allocator needs that lock, and the child
+/// is aborted there (macOS) or waits forever (Linux with older runtimes). The child
+/// tells through a pipe of its own that it runs.
+class KForkCheck
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	enum class Result { Runs, Ended, Hangs };
+
+	// how long the child may need to get out of fork()
+	static constexpr int iTimeoutSeconds = 10;
+
+	//-----------------------------------------------------------------------------
+	/// opens the pipe - to be constructed before fork()
+	KForkCheck()
+	//-----------------------------------------------------------------------------
+	{
+		if (::pipe(m_Pdes) < 0)
+		{
+			// without the pipe the child is taken as running
+			m_Pdes[0] = -1;
+			m_Pdes[1] = -1;
+		}
+		else
+		{
+			// the pipe is not for the program the child executes
+			::fcntl(m_Pdes[0], F_SETFD, FD_CLOEXEC);
+			::fcntl(m_Pdes[1], F_SETFD, FD_CLOEXEC);
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	~KForkCheck()
+	//-----------------------------------------------------------------------------
+	{
+		Close(m_Pdes[0]);
+		Close(m_Pdes[1]);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// the first call in the child
+	void ChildRuns()
+	//-----------------------------------------------------------------------------
+	{
+		if (m_Pdes[1] >= 0)
+		{
+			char ch { 1 };
+
+			if (::write(m_Pdes[1], &ch, 1) != 1)
+			{
+				// the parent sees the end of the pipe
+			}
+		}
+
+		Close(m_Pdes[0]);
+		Close(m_Pdes[1]);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// in the parent: waits until the child told that it runs, has ended, or until the
+	/// timeout has passed
+	Result WaitForChild()
+	//-----------------------------------------------------------------------------
+	{
+		Close(m_Pdes[1]);
+
+		if (m_Pdes[0] < 0)
+		{
+			return Result::Runs;
+		}
+
+		struct pollfd Poll { m_Pdes[0], POLLIN, 0 };
+		int iReady { 0 };
+
+		do
+		{
+			iReady = ::poll(&Poll, 1, iTimeoutSeconds * 1000);
+		}
+		while (iReady == -1 && errno == EINTR);
+
+		if (iReady == 0)
+		{
+			return Result::Hangs;
+		}
+
+		char ch { 0 };
+		ssize_t iRead { 0 };
+
+		do
+		{
+			iRead = ::read(m_Pdes[0], &ch, 1);
+		}
+		while (iRead == -1 && errno == EINTR);
+
+		return (iRead == 1) ? Result::Runs : Result::Ended;
+	}
+
+//----------
+private:
+//----------
+
+	//-----------------------------------------------------------------------------
+	static void Close(int& iFileDescriptor)
+	//-----------------------------------------------------------------------------
+	{
+		if (iFileDescriptor >= 0)
+		{
+			::close(iFileDescriptor);
+			iFileDescriptor = -1;
+		}
+	}
+
+	int m_Pdes[2] { -1, -1 };
+
+}; // KForkCheck
+
+} // end of anonymous namespace
+
+#endif // DEKAF2_HAS_ASAN
+
 //-----------------------------------------------------------------------------
 bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
@@ -338,6 +473,10 @@ bool KBasePipe::Open(std::vector<KString> Args, OpenMode Mode, const std::vector
 
 	auto bOwnProcessGroup = KProcessGroup::UseOwn(m_ProcessGroup);
 
+#ifdef DEKAF2_HAS_ASAN
+	KForkCheck ForkCheck;
+#endif
+
 	// create a child
 	switch (m_pid = ::fork())
 	{
@@ -368,6 +507,9 @@ bool KBasePipe::Open(std::vector<KString> Args, OpenMode Mode, const std::vector
 
 		case 0: /* child */
 		{
+#ifdef DEKAF2_HAS_ASAN
+			ForkCheck.ChildRuns();
+#endif
 			if (bOwnProcessGroup)
 			{
 				KProcessGroup::EnterOwn();
@@ -417,6 +559,39 @@ bool KBasePipe::Open(std::vector<KString> Args, OpenMode Mode, const std::vector
 	}
 
 	// only parent gets here
+
+#ifdef DEKAF2_HAS_ASAN
+	{
+		KStringView sWhat;
+
+		switch (ForkCheck.WaitForChild())
+		{
+			case KForkCheck::Result::Runs:
+				break;
+
+			case KForkCheck::Result::Ended:
+				sWhat = "ended";
+				break;
+
+			case KForkCheck::Result::Hangs:
+				sWhat = "hangs";
+				::kill(m_pid, SIGKILL);
+				break;
+		}
+
+		if (!sWhat.empty())
+		{
+			// closes the pipes and collects the child
+			Close();
+			m_iExitCode = -1;
+
+			kWarning("the child for '{}' {} inside fork(), before it ran any code: this build has AddressSanitizer, "
+			         "and its runtime is not safe to fork while another thread holds one of its locks", sCommand, sWhat);
+
+			return false;
+		}
+	}
+#endif
 
 	if (bOwnProcessGroup)
 	{

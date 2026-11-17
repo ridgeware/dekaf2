@@ -1523,6 +1523,37 @@ TEST_CASE("UTF") {
 		CHECK ( uint32_t(kutf::PrevCodepoint(sv.begin(), it)) == 0x41 );
 		CHECK ( it == sv.begin() );
 	}
+
+	SECTION("invalid input appends nothing or all of it")
+	{
+		// with simdutf an operation on invalid input fails, without it the invalid
+		// sequences become the replacement character - in no case there is a part of
+		// the output
+		{
+			std::u16string s16 = u"keep";
+
+			if (kutf::Convert(KStringView("abc\xFF" "def"), s16))
+			{
+				CHECK ( (s16 == u"keepabc�" u"def") );
+			}
+			else
+			{
+				CHECK ( (s16 == u"keep") );
+			}
+		}
+		{
+			std::u32string s32 = U"keep";
+
+			if (kutf::Convert(KStringView("M\xE4" "dchen"), s32))
+			{
+				CHECK ( (s32 == U"keepM�" U"dchen") );
+			}
+			else
+			{
+				CHECK ( (s32 == U"keep") );
+			}
+		}
+	}
 }
 
 

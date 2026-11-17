@@ -63,7 +63,8 @@
 /// and make sure <simdutf.h> is in the include path.
 ///
 /// PLEASE NOTE: When using simdutf, invalid codepoints will not be marked with the REPLACEMENT_CHARACTER,
-/// but instead lead to an abort of the entire operation. Result strings will be empty, and boolean return values false.
+/// but instead lead to an abort of the entire operation. Nothing is appended to result strings, and boolean return
+/// values are false.
 /// To find out about the position of an invalid codepoint, when simdutf is enabled you have to use the
 /// InvalidUTF() method on the original input.
 ///
@@ -1926,7 +1927,14 @@ bool Convert(Iterator it, Iterator ie, OutType& Output)
 			break;
 	}
 
-	return iWrote == iTargetSize;
+	if (iWrote != iTargetSize)
+	{
+		// the input is not valid - remove what was appended for it
+		Output.resize(iOldSize);
+		return false;
+	}
+
+	return true;
 
 #else // KUTF_WITH_SIMDUTF
 

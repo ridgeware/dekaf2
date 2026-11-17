@@ -190,7 +190,9 @@ TEST_CASE("KErrorBase")
 	{
 		// the base class of many small classes: one pointer
 		CHECK ( sizeof(KErrorBase) == sizeof(void*)     );
-		CHECK ( sizeof(KException) == 2 * sizeof(void*) );
+		// the exception adds one pointer to std::exception, which has the size of
+		// one pointer with libstdc++ and libc++, and of three with the library of MSVC
+		CHECK ( sizeof(KException) == sizeof(std::exception) + sizeof(void*) );
 	}
 
 	SECTION("no error")

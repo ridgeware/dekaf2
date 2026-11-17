@@ -120,8 +120,9 @@ static_assert(std::is_nothrow_move_constructible<KErrorBase>::value,
 static_assert(sizeof(KErrorBase) == sizeof(void*),
 			  "KErrorBase is intended to have the size of one pointer, but has not!");
 
-static_assert(sizeof(KException) == 2 * sizeof(void*),
-			  "KException is intended to have the size of two pointers, but has not!");
+// std::exception is one pointer with libstdc++ and libc++, and three with the library of MSVC
+static_assert(sizeof(KException) == sizeof(std::exception) + sizeof(void*),
+			  "KException is intended to add one pointer to std::exception, but does not!");
 
 
 DEKAF2_NAMESPACE_END

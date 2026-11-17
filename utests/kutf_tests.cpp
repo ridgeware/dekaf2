@@ -1488,6 +1488,41 @@ TEST_CASE("UTF") {
 			CHECK ( Decoded == Test.Expected );
 		}
 	}
+
+	SECTION("PrevCodepoint reads the same codepoints as a forward read")
+	{
+		constexpr auto Bad = uint32_t(kutf::INVALID_CODEPOINT);
+
+		for (KStringView sInput : { "A\x80", "\xC3\xA4\x80", "M\xE4" "dchen", "x\xE4", "a\x80\x80" "b", "Aé日𐑅" })
+		{
+			INFO ( kEscapeForLogging(sInput) );
+
+			std::vector<uint32_t> Forward;
+			auto it = sInput.begin();
+
+			while (it != sInput.end())
+			{
+				Forward.push_back(uint32_t(kutf::CodepointFromUTF8(it, sInput.end())));
+			}
+
+			std::vector<uint32_t> Backward;
+			it = sInput.end();
+
+			while (it != sInput.begin())
+			{
+				Backward.insert(Backward.begin(), uint32_t(kutf::PrevCodepoint(sInput.begin(), it)));
+			}
+
+			CHECK ( Backward == Forward );
+		}
+
+		KStringView sv("A\x80");
+		auto it = sv.end();
+		CHECK ( uint32_t(kutf::PrevCodepoint(sv.begin(), it)) == Bad );
+		CHECK ( it == sv.begin() + 1 );
+		CHECK ( uint32_t(kutf::PrevCodepoint(sv.begin(), it)) == 0x41 );
+		CHECK ( it == sv.begin() );
+	}
 }
 
 

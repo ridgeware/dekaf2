@@ -1688,14 +1688,20 @@ codepoint_t PrevCodepoint(Iterator ibegin, Iterator& it)
 			// check if this char starts a UTF8 sequence
 			auto ch = CodepointCast(*--it);
 
-			if (KUTF_LIKELY(ch < 128))
-			{
-				return ch;
-			}
-			else if (!IsContinuationByte(ch))
+			if (!IsContinuationByte(ch))
 			{
 				Iterator nit = it;
-				return CodepointFromUTF8(nit, iend);
+				auto cp = CodepointFromUTF8(nit, iend);
+
+				if (KUTF_UNLIKELY(nit != iend))
+				{
+					// the sequence ends before iend: the continuation bytes behind it
+					// are the invalid codepoint a forward read returns at this place
+					it = nit;
+					return INVALID_CODEPOINT;
+				}
+
+				return cp;
 			}
 		}
 	}

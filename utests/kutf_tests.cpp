@@ -1702,6 +1702,67 @@ TEST_CASE("UTF") {
 		CHECK ( kutf::Decode(std::string(), kutf::Encoding::UTF8, sEmpty) == true );
 		CHECK ( sEmpty == "keep" );
 	}
+
+	SECTION("conversions with multi unit codepoints at every offset of a long input")
+	{
+		for (std::size_t iBefore = 0; iBefore <= 1100; ++iBefore)
+		{
+			INFO ( iBefore );
+
+			auto s8  = std::string   (iBefore,  'a') +  "ä日𐑅b";
+			auto s16 = std::u16string(iBefore, u'a') + u"ä日𐑅b";
+			auto s32 = std::u32string(iBefore, U'a') + U"ä日𐑅b";
+
+			CHECK ( (kutf::Convert<std::u16string>(s8)  == s16) );
+			CHECK ( (kutf::Convert<std::u32string>(s8)  == s32) );
+			CHECK ( (kutf::Convert<std::string>   (s16) == s8 ) );
+			CHECK ( (kutf::Convert<std::u32string>(s16) == s32) );
+			CHECK ( (kutf::Convert<std::string>   (s32) == s8 ) );
+			CHECK ( (kutf::Convert<std::u16string>(s32) == s16) );
+		}
+
+		// only sequences of the largest length, starting at every offset of a block
+		for (std::size_t iBefore = 0; iBefore < 4; ++iBefore)
+		{
+			INFO ( iBefore );
+
+			auto s8  = std::string   (iBefore,  'a');
+			auto s16 = std::u16string(iBefore, u'a');
+			auto s32 = std::u32string(iBefore, U'a');
+
+			for (int i = 0; i < 700; ++i)
+			{
+				s8  +=  "𐑅";
+				s16 += u"𐑅";
+				s32 += U"𐑅";
+			}
+
+			CHECK ( (kutf::Convert<std::u16string>(s8)  == s16) );
+			CHECK ( (kutf::Convert<std::u32string>(s8)  == s32) );
+			CHECK ( (kutf::Convert<std::string>   (s16) == s8 ) );
+			CHECK ( (kutf::Convert<std::u32string>(s16) == s32) );
+			CHECK ( (kutf::Convert<std::string>   (s32) == s8 ) );
+			CHECK ( (kutf::Convert<std::u16string>(s32) == s16) );
+		}
+
+		// Latin1
+		std::string sLatin1(1500, '\xE4');
+		std::string sUTF8;
+
+		for (int i = 0; i < 1500; ++i)
+		{
+			sUTF8 += "ä";
+		}
+
+		CHECK (  kutf::Latin1ToUTF<std::string>   (sLatin1) == sUTF8 );
+		CHECK ( (kutf::Latin1ToUTF<std::u16string>(sLatin1) == std::u16string(1500, u'ä')) );
+		CHECK ( (kutf::Latin1ToUTF<std::u32string>(sLatin1) == std::u32string(1500, U'ä')) );
+
+		// output into a container that is no string
+		std::vector<char> Bytes { 'x' };
+		CHECK ( kutf::Convert(std::u16string(1500, u'ä'), Bytes) == true );
+		CHECK ( std::string(Bytes.begin(), Bytes.end()) == "x" + sUTF8 );
+	}
 }
 
 

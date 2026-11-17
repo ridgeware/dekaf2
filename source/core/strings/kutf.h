@@ -320,6 +320,7 @@
 #include <functional>
 #include <cassert>
 #include <algorithm> // for std::transform
+#include <array>
 #include <cstring>   // for std::memcpy
 
 static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 compiler");
@@ -648,22 +649,16 @@ public:
 #pragma GCC diagnostic pop
 #endif
 
-} // end of namespace KUTF_detail
-
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8/UTF16/UTF32 sequence written at iterator it
-/// @param codepoint the codepoint to write
-/// @param it the output iterator to write at, possibly a back_insert_iterator
-template<typename output_value_type, typename Char, typename Iterator,
-         typename std::enable_if<std::is_integral<Char>::value
-                                 && !KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
-KUTF_CONSTEXPR_14
-void ToUTF(Char codepoint, Iterator it)
+/// @param cp the codepoint to write
+/// @param it the output iterator to write at, is advanced behind the sequence
+template<typename output_value_type, typename Iterator>
+KUTF_CONSTEXPR_14 KUTF_ALWAYS_INLINE
+void WriteUTF(codepoint_t cp, Iterator& it)
 //-----------------------------------------------------------------------------
 {
 	constexpr std::size_t iOutputWidth = sizeof(output_value_type);
-
-	codepoint_t cp = CodepointCast(codepoint);
 
 	if (iOutputWidth == 1)
 	{
@@ -697,7 +692,9 @@ void ToUTF(Char codepoint, Iterator it)
 		{
 			// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
 			// for invalid Unicode codepoints
-			ToUTF<output_value_type>(REPLACEMENT_CHARACTER, it);
+			*it++ = 0xef;
+			*it++ = 0xbf;
+			*it++ = 0xbd;
 		}
 	}
 	else if (iOutputWidth == 2 && NeedsSurrogates(cp))
@@ -714,6 +711,41 @@ void ToUTF(Char codepoint, Iterator it)
 		}
 		*it++ = static_cast<output_value_type>(cp);
 	}
+}
+
+//-----------------------------------------------------------------------------
+/// appends code units to a string
+template<typename Container, typename Iterator>
+auto Append(Container& Output, Iterator it, Iterator ie, int)
+-> decltype(Output.append(it, ie), void())
+//-----------------------------------------------------------------------------
+{
+	Output.append(it, ie);
+}
+
+//-----------------------------------------------------------------------------
+/// appends code units to a container that is no string
+template<typename Container, typename Iterator>
+void Append(Container& Output, Iterator it, Iterator ie, long)
+//-----------------------------------------------------------------------------
+{
+	Output.insert(Output.end(), it, ie);
+}
+
+} // end of namespace KUTF_detail
+
+//-----------------------------------------------------------------------------
+/// Convert a codepoint into a UTF8/UTF16/UTF32 sequence written at iterator it
+/// @param codepoint the codepoint to write
+/// @param it the output iterator to write at, possibly a back_insert_iterator
+template<typename output_value_type, typename Char, typename Iterator,
+         typename std::enable_if<std::is_integral<Char>::value
+                                 && !KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
+KUTF_CONSTEXPR_14
+void ToUTF(Char codepoint, Iterator it)
+//-----------------------------------------------------------------------------
+{
+	KUTF_detail::WriteUTF<output_value_type>(CodepointCast(codepoint), it);
 }
 
 //-----------------------------------------------------------------------------
@@ -772,6 +804,66 @@ UTFContainer ToUTF(Char codepoint)
 	ToUTF(codepoint, std::back_inserter(UTF));
 	return UTF;
 }
+
+// defined below
+template<typename Iterator>
+KUTF_CONSTEXPR_14 KUTF_ALWAYS_INLINE
+codepoint_t Codepoint(Iterator& it, Iterator ie);
+
+namespace KUTF_detail {
+
+//-----------------------------------------------------------------------------
+/// a functor that returns its codepoint
+struct SameCodepoint
+//-----------------------------------------------------------------------------
+{
+	constexpr codepoint_t operator()(codepoint_t cp) const { return cp; }
+};
+
+//-----------------------------------------------------------------------------
+/// calls func for every codepoint of the input and appends the UTF sequences of the returned
+/// codepoints to Output. The sequences are collected in a buffer and appended in blocks.
+/// @tparam bIsUTF true for UTF input. With false every input unit is one codepoint, as with Latin1.
+/// UTF32 input is never decoded, func gets its units as they are.
+/// @param it the begin iterator of the input
+/// @param ie the end iterator of the input
+/// @param Output the UTF output container, will be appended to
+/// @param func the functor, called with signature codepoint_t(codepoint_t)
+template<bool bIsUTF, typename OutType, typename Iterator, class Functor>
+void TransformBuffered(Iterator it, Iterator ie, OutType& Output, Functor func)
+//-----------------------------------------------------------------------------
+{
+	using value_type = typename OutType::value_type;
+
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
+	// the longest UTF sequence for one codepoint
+	constexpr std::size_t iMaxSequence = 4;
+	constexpr std::size_t iBufferSize  = 256;
+
+	std::array<value_type, iBufferSize> Buffer;
+	auto itOut  = Buffer.begin();
+	auto itFull = Buffer.end() - iMaxSequence;
+
+	for (; it != ie;)
+	{
+		codepoint_t cp = (bIsUTF && iInputWidth < 4) ? Codepoint(it, ie) : CodepointCast(*it++);
+
+		WriteUTF<value_type>(CodepointCast(func(cp)), itOut);
+
+		if (KUTF_UNLIKELY(itOut > itFull))
+		{
+			Append(Output, Buffer.begin(), itOut, 0);
+			itOut = Buffer.begin();
+		}
+	}
+
+	if (itOut != Buffer.begin())
+	{
+		Append(Output, Buffer.begin(), itOut, 0);
+	}
+}
+
+} // end of namespace KUTF_detail
 
 //-----------------------------------------------------------------------------
 /// Convert a latin1 encoded string into a UTF8/UTF16/UTF32 string (from two iterators)
@@ -840,12 +932,7 @@ bool Latin1ToUTF(Iterator it, Iterator ie, UTFContainer& UTF)
 
 #else
 
-	auto bi = std::back_inserter(UTF);
-
-	for (; KUTF_LIKELY(it != ie); ++it)
-	{
-		ToUTF(*it, bi);
-	}
+	KUTF_detail::TransformBuffered<false>(it, ie, UTF, KUTF_detail::SameCodepoint());
 
 	return true;
 
@@ -1946,12 +2033,7 @@ bool Convert(Iterator it, Iterator ie, OutType& Output)
 
 #else // KUTF_WITH_SIMDUTF
 
-	auto bi = std::back_inserter(Output);
-
-	for (; it != ie;)
-	{
-		ToUTF(Codepoint(it, ie), bi);
-	}
+	KUTF_detail::TransformBuffered<true>(it, ie, Output, KUTF_detail::SameCodepoint());
 
 	return true;
 
@@ -2631,7 +2713,9 @@ bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 		}
 		return true;
 #else
-		return ForEach(it, ie, [&Output, &func](codepoint_t cp) { ToUTF(func(cp), Output); return true; });
+		KUTF_detail::TransformBuffered<true>(it, ie, Output, func);
+
+		return true;
 #endif
 	}
 }

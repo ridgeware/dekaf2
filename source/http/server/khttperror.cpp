@@ -129,6 +129,7 @@ KStringView KHTTPError::GetStatusString(uint16_t iStatusCode)
 		case H5xx_NOTIMPL:            return "NOT IMPLEMENTED";
 		case H5xx_BAD_GATEWAY:        return "BAD GATEWAY";
 		case H5xx_UNAVAILABLE:        return "SERVICE UNAVAILABLE";
+		case H5xx_OVERLOADED:         return "SERVICE OVERLOADED";
 		case H5xx_FROZEN:             return "SERVICE FROZEN";
 		case H5xx_READTIMEOUT:        return "NETWORK READ TIMEOUT ERROR";
 

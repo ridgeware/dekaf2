@@ -60,6 +60,7 @@
 #include <dekaf2/containers/memory/karenaallocator.h>
 #include <dekaf2/crypto/cipher/karia.h>
 #include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/crypto/auth/kargon2.h>
 #include <dekaf2/threading/primitives/katomic_object.h>
 #include <dekaf2/crypto/auth/kawsauth.h>
 #include <dekaf2/core/format/kbar.h>

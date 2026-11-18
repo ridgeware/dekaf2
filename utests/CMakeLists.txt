@@ -37,6 +37,7 @@ set (USOURCES
 	kassociative_tests.cpp
 	kacmeclient_tests.cpp
 	kacmemanager_tests.cpp
+	kargon2_tests.cpp
 	kawsauth_tests.cpp
 	kbase64_tests.cpp
 	kbcrypt_tests.cpp

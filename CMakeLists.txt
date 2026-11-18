@@ -1822,6 +1822,7 @@ set(PUBLIC_HEADERS
 	source/core/strings/kutf.h
 	source/core/strings/kutf_iterator.h
 	source/core/types/kvariant.h
+	source/crypto/auth/kargon2.h
 	source/crypto/auth/kawsauth.h
 	source/crypto/auth/kbcrypt.h
 	source/crypto/auth/kopenid.h
@@ -1830,6 +1831,7 @@ set(PUBLIC_HEADERS
 	source/crypto/auth/kopenidserver.h
 	source/crypto/auth/ksession.h
 	source/crypto/auth/ktotp.h
+	source/crypto/auth/bits/kargon2core.h
 	source/crypto/auth/bits/ksessionmemorystore.h
 	source/crypto/auth/bits/ksessioncachingstore.h
 	source/crypto/auth/bits/ksessionsqlitestore.h
@@ -2120,6 +2122,7 @@ set (SOURCES
 	source/core/strings/kwords.cpp
 	source/core/strings/bits/simd/kutf.cpp
 	source/core/types/kctype.cpp
+	source/crypto/auth/kargon2.cpp
 	source/crypto/auth/kawsauth.cpp
 	source/crypto/auth/kbcrypt.cpp
 	source/crypto/auth/kopenid.cpp
@@ -2128,6 +2131,7 @@ set (SOURCES
 	source/crypto/auth/kopenidserver.cpp
 	source/crypto/auth/ksession.cpp
 	source/crypto/auth/ktotp.cpp
+	source/crypto/auth/bits/kargon2core.cpp
 	source/crypto/auth/bits/ksessionmemorystore.cpp
 	source/crypto/auth/bits/ksessioncachingstore.cpp
 	source/crypto/cipher/kblockcipher.cpp

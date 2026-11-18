@@ -1993,6 +1993,7 @@ set(PUBLIC_HEADERS
 	source/util/i18n/kmessageformat.h
 	source/util/i18n/kpluralrules.h
 	source/util/i18n/kstringcatalog.h
+	source/util/metrics/kmetrics.h
 	source/util/mail/kmail.h
 	source/util/mail/kmailspool.h
 	source/util/mail/ksmtp.h
@@ -2286,6 +2287,7 @@ set (SOURCES
 	source/util/i18n/kmessageformat.cpp
 	source/util/i18n/kpluralrules.cpp
 	source/util/i18n/kstringcatalog.cpp
+	source/util/metrics/kmetrics.cpp
 	source/util/mail/kmail.cpp
 	source/util/mail/kmailspool.cpp
 	source/util/mail/ksmtp.cpp

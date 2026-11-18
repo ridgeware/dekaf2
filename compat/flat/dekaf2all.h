@@ -165,6 +165,7 @@
 #include <dekaf2/core/types/kmakecopyable.h>
 #include <dekaf2/io/readwrite/kmemorymap.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
+#include <dekaf2/util/metrics/kmetrics.h>
 #include <dekaf2/web/url/kmime.h>
 #include <dekaf2/io/streams/kmodifyingstreambuf.h>
 #include <dekaf2/core/strings/kmpsearch.h>

@@ -213,6 +213,12 @@ public:
 
 	KZip(bool bThrow = false);
 	KZip(KStringViewZ sFilename, bool bWrite = false, bool bThrow = false);
+	/// A string literal or a const char* as the only argument would convert to bool
+	/// and select the constructor without a file name. This one takes it as the file name.
+	KZip(const char* sFilename, bool bWrite = false, bool bThrow = false)
+	: KZip(KStringViewZ(sFilename), bWrite, bThrow)
+	{
+	}
 	KZip(const KZip&) = delete;
 	KZip(KZip&&);
 	KZip& operator=(const KZip&) = delete;

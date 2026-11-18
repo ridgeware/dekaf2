@@ -15,6 +15,38 @@ using namespace dekaf2;
 
 TEST_CASE("KZip") {
 
+	SECTION("a file name as a pointer to char and as a string literal")
+	{
+		KTempDir ZipDir;
+
+		KString sZipFile = kFormat("{}/{}", ZipDir.Name(), "pointer.zip");
+
+		{
+			KZip Zip(sZipFile.c_str(), true);
+
+			CHECK ( Zip.is_open() );
+			CHECK ( Zip.WriteBuffer("content", "file1") );
+		}
+
+		{
+			// this is the file name, not the request to throw on errors
+			KZip Zip(sZipFile.c_str());
+
+			CHECK ( Zip.is_open()   );
+			CHECK ( Zip.size() == 1 );
+		}
+
+		{
+			// a string literal is a file name as well: this one has no file,
+			// and a later error does not throw
+			KZip Zip("");
+
+			CHECK         ( Zip.is_open() == false );
+			CHECK_NOTHROW ( Zip.Open(kFormat("{}/{}", ZipDir.Name(), "missing.zip")) );
+			CHECK         ( Zip.is_open() == false );
+		}
+	}
+
 	SECTION("Read")
 	{
 		KStringView sAlpha = "abcdefghijklmnopqrstuvwxyz";

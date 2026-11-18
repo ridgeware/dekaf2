@@ -57,10 +57,11 @@
 ///    signature to check validity — without ever needing the private key.
 ///
 /// @par Signature format
-/// KECSign returns the **raw r||s** concatenation (exactly 64 bytes),
-/// not the DER-encoded ASN.1 format that OpenSSL uses internally.
-/// This is the format required by JWS/JWT (RFC 7515) and VAPID
-/// (RFC 8292).
+/// By default KECSign returns the **raw r||s** concatenation (exactly
+/// 64 bytes), not the DER-encoded ASN.1 format that OpenSSL uses
+/// internally. This is the format required by JWS/JWT (RFC 7515) and
+/// VAPID (RFC 8292). With KECSign::Format::Der both classes use the
+/// DER format, which X.509, TLS and WebAuthn have.
 ///
 /// @par Typical usage
 /// @code
@@ -120,12 +121,20 @@ class DEKAF2_PUBLIC KECSign : public KErrorBase
 public:
 //------
 
+	/// the format of a signature
+	enum class Format : uint8_t
+	{
+		Raw, ///< r||s, 64 bytes
+		Der  ///< the ASN.1 sequence of r and s in DER, up to 72 bytes
+	};
+
 	/// sign data with ES256 using the given private key
 	/// @param Key the EC private key
 	/// @param sData the data to sign
-	/// @return raw r||s signature (64 bytes), empty on error
+	/// @param format the format of the signature
+	/// @return the signature, empty on error
 	DEKAF2_NODISCARD
-	KString Sign(const KECKey& Key, KStringView sData) const;
+	KString Sign(const KECKey& Key, KStringView sData, Format format = Format::Raw) const;
 
 }; // KECSign
 
@@ -133,8 +142,9 @@ public:
 /// Verify an ES256 (ECDSA P-256 + SHA-256) signature.
 ///
 /// Accepts a KECKey with either a private or public key.  The signature
-/// must be in raw r||s format (64 bytes).  Returns true only if the
-/// signature is cryptographically valid for the given data and key.
+/// is in raw r||s format (64 bytes) by default, or in DER.  Returns true
+/// only if the signature is cryptographically valid for the given data
+/// and key.
 class DEKAF2_PUBLIC KECVerify : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -143,13 +153,16 @@ class DEKAF2_PUBLIC KECVerify : public KErrorBase
 public:
 //------
 
+	using Format = KECSign::Format;
+
 	/// verify an ES256 signature
 	/// @param Key the EC public or private key
 	/// @param sData the original data
-	/// @param sSignature raw r||s signature (64 bytes)
+	/// @param sSignature the signature
+	/// @param format the format of the signature
 	/// @return true if the signature is valid
 	DEKAF2_NODISCARD
-	bool Verify(const KECKey& Key, KStringView sData, KStringView sSignature) const;
+	bool Verify(const KECKey& Key, KStringView sData, KStringView sSignature, Format format = Format::Raw) const;
 
 }; // KECVerify
 

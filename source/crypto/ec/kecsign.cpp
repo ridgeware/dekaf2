@@ -53,7 +53,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
-KString KECSign::Sign(const KECKey& Key, KStringView sData) const
+KString KECSign::Sign(const KECKey& Key, KStringView sData, Format format) const
 //---------------------------------------------------------------------------
 {
 	if (Key.empty() || !Key.IsPrivateKey())
@@ -102,6 +102,15 @@ KString KECSign::Sign(const KECKey& Key, KStringView sData) const
 
 	aDER.resize(iDERLen);
 
+	switch (format)
+	{
+		case Format::Der:
+			return KString(reinterpret_cast<const char*>(aDER.data()), aDER.size());
+
+		case Format::Raw:
+			break;
+	}
+
 	// convert DER-encoded ECDSA signature to raw r||s (64 bytes)
 	const unsigned char* pDER = aDER.data();
 	ECDSA_SIG* pSig = ::d2i_ECDSA_SIG(nullptr, &pDER, static_cast<long>(iDERLen));
@@ -127,7 +136,7 @@ KString KECSign::Sign(const KECKey& Key, KStringView sData) const
 } // Sign
 
 //---------------------------------------------------------------------------
-bool KECVerify::Verify(const KECKey& Key, KStringView sData, KStringView sSignature) const
+bool KECVerify::Verify(const KECKey& Key, KStringView sData, KStringView sSignature, Format format) const
 //---------------------------------------------------------------------------
 {
 	if (Key.empty())
@@ -135,32 +144,51 @@ bool KECVerify::Verify(const KECKey& Key, KStringView sData, KStringView sSignat
 		return SetError("verification requires a key");
 	}
 
-	if (sSignature.size() != 64)
+	// OpenSSL verifies the DER format
+	KString     sConverted;
+	KStringView sDER = sSignature;
+
+	switch (format)
 	{
-		return SetError("ES256 signature must be 64 bytes (raw r||s)");
-	}
+		case Format::Raw:
+		{
+			if (sSignature.size() != 64)
+			{
+				return SetError("ES256 signature must be 64 bytes (raw r||s)");
+			}
 
-	// reconstruct DER from raw r||s
-	KUniquePtr<BIGNUM, ::BN_free> pR(::BN_bin2bn(
-		reinterpret_cast<const unsigned char*>(sSignature.data()), 32, nullptr));
-	KUniquePtr<BIGNUM, ::BN_free> pS(::BN_bin2bn(
-		reinterpret_cast<const unsigned char*>(sSignature.data() + 32), 32, nullptr));
+			// reconstruct DER from raw r||s
+			KUniquePtr<BIGNUM, ::BN_free> pR(::BN_bin2bn(
+				reinterpret_cast<const unsigned char*>(sSignature.data()), 32, nullptr));
+			KUniquePtr<BIGNUM, ::BN_free> pS(::BN_bin2bn(
+				reinterpret_cast<const unsigned char*>(sSignature.data() + 32), 32, nullptr));
 
-	ECDSA_SIG* pSig = ::ECDSA_SIG_new();
+			ECDSA_SIG* pSig = ::ECDSA_SIG_new();
 
-	if (!pSig || ::ECDSA_SIG_set0(pSig, pR.release(), pS.release()) != 1)
-	{
-		if (pSig) ::ECDSA_SIG_free(pSig);
-		return SetError(KDigest::GetOpenSSLError("cannot build ECDSA_SIG"));
-	}
+			if (!pSig || ::ECDSA_SIG_set0(pSig, pR.release(), pS.release()) != 1)
+			{
+				if (pSig) ::ECDSA_SIG_free(pSig);
+				return SetError(KDigest::GetOpenSSLError("cannot build ECDSA_SIG"));
+			}
 
-	unsigned char* pDER    = nullptr;
-	int            iDERLen = ::i2d_ECDSA_SIG(pSig, &pDER);
-	::ECDSA_SIG_free(pSig);
+			unsigned char* pDER    = nullptr;
+			int            iDERLen = ::i2d_ECDSA_SIG(pSig, &pDER);
+			::ECDSA_SIG_free(pSig);
 
-	if (iDERLen <= 0 || !pDER)
-	{
-		return SetError(KDigest::GetOpenSSLError("cannot encode ECDSA_SIG to DER"));
+			if (iDERLen <= 0 || !pDER)
+			{
+				return SetError(KDigest::GetOpenSSLError("cannot encode ECDSA_SIG to DER"));
+			}
+
+			sConverted.assign(reinterpret_cast<const char*>(pDER), static_cast<std::size_t>(iDERLen));
+			OPENSSL_free(pDER);
+
+			sDER = sConverted;
+			break;
+		}
+
+		case Format::Der:
+			break;
 	}
 
 	// verify
@@ -168,13 +196,11 @@ bool KECVerify::Verify(const KECKey& Key, KStringView sData, KStringView sSignat
 
 	if (!mdCtx)
 	{
-		OPENSSL_free(pDER);
 		return SetError(KDigest::GetOpenSSLError("cannot create MD context"));
 	}
 
 	if (::EVP_DigestVerifyInit(mdCtx.get(), nullptr, ::EVP_sha256(), nullptr, Key.GetEVPPKey()) != 1)
 	{
-		OPENSSL_free(pDER);
 		return SetError(KDigest::GetOpenSSLError("DigestVerifyInit failed"));
 	}
 
@@ -182,14 +208,12 @@ bool KECVerify::Verify(const KECKey& Key, KStringView sData, KStringView sSignat
 	                            reinterpret_cast<const unsigned char*>(sData.data()),
 	                            sData.size()) != 1)
 	{
-		OPENSSL_free(pDER);
 		return SetError(KDigest::GetOpenSSLError("DigestVerifyUpdate failed"));
 	}
 
 	int iResult = ::EVP_DigestVerifyFinal(mdCtx.get(),
-	                                     reinterpret_cast<const unsigned char*>(pDER),
-	                                     static_cast<std::size_t>(iDERLen));
-	OPENSSL_free(pDER);
+	                                     reinterpret_cast<const unsigned char*>(sDER.data()),
+	                                     sDER.size());
 
 	if (iResult != 1)
 	{

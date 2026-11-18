@@ -414,4 +414,78 @@ TEST_CASE("KECSign")
 		KString sSig = Signer.Sign(Key, "test");
 		CHECK ( sSig.empty() );
 	}
+
+	SECTION("a DER signature of the openssl command")
+	{
+		// openssl dgst -sha256 -sign key.pem, with a key of the curve prime256v1
+		constexpr KStringView sPublicKey = R"(-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+vBTaqGkLb+7vMaOHRkL8TFQF1SD
+6g//NhYs4v869WuMnRvvpJCT3/htXVOeroUJXU+2yHVh9sLFql2X7zIwuQ==
+-----END PUBLIC KEY-----
+)";
+
+		KECKey Key(sPublicKey);
+		REQUIRE_FALSE ( Key.empty()        );
+		REQUIRE_FALSE ( Key.IsPrivateKey() );
+
+		KStringView sData = "a message signed with the openssl command";
+		auto sSig = kUnHex("3046022100f71f2298b63e1c864fd913dc37da3104ce130495a1205cd2f71cfe54c19daba0"
+		                   "022100a96a58108e377e37c2c322a9b0552917ecf234252afb736d86b728b3bfbdb252");
+
+		KECVerify Verifier;
+
+		CHECK       ( Verifier.Verify(Key, sData, sSig, KECVerify::Format::Der) );
+		CHECK_FALSE ( Verifier.Verify(Key, "another message", sSig, KECVerify::Format::Der) );
+		// the default format is r||s
+		CHECK_FALSE ( Verifier.Verify(Key, sData, sSig) );
+
+		// the same two numbers in the raw format
+		auto sRaw = sSig.Mid(5, 32) + sSig.Mid(40, 32);
+
+		CHECK       ( Verifier.Verify(Key, sData, sRaw) );
+		CHECK       ( Verifier.Verify(Key, sData, sRaw, KECVerify::Format::Raw) );
+		CHECK_FALSE ( Verifier.Verify(Key, sData, sRaw, KECVerify::Format::Der) );
+
+		// a changed byte, a byte after the signature, a cut signature, and none
+		auto sChanged = sSig;
+		sChanged[10] ^= 0x01;
+
+		CHECK_FALSE ( Verifier.Verify(Key, sData, sChanged, KECVerify::Format::Der) );
+		CHECK_FALSE ( Verifier.Verify(Key, sData, sSig + '\0', KECVerify::Format::Der) );
+		CHECK_FALSE ( Verifier.Verify(Key, sData, sSig.Left(sSig.size() - 1), KECVerify::Format::Der) );
+		CHECK_FALSE ( Verifier.Verify(Key, sData, "", KECVerify::Format::Der) );
+	}
+
+	SECTION("Sign + Verify with DER signatures")
+	{
+		KECKey Key(true);
+		REQUIRE_FALSE ( Key.empty() );
+
+		KECSign   Signer;
+		KECVerify Verifier;
+
+		KString sData = "the quick brown fox";
+
+		for (int iRound = 0; iRound < 20; ++iRound)
+		{
+			auto sSig = Signer.Sign(Key, sData, KECSign::Format::Der);
+
+			// a sequence of two integers of 32 bytes, each with a zero byte
+			// in front when its first bit is set, or shorter by its leading zero bytes
+			REQUIRE ( sSig.size() >= 8  );
+			CHECK   ( sSig.size() <= 72 );
+			CHECK   ( sSig[0] == 0x30   );
+			CHECK   ( static_cast<std::size_t>(sSig[1]) == sSig.size() - 2 );
+
+			CHECK       ( Verifier.Verify(Key, sData, sSig, KECVerify::Format::Der) );
+			CHECK_FALSE ( Verifier.Verify(Key, sData, sSig) );
+			CHECK_FALSE ( Verifier.Verify(Key, "tampered data", sSig, KECVerify::Format::Der) );
+		}
+
+		// the raw format is the default of both classes
+		auto sRaw = Signer.Sign(Key, sData, KECSign::Format::Raw);
+
+		CHECK ( sRaw.size() == 64 );
+		CHECK ( Verifier.Verify(Key, sData, sRaw) );
+	}
 }

@@ -59,6 +59,7 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/strings/kwords.h>        // KSimpleSpacedWords (role string -> tokens)
 #include <dekaf2/crypto/encoding/kencode.h>    // KEncode::URL for query values in links
+#include <dekaf2/crypto/encoding/kbase64.h>    // KBase64Url: the ID of a passkey in a form
 
 using namespace dekaf2;
 
@@ -166,6 +167,9 @@ constexpr KStringView CSS =
 	".badge.on{background:#1f7a3f;color:#fff}.badge.off{background:var(--secondary-bg);color:var(--muted)}"
 	// the enrolment QR: always dark-on-white (a QR must keep that contrast), with a
 	// white quiet-zone padding so it scans even in dark mode
+	// passkeys: the sign-in button below the password form, and the message of the page script
+	".passkey{margin-top:1.2rem;padding-top:.4rem;border-top:1px solid var(--border)}"
+	"#passkey-msg:empty{display:none}"
 	".qr{text-align:center;margin:.8rem 0}"
 	".qr svg{width:12rem;height:12rem;background:#fff;padding:.5rem;border-radius:8px}";
 
@@ -184,6 +188,49 @@ constexpr KStringView THEME_JS =
 	// confirm an admin-checkbox toggle before submitting; revert the box on cancel
 	"function kssodConfirmAdmin(c){var m=c.checked?'Make this user an administrator?':'Remove administrator rights from this user?';"
 	"if(confirm(m)){c.form.submit();}else{c.checked=!c.checked;}}";
+
+// Passkeys (WebAuthn): the browser side of the two ceremonies. The server sends the
+// options with all binary values in base64url, and takes the response the same way.
+// The conversions are written out here, as not every browser has
+// PublicKeyCredential.parseCreationOptionsFromJSON() and toJSON().
+constexpr KStringView PASSKEY_JS =
+	// bytes to base64url, and back
+	"function kssodB64(a){var b=new Uint8Array(a),s='';for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);"
+	"return btoa(s).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');}"
+	"function kssodBytes(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';"
+	"var r=atob(s),b=new Uint8Array(r.length);for(var i=0;i<r.length;i++)b[i]=r.charCodeAt(i);return b.buffer;}"
+	// a JSON request to one of our routes: the answer, or an error with the message of the server
+	"function kssodPost(u,d){return fetch(u,{method:'POST',credentials:'same-origin',"
+	"headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){"
+	"return r.json().catch(function(){return {};}).then(function(j){"
+	"if(!r.ok)throw new Error(j.message||'The request failed.');return j;});});}"
+	"function kssodPasskeyMsg(t){var e=document.getElementById('passkey-msg');if(e)e.textContent=t;}"
+	"function kssodPasskeyError(e){var n=e&&e.name;"
+	"kssodPasskeyMsg(n==='NotAllowedError'?'The passkey request was cancelled or timed out.':"
+	"n==='InvalidStateError'?'This device has a passkey for this account already.':"
+	"(e&&e.message)||'The passkey request failed.');}"
+	"function kssodPasskeyIDs(l){(l||[]).forEach(function(c){c.id=kssodBytes(c.id);});}"
+	// sign in: no user name, the authenticator offers the passkeys it has for this site
+	"function kssodPasskeyLogin(){kssodPasskeyMsg('');"
+	"kssodPost('/login/passkey/options',{}).then(function(o){var p=o.options,ch=p.challenge;"
+	"p.challenge=kssodBytes(ch);kssodPasskeyIDs(p.allowCredentials);"
+	"return navigator.credentials.get({publicKey:p}).then(function(c){var r=c.response;"
+	"return kssodPost('/login/passkey',{challenge:ch,credential:{id:c.id,rawId:kssodB64(c.rawId),type:c.type,"
+	"response:{clientDataJSON:kssodB64(r.clientDataJSON),authenticatorData:kssodB64(r.authenticatorData),"
+	"signature:kssodB64(r.signature),userHandle:r.userHandle?kssodB64(r.userHandle):''}}});});"
+	"}).then(function(j){window.location.href=j.redirect||'/';}).catch(kssodPasskeyError);}"
+	// add a passkey to the signed-in account, confirmed with the password
+	"function kssodPasskeyAdd(f){kssodPasskeyMsg('');"
+	"kssodPost('/account/passkeys/options',{password:f.password.value}).then(function(o){var p=o.options,ch=p.challenge;"
+	"p.challenge=kssodBytes(ch);p.user.id=kssodBytes(p.user.id);kssodPasskeyIDs(p.excludeCredentials);"
+	"return navigator.credentials.create({publicKey:p}).then(function(c){var r=c.response;"
+	"return kssodPost('/account/passkeys/add',{challenge:ch,name:f.name.value,credential:{id:c.id,rawId:kssodB64(c.rawId),type:c.type,"
+	"response:{clientDataJSON:kssodB64(r.clientDataJSON),attestationObject:kssodB64(r.attestationObject),"
+	"transports:r.getTransports?r.getTransports():[]}}});});"
+	"}).then(function(){window.location.href='/account';}).catch(kssodPasskeyError);return false;}"
+	// a browser without WebAuthn does not show what it cannot do
+	"document.addEventListener('DOMContentLoaded',function(){if(window.PublicKeyCredential)return;"
+	"['passkey-login','passkey-add'].forEach(function(i){var e=document.getElementById(i);if(e)e.style.display='none';});});";
 
 // Inline outline icons (Feather-style, stroke=currentColor so they pick up the
 // tile's white text colour). Recognisable admin iconography: people, app grid,
@@ -371,6 +418,15 @@ void RenderLogin(KRESTServer& HTTP, KStringView sError, bool bShowRecovery, uint
 	{
 		CB.Add<html::Paragraph>(html::Classes{"help"}).Add<html::Link>("/forgot", "Forgot your password?");
 	}
+
+	// a passkey signs in without a user name and a password (see PASSKEY_JS)
+	Page.Head().Add<html::Script>(PASSKEY_JS);
+
+	auto Passkey = CB.Add<html::Div>(html::Classes{"passkey"});
+	Passkey.SetID("passkey-login");
+	Passkey.Add<html::Button>("Sign in with a passkey", html::Button::BUTTON).SetAttribute("onclick", "kssodPasskeyLogin()");
+	Passkey.Add<html::Paragraph>(html::Classes{"err"}).SetID("passkey-msg");
+
 	SendPage(HTTP, Page, iStatus);
 }
 
@@ -504,6 +560,56 @@ void RenderAccount(KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSO
 	LabeledInput(Form, "New password",         "new",     html::Input::PASSWORD);
 	LabeledInput(Form, "Confirm new password", "confirm", html::Input::PASSWORD);
 	Form.Add<html::Button>("Change password");
+
+	// --- passkeys: sign in with the fingerprint, face or PIN of a device ---
+	CB.Add<html::Heading>(3, "Passkeys");
+	CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+	    "A passkey signs you in with the fingerprint, face or PIN of your device: no password, "
+	    "and no code. Your password stays as the way back in.");
+
+	if (!St.Passkeys.empty())
+	{
+		auto Table = CB.Add<html::ui::Table>(html::Classes{});
+		Table.Headers({ "Name", "Added", "Last used", "" });
+
+		for (const auto& Passkey : St.Passkeys)
+		{
+			auto Row  = Table.AddRow();
+			auto Name = Row.Add<html::TableData>();
+			Name.AddText(Passkey.sName);
+
+			if (Passkey.Credential.bBackedUp)
+			{
+				// a passkey that its provider copies to the other devices of the user
+				Name.AddText(" ");
+				Name.Add<html::Span>(html::Classes{"badge off"}).AddText("synced");
+			}
+
+			Row.Add<html::TableData>(FormatUTC(Passkey.tCreated));
+			Row.Add<html::TableData>(Passkey.tLastUsed.to_time_t() == 0 ? KString("never") : FormatUTC(Passkey.tLastUsed));
+
+			auto F = Row.Add<html::TableData>().Add<html::Form>("/account/passkeys/delete");
+			F.SetMethod(html::Form::POST);
+			F.Add<html::Input>("id", KBase64Url::Encode(Passkey.Credential.sID), html::Input::HIDDEN);
+			F.Add<html::Button>("Remove");
+		}
+	}
+
+	{
+		// the page script runs the ceremony (see PASSKEY_JS), the form never posts by itself
+		Page.Head().Add<html::Script>(PASSKEY_JS);
+
+		auto F = CB.Add<html::Form>("/account");
+		F.SetMethod(html::Form::POST);
+		F.SetID("passkey-add");
+		F.SetAttribute("onsubmit", "return kssodPasskeyAdd(this)");
+		LabeledInput(F, "Name of the new passkey", "name", html::Input::TEXT, /*bRequired=*/false)
+			.SetAttribute("placeholder", "e.g. MacBook");
+		// a passkey is a new way into the account: confirm with the password
+		LabeledInput(F, "Current password", "password", html::Input::PASSWORD);
+		F.Add<html::Button>("Add a passkey", html::Button::SUBMIT, html::Classes{"secondary"});
+		CB.Add<html::Paragraph>(html::Classes{"err"}).SetID("passkey-msg");
+	}
 
 	// --- second factor: authenticator app (TOTP) ---
 	CB.Add<html::Heading>(3, "Two-step verification");

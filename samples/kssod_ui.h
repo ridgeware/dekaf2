@@ -85,6 +85,7 @@ struct AccountState
 	bool        bEmailOtp      { false }; ///< email used as the second factor
 	bool        bSmtp          { false }; ///< an email relay is configured
 	std::vector<SessionView> Sessions;    ///< this user's live SSO sessions
+	std::vector<KSSOdUserStore::Passkey> Passkeys; ///< this user's passkeys
 	KSSOdUserStore::ScheduledEmail Scheduled; ///< an address change by an administrator that is still waiting
 };
 

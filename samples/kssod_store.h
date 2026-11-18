@@ -53,6 +53,7 @@
 #pragma once
 
 #include <dekaf2/crypto/auth/kopenidserver.h>
+#include <dekaf2/crypto/auth/kwebauthn.h>     // KWebAuthn::Credential: what is stored of a passkey
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/data/json/kjson.h>
@@ -151,6 +152,29 @@ public:
 	bool        SetBackupCodes(KStringView sUsername, const std::vector<KString>& Hashes); ///< replace the set
 	bool        ConsumeBackupCode(KStringView sUsername, KStringView sCodeHash);           ///< verify+delete one
 	std::size_t CountBackupCodes (KStringView sUsername);
+
+	// --- passkeys (WebAuthn) ---
+	/// a passkey of a user
+	struct Passkey
+	{
+		KString               sUsername;
+		KString               sName;      ///< the label the user gave it
+		KUnixTime             tCreated;
+		KUnixTime             tLastUsed;  ///< zero until the first sign-in with it
+		KWebAuthn::Credential Credential; ///< with the user handle of its owner
+	};
+	/// The random bytes that name the user for authenticators, created at the first call.
+	/// Not the user name: a name can be released and given to another account.
+	/// @return the handle, empty for an unknown user
+	KString     GetUserHandle (KStringView sUsername);
+	/// store a new passkey. Fails for a credential ID that is registered already.
+	bool        AddPasskey    (KStringView sUsername, KStringView sName, const KWebAuthn::Credential& Credential);
+	/// look up a passkey by its credential ID (the bytes, not base64url)
+	bool        GetPasskey    (KStringView sCredentialID, Passkey& Out);
+	/// store the signature counter and the flags of a passkey after a sign-in with it
+	bool        UpdatePasskey (const KWebAuthn::Credential& Credential);
+	bool        DeletePasskey (KStringView sUsername, KStringView sCredentialID);
+	std::vector<Passkey> ListPasskeys(KStringView sUsername); ///< oldest first
 
 	// --- email (address, verification, email-OTP-as-2FA) ---
 	KString     GetEmail        (KStringView sUsername);                ///< the user's address ('' if none)

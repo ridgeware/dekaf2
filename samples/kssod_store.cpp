@@ -45,10 +45,13 @@
 
 #include <dekaf2/data/sql/ksqlite.h>
 #include <dekaf2/crypto/auth/kpasswordhash.h>
+#include <dekaf2/crypto/encoding/kbase64.h>   // passkeys: binary values as base64url
+#include <dekaf2/crypto/encoding/khex.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/core/format/kformat.h>
+#include <dekaf2/core/strings/kjoin.h>
 #include <algorithm>
 
 using namespace dekaf2;
@@ -109,23 +112,41 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 	static constexpr KStringView s_sDDL[] =
 	{
 		"create table if not exists kssod_users ("
-		"  username       text    primary key,"
-		"  pw_hash        text    not null,"
-		"  name           text    not null default '',"
-		"  email          text    not null default '',"
-		"  is_admin       integer not null default 0,"
-		"  totp_secret    text    not null default '',"   // base32; empty = TOTP off
-		"  totp_last_step integer not null default 0,"    // the last accepted TOTP time step (replay guard)
-		"  email_verified integer not null default 0,"    // address confirmed via emailed link
-		"  email_otp      integer not null default 0,"    // email used as the second factor
-		"  pending_email  text    not null default '',"   // requested-but-unconfirmed new address (pending-change model)
-		"  pw_reset_utc   integer not null default 0,"    // when a reset link last set the password
+		"  username            text    primary key,"
+		"  pw_hash             text    not null,"
+		"  name                text    not null default '',"
+		"  email               text    not null default '',"
+		"  is_admin            integer not null default 0,"
+		"  totp_secret         text    not null default '',"   // base32; empty = TOTP off
+		"  totp_last_step      integer not null default 0,"    // the last accepted TOTP time step (replay guard)
+		"  email_verified      integer not null default 0,"    // address confirmed via emailed link
+		"  email_otp           integer not null default 0,"    // email used as the second factor
+		"  pending_email       text    not null default '',"   // requested-but-unconfirmed new address (pending-change model)
+		"  pw_reset_utc        integer not null default 0,"    // when a reset link last set the password
 		"  scheduled_email     text    not null default '',"  // an administrator's change of a confirmed address ...
 		"  scheduled_email_utc integer not null default 0,"   // ... that takes effect then (0 = none scheduled)
 		"  scheduled_email_by  text    not null default '',"  // ... by this administrator
-		"  created_utc    integer not null default 0"
+		"  user_handle         text    not null default '',"   // names the user for passkey authenticators, base64url
+		"  created_utc         integer not null default 0"
 		")",
 
+		// passkeys (WebAuthn credentials). The binary values are base64url.
+		"create table if not exists kssod_passkeys ("
+		"  credential_id   text    primary key,"
+		"  username        text    not null,"
+		"  name            text    not null default '',"   // the label the user gave it
+		"  public_key      text    not null,"              // the COSE key
+		"  sign_count      integer not null default 0,"
+		"  user_verified   integer not null default 0,"
+		"  backup_eligible integer not null default 0,"
+		"  backed_up       integer not null default 0,"
+		"  transports      text    not null default '',"   // space separated
+		"  format          text    not null default '',"   // of the attestation statement
+		"  aaguid          text    not null default '',"   // the make of the authenticator, hex
+		"  created_utc     integer not null default 0,"
+		"  last_used_utc   integer not null default 0"     // 0 = never signed in with
+		")",
+		"create index if not exists kssod_passkeys_user on kssod_passkeys(username)",
 		// single-use recovery codes (hashed), a fallback for a lost authenticator
 		"create table if not exists kssod_backup_codes ("
 		"  username  text not null,"
@@ -228,6 +249,7 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"alter table kssod_users add column scheduled_email text not null default ''",
 		"alter table kssod_users add column scheduled_email_utc integer not null default 0",
 		"alter table kssod_users add column scheduled_email_by text not null default ''",
+		"alter table kssod_users add column user_handle text not null default ''",
 	};
 
 	for (const auto sSQL : s_sDDL)
@@ -453,9 +475,10 @@ bool KSSOdUserStore::DeleteUser(KStringView sUsername)
 	}
 
 	// cascade: deleting a user also removes their per-client assignments (and the
-	// roles granted there), 2FA backup codes and any pending email tokens
+	// roles granted there), 2FA backup codes, passkeys and any pending email tokens
 	for (KStringView sSQL : { "delete from kssod_assignments  where username=?1",
 	                          "delete from kssod_backup_codes where username=?1",
+	                          "delete from kssod_passkeys     where username=?1",
 	                          "delete from kssod_email_tokens where username=?1",
 	                          "delete from kssod_users        where username=?1" })
 	{
@@ -655,6 +678,215 @@ bool KSSOdUserStore::AcceptTotpStep(KStringView sUsername, int64_t iStep)
 	                                    iStep, sUsername));
 
 } // AcceptTotpStep
+
+//-----------------------------------------------------------------------------
+KString KSSOdUserStore::GetUserHandle(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+
+	if (!db.IsOpen())
+	{
+		return KString{};
+	}
+
+	auto sHandle = db.SingleStringQuery("select user_handle from kssod_users where username=?1", sUsername);
+
+	if (sHandle.empty())
+	{
+		if (db.SingleIntQuery("select count(*) from kssod_users where username=?1", sUsername) == 0)
+		{
+			return KString{};
+		}
+
+		sHandle = KBase64Url::Encode(kGetRandom(32));
+
+		if (!db.ExecSQL("update kssod_users set user_handle=?1 where username=?2", sHandle, sUsername))
+		{
+			return KString{};
+		}
+	}
+
+	return KBase64Url::Decode(sHandle);
+
+} // GetUserHandle
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::AddPasskey(KStringView sUsername, KStringView sName, const KWebAuthn::Credential& Credential)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+
+	if (!db.IsOpen() || Credential.sID.empty())
+	{
+		return false;
+	}
+
+	// the credential ID is the primary key: a second passkey with the same ID fails
+	return static_cast<bool>(db.ExecSQL(
+		"insert into kssod_passkeys (credential_id, username, name, public_key, sign_count, user_verified, "
+		"backup_eligible, backed_up, transports, format, aaguid, created_utc) "
+		"select ?1, username, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12 from kssod_users where username=?2",
+		KBase64Url::Encode(Credential.sID),
+		sUsername,
+		sName,
+		KBase64Url::Encode(Credential.sPublicKey),
+		static_cast<int64_t>(Credential.iSignCount),
+		static_cast<int64_t>(Credential.bUserVerified),
+		static_cast<int64_t>(Credential.bBackupEligible),
+		static_cast<int64_t>(Credential.bBackedUp),
+		kJoined(Credential.Transports, " "),
+		Credential.sAttestationFormat,
+		kHex(Credential.sAAGUID),
+		static_cast<int64_t>(KUnixTime::now().to_time_t())))
+		&& db.SingleIntQuery("select count(*) from kssod_passkeys where credential_id=?1 and username=?2",
+		                     KBase64Url::Encode(Credential.sID), sUsername) == 1;
+
+} // AddPasskey
+
+namespace {
+
+//-----------------------------------------------------------------------------
+/// a row of the columns that GetPasskey() and ListPasskeys() select
+KSSOdUserStore::Passkey PasskeyFromRow(const KSQLite::Row& Row)
+//-----------------------------------------------------------------------------
+{
+	KSSOdUserStore::Passkey Passkey;
+
+	Passkey.Credential.sID                = KBase64Url::Decode(Row.Col(1).String());
+	Passkey.sUsername                     = Row.Col(2).String();
+	Passkey.sName                         = Row.Col(3).String();
+	Passkey.Credential.sPublicKey         = KBase64Url::Decode(Row.Col(4).String());
+	Passkey.Credential.iSignCount         = static_cast<uint32_t>(Row.Col(5).Int64());
+	Passkey.Credential.bUserVerified      = Row.Col(6).Int64() != 0;
+	Passkey.Credential.bBackupEligible    = Row.Col(7).Int64() != 0;
+	Passkey.Credential.bBackedUp          = Row.Col(8).Int64() != 0;
+	Passkey.Credential.sAttestationFormat = Row.Col(10).String();
+	Passkey.Credential.sAAGUID            = kUnHex(Row.Col(11).String());
+	Passkey.tCreated                      = KUnixTime::from_time_t(Row.Col(12).Int64());
+	Passkey.tLastUsed                     = KUnixTime::from_time_t(Row.Col(13).Int64());
+	Passkey.Credential.sUserHandle        = KBase64Url::Decode(Row.Col(14).String());
+
+	auto sTransports = Row.Col(9).String();
+
+	for (auto sTransport : sTransports.Split(" "))
+	{
+		Passkey.Credential.Transports.push_back(sTransport);
+	}
+
+	return Passkey;
+
+} // PasskeyFromRow
+
+constexpr KStringView s_sSelectPasskeys =
+	"select p.credential_id, p.username, p.name, p.public_key, p.sign_count, p.user_verified, p.backup_eligible, "
+	"p.backed_up, p.transports, p.format, p.aaguid, p.created_utc, p.last_used_utc, u.user_handle "
+	"from kssod_passkeys p join kssod_users u on u.username=p.username ";
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::GetPasskey(KStringView sCredentialID, Passkey& Out)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+
+	if (!db.IsOpen() || sCredentialID.empty())
+	{
+		return false;
+	}
+
+	auto Query = db.ExecQuery(kFormat("{}where p.credential_id=?1", s_sSelectPasskeys), KBase64Url::Encode(sCredentialID));
+
+	if (!Query.Next())
+	{
+		return false;
+	}
+
+	Out = PasskeyFromRow(Query.GetRow());
+
+	return true;
+
+} // GetPasskey
+
+//-----------------------------------------------------------------------------
+std::vector<KSSOdUserStore::Passkey> KSSOdUserStore::ListPasskeys(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::vector<Passkey> Out;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+
+	if (!db.IsOpen())
+	{
+		return Out;
+	}
+
+	for (auto& Row : db.ExecQuery(kFormat("{}where p.username=?1 order by p.created_utc asc, p.credential_id asc", s_sSelectPasskeys), sUsername))
+	{
+		Out.push_back(PasskeyFromRow(Row));
+	}
+
+	return Out;
+
+} // ListPasskeys
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::UpdatePasskey(const KWebAuthn::Credential& Credential)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+
+	if (!db.IsOpen())
+	{
+		return false;
+	}
+
+	// of two sign-ins at the same time the later write does not lower the counter
+	return static_cast<bool>(db.ExecSQL(
+		"update kssod_passkeys set sign_count=?2, user_verified=?3, backed_up=?4, last_used_utc=?5 "
+		"where credential_id=?1 and sign_count<=?2",
+		KBase64Url::Encode(Credential.sID),
+		static_cast<int64_t>(Credential.iSignCount),
+		static_cast<int64_t>(Credential.bUserVerified),
+		static_cast<int64_t>(Credential.bBackedUp),
+		static_cast<int64_t>(KUnixTime::now().to_time_t())));
+
+} // UpdatePasskey
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::DeletePasskey(KStringView sUsername, KStringView sCredentialID)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+
+	if (!db.IsOpen())
+	{
+		return false;
+	}
+
+	auto sID = KBase64Url::Encode(sCredentialID);
+
+	if (db.SingleIntQuery("select count(*) from kssod_passkeys where credential_id=?1 and username=?2", sID, sUsername) == 0)
+	{
+		return false;
+	}
+
+	return static_cast<bool>(db.ExecSQL("delete from kssod_passkeys where credential_id=?1 and username=?2", sID, sUsername));
+
+} // DeletePasskey
 
 //-----------------------------------------------------------------------------
 bool KSSOdUserStore::SetBackupCodes(KStringView sUsername, const std::vector<KString>& Hashes)

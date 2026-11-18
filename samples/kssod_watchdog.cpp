@@ -60,6 +60,8 @@ constexpr KSSOdWatchdog::Rule s_Rules[] =
 	{ "sso.code",       "denied",         KSSOdWatchdog::Kind::Alert,  "SSO access denied"                                   , false },
 	{ "sso.token",      "denied",         KSSOdWatchdog::Kind::Alert,  "SSO token refused"                                   , false },
 	{ "sso.refresh",    "denied",         KSSOdWatchdog::Kind::Alert,  "SSO refresh refused"                                 , false },
+	{ "auth.passkey",   "throttled",      KSSOdWatchdog::Kind::Alert,  "sign-in throttled: too many failed passkey sign-ins" , false },
+	{ "auth.passkey",   "refused",        KSSOdWatchdog::Kind::Alert,  "a registered passkey failed its verification"        , false },
 	{ "auth.recovery",  "throttled",      KSSOdWatchdog::Kind::Alert,  "password recovery throttled"                         , true  },
 	{ "account.2fa.totp", "wrong_password", KSSOdWatchdog::Kind::Alert, "wrong password on a mailed link that removes the authenticator app", false },
 	// --- oversight: an administrator used the trust placed in them -------------
@@ -72,6 +74,8 @@ constexpr KSSOdWatchdog::Rule s_Rules[] =
 	{ "account.2fa.totp",  "disabled",    KSSOdWatchdog::Kind::Digest, "", false },
 	{ "account.2fa.email", "off",         KSSOdWatchdog::Kind::Digest, "", false },
 	{ "account.2fa.backup_codes", "",     KSSOdWatchdog::Kind::Digest, "", false },
+	{ "account.passkey",   "added",       KSSOdWatchdog::Kind::Digest, "", false },
+	{ "account.passkey",   "removed",     KSSOdWatchdog::Kind::Digest, "", false },
 	{ "account.email.changed",  "",       KSSOdWatchdog::Kind::Digest, "", false },
 	{ "account.password", "ok",           KSSOdWatchdog::Kind::Digest, "", false },
 	{ "account.setup",  "ok",             KSSOdWatchdog::Kind::Digest, "", false },

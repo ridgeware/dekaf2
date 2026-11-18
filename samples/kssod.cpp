@@ -73,6 +73,14 @@
 // Pre-seeded relying party with --demo:  demo-app / demo-secret
 //   -> http://localhost:3000/auth/callback   (post-logout http://localhost:3000/)
 //
+// Passkeys: a signed-in user adds passkeys on the account page (confirmed with the
+// password), and signs in with one from the login page, without a user name and
+// without a second step (KWebAuthn, table kssod_passkeys). The relying party is the
+// host of --issuer, so the browser has to reach the pages under that address.
+// Browsers offer passkeys on https only, with the exception of http://localhost
+// (--notls), and they may refuse them on a page with a certificate that they do not
+// trust, as the self-signed one is.
+//
 // Without --demo, an empty database gets an administrator 'admin' without a
 // password, and every start prints a setup link for it until it has one. New
 // users choose their own password with a setup link as well: kssod mails it when
@@ -97,6 +105,8 @@
 #include <dekaf2/crypto/auth/bits/ksessioncachingstore.h>
 #include <dekaf2/crypto/auth/kpasswordhash.h>
 #include <dekaf2/crypto/auth/ktotp.h>          // TOTP / HOTP / backup + email-OTP helpers
+#include <dekaf2/crypto/auth/kwebauthn.h>      // passkeys
+#include <dekaf2/crypto/encoding/kbase64.h>    // KBase64Url: the ID of a passkey in a form
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h> // KSHA256 (pending-2FA token)
 #include <dekaf2/crypto/random/krandom.h>      // kGetRandom (pending-2FA token)
@@ -294,6 +304,103 @@ private:
 	std::map<KString, Entry>   m_Pending;
 	KDuration                  m_TTL { std::chrono::minutes(5) };
 };
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The challenges of the passkey ceremonies in progress: handed to the browser
+/// with the options, taken back with its response. A challenge works once and
+/// expires. The challenge of a registration belongs to the signed-in user who
+/// asked for it, the one of a sign-in to nobody yet.
+class PendingPasskeyStore
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+public:
+	/// remember a challenge, for the user of a registration or with an empty name for a sign-in
+	/// @return false if too many ceremonies are in progress
+	bool Add(KStringView sChallenge, KStringView sUsername)
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		auto tNow = KUnixTime::now();
+
+		for (auto it = m_Pending.begin(); it != m_Pending.end(); )
+		{
+			it = (it->second.tExpires < tNow) ? m_Pending.erase(it) : std::next(it);
+		}
+
+		// anybody can ask for the options of a sign-in
+		if (m_Pending.size() >= MaxPending)
+		{
+			return false;
+		}
+
+		m_Pending[KString(sChallenge)] = Entry{ KString(sUsername), tNow + m_TTL };
+
+		return true;
+	}
+
+	/// take a challenge out of the store
+	/// @return true if it was there, has not expired, and belongs to this user
+	bool Take(KStringView sChallenge, KStringView sUsername)
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		auto it = m_Pending.find(KString(sChallenge));
+
+		if (it == m_Pending.end())
+		{
+			return false;
+		}
+
+		bool bValid = it->second.tExpires >= KUnixTime::now() && it->second.sUsername == sUsername;
+
+		m_Pending.erase(it);
+
+		return bValid;
+	}
+
+private:
+	struct Entry
+	{
+		KString   sUsername;
+		KUnixTime tExpires;
+	};
+
+	static constexpr std::size_t MaxPending { 10000 };
+
+	std::mutex               m_Mutex;
+	std::map<KString, Entry> m_Pending;
+	KDuration                m_TTL { std::chrono::minutes(5) };
+};
+
+//-----------------------------------------------------------------------------
+/// the origin of the pages of this server as browsers name it, from the issuer:
+/// scheme, host, and the port if it is not the default of the scheme
+KString OriginOf(KStringView sIssuer)
+//-----------------------------------------------------------------------------
+{
+	auto iScheme = sIssuer.find("://");
+
+	if (iScheme == KStringView::npos)
+	{
+		return sIssuer;
+	}
+
+	KString sOrigin = sIssuer.substr(0, sIssuer.find('/', iScheme + 3));
+
+	sOrigin.MakeLower();
+
+	if (sOrigin.starts_with("https://"))
+	{
+		sOrigin.remove_suffix(":443");
+	}
+	else if (sOrigin.starts_with("http://"))
+	{
+		sOrigin.remove_suffix(":80");
+	}
+
+	return sOrigin;
+
+} // OriginOf
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Failure counter with a sliding window, keyed by an arbitrary string (a user
@@ -1175,6 +1282,16 @@ int main(int argc, char** argv)
 		// authenticator enrolments in progress
 		PendingTotpEnrolment Enrolments;
 
+		// Passkeys: the relying party is the host of the issuer, and its pages are the
+		// one origin. Browsers offer passkeys on https and on http://localhost only.
+		KWebAuthn::Config PasskeyConfig;
+		PasskeyConfig.sRelyingPartyID   = KURL(sIssuer).Domain.get().ToLower();
+		PasskeyConfig.sRelyingPartyName = "kssod";
+		PasskeyConfig.Origins           = { OriginOf(sIssuer) };
+
+		// passkey ceremonies in progress
+		PendingPasskeyStore PendingPasskeys;
+
 		// gather the self-service state the account page renders
 		auto AccountStateFor = [&pUsers, &pSettings, &pSession](KRESTServer& HTTP, KStringView sUser)
 		{
@@ -1185,6 +1302,7 @@ int main(int argc, char** argv)
 			St.bEmailOtp      = pUsers->HasEmailOtp(sUser);
 			St.bSmtp          = pSettings->SmtpConfigured();
 			St.Sessions       = SessionViewsFor(HTTP, *pSession, sUser);
+			St.Passkeys       = pUsers->ListPasskeys(sUser);
 			St.Scheduled      = pUsers->GetScheduledEmail(sUser);
 			return St;
 		};
@@ -1372,6 +1490,74 @@ int main(int argc, char** argv)
 			HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, Server.CompleteLogin(HTTP, P.sUsername));
 			throw KHTTPError(KHTTPError::H302_MOVED_TEMPORARILY, "");
 		}).Parse(KRESTRoute::WWWFORM);
+
+		// ---- sign in with a passkey: no user name, no password, no second step. The
+		// authenticator verified the user, which the verification of the response checks.
+		// The page script (see kssod_ui.cpp) runs both requests, with JSON in both directions.
+		Routes.AddRoute("/login/passkey/options").Post(
+			[&PasskeyConfig, &PendingPasskeys](KRESTServer& HTTP)
+		{
+			KWebAuthn WebAuthn(PasskeyConfig);
+			KString   sChallenge;
+			auto      jOptions = WebAuthn.AuthenticationOptions(sChallenge);
+
+			if (!PendingPasskeys.Add(sChallenge, ""))
+			{
+				throw KHTTPError { KHTTPError::H5xx_UNAVAILABLE, "Too many sign-ins are in progress. Please try again in a few minutes." };
+			}
+
+			HTTP.json.tx["options"] = std::move(jOptions);
+		});
+
+		Routes.AddRoute("/login/passkey").Post(
+			[&Server, &pUsers, &PasskeyConfig, &PendingPasskeys, &LoginThrottle, &Log](KRESTServer& HTTP)
+		{
+			KString sIP = HTTP.GetRemoteIP();
+
+			if (!LoginThrottle.Allowed(sIP))
+			{
+				Log(HTTP, "auth.passkey", "throttled", "", "");
+				throw KHTTPError { KHTTPError::H4xx_TOOMANYREQUESTS, "Too many failed sign-in attempts. Please wait a few minutes and try again." };
+			}
+
+			// the log tells the cases apart, with the reason of a refusal
+			auto Fail = [&](KStringView sOutcome, KStringView sUser, KStringView sReason, KStringViewZ sMessage)
+			{
+				LoginThrottle.Failure(sIP);
+				Log(HTTP, "auth.passkey", sOutcome, "", sUser, sReason.empty() ? KJSON::object() : KJSON{{ "reason", sReason }});
+				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, sMessage };
+			};
+
+			const auto& sChallenge  = HTTP.json.rx("challenge").String();
+			const auto& jCredential = HTTP.json.rx("credential");
+
+			if (!PendingPasskeys.Take(sChallenge, ""))
+			{
+				Fail("expired", "", "", "Your sign-in timed out. Please try again.");
+			}
+
+			KSSOdUserStore::Passkey Passkey;
+
+			if (!pUsers->GetPasskey(KWebAuthn::GetCredentialID(jCredential), Passkey) || !pUsers->Exists(Passkey.sUsername))
+			{
+				Fail("unknown", "", "", "This passkey is not registered here.");
+			}
+
+			KWebAuthn WebAuthn(PasskeyConfig);
+
+			if (!WebAuthn.VerifyAuthentication(jCredential, sChallenge, Passkey.Credential))
+			{
+				Fail("refused", Passkey.sUsername, WebAuthn.Error(), "This passkey could not be verified.");
+			}
+
+			pUsers->UpdatePasskey(Passkey.Credential);
+
+			Log(HTTP, "auth.login", "ok", Passkey.sUsername, Passkey.sUsername, {{ "factors", 2 }, { "method", "passkey" }});
+
+			auto sLocation = Server.CompleteLogin(HTTP, Passkey.sUsername);
+
+			HTTP.json.tx["redirect"] = sLocation.empty() ? KString("/") : sLocation;
+		});
 
 		// the second login step without the device and without backup codes: a link to
 		// the user's mailbox, confirmed with the password (see /totp-reset), or the
@@ -2214,6 +2400,125 @@ int main(int argc, char** argv)
 			pUsers->SetBackupCodes(sUser, Hashes);
 
 			RenderBackupCodes(HTTP, sUser, pUsers->IsAdmin(sUser), Codes);
+		}).Parse(KRESTRoute::WWWFORM);
+
+		// ---- passkeys of the signed-in user. The page script (see kssod_ui.cpp) asks
+		// for the options and posts what the authenticator made of them.
+		Routes.AddRoute("/account/passkeys/options").Post(
+			[&Log, &pSession, &pUsers, &PasskeyConfig, &PendingPasskeys](KRESTServer& HTTP)
+		{
+			KString sUser = CurrentUser(HTTP, *pSession);
+
+			if (sUser.empty())
+			{
+				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "Please sign in again." };
+			}
+
+			// a passkey is a new way into the account - a hijacked session must not be
+			// able to add one without the password
+			if (!pUsers->VerifyPassword(sUser, HTTP.json.rx("password").String()))
+			{
+				Log(HTTP, "account.reauth", "wrong_password", sUser, sUser, {{ "action", "add_passkey" }});
+				throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "Please confirm your password to add a passkey." };
+			}
+
+			KJSON Claims;
+			pUsers->GetClaims(sUser, Claims);
+
+			KWebAuthn::User User;
+			User.sHandle      = pUsers->GetUserHandle(sUser);
+			User.sName        = sUser;
+			User.sDisplayName = kjson::GetStringRef(Claims, "name").empty() ? sUser : kjson::GetStringRef(Claims, "name");
+
+			// an authenticator does not register a second passkey for the same account
+			std::vector<KString> Registered;
+
+			for (const auto& Passkey : pUsers->ListPasskeys(sUser))
+			{
+				Registered.push_back(Passkey.Credential.sID);
+			}
+
+			KWebAuthn WebAuthn(PasskeyConfig);
+			KString   sChallenge;
+			auto      jOptions = WebAuthn.RegistrationOptions(User, sChallenge, Registered);
+
+			if (User.sHandle.empty() || !PendingPasskeys.Add(sChallenge, sUser))
+			{
+				throw KHTTPError { KHTTPError::H5xx_UNAVAILABLE, "A passkey cannot be added right now. Please try again in a few minutes." };
+			}
+
+			HTTP.json.tx["options"] = std::move(jOptions);
+		});
+
+		Routes.AddRoute("/account/passkeys/add").Post(
+			[&Log, &pSession, &pUsers, &PasskeyConfig, &PendingPasskeys](KRESTServer& HTTP)
+		{
+			KString sUser = CurrentUser(HTTP, *pSession);
+
+			if (sUser.empty())
+			{
+				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "Please sign in again." };
+			}
+
+			const auto& sChallenge = HTTP.json.rx("challenge").String();
+
+			// only the challenge that this user got with a confirmed password
+			if (!PendingPasskeys.Take(sChallenge, sUser))
+			{
+				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "The request timed out. Please try again." };
+			}
+
+			KWebAuthn             WebAuthn(PasskeyConfig);
+			KWebAuthn::Credential Credential;
+
+			if (!WebAuthn.VerifyRegistration(HTTP.json.rx("credential"), sChallenge, Credential))
+			{
+				Log(HTTP, "account.passkey", "refused", sUser, sUser, {{ "reason", WebAuthn.Error() }});
+				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "This passkey could not be verified." };
+			}
+
+			KString sName = HTTP.json.rx("name").String();
+			sName.Trim();
+
+			if (sName.empty())
+			{
+				sName = "Passkey";
+			}
+
+			if (sName.size() > 64)
+			{
+				sName.erase(64);
+			}
+
+			// a credential ID that is registered already is refused, for whatever account
+			if (!pUsers->AddPasskey(sUser, sName, Credential))
+			{
+				Log(HTTP, "account.passkey", "duplicate", sUser, sUser);
+				throw KHTTPError { KHTTPError::H4xx_CONFLICT, "This passkey is registered already." };
+			}
+
+			Log(HTTP, "account.passkey", "added", sUser, sUser, {{ "name", sName }, { "format", Credential.sAttestationFormat }});
+
+			HTTP.json.tx["added"] = true;
+		});
+
+		Routes.AddRoute("/account/passkeys/delete").Post(
+			[&Log, &pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser = CurrentUser(HTTP, *pSession);
+
+			if (sUser.empty())
+			{
+				Redirect(HTTP, "/login");
+			}
+
+			// removing a way in weakens nothing, so this asks for no password
+			if (pUsers->DeletePasskey(sUser, KBase64Url::Decode(HTTP.GetQueryParms()["id"])))
+			{
+				Log(HTTP, "account.passkey", "removed", sUser, sUser);
+			}
+
+			Redirect(HTTP, "/account");
 		}).Parse(KRESTRoute::WWWFORM);
 
 		// regenerate backup codes (invalidates the previous set)

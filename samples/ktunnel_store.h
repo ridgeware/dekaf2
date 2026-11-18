@@ -125,7 +125,7 @@ public:
 		KString   sUsername;     ///< login name (DB column kept as `username` so
 		                         ///< the HTML login form's `name="username"`
 		                         ///< plays nicely with browser autofill)
-		KString   sPasswordHash; ///< bcrypt hash (60 chars)
+		KString   sPasswordHash; ///< password hash (Argon2id, from before bcrypt)
 		KUnixTime tCreated;
 		KUnixTime tLastLogin;    ///< zero if never logged in
 	};
@@ -165,7 +165,7 @@ public:
 	{
 		int64_t   iID           { 0 };
 		KString   sName;         ///< endpoint name, unique (used as login id)
-		KString   sPasswordHash; ///< bcrypt hash (60 chars)
+		KString   sPasswordHash; ///< password hash (Argon2id, from before bcrypt)
 		bool      bEnabled      { true };
 		KUnixTime tCreated;
 		KUnixTime tLastLogin;    ///< zero if never logged in
@@ -214,7 +214,7 @@ public:
 	{
 		int64_t   iID           { 0 };
 		KString   sName;         ///< client name, unique (used as login id)
-		KString   sPasswordHash; ///< bcrypt hash (60 chars)
+		KString   sPasswordHash; ///< password hash (Argon2id, from before bcrypt)
 		bool      bEnabled      { true };
 		/// Comma separated list of tunnel names this client may open.
 		/// Empty means every configured tunnel.

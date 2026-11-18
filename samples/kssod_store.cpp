@@ -44,7 +44,7 @@
 #include "kssod_store.h"
 
 #include <dekaf2/data/sql/ksqlite.h>
-#include <dekaf2/crypto/auth/kbcrypt.h>
+#include <dekaf2/crypto/auth/kpasswordhash.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/time/clock/ktime.h>
@@ -56,13 +56,22 @@ using namespace dekaf2;
 namespace {
 
 //-----------------------------------------------------------------------------
-/// bcrypt for user passwords - a workload above the library default of 8, as
-/// recommended for interactive logins (about 65 ms per check on current hardware).
+/// Argon2id for user passwords - a cost above the library default, the second
+/// recommendation of RFC 9106 for interactive logins (64 MiB and three passes, about
+/// 90 ms per check on current hardware). Hashes of bcrypt from before still validate.
 /// Client secrets keep the default: they are random and checked on every token call.
-KBCrypt PasswordHasher()
+KPasswordHash PasswordHasher()
 //-----------------------------------------------------------------------------
 {
-	return KBCrypt(static_cast<uint16_t>(10));
+	KArgon2::Cost cost;
+	cost.iMemoryKiB   = 64 * 1024;
+	cost.iIterations  = 3;
+	cost.iParallelism = 4;
+
+	KPasswordHash Hasher;
+	Hasher.Argon2().SetCost(cost);
+
+	return Hasher;
 }
 
 //-----------------------------------------------------------------------------
@@ -274,14 +283,36 @@ bool KSSOdUserStore::VerifyPassword(KStringView sUsername, KStringView sPassword
 
 	KString sHash = db.SingleStringQuery("select pw_hash from kssod_users where username=?1", sUsername);
 
-	// an unknown user takes as long as a wrong password: bcrypt runs either way,
-	// against a fixed dummy hash when there is no user (else the response time
-	// tells which user names exist)
-	static const KString s_sDummyHash = PasswordHasher().GenerateHash("kssod-no-such-user");
+	auto Hasher = PasswordHasher();
 
-	bool bValid = PasswordHasher().ValidatePassword(KString(sPassword), sHash.empty() ? s_sDummyHash : sHash);
+	if (sHash.empty())
+	{
+		// an unknown user takes as long as a wrong password (else the response time
+		// tells which user names exist)
+		Hasher.SpendValidationTime(sPassword);
+		return false;
+	}
 
-	return bValid && !sHash.empty();
+	KString sNewHash;
+
+	if (!Hasher.ValidatePassword(sPassword, sHash, sNewHash))
+	{
+		return false;
+	}
+
+	if (!sNewHash.empty())
+	{
+		// the stored hash is one of bcrypt, or of a lower cost: replace it, as long as
+		// it is still the one that was checked. The login does not depend on it.
+		KSQLite dbWrite(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+
+		if (dbWrite.IsOpen())
+		{
+			dbWrite.ExecSQL("update kssod_users set pw_hash=?1 where username=?2 and pw_hash=?3", sNewHash, sUsername, sHash);
+		}
+	}
+
+	return true;
 
 } // VerifyPassword
 
@@ -356,7 +387,7 @@ bool KSSOdUserStore::ChangePassword(KStringView sUsername, KStringView sNewPassw
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
-	KString sHash = PasswordHasher().GenerateHash(KString(sNewPassword));
+	KString sHash = PasswordHasher().GenerateHash(sNewPassword);
 
 	return static_cast<bool>(db.ExecSQL("update kssod_users set pw_hash=?1 where username=?2", sHash, sUsername));
 

@@ -207,7 +207,7 @@ public:
 		struct Client
 		{
 			KString              sClientID;
-			KString              sClientSecretHash;      ///< bcrypt hash; empty for a public client
+			KString              sClientSecretHash;      ///< hash of Argon2 or bcrypt (see KPasswordHash); empty for a public client
 			std::vector<KString> RedirectURIs;           ///< exact-match allow-list for the login callback
 			std::vector<KString> PostLogoutRedirectURIs; ///< exact-match allow-list for RP-initiated logout
 			std::vector<KString> Scopes;                 ///< scopes this client may request

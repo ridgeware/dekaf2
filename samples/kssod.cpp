@@ -95,7 +95,7 @@
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/auth/bits/ksessionsqlitestore.h>
 #include <dekaf2/crypto/auth/bits/ksessioncachingstore.h>
-#include <dekaf2/crypto/auth/kbcrypt.h>
+#include <dekaf2/crypto/auth/kpasswordhash.h>
 #include <dekaf2/crypto/auth/ktotp.h>          // TOTP / HOTP / backup + email-OTP helpers
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h> // KSHA256 (pending-2FA token)
@@ -928,7 +928,7 @@ int main(int argc, char** argv)
 		{
 			KOpenIDServer::ClientStore::Client Demo;
 			Demo.sClientID              = "demo-app";
-			Demo.sClientSecretHash      = KBCrypt().GenerateHash("demo-secret");
+			Demo.sClientSecretHash      = KPasswordHash().GenerateHash("demo-secret");
 			Demo.RedirectURIs           = { "http://localhost:3000/auth/callback" };
 			Demo.PostLogoutRedirectURIs = { "http://localhost:3000/" };
 			Demo.Scopes                 = { "openid", "profile", "email" };
@@ -2842,7 +2842,7 @@ int main(int argc, char** argv)
 			}
 			if (!bPublic)
 			{
-				Client.sClientSecretHash = KBCrypt().GenerateHash(KString(sSecret));
+				Client.sClientSecretHash = KPasswordHash().GenerateHash(sSecret);
 			}
 			if (!pClients->AddClient(Client, bRequire))
 			{
@@ -2958,7 +2958,7 @@ int main(int argc, char** argv)
 			// secret handling: public clears it; a typed secret rotates it; otherwise keep
 			bool bUpdateSecret = false;
 			if (bPublic)               { bUpdateSecret = true; Client.sClientSecretHash.clear(); }
-			else if (!sSecret.empty()) { bUpdateSecret = true; Client.sClientSecretHash = KBCrypt().GenerateHash(KString(sSecret)); }
+			else if (!sSecret.empty()) { bUpdateSecret = true; Client.sClientSecretHash = KPasswordHash().GenerateHash(sSecret); }
 
 			if (!pClients->UpdateClient(Client, bRequire, bUpdateSecret))
 			{

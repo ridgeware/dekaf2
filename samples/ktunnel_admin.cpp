@@ -423,26 +423,20 @@ AdminUI::AdminUI (RelayServer& Server)
 	                                       std::move(SessionCfg));
 
 	// Authenticator closure: validate (admin-username, password) against
-	// the `admins` table. Unknown logins trigger a dummy bcrypt compare
+	// the `admins` table. Unknown logins spend the time of a password check
 	// so that an attacker cannot time-oracle which admin names exist.
 	m_Session->SetAuthenticator([this](KStringView sUser, KStringView sPass)
 	{
-		// bcrypt("<never-used>", cost 4) — matches VerifyNodeLogin()
-		static constexpr KStringViewZ s_sDummyHash =
-			"$2a$04$abcdefghijklmnopqrstuuSQgFuZgk5ErgR6KPK8e6QlYxwZpzIbG";
-
-		// ValidatePassword requires KStringViewZ (NUL-terminated), so we
-		// round-trip the submitted password through a temporary KString.
 		KString sPassword(sPass);
 
 		auto& Store  = m_Server.GetStore();
-		auto& BCrypt = m_Server.GetBCrypt();
+		auto& Hasher = m_Server.GetPasswordHash();
 
 		auto oAdmin = Store.GetAdmin(sUser);
 
 		if (!oAdmin)
 		{
-			(void) BCrypt.ValidatePassword(sPassword, s_sDummyHash);
+			Hasher.SpendValidationTime(sPassword);
 			KTunnelStore::Event ev;
 			ev.sKind   = "admin_login_fail";
 			ev.sAdmin  = sUser;
@@ -451,7 +445,9 @@ AdminUI::AdminUI (RelayServer& Server)
 			return false;
 		}
 
-		if (!BCrypt.ValidatePassword(sPassword, oAdmin->sPasswordHash))
+		KString sNewHash;
+
+		if (!Hasher.ValidatePassword(sPassword, oAdmin->sPasswordHash, sNewHash))
 		{
 			KTunnelStore::Event ev;
 			ev.sKind   = "admin_login_fail";
@@ -459,6 +455,12 @@ AdminUI::AdminUI (RelayServer& Server)
 			ev.sDetail = "admin UI: bad password";
 			Store.LogEvent(ev);
 			return false;
+		}
+
+		if (!sNewHash.empty())
+		{
+			// the stored hash was one of bcrypt, or of a lower cost
+			Store.UpdateAdminPasswordHash(sUser, sNewHash);
 		}
 
 		Store.SetAdminLastLogin(sUser, KUnixTime::now());
@@ -1083,7 +1085,7 @@ void AdminUI::HandleAdminsAdd (KRESTServer& HTTP)
 	}
 
 	auto& Store  = m_Server.GetStore();
-	auto& BCrypt = m_Server.GetBCrypt();
+	auto& Hasher = m_Server.GetPasswordHash();
 
 	if (Store.GetAdmin(sUsername))
 	{
@@ -1091,7 +1093,7 @@ void AdminUI::HandleAdminsAdd (KRESTServer& HTTP)
 		return;
 	}
 
-	auto sHash = BCrypt.GenerateHash(KStringViewZ(sPassword));
+	auto sHash = Hasher.GenerateHash(KStringViewZ(sPassword));
 	if (sHash.empty())
 	{
 		RedirectWithFlash(HTTP, s_sAdminsURL, "", "Failed to hash password.");
@@ -1193,7 +1195,7 @@ void AdminUI::HandleAdminsChangePass (KRESTServer& HTTP)
 	}
 
 	auto& Store  = m_Server.GetStore();
-	auto& BCrypt = m_Server.GetBCrypt();
+	auto& Hasher = m_Server.GetPasswordHash();
 
 	auto oMe = Store.GetAdmin(sMe);
 	if (!oMe)
@@ -1205,7 +1207,7 @@ void AdminUI::HandleAdminsChangePass (KRESTServer& HTTP)
 		return;
 	}
 
-	if (!BCrypt.ValidatePassword(KStringViewZ(sCurrent), oMe->sPasswordHash))
+	if (!Hasher.ValidatePassword(KStringViewZ(sCurrent), oMe->sPasswordHash))
 	{
 		KTunnelStore::Event ev;
 		ev.sKind   = "admin_password_fail";
@@ -1217,7 +1219,7 @@ void AdminUI::HandleAdminsChangePass (KRESTServer& HTTP)
 		return;
 	}
 
-	auto sHash = BCrypt.GenerateHash(KStringViewZ(sNew));
+	auto sHash = Hasher.GenerateHash(KStringViewZ(sNew));
 	if (sHash.empty())
 	{
 		RedirectWithFlash(HTTP, s_sAdminsURL, "", "Failed to hash new password.");
@@ -1479,7 +1481,7 @@ void AdminUI::HandleOutletsAdd (KRESTServer& HTTP)
 	}
 
 	auto& Store  = m_Server.GetStore();
-	auto& BCrypt = m_Server.GetBCrypt();
+	auto& Hasher = m_Server.GetPasswordHash();
 
 	if (Store.GetOutlet(sName))
 	{
@@ -1487,7 +1489,7 @@ void AdminUI::HandleOutletsAdd (KRESTServer& HTTP)
 		return;
 	}
 
-	auto sHash = BCrypt.GenerateHash(KStringViewZ(sPassword));
+	auto sHash = Hasher.GenerateHash(KStringViewZ(sPassword));
 	if (sHash.empty())
 	{
 		RedirectWithFlash(HTTP, s_sOutletsURL, "", "Failed to hash password.");
@@ -1631,7 +1633,7 @@ void AdminUI::HandleOutletsResetPass (KRESTServer& HTTP)
 	}
 
 	auto& Store  = m_Server.GetStore();
-	auto& BCrypt = m_Server.GetBCrypt();
+	auto& Hasher = m_Server.GetPasswordHash();
 
 	if (!Store.GetOutlet(sName))
 	{
@@ -1639,7 +1641,7 @@ void AdminUI::HandleOutletsResetPass (KRESTServer& HTTP)
 		return;
 	}
 
-	auto sHash = BCrypt.GenerateHash(KStringViewZ(sNew));
+	auto sHash = Hasher.GenerateHash(KStringViewZ(sNew));
 	if (sHash.empty())
 	{
 		RedirectWithFlash(HTTP, s_sOutletsURL, "", "Failed to hash new password.");
@@ -1691,7 +1693,7 @@ void AdminUI::HandleInletsAdd (KRESTServer& HTTP)
 		return;
 	}
 
-	auto sHash = m_Server.GetBCrypt().GenerateHash(KStringViewZ(sPassword));
+	auto sHash = m_Server.GetPasswordHash().GenerateHash(KStringViewZ(sPassword));
 
 	if (sHash.empty())
 	{
@@ -1827,7 +1829,7 @@ void AdminUI::HandleInletsResetPass (KRESTServer& HTTP)
 		return;
 	}
 
-	auto sHash = m_Server.GetBCrypt().GenerateHash(KStringViewZ(sNew));
+	auto sHash = m_Server.GetPasswordHash().GenerateHash(KStringViewZ(sNew));
 
 	if (sHash.empty() || !Store.UpdateInletPasswordHash(sName, sHash))
 	{
@@ -2233,13 +2235,13 @@ void AdminUI::ShowOutletInstall (KRESTServer& HTTP)
 		Row.Add<html::Button>("Generate & set", html::Button::BUTTON, html::Classes{"btn small"})
 		   .SetAttribute("onclick", "ktGenNodePassword(this)");
 
-		// Stored passwords are bcrypt hashes, so an existing password cannot
+		// Stored passwords are hashes, so an existing password cannot
 		// be shown here - the button generates a new one, sets it on the outlet
 		// account (same path as "Reset outlet password"), and puts it into the
 		// script. Only that button sends the password to this server; a value
 		// you paste yourself stays in the browser.
 		sec.Add<html::Div>(html::Classes("muted"))
-		   .AddText("Outlet passwords are stored as bcrypt hashes and cannot be "
+		   .AddText("Outlet passwords are stored as hashes and cannot be "
 		            "shown again. Either paste the password you kept when the "
 		            "outlet was created, or press \"Generate & set\" to give the "
 		            "outlet a fresh one right now - that replaces its current "

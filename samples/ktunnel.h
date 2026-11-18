@@ -49,7 +49,7 @@
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
-#include <dekaf2/crypto/auth/kbcrypt.h>
+#include <dekaf2/crypto/auth/kpasswordhash.h>
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/web/acme/kacmemanager.h>
@@ -89,7 +89,7 @@ public:
 	/// `Stateful`
 	///   DB-backed operation. Tunnels are read from the `tunnels`
 	///   table, the admin UI is registered at `/Configure/`, peer
-	///   authentication uses bcrypt against the `users` table. This
+	///   authentication uses password hashes in the `users` table. This
 	///   is the default for interactive launches without `-f`/`-t`
 	///   and for all service-manager launches (systemd, launchd,
 	///   SCM — see KService::IsRunningAsService()).
@@ -125,7 +125,7 @@ public:
 	/// Identity name sent by a connecting *outlet* or *inlet* when
 	/// logging in at the relay. Must match a row in the relay's outlet
 	/// store (legacy `nodes` table) resp. inlet store (`clients` table);
-	/// the password is the bcrypt-hashed value managed by an admin via
+	/// the password is the hashed value managed by an admin via
 	/// `ktunnel -add-outlet` / `-add-inlet` or the admin UI. Ignored on
 	/// the relay. Set via `-n <name>` on the CLI; defaults to "outlet",
 	/// a placeholder that must usually be overridden — the bootstrap
@@ -178,7 +178,7 @@ public:
 	};
 	std::vector<LocalForward> LocalForwards;
 
-	/// Protected host only: bcrypt hash of the password that unlocks the
+	/// Protected host only: hash of the password that unlocks the
 	/// interactive shell offered through the admin REPL (the `shell`
 	/// command). Empty (the default) disables the shell entirely - the
 	/// command is then not even offered. Seeded by Tunnel::Main() from
@@ -534,9 +534,9 @@ public:
 	/// Set the global KLog debug level and persist it in the store.
 	void                      SetLogLevel            (int iLevel);
 
-	/// Access to the shared bcrypt verifier. Never null after
+	/// Access to the shared password hasher. Never null after
 	/// successful construction.
-	KBCrypt&                  GetBCrypt              ()       { return *m_BCrypt; }
+	KPasswordHash&            GetPasswordHash        ()       { return *m_PasswordHash; }
 
 	/// Access to the ExposedServer configuration — the admin UI reads
 	/// things like bNoTLS to decide on cookie flags.
@@ -648,7 +648,7 @@ private:
 	std::vector<DesiredTunnel> GatherDesiredTunnels () const;
 
 	std::unique_ptr<KTunnelStore>     m_Store;
-	std::unique_ptr<KBCrypt>          m_BCrypt;
+	std::unique_ptr<KPasswordHash>    m_PasswordHash;
 	std::unique_ptr<AdminUI>          m_AdminUI;
 	const Config&                     m_Config;
 

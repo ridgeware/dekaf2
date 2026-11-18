@@ -43,7 +43,7 @@
 #include <dekaf2/crypto/auth/kopenidserver.h>
 
 #include <dekaf2/crypto/auth/kopenid.h>          // KOpenIDKeys (verify our own access token)
-#include <dekaf2/crypto/auth/kbcrypt.h>          // KBCrypt (client secret)
+#include <dekaf2/crypto/auth/kpasswordhash.h>    // KPasswordHash (client secret)
 #include <dekaf2/crypto/rsa/krsasign.h>          // KRSASign (RS256)
 #include <dekaf2/crypto/hash/kmessagedigest.h>   // KSHA256 (PKCE)
 #include <dekaf2/crypto/encoding/kbase64.h>      // KBase64Url
@@ -944,7 +944,7 @@ KString KOpenIDServer::AuthenticateClient(KRESTServer& HTTP, KStringView sFormCl
 	// an unknown client gets the same answer as a wrong secret
 	KStringView sSecret = !sFormClientSecret.empty() ? sFormClientSecret : KStringView(sBasicSecret);
 
-	if (!bKnown || sSecret.empty() || !KBCrypt().ValidatePassword(KString(sSecret), Client.sClientSecretHash))
+	if (!bKnown || sSecret.empty() || !KPasswordHash().ValidatePassword(sSecret, Client.sClientSecretHash))
 	{
 		sDescription = "client authentication failed";
 		return "invalid_client";

@@ -162,7 +162,7 @@ bool KTunnelStore::InitializeSchema ()
 
 	static constexpr KStringView s_sDDL[] =
 	{
-		// Admins: unique username, bcrypt hash. Every row in this table
+		// Admins: unique username, password hash. Every row in this table
 		// is, by definition, allowed to sign in to the web UI. There is
 		// no separate is_admin flag — having a row IS the admin grant.
 		"create table if not exists admins ("

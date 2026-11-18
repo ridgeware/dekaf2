@@ -80,7 +80,7 @@
 #include <dekaf2/system/os/kservice.h>
 #include <dekaf2/system/os/ksignals.h> // SIGINT/SIGTERM chain in RelayServer ctor
 #include <dekaf2/system/filesystem/kfilesystem.h> // kReadAll for -pass-file
-#include <dekaf2/crypto/auth/kbcrypt.h>
+#include <dekaf2/crypto/auth/kpasswordhash.h>
 #include <dekaf2/core/strings/kstringutils.h> // kSafeErase
 #include <dekaf2/system/process/kpty.h>       // interactive shell login
 #include <dekaf2/threading/execution/kthreads.h>
@@ -442,7 +442,7 @@ bool RelayServer::VerifyOutletLogin (KStringView sOutlet, KStringView sSecret,
                                      const KTCPEndPoint& RemoteAddr)
 //-----------------------------------------------------------------------------
 {
-	// AdHoc mode has no persistent `nodes` table, no bcrypt. The
+	// AdHoc mode has no persistent `nodes` table, no password hashes. The
 	// operator supplies one or more shared secrets on the CLI via
 	// `-s <comma-separated>`; any of them grants access. sOutlet is
 	// accepted but not verified — it is only used for log lines.
@@ -479,39 +479,43 @@ bool RelayServer::VerifyOutletLogin (KStringView sOutlet, KStringView sSecret,
 
 	auto oOutlet = m_Store->GetOutlet(sOutlet);
 
-	// Do a constant-time dummy compare against a fixed, well-formed bcrypt
-	// hash so a missing row cannot be distinguished from a wrong password
-	// by response time. The hash below is bcrypt("<never-used>", cost 4).
-	static constexpr KStringViewZ s_sDummyHash =
-		"$2a$04$abcdefghijklmnopqrstuuSQgFuZgk5ErgR6KPK8e6QlYxwZpzIbG";
-
+	// A missing or disabled row spends the time of a password check, so that it
+	// cannot be distinguished from a wrong password by response time.
 	KString sPassword(sSecret);
 
 	if (!oOutlet)
 	{
-		(void) m_BCrypt->ValidatePassword(sPassword, s_sDummyHash);
+		m_PasswordHash->SpendValidationTime(sPassword);
 		LogFail("unknown outlet");
 		return false;
 	}
 
 	if (!oOutlet->bEnabled)
 	{
-		(void) m_BCrypt->ValidatePassword(sPassword, s_sDummyHash);
+		m_PasswordHash->SpendValidationTime(sPassword);
 		LogFail("outlet disabled");
 		return false;
 	}
 
-	if (!m_BCrypt->ValidatePassword(sPassword, oOutlet->sPasswordHash))
+	KString sNewHash;
+
+	if (!m_PasswordHash->ValidatePassword(sPassword, oOutlet->sPasswordHash, sNewHash))
 	{
 		LogFail("bad password");
 		return false;
+	}
+
+	if (!sNewHash.empty())
+	{
+		// the stored hash was one of bcrypt, or of a lower cost
+		m_Store->UpdateOutletPasswordHash(sOutlet, sNewHash);
 	}
 
 	m_Store->SetOutletLastLogin(sOutlet, KUnixTime::now());
 
 	KTunnelStore::Event ev;
 	ev.sKind     = "node_login_ok";
-	ev.sOutlet     = sOutlet;
+	ev.sOutlet   = sOutlet;
 	ev.sRemoteIP = RemoteAddr.Serialize();
 	ev.sDetail   = "tunnel";
 	m_Store->LogEvent(ev);
@@ -551,31 +555,36 @@ bool RelayServer::VerifyInletLogin (KStringView sInlet, KStringView sSecret,
 
 	auto oInlet = m_Store->GetInlet(sInlet);
 
-	// same constant-time dummy compare as VerifyOutletLogin, so a missing
-	// row cannot be told apart from a wrong password by response time
-	static constexpr KStringViewZ s_sDummyHash =
-		"$2a$04$abcdefghijklmnopqrstuuSQgFuZgk5ErgR6KPK8e6QlYxwZpzIbG";
-
+	// as in VerifyOutletLogin, a missing or disabled row spends the time of a
+	// password check
 	KString sPassword(sSecret);
 
 	if (!oInlet)
 	{
-		(void) m_BCrypt->ValidatePassword(sPassword, s_sDummyHash);
+		m_PasswordHash->SpendValidationTime(sPassword);
 		LogFail("unknown inlet");
 		return false;
 	}
 
 	if (!oInlet->bEnabled)
 	{
-		(void) m_BCrypt->ValidatePassword(sPassword, s_sDummyHash);
+		m_PasswordHash->SpendValidationTime(sPassword);
 		LogFail("inlet disabled");
 		return false;
 	}
 
-	if (!m_BCrypt->ValidatePassword(sPassword, oInlet->sPasswordHash))
+	KString sNewHash;
+
+	if (!m_PasswordHash->ValidatePassword(sPassword, oInlet->sPasswordHash, sNewHash))
 	{
 		LogFail("bad password");
 		return false;
+	}
+
+	if (!sNewHash.empty())
+	{
+		// the stored hash was one of bcrypt, or of a lower cost
+		m_Store->UpdateInletPasswordHash(sInlet, sNewHash);
 	}
 
 	m_Store->SetInletLastLogin(sInlet, KUnixTime::now());
@@ -1921,11 +1930,12 @@ RelayServer::RelayServer (const Config& config)
 
 		m_Config.Message("admin store: {}", m_Store->GetDatabasePath());
 
-		// Shared bcrypt verifier used for both tunnel-login
-		// (VerifyOutletLogin) and the admin UI login. We prefer one
-		// common instance so the asynchronously-computed workload is
-		// calibrated once per process.
-		m_BCrypt = std::make_unique<KBCrypt>(std::chrono::milliseconds(100), true);
+		// Shared password hasher used for both tunnel-login
+		// (VerifyOutletLogin) and the admin UI login. New hashes are
+		// Argon2id, hashes of bcrypt from before still validate. One
+		// common instance, so that the cost is calibrated once per
+		// process - right here, before several threads use it.
+		m_PasswordHash = std::make_unique<KPasswordHash>(std::chrono::milliseconds(100), KPasswordHash::Algorithm::Argon2, false);
 
 		// Friendly hint when the operator forgot to seed an admin
 		// user: the runtime keeps going so existing tunnels still
@@ -1969,7 +1979,7 @@ RelayServer::RelayServer (const Config& config)
 	}
 	else
 	{
-		// AdHoc: no SQLite file, no bcrypt, no admin UI. Peer
+		// AdHoc: no SQLite file, no password hashes, no admin UI. Peer
 		// authentication falls back to `-s <secret>` in
 		// VerifyOutletLogin. The synthetic "cli" tunnel produced by
 		// GatherDesiredTunnels() is the only listener.
@@ -2062,7 +2072,7 @@ RelayServer::RelayServer (const Config& config)
 	// KWebObjects) and register its routes under /Configure/.. — see
 	// ktunnel_admin.cpp. We pass a pointer to this RelayServer so
 	// the UI can look up live tunnels, persisted admins/nodes/tunnels,
-	// and share the bcrypt verifier. In AdHoc mode there is no
+	// and share the password hasher. In AdHoc mode there is no
 	// persistent store to drive the UI off of, so we simply do not
 	// register it.
 	if (bStateful)
@@ -2383,8 +2393,8 @@ void OutletHost::RunRepl(std::shared_ptr<KTunnel::Connection> Connection)
 					KString sPassword(sPrompt);
 					sPassword.TrimRight("\r\n");
 
-					KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);
-					const bool bOk = BCrypt.ValidatePassword(sPassword, m_Config.sShellPasswordHash);
+					// the cost of the check is the one of the hash
+					const bool bOk = KPasswordHash().ValidatePassword(sPassword, m_Config.sShellPasswordHash);
 					kSafeErase(sPassword);
 					kSafeErase(sPrompt);
 
@@ -2923,7 +2933,7 @@ int Tunnel::Main(int argc, char** argv)
 	       .Help("port number to listen at (relay) or to connect to (outlet / inlet) - defaults to 443.")
 	       .Set(m_Config.iPort);
 	Options.Option("s,secret <secret>")
-	       .Help("outlet / inlet: REQUIRED, the password used to log in at the relay (must match the bcrypt-hashed password of the matching outlet resp. inlet account there). Relay: only used in ad-hoc mode (with -f / -t), where it is the comma-separated list of pre-shared secrets for peer authentication; in stateful mode it is ignored — manage the admin password via `ktunnel -set-admin` and outlet accounts via the admin UI.")
+	       .Help("outlet / inlet: REQUIRED, the password used to log in at the relay (must match the hashed password of the matching outlet resp. inlet account there). Relay: only used in ad-hoc mode (with -f / -t), where it is the comma-separated list of pre-shared secrets for peer authentication; in stateful mode it is ignored — manage the admin password via `ktunnel -set-admin` and outlet accounts via the admin UI.")
 	       .Set(sSecrets);
 	Options.Option("secret-file <path>")
 	       .Help("runtime alternative to -s: read the login secret from <path> instead of putting it on the command line. The whole file content is used as a single secret (one trailing newline is stripped). Unlike the bootstrap-only -pass-file, this flag is read on every start, so a service can be installed without the secret ending up in the systemd unit / SCM ImagePath. Mutually exclusive with -s.")
@@ -3217,8 +3227,8 @@ int Tunnel::Main(int argc, char** argv)
 			}
 			else
 			{
-				KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);
-				m_Config.sShellPasswordHash = BCrypt.GenerateHash(sShellPassword);
+				KPasswordHash Hasher(std::chrono::milliseconds(100), KPasswordHash::Algorithm::Argon2, /*bComputeAtFirstUse=*/false);
+				m_Config.sShellPasswordHash = Hasher.GenerateHash(sShellPassword);
 				kSafeErase(sShellPassword);
 			}
 		}
@@ -3592,9 +3602,9 @@ bool SeedAdminUser (KStringView  sPath,
 		return false;
 	}
 
-	KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);
+	KPasswordHash Hasher(std::chrono::milliseconds(100), KPasswordHash::Algorithm::Argon2, /*bComputeAtFirstUse=*/false);
 
-	auto sHash = BCrypt.GenerateHash(sPassword);
+	auto sHash = Hasher.GenerateHash(sPassword);
 
 	if (sHash.empty())
 	{
@@ -3667,9 +3677,9 @@ bool SeedOutlet (KStringView  sPath,
 		return false;
 	}
 
-	KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);
+	KPasswordHash Hasher(std::chrono::milliseconds(100), KPasswordHash::Algorithm::Argon2, /*bComputeAtFirstUse=*/false);
 
-	auto sHash = BCrypt.GenerateHash(sPassword);
+	auto sHash = Hasher.GenerateHash(sPassword);
 
 	if (sHash.empty())
 	{
@@ -3741,9 +3751,9 @@ bool SeedInlet (KStringView  sPath,
 		return false;
 	}
 
-	KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);
+	KPasswordHash Hasher(std::chrono::milliseconds(100), KPasswordHash::Algorithm::Argon2, /*bComputeAtFirstUse=*/false);
 
-	auto sHash = BCrypt.GenerateHash(sPassword);
+	auto sHash = Hasher.GenerateHash(sPassword);
 
 	if (sHash.empty())
 	{

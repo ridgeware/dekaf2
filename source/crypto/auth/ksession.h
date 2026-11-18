@@ -47,7 +47,7 @@
 /// Credential verification is fully delegated to the application via an
 /// Authenticator callback, so KSession knows nothing about how passwords
 /// are stored or hashed (typically the application pairs this with
-/// KBCrypt). KSession itself is responsible only for:
+/// KPasswordHash). KSession itself is responsible only for:
 ///   - generating cryptographically random session tokens
 ///   - persisting session records via a pluggable Store
 ///   - enforcing idle / absolute timeouts
@@ -87,7 +87,7 @@ class KSQL;
 /// Typical usage (ktunnel-style admin UI):
 ///
 /// @code
-/// auto bcrypt = std::make_shared<KBCrypt>(chrono::milliseconds(100));
+/// auto Hasher = std::make_shared<KPasswordHash>(chrono::milliseconds(100));
 ///
 /// KSession::Config cfg;
 /// cfg.sCookieName     = "__Host-ktunnel";
@@ -95,10 +95,10 @@ class KSQL;
 /// cfg.AbsoluteTimeout = chrono::hours(8);
 ///
 /// KSession Session(sDBPath, cfg);
-/// Session.SetAuthenticator([bcrypt, &MyUserDB](KStringView sUser, KStringView sPass)
+/// Session.SetAuthenticator([Hasher, &MyUserDB](KStringView sUser, KStringView sPass)
 /// {
 ///     auto sHash = MyUserDB.LookupPasswordHash(sUser);
-///     return !sHash.empty() && bcrypt->ValidatePassword(sPass, sHash);
+///     return !sHash.empty() && Hasher->ValidatePassword(sPass, sHash);
 /// });
 ///
 /// // in a route handler:

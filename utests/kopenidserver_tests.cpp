@@ -5,6 +5,7 @@
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
 #include <dekaf2/crypto/auth/kbcrypt.h>
+#include <dekaf2/crypto/auth/kpasswordhash.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/crypto/random/krandom.h>
@@ -754,6 +755,29 @@ TEST_CASE("KOpenIDServer")
 		KString sBody = kFormat("grant_type=authorization_code&code={}&redirect_uri=http://localhost/cb"
 		                        "&code_verifier={}", sCode, sVerifier);
 		KJSON jTok = kjson::Parse(ResponseBody(Drive("POST", "/token", "", sBody, sBasic)));
+		CHECK_FALSE ( kjson::GetStringRef(jTok, "access_token").empty() );
+	}
+
+	SECTION("a client secret with a hash of Argon2id")
+	{
+		// the stores of existing installations hold hashes of bcrypt, new ones are Argon2id
+		KPasswordHash Hasher;
+		KArgon2::Cost cost;
+		cost.iMemoryKiB  = 256; // a low cost -> fast test
+		cost.iIterations = 1;
+		REQUIRE ( Hasher.Argon2().SetCost(cost) );
+		pClients->sSecretHash = Hasher.GenerateHash("test-secret");
+		REQUIRE ( pClients->sSecretHash.starts_with("$argon2id$") );
+
+		// the right secret gets to the check of the grant, a wrong one does not
+		CHECK ( TokenError(Drive("POST", "/token", "",
+		                         "grant_type=refresh_token&refresh_token=x&client_id=test-client&client_secret=test-secret")) == "invalid_grant" );
+		CHECK ( TokenError(Drive("POST", "/token", "",
+		                         "grant_type=refresh_token&refresh_token=x&client_id=test-client&client_secret=wrong-secret")) == "invalid_client" );
+
+		KString sCode = ObtainCode();
+		REQUIRE_FALSE ( sCode.empty() );
+		KJSON jTok = kjson::Parse(ResponseBody(Drive("POST", "/token", "", CodeBody(sCode))));
 		CHECK_FALSE ( kjson::GetStringRef(jTok, "access_token").empty() );
 	}
 

@@ -181,6 +181,7 @@
 #include <dekaf2/system/process/koutshell.h>
 #include <dekaf2/io/streams/koutstringstream.h>
 #include <dekaf2/threading/execution/kparallel.h>
+#include <dekaf2/crypto/auth/kpasswordhash.h>
 #include <dekaf2/containers/memory/kpersist.h>
 #include <dekaf2/io/pipes/kpipe.h>
 #include <dekaf2/net/util/kpoll.h>

@@ -119,6 +119,7 @@ set (USOURCES
 	koutputtemplate_tests.cpp
 	koutshell_tests.cpp
 	kparallel_tests.cpp
+	kpasswordhash_tests.cpp
 	kpersist_tests.cpp
 	kpipe_tests.cpp
 	kpluralrules_tests.cpp

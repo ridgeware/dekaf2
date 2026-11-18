@@ -1826,6 +1826,7 @@ set(PUBLIC_HEADERS
 	source/crypto/auth/kawsauth.h
 	source/crypto/auth/kbcrypt.h
 	source/crypto/auth/kopenid.h
+	source/crypto/auth/kpasswordhash.h
 	source/crypto/auth/kdigestauth.h
 	source/crypto/auth/kopenidclient.h
 	source/crypto/auth/kopenidserver.h
@@ -2126,6 +2127,7 @@ set (SOURCES
 	source/crypto/auth/kawsauth.cpp
 	source/crypto/auth/kbcrypt.cpp
 	source/crypto/auth/kopenid.cpp
+	source/crypto/auth/kpasswordhash.cpp
 	source/crypto/auth/kdigestauth.cpp
 	source/crypto/auth/kopenidclient.cpp
 	source/crypto/auth/kopenidserver.cpp

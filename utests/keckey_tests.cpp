@@ -16,6 +16,26 @@ TEST_CASE("KECKey")
 		CHECK_FALSE ( Key.IsPrivateKey() );
 	}
 
+	SECTION("a PEM string as a pointer to char and as a string literal")
+	{
+		KECKey Original(true);
+		REQUIRE_FALSE ( Original.empty() );
+
+		auto sPEM = Original.GetPEM(false);
+
+		// this is the PEM string, not the request to generate a key
+		KECKey FromPointer(sPEM.c_str());
+
+		CHECK_FALSE ( FromPointer.empty()        );
+		CHECK_FALSE ( FromPointer.IsPrivateKey() );
+		CHECK       ( FromPointer.GetPublicKeyRaw() == Original.GetPublicKeyRaw() );
+
+		// and a string literal that is no PEM gives no key
+		KECKey FromLiteral("this is not a key");
+
+		CHECK ( FromLiteral.empty() );
+	}
+
 	SECTION("Generate creates a valid key pair")
 	{
 		KECKey Key(true);

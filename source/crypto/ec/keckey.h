@@ -130,6 +130,7 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/data/json/kjson.h>
+#include <type_traits>
 
 struct evp_pkey_st;
 
@@ -158,9 +159,12 @@ public:
 	/// default ctor (empty key)
 	KECKey() = default;
 
-	/// generate a new P-256 key pair
+	/// generate a new P-256 key pair. Takes a bool only: a string literal or a
+	/// const char* would convert to bool, too, and not reach the constructor
+	/// for a PEM string.
 	/// @param bGenerate if true, generates a new key pair immediately
-	explicit KECKey(bool bGenerate)
+	template<typename T, typename std::enable_if<std::is_same<T, bool>::value, int>::type = 0>
+	explicit KECKey(T bGenerate)
 	{
 		if (bGenerate) Generate();
 	}

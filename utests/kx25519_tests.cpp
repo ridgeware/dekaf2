@@ -19,6 +19,26 @@ TEST_CASE("KX25519")
 		CHECK_FALSE ( Key.IsPrivateKey() );
 	}
 
+	SECTION("a PEM string as a pointer to char and as a string literal")
+	{
+		KX25519 Original(true);
+		REQUIRE_FALSE ( Original.empty() );
+
+		auto sPEM = Original.GetPEM(false);
+
+		// this is the PEM string, not the request to generate a key
+		KX25519 FromPointer(sPEM.c_str());
+
+		CHECK_FALSE ( FromPointer.empty()        );
+		CHECK_FALSE ( FromPointer.IsPrivateKey() );
+		CHECK       ( FromPointer.GetPublicKeyRaw() == Original.GetPublicKeyRaw() );
+
+		// and a string literal that is no PEM gives no key
+		KX25519 FromLiteral("this is not a key");
+
+		CHECK ( FromLiteral.empty() );
+	}
+
 	SECTION("Generate creates a valid key pair")
 	{
 		KX25519 Key(true);

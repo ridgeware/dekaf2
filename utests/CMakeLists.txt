@@ -193,6 +193,7 @@ set (USOURCES
 	kversion_tests.cpp
 	kwebclient_tests.cpp
 	kwebapp_tests.cpp
+	kwebauthn_tests.cpp
 	kwebobjects_tests.cpp
 	kwebui_tests.cpp
 	keckey_tests.cpp

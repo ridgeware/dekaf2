@@ -76,6 +76,7 @@
 #include <dekaf2/crypto/cipher/kcamellia.h>
 #include <dekaf2/core/strings/kcaseless.h>
 #include <dekaf2/core/strings/kcasestring.h>
+#include <dekaf2/crypto/encoding/kcbor.h>
 #include <dekaf2/core/strings/kcesu8.h>
 #include <dekaf2/http/server/kcgistream.h>
 #include <dekaf2/crypto/cipher/kchacha.h>

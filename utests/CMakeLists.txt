@@ -47,6 +47,7 @@ set (USOURCES
 	kcache_tests.cpp
 	kcaseless_tests.cpp
 	kcasestring_tests.cpp
+	kcbor_tests.cpp
 	kchildprocess_tests.cpp
 	kcompatibility_tests.cpp
 	kcompression_tests.cpp

@@ -1844,6 +1844,7 @@ set(PUBLIC_HEADERS
 	source/crypto/cipher/kchacha.h
 	source/crypto/encoding/kbase32.h
 	source/crypto/encoding/kbase64.h
+	source/crypto/encoding/kcbor.h
 	source/crypto/encoding/kencode.h
 	source/crypto/encoding/khex.h
 	source/crypto/encoding/kquotedprintable.h
@@ -2139,6 +2140,7 @@ set (SOURCES
 	source/crypto/cipher/kblockcipher.cpp
 	source/crypto/encoding/kbase32.cpp
 	source/crypto/encoding/kbase64.cpp
+	source/crypto/encoding/kcbor.cpp
 	source/crypto/encoding/khex.cpp
 	source/crypto/encoding/kquotedprintable.cpp
 	source/crypto/hash/bits/kdigest.cpp

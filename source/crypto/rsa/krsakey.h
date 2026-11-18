@@ -146,6 +146,11 @@ public:
 	/// @param jJWK the JWK object
 	/// @return true on success
 	bool CreateFromJWK(const KJSON& jJWK);
+	/// create a public key from its two numbers, as COSE keys have them
+	/// @param sModulus the modulus n in bytes, most significant byte first
+	/// @param sExponent the public exponent e in bytes, most significant byte first
+	/// @return true on success
+	bool CreateFromRaw(KStringView sModulus, KStringView sExponent);
 	/// get the key from a PEM string
 	/// @param sPEMKey the string containing the PEM key
 	/// @param sPassword the password to read the PEM key, defaults to no password

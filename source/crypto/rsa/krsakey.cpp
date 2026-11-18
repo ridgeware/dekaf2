@@ -466,6 +466,23 @@ bool KRSAKey::CreateFromJWK(const KJSON& jJWK)
 } // CreateFromJWK
 
 //---------------------------------------------------------------------------
+bool KRSAKey::CreateFromRaw(KStringView sModulus, KStringView sExponent)
+//---------------------------------------------------------------------------
+{
+	// the parameters are views of numbers in base64url
+	auto sN = KBase64Url::Encode(sModulus);
+	auto sE = KBase64Url::Encode(sExponent);
+
+	Parameters parms { KJSON{} };
+
+	parms.n = sN;
+	parms.e = sE;
+
+	return Create(parms);
+
+} // CreateFromRaw
+
+//---------------------------------------------------------------------------
 bool KRSAKey::Create(KStringView sPEMKey, KStringViewZ sPassword)
 //---------------------------------------------------------------------------
 {

@@ -1,6 +1,8 @@
 #include "catch.hpp"
 
 #include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/crypto/rsa/krsasign.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/data/json/kjson.h>
 
 using namespace dekaf2;
@@ -314,5 +316,35 @@ EBrURx/EsHSk
 		CHECK_FALSE ( Key.CreateFromJWK(KJSON{}) );
 		CHECK       ( Key.empty() );
 		CHECK       ( Key.HasError() );
+	}
+
+	SECTION("CreateFromRaw")
+	{
+		// the modulus and the exponent of the public key above, as bytes
+		auto jJWK      = KRSAKey(sPubKey).GetPublicJWK();
+		auto sModulus  = KBase64Url::Decode(jJWK["n"].String());
+		auto sExponent = KBase64Url::Decode(jJWK["e"].String());
+
+		CHECK ( sModulus.size()  == 128 );
+		CHECK ( sExponent        == KStringView("\x01\x00\x01", 3) );
+
+		KRSAKey Key;
+		REQUIRE ( Key.CreateFromRaw(sModulus, sExponent) );
+		CHECK   ( Key.IsPrivateKey() == false   );
+		CHECK   ( Key.GetPEM(false)  == sPubKey );
+		CHECK   ( Key.GetPublicJWK() == jJWK    );
+
+		// it verifies what the private key signed
+		KStringView sMessage = "signed with the private key";
+		auto sSignature = KRSASign(KRSASign::Digest::SHA256, sMessage).Sign(KRSAKey(sPrivKey));
+
+		CHECK       ( KRSAVerify(KRSAVerify::Digest::SHA256, sMessage).Verify(Key, sSignature)          );
+		CHECK_FALSE ( KRSAVerify(KRSAVerify::Digest::SHA256, "another message").Verify(Key, sSignature) );
+
+		// without both numbers there is no key
+		CHECK_FALSE ( Key.CreateFromRaw("", sExponent) );
+		CHECK       ( Key.empty()                      );
+		CHECK_FALSE ( Key.CreateFromRaw(sModulus, "")  );
+		CHECK       ( Key.empty()                      );
 	}
 }

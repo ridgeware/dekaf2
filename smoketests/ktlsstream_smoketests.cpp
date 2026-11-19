@@ -3,6 +3,7 @@
 #include <dekaf2/net/tls/ktlsstream.h>
 #include <dekaf2/net/tcp/ktcpclient.h>
 #include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <iostream>
@@ -64,7 +65,16 @@ TEST_CASE("KTLSClient 2")
 	HTTP.SetTimeout(chrono::seconds(1));
 	KString sResponse = HTTP.Get (sURL);
 	CHECK ( !sResponse.empty() );
-	CHECK ( HTTP.Response.iStatusCode == 200 );
+
+	if (HTTP.Response.iStatusCode == KHTTPError::H4xx_TOOMANYREQUESTS)
+	{
+		// the answer for some addresses, like those of CI runners - no failure of the client
+		WARN("www.google.com answers with 429 (too many requests from this address) - status not checked");
+	}
+	else
+	{
+		CHECK ( HTTP.Response.iStatusCode == 200 );
+	}
 }
 
 TEST_CASE("KTLSClient 3")

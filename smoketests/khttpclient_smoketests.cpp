@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/core/format/kformat.h>
@@ -20,6 +21,24 @@ public:
 		return AlreadyConnected(sEndpoint);
 	}
 };
+
+namespace {
+
+// Google answers some addresses, like those of CI runners, with 429 Too Many Requests.
+// That is a complete response and no failure of the client: warns, and returns true
+// to make the caller leave out the check of the status
+bool IsThrottled(const KWebClient& HTTP)
+{
+	if (HTTP.GetStatusCode() == KHTTPError::H4xx_TOOMANYREQUESTS)
+	{
+		WARN("www.google.com answers with 429 (too many requests from this address) - status not checked");
+		return true;
+	}
+
+	return false;
+}
+
+} // end of anonymous namespace
 
 TEST_CASE("KHTTPClient")
 {
@@ -44,13 +63,22 @@ TEST_CASE("KHTTPClient")
 		CHECK ( HTTP.ReusesConnection("https://www.google.com") == false );
 		KString sHTML = HTTP.Get("https://www.google.com");
 		CHECK ( sHTML.empty() == false );
-		CHECK ( HTTP.GetStatusCode() == 200 );
+
+		if (!IsThrottled(HTTP))
+		{
+			CHECK ( HTTP.GetStatusCode() == 200 );
+		}
 
 		CHECK ( HTTP.ReusesConnection("https://www.google.com") == true );
 		// second request, check reuse in KLog
 		sHTML = HTTP.Get("https://www.google.com/imghp");
 		CHECK ( sHTML.empty() == false );
-		CHECK ( HTTP.GetStatusCode() == 200 );
+
+		if (!IsThrottled(HTTP))
+		{
+			CHECK ( HTTP.GetStatusCode() == 200 );
+		}
+
 		kDebug(1, json.dump(1, '\t'));
 	}
 
@@ -61,7 +89,12 @@ TEST_CASE("KHTTPClient")
 		HTTP.SetServiceSummary(&json);
 		// this tests a redirect to https://www.google.fr
 		auto sResult = HTTP.Get("https://google.com");
-		CHECK ( HTTP.HttpSuccess() == true );
+
+		if (!IsThrottled(HTTP))
+		{
+			CHECK ( HTTP.HttpSuccess() == true );
+		}
+
 		CHECK ( HTTP.GetConnectedEndpoint().Domain == "www.google.com" );
 		CHECK ( HTTP.GetConnectedEndpoint().Serialize() == "www.google.com:443" );
 		CHECK ( sResult.empty() == false );

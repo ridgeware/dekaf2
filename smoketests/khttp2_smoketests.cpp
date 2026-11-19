@@ -5,6 +5,7 @@
 #if DEKAF2_HAS_NGHTTP2
 
 #include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/core/strings/kstring.h>
 
 #ifndef DEKAF2_IS_WINDOWS
@@ -54,6 +55,13 @@ TEST_CASE("HTTP2")
 		if (HTTP.GetStatusCode() == 0)
 		{
 			WARN("cannot reach www.google.com: " << HTTP.Error());
+			return;
+		}
+
+		if (HTTP.GetStatusCode() == KHTTPError::H4xx_TOOMANYREQUESTS)
+		{
+			// the answer for some addresses, like those of CI runners - no failure of the client
+			WARN("www.google.com answers with 429 (too many requests from this address) - skipping");
 			return;
 		}
 

@@ -305,7 +305,8 @@ public:
 	/// @param PostDataStream a stream with the POST/PUT data
 	/// @param len the length to send, or npos (default) for all available
 	/// @param Mime the KMIME type for the request body, defaults to KMIME::TEXT_PLAIN
-	/// @return true on success
+	/// @return true on success. A stream that ends before len is a failure, which closes
+	/// the connection.
 	bool SendRequest(KInStream& PostDataStream, size_t len = npos, const KMIME& Mime = KMIME::TEXT_PLAIN)
 	//-----------------------------------------------------------------------------
 	{

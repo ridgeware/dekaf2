@@ -176,6 +176,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// from now on write nothing into the sink, neither data nor the last chunk
+	void Discard() { m_bDiscard = true; }
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	void close();
 	//-----------------------------------------------------------------------------
 
@@ -188,6 +193,7 @@ private:
 	// if not null will be set to the count at destruction
 	std::streamsize* m_pCount { nullptr };
 	bool m_bIsChunked;
+	bool m_bDiscard { false };
 
 };
 

@@ -291,6 +291,9 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 	m_HTTP2.reset();
 #endif
 
+	// and so does the output filter of a request that was not sent to its end
+	Request.Abort();
+
 	m_Connection = std::move(Connection);
 
 	if (!m_Connection || !m_Connection->Good())
@@ -644,6 +647,9 @@ bool KHTTPClient::Disconnect()
 #if DEKAF2_HAS_NGHTTP2
 	m_HTTP2.reset();
 #endif
+	// the output filter of a request that was not sent to its end refers to the
+	// connection as well
+	Request.Abort();
 	m_Connection.reset();
 
 	return true;
@@ -1140,7 +1146,22 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 		if (bOutputFailed || (len != npos && iWrote != len))
 		{
 			kDebug(2, "cannot write body");
-			return SetTransportError(TransportError::Write, Request.Error());
+
+			if (bOutputFailed)
+			{
+				SetTransportError(TransportError::Write, Request.Error());
+			}
+			else
+			{
+				SetTransportError(TransportError::Write, "the body ended before its announced length");
+			}
+
+			// the request is incomplete: the output filter must not complete it, and
+			// no other request may follow it on this connection
+			Request.Abort();
+			m_Connection->Disconnect();
+
+			return false;
 		}
 	}
 

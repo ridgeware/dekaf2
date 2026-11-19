@@ -220,4 +220,33 @@ TEST_CASE("KOutHTTPFilter")
 		Filter.Flush();
 		CHECK ( sOut == "0\r\n\r\n" );
 	}
+
+	SECTION("Abort() ends a message without its pending output and without the last chunk")
+	{
+		KHTTPHeaders Headers;
+		Headers.Headers.Set(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+
+		KString          sOut;
+		KOutStringStream oss(sOut);
+		KOutHTTPFilter   Filter(oss);
+		Filter.Parse(Headers);
+
+		CHECK ( Filter.Write("this message is not completed") > 0 );
+		Filter.Abort();
+		oss.Flush();
+		CHECK_FALSE ( sOut.contains("0\r\n\r\n") );
+		auto iAborted = sOut.size();
+
+		// Abort() without a message does nothing
+		Filter.Abort();
+		oss.Flush();
+		CHECK ( sOut.size() == iAborted );
+
+		// the next message is complete
+		Filter.Parse(Headers);
+		CHECK ( Filter.Write("hello") == 5 );
+		Filter.Flush();
+		CHECK ( ReadChunked(sOut.substr(iAborted)) == "hello" );
+		CHECK ( sOut.ends_with("\r\n0\r\n\r\n") );
+	}
 }

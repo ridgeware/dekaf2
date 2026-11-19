@@ -926,4 +926,35 @@ TEST_CASE("KHTTPClient request body from a stream")
 		CHECK_FALSE ( jAnswer("chunked").Bool() );
 		CHECK ( jAnswer("size").UInt64() == 0 );
 	}
+
+	SECTION("a stream that ends before the given length fails, and closes the connection")
+	{
+		KHTTPClient Client;
+		REQUIRE ( Client.Connect(URL) );
+
+		Post(Client, "0123456789", 20);
+		CHECK_FALSE ( bSent );
+		CHECK ( Client.GetTransportError() == KHTTPClient::TransportError::Write );
+
+		// the incomplete request is not followed by another one on this connection
+		Post(Client, "01234", npos);
+		CHECK_FALSE ( bSent );
+	}
+
+	SECTION("after a failed request body, a new connection works")
+	{
+		KHTTPClient Client;
+		REQUIRE ( Client.Connect(URL) );
+
+		Post(Client, "0123456789", 20);
+		CHECK_FALSE ( bSent );
+
+		REQUIRE ( Client.Connect(URL) );
+		CHECK ( Client.GetTransportError() == KHTTPClient::TransportError::None );
+
+		auto jAnswer = Post(Client, "0123456", npos);
+		CHECK ( bSent );
+		CHECK ( Client.GetStatusCode() == 200 );
+		CHECK ( jAnswer("size").UInt64() == 7 );
+	}
 }

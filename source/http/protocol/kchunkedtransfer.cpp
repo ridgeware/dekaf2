@@ -413,6 +413,12 @@ std::streamsize KChunkedSink::write(const char* s, std::streamsize n)
 		return 0;
 	}
 
+	if (m_bDiscard)
+	{
+		// takes the data, the filter chain would repeat the write otherwise
+		return n;
+	}
+
 	if (m_bIsChunked)
 	{
 		// write the chunk header
@@ -439,7 +445,7 @@ std::streamsize KChunkedSink::write(const char* s, std::streamsize n)
 void KChunkedSink::close()
 //-----------------------------------------------------------------------------
 {
-	if (m_bIsChunked)
+	if (m_bIsChunked && !m_bDiscard)
 	{
 		// write end of chunking header
 		m_sink.Write("0\r\n\r\n");

@@ -315,6 +315,35 @@ void KOutHTTPFilter::Flush()
 } // Flush
 
 //-----------------------------------------------------------------------------
+void KOutHTTPFilter::Abort()
+//-----------------------------------------------------------------------------
+{
+	if (m_Filter)
+	{
+		if (!m_Filter->empty())
+		{
+			auto chunker = m_Filter->component<KChunkedSink>(static_cast<int>(m_Filter->size()-1));
+
+			if (chunker)
+			{
+				// closing the filter chain writes what the filters still hold, and
+				// the last chunk
+				chunker->Discard();
+			}
+			else
+			{
+				kDebug(1, "cannot get KChunkedSink component from output pipeline");
+			}
+
+			m_Filter->reset();
+		}
+
+		m_Filter.reset();
+	}
+
+} // Abort
+
+//-----------------------------------------------------------------------------
 void KOutHTTPFilter::Reset()
 //-----------------------------------------------------------------------------
 {

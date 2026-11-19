@@ -1623,7 +1623,7 @@ void KRESTServer::WriteHeaders()
 } // WriteHeaders
 
 //-----------------------------------------------------------------------------
-void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
+void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders, bool bFrameBody)
 //-----------------------------------------------------------------------------
 {
 	if (m_bIsStreaming)
@@ -1649,6 +1649,21 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
 	// cannot be flushed before its end. Also, we may not know the media type in advance,
 	// and hence switch compression on for already compressed media..
 	ConfigureCompression(m_Options.bAllowCompression && m_bResponseCompression && bAllowCompressionIfPossible);
+
+	if (bFrameBody && m_iContentLength == npos && m_Options.Out != CGI && Request.Method != KHTTPMethod::HEAD &&
+	    Response.Headers.Get(KHTTPHeader::CONTENT_LENGTH).empty())
+	{
+		// the same framing as for a stream of unknown length in Output(): chunks for
+		// HTTP/1.1, the closed connection for HTTP/1.0 (compression sets chunks as well)
+		if ((Request.GetHTTPVersion() & ~KHTTPVersion::http10) == KHTTPVersion::none)
+		{
+			m_bKeepAlive = false;
+		}
+		else
+		{
+			Response.Headers.Set(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+		}
+	}
 
 	WriteHeaders();
 
@@ -2088,6 +2103,14 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 
 	if (m_bIsStreaming)
 	{
+		if (Response.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked")
+		{
+			// a chunked body that failed must not get its last chunk, the client
+			// would take it for complete - and the connection ends here
+			Response.Abort();
+			m_bKeepAlive = false;
+		}
+
 		return;
 	}
 

@@ -648,7 +648,10 @@ public:
 	/// switch to streaming output - this writes first the headers (if requested), and then leaves the output stream open
 	/// @param bAllowCompressionIfPossible switch compression on if possible (only if bWriteHeaders is true, too)
 	/// @param bWriteHeaders output headers - if false, neither headers nor end-of-header is written to the output
-	void Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders = true);
+	/// @param bFrameBody give a body without content length an end that the client sees: chunked transfer for
+	/// HTTP/1.1, the closed connection for HTTP/1.0 (only if bWriteHeaders is true, too). Without it the response
+	/// announces keep-alive, and the client waits for the end of the body until the connection gets closed.
+	void Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders = true, bool bFrameBody = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

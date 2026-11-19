@@ -2561,3 +2561,168 @@ TEST_CASE("KRESTServer: flush of a streamed response")
 		}
 	}
 }
+
+TEST_CASE("KRESTServer: framing of a streamed response")
+{
+	// A route that writes its response itself, without a content length. With bFrameBody
+	// the client sees the end of the body, and the connection can be used for a next request.
+	auto Body = [](KRESTServer& HTTP)
+	{
+		HTTP.Write("first\n");
+		HTTP.Flush();
+		HTTP.Write("second\n");
+	};
+
+	KRESTRoutes Routes;
+
+	Routes.AddRoute("/framed").Get([&](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.Stream(false, true, true);
+		Body(HTTP);
+	});
+
+	Routes.AddRoute("/unframed").Get([&](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.Stream(false);
+		Body(HTTP);
+	});
+
+	Routes.AddRoute("/framedlength").Get([&](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.SetContentLengthToOutput(13);
+		HTTP.Stream(false, true, true);
+		Body(HTTP);
+	});
+
+	Routes.AddRoute("/framedthrow").Get([](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.Stream(false, true, true);
+		HTTP.Write("first\n");
+		HTTP.Flush();
+		HTTP.Write("not sent\n");
+		throw KHTTPError { KHTTPError::H5xx_ERROR, "failed while streaming" };
+	});
+
+	// an error below 500 does not end the connection of a response that is not streamed
+	Routes.AddRoute("/framedthrow4xx").Get([](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.Stream(false, true, true);
+		HTTP.Write("first\n");
+		HTTP.Flush();
+		HTTP.Write("not sent\n");
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "failed while streaming" };
+	});
+
+	Routes.AddRoute("/json").Get([](KRESTServer& HTTP)
+	{
+		HTTP.json.tx["hello"] = "world";
+	});
+
+	KREST::Options Options;
+
+	Options.Type                 = KREST::HTTP;
+	Options.iPort                = 0;
+	Options.sBindAddress         = "127.0.0.1";
+	Options.Timeout              = chrono::seconds(2);
+	Options.bBlocking            = false;
+	Options.bCreateEphemeralCert = false;
+
+	KREST Server;
+	REQUIRE ( Server.Execute(Options, Routes) );
+
+	auto sEndPoint = kFormat("127.0.0.1:{}", Server.GetPort());
+
+	// sends the requests, and reads until the server closes the connection
+	auto Run = [&](KStringView sRequest) -> KString
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write(sRequest).Flush();
+
+		KString sResponse;
+		Stream.ReadRemaining(sResponse);
+
+		return sResponse;
+	};
+
+	// counts the responses in what the client received
+	auto CountResponses = [](KStringView sResponse) -> std::size_t
+	{
+		std::size_t iCount { 0 };
+
+		for (auto iPos = sResponse.find("HTTP/1.1 "); iPos != npos; iPos = sResponse.find("HTTP/1.1 ", iPos + 1))
+		{
+			++iCount;
+		}
+
+		return iCount;
+	};
+
+	KStringView sLastRequest { "GET /json HTTP/1.1\r\nHost: a\r\nConnection: close\r\n\r\n" };
+
+	SECTION("HTTP/1.1: the body is chunked, and the next request gets its response")
+	{
+		auto sResponse = Run(kFormat("GET /framed HTTP/1.1\r\nHost: a\r\n\r\n{}", sLastRequest));
+
+		INFO  ( sResponse );
+		CHECK ( sResponse.contains("transfer-encoding: chunked\r\n") );
+		CHECK ( sResponse.contains("connection: keep-alive\r\n") );
+		CHECK ( sResponse.contains("\r\n06\r\nfirst\n\r\n07\r\nsecond\n\r\n0\r\n\r\nHTTP/1.1 200 ") );
+		CHECK ( CountResponses(sResponse) == 2 );
+		CHECK ( sResponse.contains("\"hello\"") );
+	}
+
+	SECTION("HTTP/1.0: the body ends with the connection")
+	{
+		auto sResponse = Run("GET /framed HTTP/1.0\r\nHost: a\r\nConnection: keep-alive\r\n\r\n");
+
+		INFO  ( sResponse );
+		CHECK_FALSE ( sResponse.contains("transfer-encoding") );
+		CHECK ( sResponse.contains("connection: close\r\n") );
+		CHECK ( sResponse.ends_with("\r\n\r\nfirst\nsecond\n") );
+	}
+
+	SECTION("a content length frames the body already")
+	{
+		auto sResponse = Run(kFormat("GET /framedlength HTTP/1.1\r\nHost: a\r\n\r\n{}", sLastRequest));
+
+		INFO  ( sResponse );
+		CHECK_FALSE ( sResponse.contains("transfer-encoding") );
+		CHECK ( sResponse.contains("content-length: 13\r\n") );
+		CHECK ( sResponse.contains("\r\n\r\nfirst\nsecond\nHTTP/1.1 200 ") );
+		CHECK ( CountResponses(sResponse) == 2 );
+	}
+
+	SECTION("without bFrameBody the response is not framed")
+	{
+		auto sResponse = Run("GET /unframed HTTP/1.1\r\nHost: a\r\nConnection: close\r\n\r\n");
+
+		INFO  ( sResponse );
+		CHECK_FALSE ( sResponse.contains("transfer-encoding") );
+		CHECK_FALSE ( sResponse.contains("content-length") );
+		CHECK ( sResponse.ends_with("\r\n\r\nfirst\nsecond\n") );
+	}
+
+	SECTION("a route that fails ends the body without the last chunk, and the connection")
+	{
+		for (KStringView sPath : { "/framedthrow", "/framedthrow4xx" })
+		{
+			auto sResponse = Run(kFormat("GET {} HTTP/1.1\r\nHost: a\r\n\r\n{}", sPath, sLastRequest));
+
+			INFO  ( sPath );
+			INFO  ( sResponse );
+			CHECK ( sResponse.contains("transfer-encoding: chunked\r\n") );
+			CHECK ( sResponse.ends_with("\r\n06\r\nfirst\n\r\n") );
+			CHECK_FALSE ( sResponse.contains("not sent") );
+			CHECK_FALSE ( sResponse.contains("0\r\n\r\n") );
+			// the next request on this connection is not answered
+			CHECK ( CountResponses(sResponse) == 1 );
+		}
+	}
+}

@@ -1645,9 +1645,9 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
 		return;
 	}
 
-	// Compression can be a problem in streaming mode because we cannot reliably flush
-	// the output then. Also, we may not know the media type in advance, and hence
-	// switch compression on for already compressed media..
+	// Compression can be a problem in streaming mode: a response compressed with bzip2
+	// cannot be flushed before its end. Also, we may not know the media type in advance,
+	// and hence switch compression on for already compressed media..
 	ConfigureCompression(m_Options.bAllowCompression && m_bResponseCompression && bAllowCompressionIfPossible);
 
 	WriteHeaders();
@@ -1660,8 +1660,8 @@ void KRESTServer::Output()
 {
 	if (m_bIsStreaming)
 	{
-		// send what is still buffered
-		Response.Flush();
+		// send what is still buffered, and end the body
+		Response.Close();
 
 		// the route wrote the body itself, only the output filter knows its size:
 		// the bytes as sent, after compression and with the chunk framing
@@ -1880,8 +1880,8 @@ void KRESTServer::Output()
 				}
 			}
 
-			// flush all content
-			Response.Flush();
+			// send all content, and end the body
+			Response.Close();
 
 			m_iTXBytes += Response.Count();
 			kDebug(2, "sent bytes: {}", m_iTXBytes);
@@ -2250,8 +2250,8 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 				}
 			}
 
-			// flush all content
-			Response.Flush();
+			// send all content, and end the body
+			Response.Close();
 
 			m_iTXBytes += Response.Count();
 			kDebug(2, "sent bytes: {}", m_iTXBytes);

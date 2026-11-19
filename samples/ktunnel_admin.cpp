@@ -3751,8 +3751,7 @@ void AdminUI::HandleLogStream (KRESTServer& HTTP)
 	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE , "text/event-stream");
 	HTTP.Response.Headers.Set(KHTTPHeader::CACHE_CONTROL, "no-cache");
 
-	// switch to streaming output, without compression - a compressor would
-	// buffer the events instead of flushing them out line by line
+	// switch to streaming output, without compression
 	HTTP.Stream(/*bAllowCompressionIfPossible*/false);
 
 	// reconnect delay for the browser's EventSource

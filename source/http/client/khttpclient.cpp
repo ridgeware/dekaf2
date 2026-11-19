@@ -1222,7 +1222,7 @@ bool KHTTPClient::Parse()
 {
 	if ((Request.GetHTTPVersion() & (KHTTPVersion::http2 | KHTTPVersion::http3)) == 0)
 	{
-		Request.Flush();
+		Request.Close();
 	}
 
 	m_bKeepAlive = true;

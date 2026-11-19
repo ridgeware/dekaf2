@@ -1741,6 +1741,7 @@ set (BITS_HEADERS
 	source/core/types/bits/kunique_deleter.h
 	source/crypto/hash/bits/kdigest.h
 	source/crypto/hash/bits/khash.h
+	source/io/compression/bits/kflushablefilter.h
 	source/io/compression/bits/kiostreams_filters.h
 	source/net/tcp/bits/kasio.h
 	source/net/tcp/bits/kasiostream.h

@@ -934,7 +934,7 @@ bool KRESTRoutes::ServeFromCompressionCache(KRESTServer& HTTP, KWebServer& WebSe
 
 		case KCompressionCache::State::Transmitted:
 			// writes the end of the chunked transfer
-			HTTP.Response.Flush();
+			HTTP.Response.Close();
 			// the headers are sent already, the length is for the statistics and the log
 			HTTP.SetContentLengthToOutput(Selection.Entry.iSize);
 			return true;

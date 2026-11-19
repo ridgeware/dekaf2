@@ -147,8 +147,16 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// flushes all content in the output pipelines
-	void Flush();
+	/// Sends all content that was written so far, and keeps the message open for further writes.
+	/// @return false if the output is compressed with bzip2, which cannot be flushed and
+	/// sends its content when the message gets closed
+	bool Flush();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Ends the message: sends all content, the end of a compressed stream and the last chunk
+	/// of a chunked transfer.
+	void Close();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -171,15 +179,15 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// get count of written bytes so far - this is not reliable in-flight, as boost::iostreams do not properly
-	/// flush on compressed streams when requested to do so. This count is only reliable after close() ..
+	/// get count of written bytes so far - with a compressed message the count is only known after Close(),
+	/// as reading it earlier would need a flush of the compressor. Until then it is 0.
 	std::streamsize Count() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// reset count of written bytes - this is not reliable in-flight, as boost::iostreams do not properly
-	/// flush on compressed streams when requested to do so. Do not use this function when compression
-	/// is in the pipeline (in which case it will return with false). It will though work after close() ..
+	/// reset count of written bytes - this would need a flush of the compressor while a compressed
+	/// message is open. Do not use this function when compression is in the pipeline (in which case
+	/// it will return with false). It will though work after Close() ..
 	bool ResetCount();
 	//-----------------------------------------------------------------------------
 

@@ -4,7 +4,14 @@
 #include <dekaf2/http/protocol/khttp_header.h>
 #include <dekaf2/http/server/khttpoutputfilter.h>
 #include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/io/compression/kcompression.h>
 #include <dekaf2/core/format/kformat.h>
+#include <zlib.h>
+#ifdef DEKAF2_HAS_LIBLZMA
+	#include <lzma.h>
+#endif
+#include <array>
+#include <vector>
 
 using namespace dekaf2;
 
@@ -16,6 +23,115 @@ KString ReadChunked(KStringView sInput)
 	KInStringStream iss(sInput);
 	KChunkedSource  Source(iss, true);
 	return Source.read();
+}
+
+// decompress a complete compressed stream
+KString Uncompress(KStringView sInput, KUnCompressIStream::COMPRESSION Compression)
+{
+	KString sOutput;
+	KUnCompress UnCompress(sInput, Compression);
+	UnCompress.ReadRemaining(sOutput);
+	return sOutput;
+}
+
+// decompress what a stream in the gzip or zlib format holds so far - the decompressors
+// of boost::iostreams for zlib and lzma refuse a stream as long as it is not complete
+KString InflateOpenStream(KStringView sInput)
+{
+	KString sOutput;
+
+	z_stream Stream {};
+
+	// 32 added to the window bits: detect the gzip or the zlib format
+	if (::inflateInit2(&Stream, 15 + 32) != Z_OK)
+	{
+		return sOutput;
+	}
+
+	std::array<char, 16384> Buffer;
+
+	Stream.next_in  = reinterpret_cast<Bytef*>(const_cast<char*>(sInput.data()));
+	Stream.avail_in = static_cast<uInt>(sInput.size());
+
+	for (;;)
+	{
+		Stream.next_out  = reinterpret_cast<Bytef*>(Buffer.data());
+		Stream.avail_out = static_cast<uInt>(Buffer.size());
+
+		auto iResult = ::inflate(&Stream, Z_SYNC_FLUSH);
+		auto iHave   = Buffer.size() - Stream.avail_out;
+
+		sOutput.append(Buffer.data(), iHave);
+
+		if (iResult != Z_OK || iHave == 0)
+		{
+			break;
+		}
+	}
+
+	::inflateEnd(&Stream);
+
+	return sOutput;
+}
+
+#ifdef DEKAF2_HAS_LIBLZMA
+// decompress what a stream in the xz format holds so far
+KString UnXZOpenStream(KStringView sInput)
+{
+	KString sOutput;
+
+	lzma_stream Stream = LZMA_STREAM_INIT;
+
+	if (::lzma_stream_decoder(&Stream, UINT64_MAX, 0) != LZMA_OK)
+	{
+		return sOutput;
+	}
+
+	std::array<char, 16384> Buffer;
+
+	Stream.next_in  = reinterpret_cast<const uint8_t*>(sInput.data());
+	Stream.avail_in = sInput.size();
+
+	for (;;)
+	{
+		Stream.next_out  = reinterpret_cast<uint8_t*>(Buffer.data());
+		Stream.avail_out = Buffer.size();
+
+		auto iResult = ::lzma_code(&Stream, LZMA_RUN);
+		auto iHave   = Buffer.size() - Stream.avail_out;
+
+		sOutput.append(Buffer.data(), iHave);
+
+		if (iResult != LZMA_OK || iHave == 0)
+		{
+			break;
+		}
+	}
+
+	::lzma_end(&Stream);
+
+	return sOutput;
+}
+#endif
+
+// decompress what a compressed stream holds so far - the stream may still be open
+KString UncompressOpenStream(KStringView sInput, KUnCompressIStream::COMPRESSION Compression)
+{
+	switch (Compression)
+	{
+		case KUnCompressIStream::GZIP:
+		case KUnCompressIStream::ZLIB:
+			return InflateOpenStream(sInput);
+
+#ifdef DEKAF2_HAS_LIBLZMA
+		case KUnCompressIStream::LZMA:
+			return UnXZOpenStream(sInput);
+#endif
+
+		default:
+			// the decompressors of zstd and brotli read an open stream
+			return Uncompress(sInput, Compression);
+	}
 }
 
 } // end anonymous namespace
@@ -166,7 +282,7 @@ TEST_CASE("KOutHTTPFilter")
 			KInStringStream  iss(sContent);
 			auto iWrote = Filter.Write(iss, iLen);
 			CHECK ( Filter.FilteredStream().Good() );
-			Filter.Flush();
+			Filter.Close();
 			return iWrote;
 		};
 
@@ -217,7 +333,7 @@ TEST_CASE("KOutHTTPFilter")
 		KString          sEmpty;
 		KInStringStream  iss(sEmpty);
 		CHECK ( Filter.Write(iss, npos) == 0 );
-		Filter.Flush();
+		Filter.Close();
 		CHECK ( sOut == "0\r\n\r\n" );
 	}
 
@@ -245,8 +361,164 @@ TEST_CASE("KOutHTTPFilter")
 		// the next message is complete
 		Filter.Parse(Headers);
 		CHECK ( Filter.Write("hello") == 5 );
-		Filter.Flush();
+		Filter.Close();
 		CHECK ( ReadChunked(sOut.substr(iAborted)) == "hello" );
 		CHECK ( sOut.ends_with("\r\n0\r\n\r\n") );
+	}
+
+	SECTION("Flush() sends the content and keeps a chunked message open")
+	{
+		KHTTPHeaders Headers;
+		Headers.Headers.Set(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+
+		KString          sOut;
+		KOutStringStream oss(sOut);
+		KOutHTTPFilter   Filter(oss);
+		Filter.Parse(Headers);
+
+		CHECK ( Filter.Write("one") == 3 );
+		CHECK ( Filter.Flush() );
+		CHECK ( sOut == "03\r\none\r\n" );
+
+		// a flush without new content writes nothing
+		CHECK ( Filter.Flush() );
+		CHECK ( sOut == "03\r\none\r\n" );
+
+		CHECK ( Filter.Write("two") == 3 );
+		CHECK ( Filter.Flush() );
+		CHECK ( sOut == "03\r\none\r\n03\r\ntwo\r\n" );
+
+		CHECK ( Filter.Write("three") == 5 );
+		Filter.Close();
+		CHECK ( sOut == "03\r\none\r\n03\r\ntwo\r\n05\r\nthree\r\n0\r\n\r\n" );
+		CHECK ( static_cast<std::size_t>(Filter.Count()) == sOut.size() );
+	}
+
+	SECTION("Flush() sends the content of a message without chunks")
+	{
+		KString          sOut;
+		KOutStringStream oss(sOut);
+		KOutHTTPFilter   Filter(oss);
+
+		CHECK ( Filter.Write("one") == 3 );
+		CHECK ( Filter.Flush() );
+		CHECK ( sOut == "one" );
+
+		CHECK ( Filter.Write("two") == 3 );
+		CHECK ( Filter.Flush() );
+		CHECK ( sOut == "onetwo" );
+
+		// a flush without a message does nothing
+		Filter.Close();
+		CHECK ( Filter.Flush() );
+		CHECK ( sOut == "onetwo" );
+	}
+
+	SECTION("Flush() of a compressed message")
+	{
+		struct Encoding
+		{
+			KStringView                     sName;
+			KUnCompressIStream::COMPRESSION Compression;
+			bool                            bCanFlush;
+		};
+
+		std::vector<Encoding> Encodings
+		{
+			{ "gzip"   , KUnCompressIStream::GZIP  , true  },
+			{ "deflate", KUnCompressIStream::ZLIB  , true  },
+			// libbz2 keeps the last bits of a block at a flush
+			{ "bzip2"  , KUnCompressIStream::BZIP2 , false },
+#ifdef DEKAF2_HAS_LIBLZMA
+			{ "xz"     , KUnCompressIStream::LZMA  , true  },
+#endif
+#ifdef DEKAF2_HAS_LIBZSTD
+			{ "zstd"   , KUnCompressIStream::ZSTD  , true  },
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+			{ "br"     , KUnCompressIStream::BROTLI, true  },
+#endif
+		};
+
+		// a piece that does not fit into the buffers of the filters, and that
+		// does not compress to nothing
+		KString sLarge;
+
+		for (std::size_t i = 0; i < 300 * 1024; ++i)
+		{
+			sLarge += static_cast<char>('a' + (i * i / 7) % 26);
+		}
+
+		std::vector<KStringView> Pieces { "data: first\n\n", "data: second\n\n", sLarge, "data: last\n\n" };
+
+		for (const auto& Enc : Encodings)
+		{
+			INFO ( Enc.sName );
+
+			KHTTPHeaders Headers;
+			Headers.Headers.Set(KHTTPHeader::CONTENT_ENCODING, Enc.sName);
+
+			KString          sOut;
+			KOutStringStream oss(sOut);
+			KOutHTTPFilter   Filter(oss);
+			Filter.Parse(Headers);
+
+			KString sWritten;
+
+			for (auto sPiece : Pieces)
+			{
+				CHECK ( Filter.Write(sPiece) == sPiece.size() );
+				sWritten += sPiece;
+
+				CHECK ( Filter.Flush() == Enc.bCanFlush );
+
+				if (Enc.bCanFlush)
+				{
+					// the receiver can read all that was written before the flush
+					CHECK ( UncompressOpenStream(sOut, Enc.Compression) == sWritten );
+
+					// a flush without new content writes nothing
+					auto iSize = sOut.size();
+					CHECK ( Filter.Flush() );
+					CHECK ( sOut.size() == iSize );
+				}
+			}
+
+			Filter.Close();
+			CHECK ( Uncompress(sOut, Enc.Compression) == sWritten );
+			CHECK ( static_cast<std::size_t>(Filter.Count()) == sOut.size() );
+		}
+	}
+
+	SECTION("a message that is never flushed has the size of one that a symmetric filter writes")
+	{
+		// without a flush the compressor must not write more than it did before it could be flushed
+		KString sContent;
+
+		for (std::size_t i = 0; i < 20000; ++i)
+		{
+			sContent += static_cast<char>('a' + (i * i / 7) % 26);
+		}
+
+		KHTTPHeaders Headers;
+		Headers.Headers.Set(KHTTPHeader::CONTENT_ENCODING, "gzip");
+
+		KString sFiltered;
+		{
+			KOutStringStream oss(sFiltered);
+			KOutHTTPFilter   Filter(oss);
+			Filter.Parse(Headers);
+			CHECK ( Filter.Write(sContent) == sContent.size() );
+			Filter.Close();
+		}
+
+		KString sReference;
+		{
+			KGZip GZip(sReference);
+			GZip.Write(sContent);
+		}
+
+		CHECK ( sFiltered.size() == sReference.size() );
+		CHECK ( Uncompress(sFiltered, KUnCompressIStream::GZIP) == sContent );
 	}
 }

@@ -40,6 +40,7 @@
  */
 
 #include <dekaf2/io/compression/bits/kiostreams_filters.h>
+#include <dekaf2/io/compression/bits/kflushablefilter.h>
 
 #include <dekaf2/http/server/khttpoutputfilter.h>
 #include <dekaf2/http/protocol/kchunkedtransfer.h>
@@ -49,11 +50,39 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+//-----------------------------------------------------------------------------
+// flushes a filter chain that starts with a compressor of the type Compressor
+template<class Compressor>
+bool FlushCompressor(boost::iostreams::filtering_ostream& Chain)
+//-----------------------------------------------------------------------------
+{
+	auto Filter = Chain.component<Compressor>(0);
+
+	if (!Filter)
+	{
+		kDebug(1, "cannot get the compressor component from output pipeline");
+		return false;
+	}
+
+	// the compressor takes part in a flush only here, as the chain also
+	// flushes right before it gets closed
+	Filter->enable_flush(true);
+	auto bFlushed = Chain.strict_sync();
+	Filter->enable_flush(false);
+
+	return bFlushed;
+
+} // FlushCompressor
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 //-----------------------------------------------------------------------------
 {
-	Flush();
+	Close();
 
 	// the filter stored its count when it got closed - the count of the next
 	// message starts at 0, also when that message has no body and creates no filter
@@ -86,13 +115,18 @@ void KOutHTTPFilter::SetupOutputFilter()
 				break;
 				
 			case GZIP:
+			{
 				kDebug(2, "using {} {}compression", "gzip", "");
-				m_Filter->push(boost::iostreams::gzip_compressor());
+				boost::iostreams::zlib_params Params;
+				// makes zlib write the gzip format
+				Params.window_bits += 16;
+				m_Filter->push(dekaf2::iostreams::flushable_zlib_compressor(Params));
 				break;
+			}
 
 			case ZLIB:
 				kDebug(2, "using {} {}compression", "zlib", "");
-				m_Filter->push(boost::iostreams::zlib_compressor());
+				m_Filter->push(dekaf2::iostreams::flushable_zlib_compressor());
 				break;
 
 			case BZIP2:
@@ -103,14 +137,14 @@ void KOutHTTPFilter::SetupOutputFilter()
 #ifdef DEKAF2_HAS_LIBZSTD
 			case ZSTD:
 				kDebug(2, "using {} {}compression", "zstd", "");
-				m_Filter->push(dekaf2::iostreams::zstd_compressor());
+				m_Filter->push(dekaf2::iostreams::flushable_zstd_compressor());
 				break;
 
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
 			case XZ:
 				kDebug(2, "using {} {}compression", "xz", "");
-				m_Filter->push(lzmaiostreams::lzma_compressor());
+				m_Filter->push(dekaf2::iostreams::flushable_lzma_compressor());
 				break;
 
 			case LZMA:
@@ -120,7 +154,7 @@ void KOutHTTPFilter::SetupOutputFilter()
 #ifdef DEKAF2_HAS_LIBBROTLI
 			case BROTLI:
 				kDebug(2, "using {} {}compression", "brotli", "");
-				m_Filter->push(dekaf2::iostreams::brotli_compressor());
+				m_Filter->push(dekaf2::iostreams::flushable_brotli_compressor());
 				break;
 #endif
 		}
@@ -168,14 +202,14 @@ std::streamsize KOutHTTPFilter::Count() const
 {
 	if (m_Filter && !m_Filter->empty())
 	{
-		// we cannot reliably read the count when we compress - no way to flush
+		// we do not read the count when we compress - that would need a flush of the compressor
 		if (m_bAllowCompression && KHTTPCompression::GetCompression() == NONE)
 		{
 			auto chunker = m_Filter->component<KChunkedSink>(static_cast<int>(m_Filter->size()-1));
 
 			if (chunker)
 			{
-				// this sync does not work with compression!
+				// this sync does not flush a compressor
 				m_Filter->strict_sync();
 				return chunker->Count();
 			}
@@ -187,7 +221,7 @@ std::streamsize KOutHTTPFilter::Count() const
 		}
 		else
 		{
-			kDebug(1, "cannot read count with a compressing pipeline before close()");
+			kDebug(1, "cannot read count with a compressing pipeline before Close()");
 			return 0;
 		}
 	}
@@ -204,7 +238,7 @@ bool KOutHTTPFilter::ResetCount()
 {
 	if (m_Filter && !m_Filter->empty())
 	{
-		// we cannot reliably reset the count when we compress - no way to flush
+		// we do not reset the count when we compress - that would need a flush of the compressor
 		if (m_bAllowCompression && KHTTPCompression::GetCompression() == NONE)
 		{
 			auto chunker = m_Filter->component<KChunkedSink>(static_cast<int>(m_Filter->size()-1));
@@ -291,15 +325,82 @@ size_t KOutHTTPFilter::WriteLine(KStringView sBuffer)
 } // WriteLine
 
 //-----------------------------------------------------------------------------
-void KOutHTTPFilter::Flush()
+bool KOutHTTPFilter::Flush()
+//-----------------------------------------------------------------------------
+{
+	bool bFlushed { true };
+
+	if (m_Filter && !m_Filter->empty())
+	{
+		if (m_bAllowCompression)
+		{
+			switch (KHTTPCompression::GetCompression())
+			{
+				case NONE:
+				case ALL:
+					bFlushed = m_Filter->strict_sync();
+					break;
+
+				case GZIP:
+				case ZLIB:
+					bFlushed = FlushCompressor<dekaf2::iostreams::flushable_zlib_compressor>(*m_Filter);
+					break;
+
+				case BZIP2:
+					// libbz2 does not fill up the last byte of a block at a flush,
+					// the receiver could not read the block
+					bFlushed = false;
+					break;
+
+#ifdef DEKAF2_HAS_LIBZSTD
+				case ZSTD:
+					bFlushed = FlushCompressor<dekaf2::iostreams::flushable_zstd_compressor>(*m_Filter);
+					break;
+
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+				case XZ:
+					bFlushed = FlushCompressor<dekaf2::iostreams::flushable_lzma_compressor>(*m_Filter);
+					break;
+
+				case LZMA:
+					// there is no compressor for it in the filter chain
+					bFlushed = m_Filter->strict_sync();
+					break;
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+				case BROTLI:
+					bFlushed = FlushCompressor<dekaf2::iostreams::flushable_brotli_compressor>(*m_Filter);
+					break;
+#endif
+			}
+		}
+		else
+		{
+			bFlushed = m_Filter->strict_sync();
+		}
+	}
+
+	if (m_OutStream)
+	{
+		// flush the outermost stream
+		m_OutStream->Flush();
+	}
+
+	return bFlushed;
+
+} // Flush
+
+//-----------------------------------------------------------------------------
+void KOutHTTPFilter::Close()
 //-----------------------------------------------------------------------------
 {
 	if (m_Filter)
 	{
 		if (!m_Filter->empty())
 		{
-			// the only way to reliably flush the filter chain is to reset it!
-			// this resets (empties) the filter chain, but not the unique ptr m_Filter
+			// this resets (empties) the filter chain, but not the unique ptr m_Filter:
+			// the compressor writes its end, and the chunked sink the last chunk
 			m_Filter->reset();
 		}
 
@@ -312,7 +413,7 @@ void KOutHTTPFilter::Flush()
 		m_OutStream->Flush();
 	}
 
-} // Flush
+} // Close
 
 //-----------------------------------------------------------------------------
 void KOutHTTPFilter::Abort()

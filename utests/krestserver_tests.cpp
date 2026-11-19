@@ -2458,3 +2458,106 @@ TEST_CASE("KRESTServer: byte accounting")
 
 	CHECK ( iLine == Log.size() );
 }
+
+TEST_CASE("KRESTServer: flush of a streamed response")
+{
+	// A route that writes its response itself sends a first piece with Flush(), and
+	// continues only when the client has read it.
+	std::atomic<bool> bClientHasFirst { false };
+	std::atomic<bool> bFlushed        { false };
+	std::atomic<bool> bWaitedInVain   { false };
+
+	auto Body = [&](KRESTServer& HTTP)
+	{
+		HTTP.Write("first\n");
+		bFlushed = HTTP.Flush();
+
+		for (std::size_t i = 0; i < 500 && !bClientHasFirst; ++i)
+		{
+			kSleep(chrono::milliseconds(10));
+		}
+
+		bWaitedInVain = !bClientHasFirst;
+
+		HTTP.Write("second\n");
+	};
+
+	KRESTRoutes Routes;
+
+	Routes.AddRoute("/chunked").Get([&](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.Response.Headers.Set(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+		HTTP.Stream(false);
+		Body(HTTP);
+	});
+
+	Routes.AddRoute("/plain").Get([&](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.Stream(false);
+		Body(HTTP);
+	});
+
+	KREST::Options Options;
+
+	Options.Type                 = KREST::HTTP;
+	Options.iPort                = 0;
+	Options.sBindAddress         = "127.0.0.1";
+	Options.Timeout              = chrono::seconds(2);
+	Options.bBlocking            = false;
+	Options.bCreateEphemeralCert = false;
+
+	KREST Server;
+	REQUIRE ( Server.Execute(Options, Routes) );
+
+	auto sEndPoint = kFormat("127.0.0.1:{}", Server.GetPort());
+
+	for (KStringView sPath : { "/chunked", "/plain" })
+	{
+		INFO ( sPath );
+
+		bClientHasFirst = false;
+		bFlushed        = false;
+		bWaitedInVain   = false;
+
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write(kFormat("GET {} HTTP/1.1\r\nHost: a\r\nConnection: close\r\n\r\n", sPath)).Flush();
+
+		// the header ends with an empty line, then follows the first piece
+		KString sLine;
+		bool    bInBody   { false };
+		bool    bHasFirst { false };
+
+		while (!bHasFirst && Stream.ReadLine(sLine))
+		{
+			if (!bInBody)
+			{
+				bInBody = sLine.empty();
+			}
+			else
+			{
+				bHasFirst = sLine == "first";
+			}
+		}
+
+		CHECK ( bHasFirst );
+		bClientHasFirst = true;
+
+		KString sRest;
+		Stream.ReadRemaining(sRest);
+
+		CHECK ( bFlushed );
+		CHECK_FALSE ( bWaitedInVain );
+		CHECK ( sRest.contains("second\n") );
+
+		if (sPath == "/chunked")
+		{
+			// the body has one end, after the last piece
+			CHECK ( sRest.ends_with("second\n\r\n0\r\n\r\n") );
+			CHECK ( sRest.find("0\r\n\r\n") == sRest.size() - 5 );
+		}
+	}
+}

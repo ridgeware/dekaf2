@@ -247,8 +247,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Flush data in the output buffers
-	void Flush()
+	/// Send all data that was written so far, the response remains open for further writes
+	/// @return false if the output is compressed with bzip2, which cannot be flushed
+	bool Flush()
 	//-----------------------------------------------------------------------------
 	{
 		return Response.Flush();

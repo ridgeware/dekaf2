@@ -109,6 +109,7 @@ set (USOURCES
 	kmessagedigest_tests.cpp
 	kmessageformat_tests.cpp
 	kmetrics_tests.cpp
+	kmetricscollectors_tests.cpp
 	kmime_tests.cpp
 	kmodifyingstreambuf_tests.cpp
 	kmpsearch_tests.cpp

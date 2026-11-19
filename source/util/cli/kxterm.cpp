@@ -1297,29 +1297,33 @@ int KXTerm::RawRead()
 			return EOF;
 		}
 
-		DWORD dwCount = 1;
-
-		if (IS_HIGH_SURROGATE(Chars[0]))
-		{
-			// the second half of the surrogate pair follows
-			if (::ReadConsoleW(hInput, &Chars[1], 1, &dwRead, nullptr) && dwRead == 1)
-			{
-				dwCount = 2;
-			}
-		}
-
-		if (dwCount == 1 && Chars[0] == 0x1A)
+		if (Chars[0] == 0x1A)
 		{
 			// Ctrl-Z is the end of input on Windows
 			return EOF;
 		}
 
-		s_sPending = kutf::Convert<KString>(std::wstring(&Chars[0], dwCount));
+		s_sPending.clear();
 		s_iPending = 0;
 
-		if (s_sPending.empty())
+		// the second half of a surrogate pair follows its first half
+		if (kutf::IsLeadSurrogate(Chars[0]) && ::ReadConsoleW(hInput, &Chars[1], 1, &dwRead, nullptr) && dwRead == 1)
 		{
-			return EOF;
+			if (kutf::IsTrailSurrogate(Chars[1]))
+			{
+				kutf::ToUTF(kutf::SurrogatePair(Chars[0], Chars[1]).ToCodepoint(), s_sPending);
+			}
+			else
+			{
+				// this is not a pair, both units are converted on their own
+				kutf::ToUTF(Chars[0], s_sPending);
+				kutf::ToUTF(Chars[1], s_sPending);
+			}
+		}
+		else
+		{
+			// a surrogate without its other half is written as the replacement character
+			kutf::ToUTF(Chars[0], s_sPending);
 		}
 
 		return static_cast<unsigned char>(s_sPending[s_iPending++]);

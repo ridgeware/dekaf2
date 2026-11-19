@@ -51,6 +51,7 @@
 #include <dekaf2/containers/associative/kassociative.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/time/duration/kduration.h>
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <deque>
@@ -80,6 +81,12 @@ DEKAF2_NAMESPACE_BEGIN
 /// and returns a reference that stays valid as long as the registry lives: keep
 /// the reference where the value changes often. Changing a value takes no lock
 /// and allocates nothing.
+///
+/// Counters and histograms keep their values in cells: several copies, of which
+/// a thread always writes the same one, and which a reader adds up. Threads that
+/// run at the same time then do not write to the same memory, which would cost
+/// far more than the count itself. There are at least four times as many cells
+/// as hardware threads, a counter takes 8 bytes in each of them.
 ///
 /// @code
 /// KMetrics Metrics;
@@ -126,25 +133,120 @@ public:
 	/// the content type of Serialize() for an HTTP response
 	static constexpr KStringViewZ ContentType { "text/plain; version=0.0.4; charset=utf-8" };
 
+//----------
+private:
+//----------
+
+	//-----------------------------------------------------------------------------
+	/// @return a number for the calling thread, starting with 1, in the order of the first calls
+	static uint32_t ThreadNumber () noexcept
+	//-----------------------------------------------------------------------------
+	{
+		// constant initialized: the access needs no call of an initializer
+		static thread_local uint32_t t_iNumber { 0 };
+
+		if (DEKAF2_UNLIKELY(t_iNumber == 0))
+		{
+			t_iNumber = NextThreadNumber();
+		}
+
+		return t_iNumber;
+	}
+
+	static uint32_t NextThreadNumber () noexcept;
+
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// a value that only grows
-	class Counter
+	/// The memory for the values of counters and histograms. A value has a slot,
+	/// and every cell has all slots. A thread writes the slots of its cell, a
+	/// reader adds a slot up over all cells. More threads than cells share cells,
+	/// which costs time only while two of them run at once.
+	class DEKAF2_PUBLIC Cells
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 	public:
 
-		void     Inc (uint64_t iCount = 1) noexcept { m_iValue.fetch_add(iCount, std::memory_order_relaxed); }
+		// the slots come in chunks, which never move once they exist
+		static constexpr std::size_t iChunkSlots = 256;
+		static constexpr std::size_t iMaxChunks  = 1024;
+
+		using Slots    = std::array<std::atomic<uint64_t>, iChunkSlots>;
+		using iterator = Slots::iterator;
+
+		explicit Cells (std::size_t iCells);
+
+		/// reserve neighbouring slots, at most iChunkSlots
+		/// @return the first of them
+		std::size_t Allocate (std::size_t iCount);
+
+		/// @return the slot in the cell of the calling thread
+		iterator Mine (std::size_t iSlot) noexcept
+		{
+			auto& cell = m_Cells[ThreadNumber() & m_iMask];
+			return cell.Chunks[iSlot / iChunkSlots]->Values.begin() + (iSlot % iChunkSlots);
+		}
+
+		/// @return the sum of a slot over all cells
 		DEKAF2_NODISCARD
-		uint64_t Get () const noexcept              { return m_iValue.load(std::memory_order_relaxed);       }
+		uint64_t Sum (std::size_t iSlot) const noexcept;
+
+		/// @return the count of cells
+		DEKAF2_NODISCARD
+		std::size_t size () const noexcept { return m_Cells.size(); }
 
 	private:
 
-		std::atomic<uint64_t> m_iValue { 0 };
+		struct Chunk
+		{
+			// the chunks of two cells never share a cache line, wherever the allocator puts them
+			std::array<char, 128> Before;
+			Slots                 Values;
+			std::array<char, 128> After;
+		};
+
+		struct Cell
+		{
+			std::array<std::unique_ptr<Chunk>, iMaxChunks> Chunks;
+		};
+
+		bool AddChunk (std::size_t iChunk);
+
+		std::vector<Cell> m_Cells;
+		std::size_t       m_iMask;
+		std::mutex        m_Mutex;
+		std::size_t       m_iNextSlot { 0 };
+		bool              m_bFull     { false };
+
+	}; // Cells
+
+//----------
+public:
+//----------
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// a value that only grows
+	class DEKAF2_PUBLIC Counter
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	public:
+
+		explicit Counter (Cells& cells);
+
+		void     Inc (uint64_t iCount = 1) noexcept { m_Cells.Mine(m_iSlot)->fetch_add(iCount, std::memory_order_relaxed); }
+		DEKAF2_NODISCARD
+		uint64_t Get () const noexcept              { return m_Cells.Sum(m_iSlot);                                          }
+
+	private:
+
+		Cells&      m_Cells;
+		std::size_t m_iSlot;
 
 	}; // Counter
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// a value that goes up and down
+	/// A value that goes up and down. Other than a counter it is one value for all
+	/// threads, because it can be set: for a gauge that every request changes,
+	/// like the requests in flight, take two counters and a callback with their
+	/// difference.
 	class Gauge
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -168,11 +270,14 @@ public:
 	struct DEKAF2_PUBLIC Buckets
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		/// The upper bounds of the buckets in ascending order. A bucket takes the values up to
-		/// and including its bound. Values above the last bound are counted as well.
+		/// The upper bounds of the buckets in ascending order, at most iMaxBounds of them. A
+		/// bucket takes the values up to and including its bound. Values above the last bound
+		/// are counted as well.
 		std::vector<uint64_t> Bounds;
 		/// how many units of the observed values make one unit of the output
 		uint64_t              iUnitsPerOutputUnit { 1 };
+
+		static constexpr std::size_t iMaxBounds = 254;
 
 		/// @return buckets for durations in nanoseconds with output in seconds, from 5 milliseconds to 10 seconds
 		DEKAF2_NODISCARD
@@ -190,7 +295,7 @@ public:
 	{
 	public:
 
-		explicit Histogram (const Buckets& buckets);
+		Histogram (Cells& cells, const Buckets& buckets);
 
 		/// count a value
 		void Observe (uint64_t iValue) noexcept
@@ -205,8 +310,11 @@ public:
 				++iBucket;
 			}
 
-			m_Counts[iBucket].fetch_add(1, std::memory_order_relaxed);
-			m_iSum.fetch_add(iValue, std::memory_order_relaxed);
+			// the counts of the buckets and the sum are neighbours in the cell of this thread
+			auto Mine = m_Cells.Mine(m_iSlot);
+
+			Mine[iBucket].fetch_add(1, std::memory_order_relaxed);
+			Mine[Bounds.size() + 1].fetch_add(iValue, std::memory_order_relaxed);
 		}
 
 		/// count a duration, in nanoseconds
@@ -222,7 +330,7 @@ public:
 
 		/// @return the sum of all observed values, in their unit
 		DEKAF2_NODISCARD
-		uint64_t GetSum () const noexcept { return m_iSum.load(std::memory_order_relaxed); }
+		uint64_t GetSum () const noexcept { return m_Cells.Sum(m_iSlot + m_Buckets.Bounds.size() + 1); }
 
 		/// @return the counts of the buckets, one per bound and a last one for the values above all bounds
 		DEKAF2_NODISCARD
@@ -241,9 +349,10 @@ public:
 
 	private:
 
-		Buckets                            m_Buckets;
-		std::vector<std::atomic<uint64_t>> m_Counts;
-		std::atomic<uint64_t>              m_iSum { 0 };
+		Cells&      m_Cells;
+		Buckets     m_Buckets;
+		// the first of the slots: one per bucket, one for the values above all bounds, one for the sum
+		std::size_t m_iSlot;
 
 	}; // Histogram
 
@@ -268,7 +377,7 @@ public:
 
 	protected:
 
-		Family (KStringView sName, KStringView sHelp, Type type, LabelNames Labels, bool bCallback = false);
+		Family (Cells& cells, KStringView sName, KStringView sHelp, Type type, LabelNames Labels, bool bCallback = false);
 
 		/// a value with its label values
 		template<class Metric>
@@ -324,6 +433,7 @@ public:
 
 		mutable std::mutex                 m_Mutex;
 		std::map<LabelValues, std::size_t> m_Index;
+		Cells&                             m_Cells;
 
 	private:
 
@@ -345,7 +455,7 @@ public:
 
 		/// @return the counter for these label values, in the order of the label names
 		DEKAF2_NODISCARD
-		Counter& Get (const LabelValues& Values = LabelValues{}) { return FindOrCreate(m_Children, Values); }
+		Counter& Get (const LabelValues& Values = LabelValues{}) { return FindOrCreate(m_Children, Values, m_Cells); }
 
 	protected:
 
@@ -395,11 +505,11 @@ public:
 
 		/// @return the histogram for these label values, in the order of the label names
 		DEKAF2_NODISCARD
-		Histogram& Get (const LabelValues& Values = LabelValues{}) { return FindOrCreate(m_Children, Values, m_Buckets); }
+		Histogram& Get (const LabelValues& Values = LabelValues{}) { return FindOrCreate(m_Children, Values, m_Cells, m_Buckets); }
 
 	protected:
 
-		HistogramFamily (KStringView sName, KStringView sHelp, Type type, LabelNames Labels, Buckets buckets);
+		HistogramFamily (Cells& cells, KStringView sName, KStringView sHelp, Type type, LabelNames Labels, Buckets buckets);
 
 		void  PrintValues (KStringRef& sOut) const override;
 		KJSON JSONValues  () const override;
@@ -411,8 +521,14 @@ public:
 
 	}; // HistogramFamily
 
-	KMetrics ();
+	/// @param iCells the count of cells for the values of counters and histograms, rounded up to a
+	/// power of two. With 0 it is at least four times the count of hardware threads.
+	explicit KMetrics (std::size_t iCells = 0);
 	~KMetrics ();
+
+	/// @return the count of cells
+	DEKAF2_NODISCARD
+	std::size_t GetCellCount () const noexcept { return m_Cells.size(); }
 
 	KMetrics (const KMetrics&)            = delete;
 	KMetrics& operator=(const KMetrics&)  = delete;
@@ -471,6 +587,7 @@ private:
 	template<class FamilyType, class... Args>
 	FamilyType& Add (bool bCallback, KStringView sName, KStringView sHelp, Type type, LabelNames Labels, Args&&... args);
 
+	Cells                                m_Cells;
 	mutable std::mutex                   m_Mutex;
 	std::vector<std::unique_ptr<Family>> m_Families;
 	KUnorderedMap<KString, std::size_t>  m_Index;

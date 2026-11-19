@@ -45,6 +45,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <algorithm>
 #include <cmath>
+#include <thread>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -171,16 +172,156 @@ KMetrics::Buckets KMetrics::Buckets::Durations(std::initializer_list<KDuration> 
 }
 
 //-----------------------------------------------------------------------------
-KMetrics::Histogram::Histogram(const Buckets& buckets)
+uint32_t KMetrics::NextThreadNumber() noexcept
 //-----------------------------------------------------------------------------
-: m_Buckets(buckets)
-, m_Counts(buckets.Bounds.size() + 1)
 {
-	// the search for the bucket of a value wants the bounds in ascending order, each once
-	auto& Bounds = m_Buckets.Bounds;
+	static std::atomic<uint32_t> s_iLast { 0 };
+
+	auto iNumber = s_iLast.fetch_add(1, std::memory_order_relaxed) + 1;
+
+	// 0 means that a thread has no number yet
+	return iNumber ? iNumber : 1;
+}
+
+//-----------------------------------------------------------------------------
+KMetrics::Cells::Cells(std::size_t iCells)
+//-----------------------------------------------------------------------------
+{
+	if (iCells == 0)
+	{
+		auto iThreads = std::thread::hardware_concurrency();
+
+		// the count is unknown on some systems
+		iCells = 4 * (iThreads ? iThreads : 4);
+	}
+
+	iCells = std::min(iCells, std::size_t(256));
+
+	// a power of two: a thread finds its cell with a mask
+	std::size_t iCount = 1;
+
+	while (iCount < iCells)
+	{
+		iCount *= 2;
+	}
+
+	m_Cells.resize(iCount);
+	m_iMask = iCount - 1;
+
+} // Cells
+
+//-----------------------------------------------------------------------------
+bool KMetrics::Cells::AddChunk(std::size_t iChunk)
+//-----------------------------------------------------------------------------
+{
+	if (iChunk >= iMaxChunks)
+	{
+		return false;
+	}
+
+	for (auto& cell : m_Cells)
+	{
+		if (!cell.Chunks[iChunk])
+		{
+			// all slots start as zero
+			cell.Chunks[iChunk] = std::unique_ptr<Chunk>(new Chunk());
+		}
+	}
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+std::size_t KMetrics::Cells::Allocate(std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	iCount = std::min(std::max(iCount, std::size_t(1)), iChunkSlots);
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	// the last chunk is kept for the values that find no place anymore
+	constexpr std::size_t iSpareChunk = iMaxChunks - 1;
+
+	if (!m_bFull)
+	{
+		// neighbouring slots do not cross the end of a chunk
+		if (m_iNextSlot % iChunkSlots + iCount > iChunkSlots)
+		{
+			m_iNextSlot = (m_iNextSlot / iChunkSlots + 1) * iChunkSlots;
+		}
+
+		auto iChunk = m_iNextSlot / iChunkSlots;
+
+		if (iChunk < iSpareChunk && AddChunk(iChunk))
+		{
+			auto iSlot = m_iNextSlot;
+			m_iNextSlot += iCount;
+			return iSlot;
+		}
+
+		m_bFull = true;
+		AddChunk(iSpareChunk);
+
+		kWarning("more than {} metric values: the values of all further counters and histograms are wrong", iSpareChunk * iChunkSlots);
+	}
+
+	// all further values share these slots
+	return iSpareChunk * iChunkSlots;
+
+} // Allocate
+
+//-----------------------------------------------------------------------------
+uint64_t KMetrics::Cells::Sum(std::size_t iSlot) const noexcept
+//-----------------------------------------------------------------------------
+{
+	uint64_t iSum = 0;
+
+	for (auto& cell : m_Cells)
+	{
+		iSum += cell.Chunks[iSlot / iChunkSlots]->Values[iSlot % iChunkSlots].load(std::memory_order_relaxed);
+	}
+
+	return iSum;
+}
+
+//-----------------------------------------------------------------------------
+KMetrics::Counter::Counter(Cells& cells)
+//-----------------------------------------------------------------------------
+: m_Cells(cells)
+, m_iSlot(cells.Allocate(1))
+{
+}
+
+namespace {
+
+//-----------------------------------------------------------------------------
+/// @return the buckets with their bounds in ascending order, each once, and not more than fit
+KMetrics::Buckets Arranged(KMetrics::Buckets buckets)
+//-----------------------------------------------------------------------------
+{
+	auto& Bounds = buckets.Bounds;
 
 	std::sort(Bounds.begin(), Bounds.end());
 	Bounds.erase(std::unique(Bounds.begin(), Bounds.end()), Bounds.end());
+
+	if (Bounds.size() > KMetrics::Buckets::iMaxBounds)
+	{
+		Bounds.resize(KMetrics::Buckets::iMaxBounds);
+	}
+
+	return buckets;
+}
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+KMetrics::Histogram::Histogram(Cells& cells, const Buckets& buckets)
+//-----------------------------------------------------------------------------
+: m_Cells(cells)
+, m_Buckets(Arranged(buckets))
+// one slot per bucket, one for the values above all bounds, one for the sum
+, m_iSlot(cells.Allocate(m_Buckets.Bounds.size() + 2))
+{
 }
 
 //-----------------------------------------------------------------------------
@@ -194,7 +335,7 @@ std::vector<uint64_t> KMetrics::Histogram::GetCounts() const
 
 	for (std::size_t iBucket = 0; iBucket <= m_Buckets.Bounds.size(); ++iBucket)
 	{
-		Counts.push_back(m_Counts[iBucket].load(std::memory_order_relaxed));
+		Counts.push_back(m_Cells.Sum(m_iSlot + iBucket));
 	}
 
 	return Counts;
@@ -208,7 +349,7 @@ uint64_t KMetrics::Histogram::GetCount() const noexcept
 
 	for (std::size_t iBucket = 0; iBucket <= m_Buckets.Bounds.size(); ++iBucket)
 	{
-		iCount += m_Counts[iBucket].load(std::memory_order_relaxed);
+		iCount += m_Cells.Sum(m_iSlot + iBucket);
 	}
 
 	return iCount;
@@ -262,9 +403,10 @@ double KMetrics::Histogram::Quantile(double fQuantile) const
 } // Quantile
 
 //-----------------------------------------------------------------------------
-KMetrics::Family::Family(KStringView sName, KStringView sHelp, Type type, LabelNames Labels, bool bCallback)
+KMetrics::Family::Family(Cells& cells, KStringView sName, KStringView sHelp, Type type, LabelNames Labels, bool bCallback)
 //-----------------------------------------------------------------------------
-: m_sName(sName)
+: m_Cells(cells)
+, m_sName(sName)
 , m_sHelp(sHelp)
 , m_Labels(std::move(Labels))
 , m_Type(type)
@@ -404,9 +546,9 @@ KJSON KMetrics::GaugeFamily::JSONValues() const
 }
 
 //-----------------------------------------------------------------------------
-KMetrics::HistogramFamily::HistogramFamily(KStringView sName, KStringView sHelp, Type type, LabelNames Labels, Buckets buckets)
+KMetrics::HistogramFamily::HistogramFamily(Cells& cells, KStringView sName, KStringView sHelp, Type type, LabelNames Labels, Buckets buckets)
 //-----------------------------------------------------------------------------
-: Family(sName, sHelp, type, std::move(Labels))
+: Family(cells, sName, sHelp, type, std::move(Labels))
 , m_Buckets(std::move(buckets))
 {
 }
@@ -494,8 +636,8 @@ class KMetrics::CallbackFamily : public KMetrics::Family
 public:
 //----------
 
-	CallbackFamily(KStringView sName, KStringView sHelp, Type type, LabelNames Labels)
-	: Family(sName, sHelp, type, std::move(Labels), true)
+	CallbackFamily(Cells& cells, KStringView sName, KStringView sHelp, Type type, LabelNames Labels)
+	: Family(cells, sName, sHelp, type, std::move(Labels), true)
 	{
 	}
 
@@ -589,8 +731,11 @@ private:
 }; // CallbackFamily
 
 //-----------------------------------------------------------------------------
-KMetrics::KMetrics() = default;
+KMetrics::KMetrics(std::size_t iCells)
 //-----------------------------------------------------------------------------
+: m_Cells(iCells)
+{
+}
 
 //-----------------------------------------------------------------------------
 KMetrics::~KMetrics() = default;
@@ -619,13 +764,13 @@ FamilyType& KMetrics::Add(bool bCallback, KStringView sName, KStringView sHelp, 
 		// works, but that the output leaves out.
 		kDebug(1, "the metric '{}' exists with another type, the {} of this name is not written", sName, TypeName(type));
 
-		m_Unnamed.push_back(std::unique_ptr<Family>(new FamilyType(sName, sHelp, type, std::move(Labels), std::forward<Args>(args)...)));
+		m_Unnamed.push_back(std::unique_ptr<Family>(new FamilyType(m_Cells, sName, sHelp, type, std::move(Labels), std::forward<Args>(args)...)));
 
 		return static_cast<FamilyType&>(*m_Unnamed.back());
 	}
 
 	m_Index.emplace(sName, m_Families.size());
-	m_Families.push_back(std::unique_ptr<Family>(new FamilyType(sName, sHelp, type, std::move(Labels), std::forward<Args>(args)...)));
+	m_Families.push_back(std::unique_ptr<Family>(new FamilyType(m_Cells, sName, sHelp, type, std::move(Labels), std::forward<Args>(args)...)));
 
 	return static_cast<FamilyType&>(*m_Families.back());
 
@@ -753,5 +898,12 @@ KJSON KMetrics::ToJSON() const
 	return jMetrics;
 
 } // ToJSON
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringViewZ KMetrics::ContentType;
+constexpr std::size_t  KMetrics::Buckets::iMaxBounds;
+constexpr std::size_t  KMetrics::Cells::iChunkSlots;
+constexpr std::size_t  KMetrics::Cells::iMaxChunks;
+#endif
 
 DEKAF2_NAMESPACE_END

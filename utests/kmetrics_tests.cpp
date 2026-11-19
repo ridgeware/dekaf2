@@ -4,6 +4,7 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <atomic>
+#include <functional>
 #include <limits>
 #include <thread>
 #include <vector>
@@ -437,6 +438,143 @@ TEST_CASE("KMetrics")
 		Empty.Serialize(sOut);
 
 		CHECK ( sOut == "# before\n# HELP one one\n# TYPE one gauge\none 1\n" );
+	}
+
+	SECTION("cells")
+	{
+		// by default at least four cells per hardware thread, as a power of two
+		KMetrics Default;
+
+		auto iCells = Default.GetCellCount();
+
+		CHECK ( iCells >= 4 * std::thread::hardware_concurrency() );
+		CHECK ( iCells >= 16                                      );
+		CHECK ( iCells <= 256                                     );
+		CHECK ( (iCells & (iCells - 1)) == 0                      );
+
+		// a count that is asked for is rounded up to a power of two, and limited
+		CHECK ( KMetrics(1).GetCellCount()    == 1   );
+		CHECK ( KMetrics(2).GetCellCount()    == 2   );
+		CHECK ( KMetrics(3).GetCellCount()    == 4   );
+		CHECK ( KMetrics(9).GetCellCount()    == 16  );
+		CHECK ( KMetrics(1000).GetCellCount() == 256 );
+
+		// the values are the same with any count of cells, also with fewer cells than threads
+		for (std::size_t iCount : { 1, 2, 64 })
+		{
+			INFO ( iCount );
+
+			KMetrics Metrics(iCount);
+
+			auto& Counter   = Metrics.AddCounter("counter_total", "counter").Get();
+			auto& Histogram = Metrics.AddHistogram("durations_seconds", "durations").Get();
+
+			constexpr int iThreads = 6;
+			constexpr int iRounds  = 5000;
+
+			std::vector<std::thread> Threads;
+
+			for (int iThread = 0; iThread < iThreads; ++iThread)
+			{
+				Threads.emplace_back([&]()
+				{
+					for (int iRound = 0; iRound < iRounds; ++iRound)
+					{
+						Counter.Inc(2);
+						Histogram.Observe(chrono::milliseconds(7));
+					}
+				});
+			}
+
+			for (auto& Thread : Threads)
+			{
+				Thread.join();
+			}
+
+			// the threads are gone, their counts stay
+			CHECK ( Counter.Get()            == 2 * iThreads * iRounds );
+			CHECK ( Histogram.GetCount()     == iThreads * iRounds     );
+			CHECK ( Histogram.GetSum()       == 7000000ull * iThreads * iRounds );
+			CHECK ( Histogram.GetCounts()[1] == iThreads * iRounds     );
+
+			// and this thread adds to them
+			Counter.Inc();
+
+			CHECK ( Counter.Get() == 2 * iThreads * iRounds + 1 );
+		}
+	}
+
+	SECTION("many values")
+	{
+		// more values than one chunk of the cells holds: each one counts for itself
+		KMetrics Metrics(2);
+
+		auto& Counters   = Metrics.AddCounter("counters_total", "counters", { "number" });
+		auto& Histograms = Metrics.AddHistogram("values", "values", { "number" });
+
+		constexpr int iValues = 700;
+
+		std::vector<std::reference_wrapper<KMetrics::Counter>>   AllCounters;
+		std::vector<std::reference_wrapper<KMetrics::Histogram>> AllHistograms;
+
+		for (int i = 0; i < iValues; ++i)
+		{
+			AllCounters.push_back(Counters.Get({ KString::to_string(i) }));
+			AllHistograms.push_back(Histograms.Get({ KString::to_string(i) }));
+		}
+
+		for (int i = 0; i < iValues; ++i)
+		{
+			AllCounters[i].get().Inc(i);
+			// one value in the first bucket, i values above all bounds
+			AllHistograms[i].get().Observe(chrono::milliseconds(1));
+
+			for (int j = 0; j < i % 5; ++j)
+			{
+				AllHistograms[i].get().Observe(chrono::seconds(100));
+			}
+		}
+
+		std::size_t iWrong { 0 };
+
+		for (int i = 0; i < iValues; ++i)
+		{
+			auto Counts = AllHistograms[i].get().GetCounts();
+
+			if (AllCounters[i].get().Get()         != static_cast<uint64_t>(i)
+			 || AllHistograms[i].get().GetCount()  != static_cast<uint64_t>(1 + i % 5)
+			 || AllHistograms[i].get().GetSum()    != 1000000ull + 100000000000ull * (i % 5)
+			 || Counts.front()                     != 1
+			 || Counts.back()                      != static_cast<uint64_t>(i % 5))
+			{
+				++iWrong;
+			}
+		}
+
+		CHECK ( iWrong == 0 );
+
+		// a histogram with more bounds than fit keeps the lowest ones
+		KMetrics::Buckets Many;
+
+		for (uint64_t iBound = 1; iBound <= 1000; ++iBound)
+		{
+			Many.Bounds.push_back(iBound);
+		}
+
+		auto& Wide = Metrics.AddHistogram("wide", "wide", {}, Many).Get();
+
+		REQUIRE ( Wide.GetBuckets().Bounds.size() == KMetrics::Buckets::iMaxBounds );
+		CHECK   ( Wide.GetBuckets().Bounds.back() == KMetrics::Buckets::iMaxBounds );
+
+		Wide.Observe(1);
+		Wide.Observe(254);
+		Wide.Observe(255);
+
+		CHECK ( Wide.GetCount()           == 3   );
+		CHECK ( Wide.GetSum()             == 510 );
+		CHECK ( Wide.GetCounts().front()  == 1   );
+		CHECK ( Wide.GetCounts().back()   == 1   );
+		CHECK ( Wide.GetCounts()[253]     == 1   );
 	}
 
 	SECTION("several threads")

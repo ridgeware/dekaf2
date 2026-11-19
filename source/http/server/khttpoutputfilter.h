@@ -114,6 +114,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Stream from InStream into OutStream
+	/// @param InStream the stream to read from
+	/// @param len the number of bytes to write, or npos to write until InStream ends
+	/// @return the count of written bytes, which is less than len if InStream ends
+	/// before, or 0 if the output failed
 	size_t Write(KInStream& InStream, size_t len = npos);
 	//-----------------------------------------------------------------------------
 

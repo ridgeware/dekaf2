@@ -858,12 +858,14 @@ x-klog: -level 1
 
 		KRESTServer::Options Options;
 		KRESTRoutes Routes;
+		std::size_t iContentLength { 0 };
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/stream", [&](KRESTServer& http)
 		{
 			http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::BINARY);
 			http.Response.Headers.Set(KHTTPHeader::CONTENT_ENCODING, "gzip");
 			http.AllowCompression(false);
 			http.SetStreamToOutput(std::make_unique<KInStringStream>(sContent), npos, false);
+			http.SetPostResponseCallback([&](const KRESTServer& http) { iContentLength = http.GetContentLength(); });
 		}});
 
 		auto Split = [](KStringView sResponse, KStringView& sHead, KStringView& sBody)
@@ -903,6 +905,8 @@ x-klog: -level 1
 		auto sDecoded = Dechunk(sBody);
 		CHECK ( sDecoded.size() == sContent.size() );
 		CHECK ( sDecoded == sContent );
+		// the server counted what it read from the stream
+		CHECK ( iContentLength == sContent.size() );
 
 		// HTTP/1.0 has no chunked framing, the end of the stream is the closed connection
 		sResponse = RunRequest("GET /stream HTTP/1.0\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n", Routes, Options);
@@ -1037,6 +1041,81 @@ x-klog: -level 1
 			CHECK_FALSE ( sLowerHead.contains("transfer-encoding:") );
 			CHECK ( sBody == sContent );
 		}
+	}
+
+	SECTION("an empty stream of unknown length is framed, the next request gets its answer")
+	{
+		KString sEmpty;
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		std::size_t iContentLength { npos };
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/empty", [&](KRESTServer& http)
+		{
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::JSON);
+			http.SetStreamToOutput(std::make_unique<KInStringStream>(sEmpty), npos, true);
+			http.SetPostResponseCallback([&](const KRESTServer& http) { iContentLength = http.GetContentLength(); });
+		}});
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/after", [&](KRESTServer& http)
+		{
+			http.SetRawOutput("the next answer");
+		}});
+
+		auto Split = [](KStringView sResponse, KStringView& sHead, KStringView& sBody)
+		{
+			auto iPos = sResponse.find("\r\n\r\n");
+			REQUIRE ( iPos != KStringView::npos );
+			sHead = sResponse.substr(0, iPos + 2);
+			sBody = sResponse.substr(iPos + 4);
+		};
+
+		// HTTP/1.1 without compression: the last chunk is the whole body
+		auto sResponse = RunRequest("GET /empty HTTP/1.1\r\nHost: localhost\r\n\r\n"
+		                            "GET /after HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		KStringView sHead, sBody;
+		Split(sResponse, sHead, sBody);
+		auto sLowerHead = sHead.ToLowerASCII();
+		CHECK ( sLowerHead.starts_with("http/1.1 200") );
+		CHECK ( sLowerHead.contains("transfer-encoding: chunked\r\n") );
+		CHECK_FALSE ( sLowerHead.contains("content-length:") );
+		CHECK ( sLowerHead.contains("connection: keep-alive\r\n") );
+		REQUIRE ( sBody.starts_with("0\r\n\r\nHTTP/1.1 200") );
+		CHECK ( sBody.ends_with("\r\n\r\nthe next answer") );
+		CHECK ( iContentLength == 0 );
+
+		// HTTP/1.1 with compression: one chunk with the empty gzip stream, then the last chunk
+		sResponse = RunRequest("GET /empty HTTP/1.1\r\nHost: localhost\r\nAccept-Encoding: gzip\r\n\r\n"
+		                       "GET /after HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		Split(sResponse, sHead, sBody);
+		sLowerHead = sHead.ToLowerASCII();
+		CHECK ( sLowerHead.contains("transfer-encoding: chunked\r\n") );
+		CHECK ( sLowerHead.contains("content-encoding: gzip\r\n") );
+		auto iSizeEnd = sBody.find("\r\n");
+		REQUIRE ( iSizeEnd != KStringView::npos );
+		auto iSize = kToInt<std::size_t>(sBody.substr(0, iSizeEnd), 16);
+		REQUIRE ( iSize > 0 );
+		sBody.remove_prefix(iSizeEnd + 2);
+		REQUIRE ( sBody.size() > iSize );
+		KString sCompressed = sBody.substr(0, iSize);
+		// the gzip magic number
+		CHECK ( sCompressed.starts_with("\x1f\x8b") );
+		KString sUncompressed;
+		KUnGZip gunzip(sCompressed);
+		gunzip.ReadRemaining(sUncompressed);
+		gunzip.close();
+		CHECK ( sUncompressed.empty() );
+		sBody.remove_prefix(iSize);
+		REQUIRE ( sBody.starts_with("\r\n0\r\n\r\nHTTP/1.1 200") );
+		CHECK ( sBody.ends_with("\r\n\r\nthe next answer") );
+
+		// HTTP/1.0: no chunks, the closed connection ends the empty body
+		sResponse = RunRequest("GET /empty HTTP/1.0\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n", Routes, Options);
+		Split(sResponse, sHead, sBody);
+		sLowerHead = sHead.ToLowerASCII();
+		CHECK ( sLowerHead.contains(" 200 ") );
+		CHECK_FALSE ( sLowerHead.contains("transfer-encoding:") );
+		CHECK_FALSE ( sLowerHead.contains("content-length:") );
+		CHECK ( sLowerHead.contains("connection: close\r\n") );
+		CHECK ( sBody.empty() );
 	}
 
 	SECTION("a streamed answer ends with the request, the next request gets its answer")

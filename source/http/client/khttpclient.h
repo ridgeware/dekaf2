@@ -335,6 +335,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// POST/PUT from stream
+	/// @return the count of written bytes, see KOutHTTPFilter::Write()
 	size_t Write(KInStream& stream, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{

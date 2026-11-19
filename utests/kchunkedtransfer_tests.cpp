@@ -1,6 +1,8 @@
 #include "catch.hpp"
 
 #include <dekaf2/http/protocol/kchunkedtransfer.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/http/server/khttpoutputfilter.h>
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/core/format/kformat.h>
 
@@ -149,5 +151,73 @@ TEST_CASE("KChunkedSource")
 
 		// far more hex digits than fit into 64 bits
 		CHECK ( ReadChunked(kFormat("FFFFFFFFFFFFFFFFFFFFFFFF\r\n{}\r\n0\r\n\r\n", sBody)).empty() );
+	}
+}
+
+TEST_CASE("KOutHTTPFilter")
+{
+	SECTION("Write() from a stream returns the count of written bytes")
+	{
+		// writes sContent through a filter without chunks, returns what Write() returned
+		auto Write = [](KStringView sContent, std::size_t iLen, KString& sOut)
+		{
+			KOutStringStream oss(sOut);
+			KOutHTTPFilter   Filter(oss);
+			KInStringStream  iss(sContent);
+			auto iWrote = Filter.Write(iss, iLen);
+			CHECK ( Filter.FilteredStream().Good() );
+			Filter.Flush();
+			return iWrote;
+		};
+
+		KString sOut;
+		CHECK ( Write("0123456789", npos, sOut) == 10 );
+		CHECK ( sOut == "0123456789" );
+
+		// an empty stream is no error
+		sOut.clear();
+		CHECK ( Write("", npos, sOut) == 0 );
+		CHECK ( sOut.empty() );
+
+		sOut.clear();
+		CHECK ( Write("0123456789", 10, sOut) == 10 );
+		CHECK ( sOut == "0123456789" );
+
+		// the stream is longer than the requested count
+		sOut.clear();
+		CHECK ( Write("0123456789", 4, sOut) == 4 );
+		CHECK ( sOut == "0123" );
+
+		// the stream ends before the requested count
+		sOut.clear();
+		CHECK ( Write("0123456789", 20, sOut) == 10 );
+		CHECK ( sOut == "0123456789" );
+
+		// more than one copy buffer, with all byte values
+		KString sLarge;
+		for (std::size_t i = 0; i < 3 * 1024 * 1024 + 17; ++i)
+		{
+			sLarge += static_cast<char>(i * 7);
+		}
+		sOut.clear();
+		CHECK ( Write(sLarge, npos, sOut) == sLarge.size() );
+		CHECK ( sOut == sLarge );
+	}
+
+	SECTION("a chunked message from an empty stream is the last chunk")
+	{
+		KHTTPHeaders Headers;
+		Headers.Headers.Set(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+
+		KString          sOut;
+		KOutStringStream oss(sOut);
+		KOutHTTPFilter   Filter(oss);
+		Filter.Parse(Headers);
+
+		KString          sEmpty;
+		KInStringStream  iss(sEmpty);
+		CHECK ( Filter.Write(iss, npos) == 0 );
+		Filter.Flush();
+		CHECK ( sOut == "0\r\n\r\n" );
 	}
 }

@@ -1132,7 +1132,12 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 		// write the content, either from a string view or a stream
 		auto iWrote = (svPostData) ? Request.Write(*svPostData) : Request.Write(*PostDataStream, len);
 
-		if (iWrote != len)
+		// a stream of unknown length is sent until its end, so every count is right
+		// for it - with a given length, a stream that ends early leaves the request
+		// incomplete
+		bool bOutputFailed = !Request.FilteredStream().Good();
+
+		if (bOutputFailed || (len != npos && iWrote != len))
 		{
 			kDebug(2, "cannot write body");
 			return SetTransportError(TransportError::Write, Request.Error());

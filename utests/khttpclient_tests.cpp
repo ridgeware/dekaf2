@@ -19,6 +19,7 @@
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/data/json/kjson.h>
 #include <atomic>
+#include <random>
 
 
 using namespace dekaf2;
@@ -852,6 +853,46 @@ TEST_CASE("KHTTPClient request body from a stream")
 
 		return kjson::Parse(sAnswer);
 	};
+
+	SECTION("an empty stream of unknown length is a complete request")
+	{
+		KHTTPClient Client;
+		REQUIRE ( Client.Connect(URL) );
+
+		auto jAnswer = Post(Client, "", npos);
+		CHECK ( bSent );
+		CHECK ( Client.GetTransportError() == KHTTPClient::TransportError::None );
+		CHECK ( Client.GetStatusCode() == 200 );
+		CHECK ( jAnswer("chunked").Bool() );
+		CHECK ( jAnswer("size").UInt64() == 0 );
+
+		// the next request on this connection gets its own answer
+		jAnswer = Post(Client, "0123456789", npos);
+		CHECK ( bSent );
+		CHECK ( Client.GetStatusCode() == 200 );
+		CHECK ( jAnswer("chunked").Bool() );
+		CHECK ( jAnswer("size").UInt64() == 10 );
+	}
+
+	SECTION("a stream of unknown length is sent whole")
+	{
+		KString sContent;
+		std::mt19937 Random(19);
+
+		for (std::size_t i = 0; i < 300 * 1024 + 13; ++i)
+		{
+			sContent += static_cast<char>(Random() & 0xff);
+		}
+
+		KHTTPClient Client;
+		REQUIRE ( Client.Connect(URL) );
+
+		auto jAnswer = Post(Client, sContent, npos);
+		CHECK ( bSent );
+		CHECK ( jAnswer("chunked").Bool() );
+		CHECK ( jAnswer("size").UInt64() == sContent.size() );
+		CHECK ( jAnswer("hash").UInt64() == sContent.Hash() );
+	}
 
 	SECTION("a request after one with a stream of unknown length is not announced as chunked")
 	{

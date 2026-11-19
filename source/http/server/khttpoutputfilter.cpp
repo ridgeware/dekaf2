@@ -237,19 +237,13 @@ size_t KOutHTTPFilter::Write(KInStream& InStream, size_t len)
 {
 	auto& Out(FilteredStream());
 
-	if (len == npos)
-	{
-		// write until eof
-		Out.ostream() << InStream.istream().rdbuf();
-	}
-	else
-	{
-		Out.Write(InStream, len);
-	}
+	// copies in blocks until len bytes are written or InStream ends - an
+	// ostream << streambuf would set the failbit for an empty InStream
+	auto iWrote = InStream.Read(Out, len);
 
 	if (Out.Good())
 	{
-		return len;
+		return iWrote;
 	}
 	else
 	{

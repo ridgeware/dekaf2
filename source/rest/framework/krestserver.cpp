@@ -150,6 +150,13 @@ void KRESTServer::Options::SetRateLimit(double dRequestsPerSecond, uint16_t iBur
 }
 
 //-----------------------------------------------------------------------------
+void KRESTServer::Options::SetMetrics(std::shared_ptr<KMetrics> Registry)
+//-----------------------------------------------------------------------------
+{
+	Metrics = std::make_shared<KRESTMetrics>(std::move(Registry));
+}
+
+//-----------------------------------------------------------------------------
 KRESTServer::KRESTServer(const KRESTRoutes& Routes,
 						 const Options&     options)
 //-----------------------------------------------------------------------------
@@ -971,6 +978,20 @@ bool KRESTServer::Execute()
 				throw KHTTPError { iStatus, GetLastError() };
 			}
 
+			if (m_Options.Metrics)
+			{
+				// a request in flight from here until RunPostResponse()
+				m_Options.Metrics->Started();
+				m_bMetricsStarted = true;
+
+				if (!m_Timers)
+				{
+					// without the timers of the phases, one start time is enough for the duration
+					m_MetricsTimer.clear();
+					m_bMetricsTimed = true;
+				}
+			}
+
 			// set crash context before rewriting any resources, to make sure we get the
 			// original input in case of a segfault
 			kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",
@@ -1349,9 +1370,84 @@ bool KRESTServer::Execute()
 } // Execute
 
 //-----------------------------------------------------------------------------
+void KRESTServer::RecordMetrics()
+//-----------------------------------------------------------------------------
+{
+	auto& Metrics = m_Options.Metrics;
+
+	if (!Metrics)
+	{
+		return;
+	}
+
+	if (!m_bMetricsStarted)
+	{
+		// a request that failed before its header was read: counted as started here,
+		// so that started and finished requests stay in step
+		Metrics->Started();
+	}
+
+	m_bMetricsStarted = false;
+
+	// a request that failed before the route lookup, or matched no route, has the empty route
+	auto& Requests = (Route != &s_EmptyRoute) ? Route->Metrics.Get(*Metrics, Route->sRoute, Request.Method)
+	                                          : Metrics->Unmatched(Request.Method);
+
+	std::size_t iStatusClass = Response.GetStatusCode() / 100;
+
+	if (iStatusClass >= Requests.Status.size())
+	{
+		iStatusClass = 0;
+	}
+
+	Requests.Status[iStatusClass].get().Inc();
+	Requests.RequestBytes .Inc(m_iRequestBodyLength);
+	Requests.ResponseBytes.Inc(m_iContentLength);
+
+	if (m_Timers)
+	{
+		Requests.Duration.Observe(m_Timers->duration());
+	}
+	else if (m_bMetricsTimed)
+	{
+		Requests.Duration.Observe(m_MetricsTimer.elapsed());
+	}
+
+	m_bMetricsTimed = false;
+
+	Metrics->Finished();
+
+} // RecordMetrics
+
+//-----------------------------------------------------------------------------
+void KRESTServer::ServeMetrics()
+//-----------------------------------------------------------------------------
+{
+	if (!m_Options.Metrics)
+	{
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "no metrics" };
+	}
+
+	auto& Metrics = m_Options.Metrics->GetMetrics();
+
+	if (GetQueryParm("format") == "json")
+	{
+		json.tx = Metrics.ToJSON();
+	}
+	else
+	{
+		Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMetrics::ContentType);
+		SetRawOutput(Metrics.Serialize());
+	}
+
+} // ServeMetrics
+
+//-----------------------------------------------------------------------------
 void KRESTServer::RunPostResponse()
 //-----------------------------------------------------------------------------
 {
+	RecordMetrics();
+
 	if (m_PostResponseCallback)
 	{
 		m_PostResponseCallback(*this);
@@ -2299,6 +2395,9 @@ void KRESTServer::clear()
 	m_JsonLogger.reset();
 	m_RequestCookies.reset();
 	m_TempDir.clear();
+	// a request has no route until the route lookup found one - not the route of the
+	// request before on this connection
+	Route                  = &s_EmptyRoute;
 	// NOT m_pLastLoggedRoute — that state must persist across keep-alive rounds.
 	// It is reset once per CONNECTION in Execute() at m_iRound = 0 instead.
 	// Resetting it here would defeat the NO_REPEAT_LOG suppression.

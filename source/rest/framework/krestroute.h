@@ -48,6 +48,7 @@
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/rest/serving/kwebserverpermissions.h>
+#include <dekaf2/rest/framework/krestmetrics.h>
 #include <vector>
 #include <memory>
 
@@ -328,6 +329,8 @@ public:
 	/// Maximum request body size in bytes for this route. -1 = use global default
 	/// from KRESTServer::Options::iMaxRequestBodySize. 0 = unlimited.
 	std::streamsize iMaxRequestBodySize { -1 };
+	/// the metrics of the requests of this route, filled if KRESTServer::Options::Metrics is set
+	mutable KRESTMetrics::Route Metrics;
 
 }; // KRESTRoute
 

@@ -207,6 +207,7 @@
 #include <dekaf2/net/address/kresolve.h>
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/rest/framework/krestclient.h>
+#include <dekaf2/rest/framework/krestmetrics.h>
 #include <dekaf2/rest/framework/krestroute.h>
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/rest/framework/krestsession.h>

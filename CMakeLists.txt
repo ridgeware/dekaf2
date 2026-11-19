@@ -1945,6 +1945,7 @@ set(PUBLIC_HEADERS
 	source/net/util/ktunnel.h
 	source/rest/framework/krest.h
 	source/rest/framework/krestclient.h
+	source/rest/framework/krestmetrics.h
 	source/rest/framework/krestroute.h
 	source/rest/framework/krestserver.h
 	source/rest/framework/krestsession.h
@@ -2243,6 +2244,7 @@ set (SOURCES
 	source/net/util/ktunnel.cpp
 	source/rest/framework/krest.cpp
 	source/rest/framework/krestclient.cpp
+	source/rest/framework/krestmetrics.cpp
 	source/rest/framework/krestroute.cpp
 	source/rest/framework/krestserver.cpp
 	source/rest/framework/krestsession.cpp

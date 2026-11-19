@@ -16,6 +16,9 @@
 #include <dekaf2/io/streams/kinstringstream.h>
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
+#include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/system/os/ksystem.h>
 
 using namespace dekaf2;
 
@@ -1954,4 +1957,72 @@ x-klog: -level 1
 		CHECK ( sResponse.ToLowerASCII().contains("set-cookie: test_session=") );
 	}
 
+}
+
+TEST_CASE("KRESTServer: a request without a route on a keep-alive connection")
+{
+	// A route that logs only its first request of a connection, and after it a request
+	// that matches no route: that one has to appear in the access log.
+	KTempDir TempDir;
+
+	auto sLogFile = kFormat("{}/access.log", TempDir.Name());
+
+	KRESTRoutes Routes;
+
+	Routes.AddRoute("/quiet").Get([](KRESTServer& HTTP)
+	{
+		HTTP.json.tx["quiet"] = true;
+	}).Options(KRESTRoute::Options{KRESTRoute::Options::NO_REPEAT_LOG});
+
+	{
+		KREST::Options Options;
+
+		Options.Type                 = KREST::HTTP;
+		Options.iPort                = 44372;
+		Options.Timeout              = chrono::seconds(2);
+		Options.bBlocking            = false;
+		Options.bCreateEphemeralCert = false;
+
+		REQUIRE ( Options.Logger.Open(KHTTPLog::LOG_FORMAT::COMMON, sLogFile) );
+
+		KREST Server;
+		REQUIRE ( Server.Execute(Options, Routes) );
+
+		KWebClient Client;
+
+		Client.Get("http://localhost:44372/quiet");
+		CHECK ( Client.GetStatusCode() == 200 );
+		Client.Get("http://localhost:44372/quiet");
+		CHECK ( Client.GetStatusCode() == 200 );
+		Client.Get("http://localhost:44372/nowhere");
+		CHECK ( Client.GetStatusCode() == 404 );
+
+		// the server writes the log after it sent the response
+		for (int i = 0; i < 2000 && !kReadAll(sLogFile).contains("/nowhere"); ++i)
+		{
+			kSleep(chrono::milliseconds(1));
+		}
+	}
+
+	auto        sLog = kReadAll(sLogFile);
+	std::size_t iQuiet   { 0 };
+	std::size_t iNowhere { 0 };
+
+	for (auto sLine : sLog.Split("\n"))
+	{
+		if (sLine.contains("/quiet"))
+		{
+			++iQuiet;
+		}
+
+		if (sLine.contains("/nowhere"))
+		{
+			++iNowhere;
+			CHECK ( sLine.contains(" 404 ") );
+		}
+	}
+
+	INFO  ( sLog );
+	CHECK ( iQuiet   == 1 );
+	CHECK ( iNowhere == 1 );
 }

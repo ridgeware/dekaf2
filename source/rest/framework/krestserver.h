@@ -162,6 +162,17 @@ public:
 		/// .SetRateLimit(100.0);     // 100 req/s, default burst of 10
 		/// @endcode
 		void SetRateLimit(double dRequestsPerSecond, uint16_t iBurstSize = 10);
+		/// Keep metrics of the requests: counts by route, method and class of the status,
+		/// durations, sizes, and the requests in flight - see KRESTMetrics for their names.
+		/// Add a route that calls KRESTServer::ServeMetrics() to read them, and protect it:
+		/// the metrics tell the routes of the server and their load.
+		/// @param Registry the registry that takes the metrics, or null for a new one
+		/// @code
+		/// auto Registry = std::make_shared<KMetrics>();
+		/// Settings.SetMetrics(Registry);
+		/// Routes.AddRoute("/metrics").Get([](KRESTServer& HTTP) { HTTP.ServeMetrics(); });
+		/// @endcode
+		void SetMetrics(std::shared_ptr<KMetrics> Registry = nullptr);
 		/// Configure the KHTTPLog object with its Open() method
 		KHTTPLog Logger;
 		/// Fixed route prefix
@@ -271,6 +282,9 @@ public:
 		/// with a configured KRateLimiter to enable per-IP request throttling.
 		/// When null (the default), rate limiting is completely disabled with zero overhead.
 		std::shared_ptr<KRateLimiter> RateLimiter;
+		/// The metrics of the requests, shared across all connections, see SetMetrics().
+		/// When null (the default), no metrics are kept.
+		std::shared_ptr<KRESTMetrics> Metrics;
 		/// Policy for the permessage-deflate (RFC 7692) websocket extension. Disabled by default
 		/// (WebSocketDeflate.bEnable == false). Set WebSocketDeflate.bEnable = true to accept client
 		/// offers; set bServerNoContextTakeover/bClientNoContextTakeover to cap per-connection memory.
@@ -605,6 +619,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Answer the request with the metrics of Options::Metrics: in the Prometheus text
+	/// format, or as JSON if the query has format=json. Throws a 404 without metrics.
+	void ServeMetrics();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// @return the duration of a request until the last byte was sent
 	DEKAF2_NODISCARD
 	KDuration GetTimeToLastByte() const
@@ -906,6 +926,7 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// run the post response callback if existing, and the logger and reporting facilities
 	void RunPostResponse();
+	void RecordMetrics();
 	//-----------------------------------------------------------------------------
 
 //------
@@ -934,6 +955,7 @@ private:
 	KTempDir    m_TempDir;               // create a KTempDir object
 	std::unique_ptr<KJSON> m_JsonLogger;
 	std::unique_ptr<KStopDurations> m_Timers;
+	KStopTime   m_MetricsTimer { KStopTime::Halted }; // the start of the request for the metrics, used when m_Timers is not set
 	std::unique_ptr<std::map<KStringView, KStringView>> m_RequestCookies;
 	std::function<void(const KRESTServer&)> m_PostResponseCallback; // if set, gets called after response generation
 	std::function<void(KWebSocket&)> m_WebSocketHandlerCallback; // filled by route handler during upgrade to websocket protocol, will be called every time a frame is received, or the connection is lost
@@ -944,6 +966,8 @@ private:
 	std::function<bool()> m_StopCheck;                           // polled while waiting for the next request, true = close the connection (server shutdown)
 	const KRESTRoute* m_pLastLoggedRoute { nullptr };            // remembers the last route written to access log within this connection; used by NO_REPEAT_LOG to suppress subsequent identical entries in keepalive
 	uint16_t    m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds
+	bool        m_bMetricsStarted { false }; // whether this request is counted as started in the metrics
+	bool        m_bMetricsTimed   { false }; // whether m_MetricsTimer holds the start of this request
 	bool        m_bKeepAlive;            // whether connection will be kept alive
 	bool        m_bLostConnection;       // whether we lost our peer during flight
 	bool        m_bIsStreaming;          // true if we switched to streaming output

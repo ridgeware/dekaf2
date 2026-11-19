@@ -47,6 +47,7 @@
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/core/types/kscopeguard.h>
+#include <dekaf2/util/metrics/kmetricscollectors.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -215,6 +216,12 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 KREST::~KREST()
 //-----------------------------------------------------------------------------
 {
+	if (m_Metrics)
+	{
+		// the metrics ask this object for the state of the thread pool
+		KMetricsCollectors::RemoveThreadPool(m_Metrics->GetMetrics(), m_sMetricsPool);
+	}
+
 	if (m_SocketWatch)
 	{
 		m_SocketWatch->Stop();
@@ -423,6 +430,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 
+				AddThreadPoolMetrics(Options);
+
 				if (!m_Server->Start(Options.GetTimeout(), Options.bBlocking))
 				{
 					return SetError(m_Server->CopyLastError()); // already logged
@@ -451,6 +460,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
+
+				AddThreadPoolMetrics(Options);
 
 				if (!m_Server->Start(Options.GetTimeout(), Options.bBlocking))
 				{
@@ -759,6 +770,25 @@ bool KREST::Good() const
 	return !HasError();
 
 } // Good
+
+//-----------------------------------------------------------------------------
+void KREST::AddThreadPoolMetrics(const Options& Options)
+//-----------------------------------------------------------------------------
+{
+	if (!Options.Metrics || m_Metrics)
+	{
+		return;
+	}
+
+	KString sName = Options.sServername.empty() ? KString("rest") : Options.sServername;
+
+	if (KMetricsCollectors::AddThreadPool(Options.Metrics->GetMetrics(), sName, [this]() { return GetDiagnostics(); }))
+	{
+		m_Metrics      = Options.Metrics;
+		m_sMetricsPool = std::move(sName);
+	}
+
+} // AddThreadPoolMetrics
 
 //-----------------------------------------------------------------------------
 KThreadPool::Diagnostics KREST::GetDiagnostics() const

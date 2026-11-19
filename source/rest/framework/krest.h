@@ -317,7 +317,12 @@ private:
 
 	}; // RESTServer
 
+	/// add the thread pool of the server to the metrics of the options, if they are set
+	void AddThreadPoolMetrics(const Options& Options);
+
 	std::unique_ptr<RESTServer>   m_Server;
+	std::shared_ptr<KRESTMetrics> m_Metrics;        // set while the thread pool of the server is in the metrics
+	KString                       m_sMetricsPool;   // its name there
 	KThreadPool::ShutdownCallback m_ShutdownCallback;
 	std::unique_ptr<KSocketWatch> m_SocketWatch;
 	std::unique_ptr<KWebSocketServer> m_WebSocketServer;

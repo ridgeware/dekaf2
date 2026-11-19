@@ -139,6 +139,7 @@ set (USOURCES
 	kreplacer_tests.cpp
 	krest_tests.cpp
 	krestclient_tests.cpp
+	krestmetrics_tests.cpp
 	krestserver_tests.cpp
 	kratelimiter_tests.cpp
 	kconnectionlimiter_tests.cpp

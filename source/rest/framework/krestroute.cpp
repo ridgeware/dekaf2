@@ -1172,50 +1172,78 @@ KJSON KRESTRoutes::GetRouterStats() const
 {
 	KJSON Stats = KJSON::array();
 
-	for (const auto& Route : m_Routes)
+	auto AddRoute = [&Stats](const KRESTRoute& Route)
 	{
-		auto Statistics = Route.Statistics.shared().get();
-
-		if (Statistics.Durations.empty())
+		Route.Metrics.ForEach([&Stats, &Route](KHTTPMethod Method, const KRESTMetrics::Requests& Requests)
 		{
-			// no data for this route
-			continue;
-		}
+			static constexpr std::array<KStringViewZ, 6> s_StatusNames
+			{{
+				"other", "1xx", "2xx", "3xx", "4xx", "5xx"
+			}};
 
-		// the first timer should have the max rounds
-		auto iRounds = Statistics.Durations.Rounds(0);
+			KJSON    jStatus;
+			uint64_t iRequests { 0 };
 
-		if (iRounds)
-		{
-			KJSON jUSecs {
-				{ "total" , Statistics.Durations.duration().microseconds().count() / iRounds  }
-			};
-
-			for (const auto& it : KRESTServer::Timers)
+			for (std::size_t iClass = 0; iClass < Requests.Status.size(); ++iClass)
 			{
-				jUSecs.push_back({ it.sLabel, Statistics.Durations[it.Value].average().microseconds().count() });
+				auto iCount = Requests.Status[iClass].get().Get();
+				jStatus[s_StatusNames[iClass]] = iCount;
+				iRequests += iCount;
 			}
 
-			KJSON jRoute {
-				{ "method"   , Route.Method.Serialize() },
+			if (!iRequests)
+			{
+				// no data for this route and method
+				return;
+			}
+
+			auto iRxBytes = Requests.RequestBytes .Get();
+			auto iTxBytes = Requests.ResponseBytes.Get();
+
+			// the durations are kept in nanoseconds, and the percentiles come in seconds
+			KJSON jUSecs
+			{
+				{ "total" , Requests.Duration.GetSum() / 1000 / iRequests                                    },
+				{ "p50"   , static_cast<uint64_t>(Requests.Duration.Quantile(0.50) * 1000000.0)              },
+				{ "p90"   , static_cast<uint64_t>(Requests.Duration.Quantile(0.90) * 1000000.0)              },
+				{ "p99"   , static_cast<uint64_t>(Requests.Duration.Quantile(0.99) * 1000000.0)              }
+			};
+
+			for (std::size_t iPhase = 0; iPhase < Requests.Phases.size(); ++iPhase)
+			{
+				auto& Phase  = Requests.Phases[iPhase].get();
+				auto  iCount = Phase.GetCount();
+
+				jUSecs[KRESTMetrics::PhaseName(iPhase)] = iCount ? Phase.GetSum() / 1000 / iCount : 0;
+			}
+
+			Stats.push_back(KJSON
+			{
+				{ "method"   , Method.Serialize()       },
 				{ "route"    , Route.sRoute             },
-				{ "requests" , iRounds                  },
+				{ "requests" , iRequests                },
+				{ "status"   , std::move(jStatus)       },
 				{ "bytes"    , {
 					{ "total", {
-						{ "rx"   , Statistics.iRxBytes  },
-						{ "tx"   , Statistics.iTxBytes  }
+						{ "rx"   , iRxBytes  },
+						{ "tx"   , iTxBytes  }
 					}},
 					{ "avg"  , {
-						{ "rx"   , Statistics.iRxBytes / iRounds },
-						{ "tx"   , Statistics.iTxBytes / iRounds }
+						{ "rx"   , iRxBytes / iRequests },
+						{ "tx"   , iTxBytes / iRequests }
 					}}
 				}},
 				{ "usecs"    , std::move(jUSecs)        }
-			};
+			});
+		});
+	};
 
-			Stats.push_back(jRoute);
-		}
+	for (const auto& Route : m_Routes)
+	{
+		AddRoute(Route);
 	}
+
+	AddRoute(m_DefaultRoute);
 
 	return Stats;
 

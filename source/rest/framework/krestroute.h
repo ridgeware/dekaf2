@@ -710,10 +710,20 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Return detailed statistics on each route
-	/// @return a KJSON object with detailed usage and performance statistics on each route
+	/// Return the statistics of the routes: per route and method the count of requests, also
+	/// by the class of their status, the sizes of the bodies, and the duration in microseconds
+	/// as average and as percentiles - and the average of each phase if the phases are measured.
+	/// The numbers are those of the metrics of the server (KRESTServer::Options::SetMetrics()).
+	/// A server without metrics that measures the phases of its requests (through
+	/// Options::TimerHeader or Options::TimingCallback) keeps them as well.
+	/// @return a KJSON array with one object per route and method that had a request
 	DEKAF2_NODISCARD
 	KJSON GetRouterStats() const;
+
+	/// @return the metrics that take the statistics of the routes of a server without metrics of
+	/// its own, created at the first call
+	DEKAF2_NODISCARD
+	KRESTMetrics& GetStatistics() const { return m_Statistics.Get(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -767,6 +777,7 @@ private:
 	Rewrites   m_Rewrites;
 	Redirects  m_Redirects;
 	KRESTRoute m_DefaultRoute;
+	KRESTMetrics::Own m_Statistics;
 	KWebServerPermissions m_WebServerPermissions;
 	// the compression caches of the web server routes with their cache directories -
 	// there are only a few, and copies of this object share them

@@ -150,10 +150,10 @@ void KRESTServer::Options::SetRateLimit(double dRequestsPerSecond, uint16_t iBur
 }
 
 //-----------------------------------------------------------------------------
-void KRESTServer::Options::SetMetrics(std::shared_ptr<KMetrics> Registry)
+void KRESTServer::Options::SetMetrics(std::shared_ptr<KMetrics> Registry, bool bPhases)
 //-----------------------------------------------------------------------------
 {
-	Metrics = std::make_shared<KRESTMetrics>(std::move(Registry));
+	Metrics = std::make_shared<KRESTMetrics>(std::move(Registry), bPhases);
 }
 
 //-----------------------------------------------------------------------------
@@ -942,7 +942,8 @@ bool KRESTServer::Execute()
 			if (m_iRound == 0)
 			{
 				// check if we have to start the timers
-				if (!m_Options.TimerHeader.empty() || m_Options.TimingCallback)
+				if (!m_Options.TimerHeader.empty() || m_Options.TimingCallback
+				    || (m_Options.Metrics && m_Options.Metrics->HasPhases()))
 				{
 					m_Timers = std::make_unique<KStopDurations>();
 					m_Timers->reserve(Timer::SEND + 1);
@@ -1323,15 +1324,6 @@ bool KRESTServer::Execute()
 
 			RunPostResponse();
 
-			if (m_Timers)
-			{
-				// add stats for this request
-				auto Stats = Route->Statistics.unique();
-				Stats->Durations += *m_Timers;
-				Stats->iTxBytes  += m_iContentLength;
-				Stats->iRxBytes  += m_iRequestBodyLength;
-			}
-
 			if (!m_bKeepAlive)
 			{
 				if (!m_bSwitchToWebSocket && kWouldLog(2))
@@ -1373,25 +1365,35 @@ bool KRESTServer::Execute()
 void KRESTServer::RecordMetrics()
 //-----------------------------------------------------------------------------
 {
-	auto& Metrics = m_Options.Metrics;
-
-	if (!Metrics)
+	if (m_Options.Metrics)
 	{
-		return;
+		RecordMetrics(*m_Options.Metrics);
+	}
+	else if (m_Timers)
+	{
+		// a server that measures the phases of its requests keeps the statistics of
+		// its routes also without metrics of its own, see KRESTRoutes::GetRouterStats()
+		RecordMetrics(m_Routes.GetStatistics());
 	}
 
+} // RecordMetrics
+
+//-----------------------------------------------------------------------------
+void KRESTServer::RecordMetrics(KRESTMetrics& Metrics)
+//-----------------------------------------------------------------------------
+{
 	if (!m_bMetricsStarted)
 	{
-		// a request that failed before its header was read: counted as started here,
-		// so that started and finished requests stay in step
-		Metrics->Started();
+		// a request that was not counted when its header was read: counted as started
+		// here, so that started and finished requests stay in step
+		Metrics.Started();
 	}
 
 	m_bMetricsStarted = false;
 
 	// a request that failed before the route lookup, or matched no route, has the empty route
-	auto& Requests = (Route != &s_EmptyRoute) ? Route->Metrics.Get(*Metrics, Route->sRoute, Request.Method)
-	                                          : Metrics->Unmatched(Request.Method);
+	auto& Requests = (Route != &s_EmptyRoute) ? Route->Metrics.Get(Metrics, Route->sRoute, Request.Method)
+	                                          : Metrics.Unmatched(Request.Method);
 
 	std::size_t iStatusClass = Response.GetStatusCode() / 100;
 
@@ -1407,6 +1409,12 @@ void KRESTServer::RecordMetrics()
 	if (m_Timers)
 	{
 		Requests.Duration.Observe(m_Timers->duration());
+
+		// the phases that this request went through, if their times are kept
+		for (std::size_t iPhase = 0; iPhase < Requests.Phases.size() && iPhase < m_Timers->size(); ++iPhase)
+		{
+			Requests.Phases[iPhase].get().Observe(m_Timers->duration(iPhase));
+		}
 	}
 	else if (m_bMetricsTimed)
 	{
@@ -1415,7 +1423,7 @@ void KRESTServer::RecordMetrics()
 
 	m_bMetricsTimed = false;
 
-	Metrics->Finished();
+	Metrics.Finished();
 
 } // RecordMetrics
 

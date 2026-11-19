@@ -46,7 +46,8 @@ DEKAF2_NAMESPACE_BEGIN
 
 namespace {
 
-constexpr KStringViewZ sInFlight { "http_requests_in_flight" };
+constexpr KStringViewZ sInFlight { "http_requests_in_flight"    };
+constexpr KStringViewZ sPhases   { "http_request_phase_seconds" };
 
 } // end of anonymous namespace
 
@@ -99,6 +100,7 @@ KRESTMetrics::Requests& KRESTMetrics::Route::Get(KRESTMetrics& Metrics, KStringV
 	std::call_once(Slot.Once, [&]()
 	{
 		Slot.Values = Metrics.CreateRequests(sRoute, Method == KHTTPMethod::INVALID ? KStringViewZ("invalid") : Method.Serialize());
+		Slot.bCreated.store(true, std::memory_order_release);
 	});
 
 	return *Slot.Values;
@@ -106,7 +108,74 @@ KRESTMetrics::Requests& KRESTMetrics::Route::Get(KRESTMetrics& Metrics, KStringV
 } // Get
 
 //-----------------------------------------------------------------------------
-KRESTMetrics::KRESTMetrics(std::shared_ptr<KMetrics> Metrics)
+void KRESTMetrics::Route::ForEach(const std::function<void(KHTTPMethod, const Requests&)>& Callback) const
+//-----------------------------------------------------------------------------
+{
+	if (!m_Slots || !Callback)
+	{
+		return;
+	}
+
+	for (std::size_t iMethod = 0; iMethod < m_Slots->size(); ++iMethod)
+	{
+		auto& Slot = (*m_Slots)[iMethod];
+
+		if (Slot.bCreated.load(std::memory_order_acquire))
+		{
+			Callback(static_cast<KHTTPMethod::Method>(iMethod), *Slot.Values);
+		}
+	}
+
+} // ForEach
+
+//-----------------------------------------------------------------------------
+KRESTMetrics::Own::Own()
+//-----------------------------------------------------------------------------
+: m_State(std::make_unique<State>())
+{
+}
+
+//-----------------------------------------------------------------------------
+KRESTMetrics::Own::Own(Own&&) noexcept = default;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+KRESTMetrics::Own& KRESTMetrics::Own::operator=(Own&&) noexcept = default;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+KRESTMetrics::Own::~Own() = default;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+KRESTMetrics& KRESTMetrics::Own::Get() const
+//-----------------------------------------------------------------------------
+{
+	std::call_once(m_State->Once, [this]()
+	{
+		m_State->Metrics = std::make_unique<KRESTMetrics>(std::make_shared<KMetrics>(), true);
+	});
+
+	return *m_State->Metrics;
+
+} // Get
+
+//-----------------------------------------------------------------------------
+KStringViewZ KRESTMetrics::PhaseName(std::size_t iPhase)
+//-----------------------------------------------------------------------------
+{
+	// in the order of KRESTServer::Timer
+	static constexpr std::array<KStringViewZ, iPhases> s_Names
+	{{
+		"rx", "route", "parse", "process", "serialize", "tx"
+	}};
+
+	return (iPhase < s_Names.size()) ? s_Names[iPhase] : KStringViewZ("");
+
+} // PhaseName
+
+//-----------------------------------------------------------------------------
+KRESTMetrics::KRESTMetrics(std::shared_ptr<KMetrics> Metrics, bool bPhases)
 //-----------------------------------------------------------------------------
 : m_Metrics      (Metrics ? std::move(Metrics) : std::make_shared<KMetrics>())
 , m_Requests     (m_Metrics->AddCounter  ("http_requests_total"          , "count of answered requests by the class of their status", { "route", "method", "status" }))
@@ -115,6 +184,7 @@ KRESTMetrics::KRESTMetrics(std::shared_ptr<KMetrics> Metrics)
 , m_ResponseBytes(m_Metrics->AddCounter  ("http_response_bytes_total"    , "size of the bodies of the responses, in bytes", { "route", "method" }))
 , m_Started      (m_Metrics->AddCounter  ("http_requests_started_total"  , "count of requests whose header was received").Get())
 , m_Finished     (m_Metrics->AddCounter  ("http_requests_finished_total" , "count of requests that were answered").Get())
+, m_bPhases      (bPhases)
 {
 	// A gauge that every request sets would be one value for all threads. The two
 	// counters are not, and their difference is the same number.
@@ -141,6 +211,24 @@ KRESTMetrics::~KRESTMetrics()
 std::unique_ptr<KRESTMetrics::Requests> KRESTMetrics::CreateRequests(KStringView sRoute, KStringView sMethod)
 //-----------------------------------------------------------------------------
 {
+	std::vector<std::reference_wrapper<KMetrics::Histogram>> Phases;
+
+	if (m_bPhases)
+	{
+		// sum and count per phase, without buckets
+		KMetrics::Buckets NoBounds;
+		NoBounds.iUnitsPerOutputUnit = 1000000000;
+
+		auto& Family = m_Metrics->AddHistogram(sPhases, "time of the phases of the requests, in seconds", { "route", "method", "phase" }, NoBounds);
+
+		Phases.reserve(iPhases);
+
+		for (std::size_t iPhase = 0; iPhase < iPhases; ++iPhase)
+		{
+			Phases.push_back(Family.Get({ sRoute, sMethod, PhaseName(iPhase) }));
+		}
+	}
+
 	return std::unique_ptr<Requests>(new Requests
 	{
 		{{
@@ -153,9 +241,14 @@ std::unique_ptr<KRESTMetrics::Requests> KRESTMetrics::CreateRequests(KStringView
 		}},
 		m_RequestBytes .Get({ sRoute, sMethod }),
 		m_ResponseBytes.Get({ sRoute, sMethod }),
-		m_Durations    .Get({ sRoute, sMethod })
+		m_Durations    .Get({ sRoute, sMethod }),
+		std::move(Phases)
 	});
 
 } // CreateRequests
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr std::size_t KRESTMetrics::iPhases;
+#endif
 
 DEKAF2_NAMESPACE_END

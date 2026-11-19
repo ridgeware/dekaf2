@@ -293,6 +293,222 @@ TEST_CASE("KRESTMetrics")
 		CHECK ( Durations.Get({ "/hello", "GET" }).GetSum()   >  0 );
 	}
 
+	SECTION("phases on request")
+	{
+		auto Registry = std::make_shared<KMetrics>();
+		auto Options  = TestOptions();
+		auto Routes   = TestRoutes();
+
+		Options.SetMetrics(Registry, true);
+
+		REQUIRE ( Options.Metrics != nullptr );
+		CHECK   ( Options.Metrics->HasPhases() );
+
+		KREST Server;
+		REQUIRE ( Server.Execute(Options, Routes) );
+
+		KWebClient Client;
+
+		Client.Get(kFormat("{}/slow", sBase));
+		Client.Get(kFormat("{}/slow", sBase));
+		// no timer header was asked for
+		CHECK ( Client.Response.Headers.Get("x-milliseconds").empty() );
+
+		REQUIRE ( WaitForFinished(*Registry, 2) );
+
+		auto sText = Registry->Serialize();
+
+		INFO ( sText );
+
+		CHECK ( sText.contains("# TYPE http_request_phase_seconds histogram\n") );
+
+		// sum and count for each phase, without buckets
+		for (std::size_t iPhase = 0; iPhase < KRESTMetrics::iPhases; ++iPhase)
+		{
+			auto sLabels = kFormat("{{route=\"/slow\",method=\"GET\",phase=\"{}\"}}", KRESTMetrics::PhaseName(iPhase));
+
+			CHECK ( sText.contains(kFormat("http_request_phase_seconds_count{} 2\n", sLabels)) );
+			CHECK ( CountLines(sText, kFormat("http_request_phase_seconds_sum{} ", sLabels)) == 1 );
+		}
+
+		CHECK ( CountLines(sText, "http_request_phase_seconds_bucket{route=\"/slow\"") == KRESTMetrics::iPhases );
+
+		// the handler sleeps: that is the phase "process"
+		auto& Phases = Registry->AddHistogram("http_request_phase_seconds", "", { "route", "method", "phase" });
+
+		CHECK ( Phases.Get({ "/slow", "GET", "process" }).GetSum()   >= 60000000ull );
+		CHECK ( Phases.Get({ "/slow", "GET", "process" }).GetCount() == 2           );
+		CHECK ( Phases.Get({ "/slow", "GET", "route"   }).GetSum()   <  60000000ull );
+
+		// the names of the phases are those of the timers of the server
+		for (auto& Timer : KRESTServer::Timers)
+		{
+			CHECK ( KRESTMetrics::PhaseName(Timer.Value) == Timer.sLabel );
+		}
+
+		CHECK ( KRESTMetrics::PhaseName(KRESTMetrics::iPhases) == "" );
+	}
+
+	SECTION("no phases without the request for them")
+	{
+		// also not when the server measures the phases for its timer header
+		auto Registry = std::make_shared<KMetrics>();
+		auto Options  = TestOptions();
+		auto Routes   = TestRoutes();
+
+		Options.SetMetrics(Registry);
+		Options.TimerHeader = "x-milliseconds";
+
+		CHECK ( Options.Metrics->HasPhases() == false );
+
+		KREST Server;
+		REQUIRE ( Server.Execute(Options, Routes) );
+
+		KWebClient Client;
+
+		Client.Get(kFormat("{}/hello", sBase));
+
+		REQUIRE ( WaitForFinished(*Registry, 1) );
+
+		CHECK ( Registry->Serialize().contains("http_request_phase_seconds") == false );
+		CHECK ( Registry->Serialize().contains("http_request_duration_seconds_count{route=\"/hello\",method=\"GET\"} 1\n") );
+	}
+
+	SECTION("route statistics from the metrics")
+	{
+		auto Registry = std::make_shared<KMetrics>();
+		auto Options  = TestOptions();
+		auto Routes   = TestRoutes();
+
+		Options.SetMetrics(Registry, true);
+
+		// no request yet
+		CHECK ( Routes.GetRouterStats().is_array() );
+		CHECK ( Routes.GetRouterStats().empty()    );
+
+		KREST Server;
+		REQUIRE ( Server.Execute(Options, Routes) );
+
+		KWebClient Client;
+
+		Client.Get(kFormat("{}/hello", sBase));
+		Client.Get(kFormat("{}/hello", sBase));
+		Client.Post(kFormat("{}/echo", sBase), KString(500, 'x'), KMIME::TEXT_PLAIN);
+		Client.Get(kFormat("{}/forbidden", sBase));
+		Client.Get(kFormat("{}/slow", sBase));
+		// a request without a route is in no route
+		Client.Get(kFormat("{}/nowhere", sBase));
+
+		REQUIRE ( WaitForFinished(*Registry, 6) );
+
+		auto jStats = Routes.GetRouterStats();
+
+		INFO ( jStats.dump(1, '\t') );
+
+		// one entry per route and method that had a request, in the order of the routes
+		REQUIRE ( jStats.size() == 4 );
+
+		auto& jHello = jStats(0);
+
+		CHECK ( jHello("route").String()            == "/hello" );
+		CHECK ( jHello("method").String()           == "GET"    );
+		CHECK ( jHello("requests").UInt64()         == 2        );
+		CHECK ( jHello("status")("2xx").UInt64()    == 2        );
+		CHECK ( jHello("status")("4xx").UInt64()    == 0        );
+		CHECK ( jHello("status")("other").UInt64()  == 0        );
+		CHECK ( jHello("bytes")("total")("rx").UInt64() == 0    );
+		CHECK ( jHello("bytes")("total")("tx").UInt64() >  0    );
+		CHECK ( jHello("bytes")("avg")("tx").UInt64()   == jHello("bytes")("total")("tx").UInt64() / 2 );
+		CHECK ( jHello("usecs")("total").is_number()            );
+		CHECK ( jHello("usecs")("p50").is_number()              );
+		CHECK ( jHello("usecs")("p99").is_number()              );
+		// the averages of the phases
+		CHECK ( jHello("usecs")("rx").is_number()               );
+		CHECK ( jHello("usecs")("process").is_number()          );
+		CHECK ( jHello("usecs")("tx").is_number()               );
+
+		auto& jEcho = jStats(1);
+
+		CHECK ( jEcho("route").String()                == "/echo" );
+		CHECK ( jEcho("method").String()               == "POST"  );
+		CHECK ( jEcho("bytes")("total")("rx").UInt64() == 500     );
+		CHECK ( jEcho("bytes")("avg")("rx").UInt64()   == 500     );
+		CHECK ( jEcho("bytes")("total")("tx").UInt64() == 500     );
+
+		auto& jForbidden = jStats(2);
+
+		CHECK ( jForbidden("route").String()         == "/forbidden" );
+		CHECK ( jForbidden("requests").UInt64()      == 1            );
+		CHECK ( jForbidden("status")("4xx").UInt64() == 1            );
+		CHECK ( jForbidden("status")("2xx").UInt64() == 0            );
+
+		auto& jSlow = jStats(3);
+
+		CHECK ( jSlow("route").String()             == "/slow" );
+		// one request of 30 milliseconds and more
+		CHECK ( jSlow("usecs")("total").UInt64()    >= 30000   );
+		CHECK ( jSlow("usecs")("process").UInt64()  >= 30000   );
+		CHECK ( jSlow("usecs")("p50").UInt64()      >= 25000   );
+		CHECK ( jSlow("usecs")("p99").UInt64()      >= jSlow("usecs")("p50").UInt64() );
+	}
+
+	SECTION("route statistics of a server without metrics")
+	{
+		// with a timer header the server measures the phases, and keeps the statistics
+		// of its routes as it did before there were metrics
+		auto Options = TestOptions();
+		auto Routes  = TestRoutes();
+
+		Options.TimerHeader = "x-milliseconds";
+
+		CHECK ( Options.Metrics == nullptr );
+
+		{
+			KREST Server;
+			REQUIRE ( Server.Execute(Options, Routes) );
+
+			KWebClient Client;
+
+			Client.Get(kFormat("{}/hello", sBase));
+			Client.Get(kFormat("{}/hello", sBase));
+			Client.Get(kFormat("{}/slow", sBase));
+
+			REQUIRE ( WaitForFinished(Routes.GetStatistics().GetMetrics(), 3) );
+		}
+
+		auto jStats = Routes.GetRouterStats();
+
+		INFO ( jStats.dump(1, '\t') );
+
+		REQUIRE ( jStats.size() == 2 );
+		CHECK ( jStats(0)("route").String()            == "/hello" );
+		CHECK ( jStats(0)("requests").UInt64()         == 2        );
+		CHECK ( jStats(0)("usecs")("process").is_number()          );
+		CHECK ( jStats(1)("route").String()            == "/slow"  );
+		CHECK ( jStats(1)("usecs")("process").UInt64() >= 30000    );
+
+		// the metrics behind these statistics have the phases, and can be read like any other
+		CHECK ( Routes.GetStatistics().HasPhases() );
+		CHECK ( Routes.GetStatistics().GetMetrics().Serialize().contains("http_requests_total{route=\"/hello\",method=\"GET\",status=\"2xx\"} 2\n") );
+	}
+
+	SECTION("no route statistics without metrics and without timers")
+	{
+		auto Options = TestOptions();
+		auto Routes  = TestRoutes();
+
+		{
+			KREST Server;
+			REQUIRE ( Server.Execute(Options, Routes) );
+
+			KWebClient Client;
+
+			CHECK ( Client.Get(kFormat("{}/hello", sBase)).contains("world") );
+		}
+
+		CHECK ( Routes.GetRouterStats().empty() );
+	}
+
 	SECTION("without metrics")
 	{
 		auto Options = TestOptions();

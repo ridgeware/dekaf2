@@ -114,17 +114,6 @@ public:
 	KHTTPAnalyzedPath(KString _sRoute);
 	//-----------------------------------------------------------------------------
 
-	/// a struct with usage and timing statistics of the path / route
-	struct Stats
-	{
-		KDurations  Durations; ///< timing and count
-		std::size_t iRxBytes;  ///< received bytes (total)
-		std::size_t iTxBytes;  ///< transmitted bytes (total)
-	};
-
-	/// A threadsafe object with usage and timing statistics
-	mutable KThreadSafe<Stats> Statistics;
-
 	bool m_bHasWildCardAtEnd    { false };
 	bool m_bHasWildCardFragment { false };
 

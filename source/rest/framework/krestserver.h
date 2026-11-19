@@ -167,12 +167,14 @@ public:
 		/// Add a route that calls KRESTServer::ServeMetrics() to read them, and protect it:
 		/// the metrics tell the routes of the server and their load.
 		/// @param Registry the registry that takes the metrics, or null for a new one
+		/// @param bPhases also measure the phases of every request (rx, route, parse, process,
+		/// serialize, tx) and keep their times
 		/// @code
 		/// auto Registry = std::make_shared<KMetrics>();
 		/// Settings.SetMetrics(Registry);
 		/// Routes.AddRoute("/metrics").Get([](KRESTServer& HTTP) { HTTP.ServeMetrics(); });
 		/// @endcode
-		void SetMetrics(std::shared_ptr<KMetrics> Registry = nullptr);
+		void SetMetrics(std::shared_ptr<KMetrics> Registry = nullptr, bool bPhases = false);
 		/// Configure the KHTTPLog object with its Open() method
 		KHTTPLog Logger;
 		/// Fixed route prefix
@@ -927,6 +929,7 @@ protected:
 	/// run the post response callback if existing, and the logger and reporting facilities
 	void RunPostResponse();
 	void RecordMetrics();
+	void RecordMetrics(KRESTMetrics& Metrics);
 	//-----------------------------------------------------------------------------
 
 //------

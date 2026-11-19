@@ -51,9 +51,11 @@
 #include <dekaf2/http/protocol/khttp_method.h>
 #include <dekaf2/util/metrics/kmetrics.h>
 #include <array>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -68,6 +70,8 @@ DEKAF2_NAMESPACE_BEGIN
 /// - http_request_bytes_total and http_response_bytes_total, the bodies, by route and method
 /// - http_requests_started_total and http_requests_finished_total
 /// - http_requests_in_flight, the requests that are started and not finished
+/// - on request http_request_phase_seconds, the time of the phases of a request (rx,
+///   route, parse, process, serialize, tx) as sum and count, by route, method and phase
 ///
 /// The route is the route as it was added to the route table, not the path of a
 /// request, so that the count of values stays the count of routes. Requests that
@@ -92,7 +96,16 @@ public:
 		KMetrics::Counter&   RequestBytes;
 		KMetrics::Counter&   ResponseBytes;
 		KMetrics::Histogram& Duration;
+		/// the time of each phase, in the order of the phases - empty if the phases are not kept
+		std::vector<std::reference_wrapper<KMetrics::Histogram>> Phases;
 	};
+
+	/// the count of phases of a request
+	static constexpr std::size_t iPhases = 6;
+
+	/// @return the name of a phase, as the label of its values
+	DEKAF2_NODISCARD
+	static KStringViewZ PhaseName (std::size_t iPhase);
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// The values of one route for all methods. A route has one of these, and
@@ -116,12 +129,17 @@ public:
 		/// @param Method the method of the request
 		Requests& Get (KRESTMetrics& Metrics, KStringView sRoute, KHTTPMethod Method) const;
 
+		/// call a function for the values of every method that had a request
+		void ForEach (const std::function<void(KHTTPMethod, const Requests&)>& Callback) const;
+
 	private:
 
 		struct Slot
 		{
 			std::once_flag            Once;
 			std::unique_ptr<Requests> Values;
+			// set when Values can be read by other threads
+			std::atomic<bool>         bCreated { false };
 		};
 
 		using Slots = std::array<Slot, KHTTPMethod::INVALID + 1>;
@@ -130,8 +148,38 @@ public:
 
 	}; // Route
 
-	/// @param Metrics the registry that takes the metrics
-	explicit KRESTMetrics (std::shared_ptr<KMetrics> Metrics);
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Metrics with a registry of their own, created at the first use. A route
+	/// table has them for the statistics of its routes, for a server that
+	/// measures the phases of its requests but has no metrics set.
+	class DEKAF2_PUBLIC Own
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	public:
+
+		Own ();
+		Own (Own&&) noexcept;
+		Own& operator=(Own&&) noexcept;
+		~Own ();
+
+		/// @return the metrics, with the phases of the requests
+		KRESTMetrics& Get () const;
+
+	private:
+
+		struct State
+		{
+			std::once_flag                Once;
+			std::unique_ptr<KRESTMetrics> Metrics;
+		};
+
+		std::unique_ptr<State> m_State;
+
+	}; // Own
+
+	/// @param Metrics the registry that takes the metrics, or null for a new one
+	/// @param bPhases keep the time of the phases of a request, too
+	explicit KRESTMetrics (std::shared_ptr<KMetrics> Metrics, bool bPhases = false);
 	~KRESTMetrics ();
 
 	KRESTMetrics (const KRESTMetrics&)            = delete;
@@ -140,6 +188,10 @@ public:
 	/// @return the registry
 	DEKAF2_NODISCARD
 	KMetrics& GetMetrics () noexcept { return *m_Metrics; }
+
+	/// @return true if the time of the phases of a request is kept
+	DEKAF2_NODISCARD
+	bool HasPhases () const noexcept { return m_bPhases; }
 
 	/// create the values for the requests of a route with a method
 	DEKAF2_NODISCARD
@@ -166,6 +218,7 @@ private:
 	KMetrics::Counter&         m_Started;
 	KMetrics::Counter&         m_Finished;
 	Route                      m_Unmatched;
+	bool                       m_bPhases;
 
 }; // KRESTMetrics
 

@@ -16,6 +16,8 @@
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/rest/framework/krest.h>
+#include <dekaf2/data/json/kjson.h>
 #include <atomic>
 
 
@@ -805,4 +807,82 @@ TEST_CASE("KHTTPClient response header limits")
 	}
 
 	Server.Stop();
+}
+
+TEST_CASE("KHTTPClient request body from a stream")
+{
+	// answers with the size and the hash of the request body
+	KRESTRoutes Routes;
+	Routes.AddRoute({ KHTTPMethod::POST, false, "/upload", [&](KRESTServer& http)
+	{
+		KString sBody;
+		http.Read(sBody);
+		http.json.tx["size"]    = sBody.size();
+		http.json.tx["hash"]    = sBody.Hash();
+		http.json.tx["chunked"] = http.Request.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
+	}, KRESTRoute::NOREAD });
+
+	KREST::Options Options;
+	Options.Type                 = KREST::HTTP;
+	Options.iPort                = 0;
+	Options.sBindAddress         = "127.0.0.1";
+	Options.bBlocking            = false;
+	Options.Timeout              = chrono::seconds(2);
+	Options.bCreateEphemeralCert = false;
+
+	KREST REST;
+	REQUIRE ( REST.Execute(Options, Routes) );
+
+	KURL URL(kFormat("http://127.0.0.1:{}/upload", REST.GetPort()));
+
+	bool bSent { false };
+
+	// posts sContent from a stream, and returns the answer of the server
+	auto Post = [&](KHTTPClient& Client, KStringView sContent, std::size_t iLen) -> KJSON
+	{
+		KInStringStream iss(sContent);
+		KString sAnswer;
+
+		bSent = Client.Resource(URL, KHTTPMethod::POST) && Client.SendRequest(iss, iLen, KMIME::BINARY);
+
+		if (bSent)
+		{
+			Client.Read(sAnswer);
+		}
+
+		return kjson::Parse(sAnswer);
+	};
+
+	SECTION("a request after one with a stream of unknown length is not announced as chunked")
+	{
+		KHTTPClient Client;
+		REQUIRE ( Client.Connect(URL) );
+
+		auto jAnswer = Post(Client, "0123456789", npos);
+		CHECK ( bSent );
+		CHECK ( jAnswer("chunked").Bool() );
+		CHECK ( jAnswer("size").UInt64() == 10 );
+
+		// a stream with its length given
+		jAnswer = Post(Client, "01234", 5);
+		CHECK ( bSent );
+		CHECK ( Client.GetStatusCode() == 200 );
+		CHECK_FALSE ( jAnswer("chunked").Bool() );
+		CHECK ( jAnswer("size").UInt64() == 5 );
+
+		jAnswer = Post(Client, "0123456", npos);
+		CHECK ( bSent );
+		CHECK ( jAnswer("chunked").Bool() );
+		CHECK ( jAnswer("size").UInt64() == 7 );
+
+		// a request without a body
+		KString sAnswer;
+		REQUIRE ( Client.Resource(URL, KHTTPMethod::POST) );
+		CHECK ( Client.SendRequest() );
+		Client.Read(sAnswer);
+		jAnswer = kjson::Parse(sAnswer);
+		CHECK ( Client.GetStatusCode() == 200 );
+		CHECK_FALSE ( jAnswer("chunked").Bool() );
+		CHECK ( jAnswer("size").UInt64() == 0 );
+	}
 }

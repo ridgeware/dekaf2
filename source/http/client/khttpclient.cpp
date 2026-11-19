@@ -904,6 +904,7 @@ bool KHTTPClient::SetupAutomaticHeaders(KStringView* svPostData, KInStream* Post
 	// remove remaining automatic headers from previous requests
 	Request.Headers.Remove(KHTTPHeader::CONTENT_LENGTH);
 	Request.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
+	Request.Headers.Remove(KHTTPHeader::TRANSFER_ENCODING);
 
 	if (Request.GetHTTPVersion() == KHTTPVersion::none)
 	{

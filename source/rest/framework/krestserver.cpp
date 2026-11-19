@@ -887,6 +887,10 @@ bool KRESTServer::Execute()
 	// reset m_iRound at end of scope
 	KAtScopeEnd( m_iRound = std::numeric_limits<uint16_t>::max() );
 
+	// true once the header of the current request was read: from then on the count
+	// of the input filter is the count of this request's body
+	bool bHeaderRead { false };
+
 	try
 	{
 		m_iRound = 0;
@@ -902,6 +906,8 @@ bool KRESTServer::Execute()
 									 m_Options.sServername,
 									 GetRemoteIP()));
 			clear();
+
+			bHeaderRead = false;
 
 			// carries the route's name for this thread from route resolution until the
 			// end of the round (per Options::ThreadName), and restores the worker name
@@ -978,6 +984,8 @@ bool KRESTServer::Execute()
 				kDebug (1, "invalid request: {}", GetLastError());
 				throw KHTTPError { iStatus, GetLastError() };
 			}
+
+			bHeaderRead = true;
 
 			if (m_Options.Metrics)
 			{
@@ -1189,7 +1197,10 @@ bool KRESTServer::Execute()
 			    Request.Headers.Get(KHTTPHeader::EXPECT).ToLowerASCII() == "100-continue")
 			{
 				kDebug(2, "sending 100 Continue");
-				Response.UnfilteredStream().Write("HTTP/1.1 100 Continue\r\n\r\n").Flush();
+				KStringView sContinue { "HTTP/1.1 100 Continue\r\n\r\n" };
+				Response.UnfilteredStream().Write(sContinue).Flush();
+				// the interim response counts as sent bytes of this request
+				m_iTXBytes += sContinue.size();
 			}
 
 			if (Request.HasContent(Request.Method))
@@ -1352,6 +1363,13 @@ bool KRESTServer::Execute()
 
 	catch (const std::exception& ex)
 	{
+		if (bHeaderRead)
+		{
+			// the body parser or the route may have read (part of) the request
+			// body before the exception
+			m_iRequestBodyLength = Request.Count();
+		}
+
 		ErrorHandler(ex);
 	}
 
@@ -1454,6 +1472,13 @@ void KRESTServer::ServeMetrics()
 void KRESTServer::RunPostResponse()
 //-----------------------------------------------------------------------------
 {
+	if (m_iContentLength == npos)
+	{
+		// no response body was prepared, e.g. because the client left before the
+		// output or a streamed response failed - metrics and logs need a real size
+		m_iContentLength = 0;
+	}
+
 	RecordMetrics();
 
 	if (m_PostResponseCallback)
@@ -1585,7 +1610,8 @@ void KRESTServer::WriteHeaders()
 		// immediately
 		Serialize();
 
-		m_iTXBytes = OutputCounter.Count();
+		// added to what was sent before the headers, like an interim response
+		m_iTXBytes += OutputCounter.Count();
 
 		// with the next write now the filter pipeline gets kicked off,
 		// and the unfiltered stream is only a copy of the real
@@ -1636,6 +1662,18 @@ void KRESTServer::Output()
 	{
 		// send what is still buffered
 		Response.Flush();
+
+		// the route wrote the body itself, only the output filter knows its size:
+		// the bytes as sent, after compression and with the chunk framing
+		auto iSent = static_cast<std::size_t>(Response.Count());
+
+		m_iTXBytes += iSent;
+
+		if (m_iContentLength == npos)
+		{
+			m_iContentLength = iSent;
+		}
+
 		return;
 	}
 
@@ -1782,6 +1820,12 @@ void KRESTServer::Output()
 				// serialize above to compute Content-Length). But the response body has
 				// to be empty!
 				bOutputContent = false;
+
+				if (m_iContentLength == npos)
+				{
+					// a stream of unknown length, and it is not read for a HEAD request
+					m_iContentLength = 0;
+				}
 			}
 
 			if (bOutputContent)
@@ -2012,6 +2056,13 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 	if (IsDisconnected())
 	{
 		kDebug(1, "remote end disconnected");
+
+		if (m_iTXBytes == 0)
+		{
+			// nothing was sent - the size of a prepared response is not the size of an answer
+			m_iContentLength = 0;
+		}
+
 		return;
 	}
 	
@@ -2182,7 +2233,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 				// writes response headers to output
 				Serialize();
 
-				m_iTXBytes = OutputCounter.Count();
+				m_iTXBytes += OutputCounter.Count();
 			}
 
 			// finally, output the content:

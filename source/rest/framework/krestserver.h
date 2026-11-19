@@ -576,7 +576,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// @return the length in bytes of the response content (body)
+	/// @return the length in bytes of the response content (body), npos while it is not known yet
 	DEKAF2_NODISCARD
 	std::size_t GetContentLength() const
 	//-----------------------------------------------------------------------------

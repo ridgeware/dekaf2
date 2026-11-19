@@ -19,6 +19,9 @@
 #include <dekaf2/http/client/kwebclient.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/net/tcp/ktcpstream.h>
+#include <dekaf2/net/util/kstreamoptions.h>
+#include <atomic>
 
 using namespace dekaf2;
 
@@ -2025,4 +2028,354 @@ TEST_CASE("KRESTServer: a request without a route on a keep-alive connection")
 	INFO  ( sLog );
 	CHECK ( iQuiet   == 1 );
 	CHECK ( iNowhere == 1 );
+}
+
+TEST_CASE("KRESTServer: byte accounting")
+{
+	// The access log reports for each request the received and the sent bytes and the
+	// sizes of both bodies. A client on a raw connection knows what went over the wire,
+	// and the test compares both.
+	KTempDir TempDir;
+
+	auto sLogFile  = kFormat("{}/access.log", TempDir.Name());
+	auto sDataFile = kFormat("{}/data.txt"  , TempDir.Name());
+
+	constexpr std::size_t iFileSize = 3000;
+	constexpr std::size_t iBigSize  = 20000;
+	// the response body size as the client received it
+	constexpr std::size_t AsReceived = npos;
+	// a size that the test does not know
+	constexpr std::size_t Unchecked  = npos - 1;
+
+	REQUIRE ( kWriteFile(sDataFile, KString(iFileSize, 'x')) );
+
+	std::atomic<bool> bWaitEntered     { false };
+	std::atomic<bool> bWaitFileEntered { false };
+
+	KRESTRoutes Routes;
+
+	Routes.AddRoute("/json").Get([](KRESTServer& HTTP)
+	{
+		HTTP.json.tx["hello"] = "world";
+	});
+
+	Routes.AddRoute("/json").Post([](KRESTServer& HTTP)
+	{
+		HTTP.json.tx["hello"] = "world";
+	});
+
+	Routes.AddRoute("/big").Get([](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.SetRawOutput(KString(iBigSize, 'a'));
+	});
+
+	Routes.AddRoute("/file").Get([&](KRESTServer& HTTP)
+	{
+		HTTP.SetFileToOutput(sDataFile);
+	});
+
+	// a stream of unknown length
+	Routes.AddRoute("/unknown").Get([&](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.SetStreamToOutput(std::make_unique<KInFile>(sDataFile));
+	});
+
+	// routes that write the body themselves
+	Routes.AddRoute("/streaming").Get([](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.Response.Headers.Set(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+		HTTP.Stream(false);
+		HTTP.Response.Write(KString(1000, 's'));
+	});
+
+	Routes.AddRoute("/streamcompressed").Get([](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.Stream(true);
+		HTTP.Response.Write(KString(1000, 's'));
+	});
+
+	Routes.AddRoute("/streamthrow").Get([](KRESTServer& HTTP)
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		HTTP.Response.Headers.Set(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+		HTTP.Stream(false);
+		HTTP.Response.Write(KString(1000, 's'));
+		throw KHTTPError { KHTTPError::H5xx_ERROR, "failed while streaming" };
+	});
+
+	// routes that read the request body themselves
+	Routes.AddRoute("/readself").Post([](KRESTServer& HTTP)
+	{
+		KString sBody;
+		HTTP.Request.Read(sBody);
+		HTTP.json.tx["size"] = sBody.size();
+	}).Parse(KRESTRoute::NOREAD);
+
+	Routes.AddRoute("/readthrow").Post([](KRESTServer& HTTP)
+	{
+		KString sBody;
+		HTTP.Request.Read(sBody);
+		throw KHTTPError { KHTTPError::H5xx_ERROR, "failed after reading" };
+	}).Parse(KRESTRoute::NOREAD);
+
+	Routes.AddRoute("/throw").Get([](KRESTServer& HTTP)
+	{
+		throw KHTTPError { KHTTPError::H5xx_ERROR, "failed" };
+	});
+
+	Routes.AddRoute("/nocontent").Get([](KRESTServer& HTTP)
+	{
+		HTTP.Response.SetStatus(KHTTPError::H2xx_NO_CONTENT);
+	});
+
+	// routes that wait until the client left
+	Routes.AddRoute("/wait").Get([&](KRESTServer& HTTP)
+	{
+		bWaitEntered = true;
+
+		for (int i = 0; i < 500 && !HTTP.IsDisconnected(); ++i)
+		{
+			kSleep(chrono::milliseconds(10));
+		}
+
+		HTTP.json.tx["waited"] = true;
+	});
+
+	Routes.AddRoute("/waitfile").Get([&](KRESTServer& HTTP)
+	{
+		bWaitFileEntered = true;
+
+		for (int i = 0; i < 500 && !HTTP.IsDisconnected(); ++i)
+		{
+			kSleep(chrono::milliseconds(10));
+		}
+
+		HTTP.SetFileToOutput(sDataFile);
+	});
+
+	struct Exchange
+	{
+		KString     sName;
+		std::size_t iRequests     { 1 };         // the count of requests on the connection
+		std::size_t iSent         { 0 };         // the bytes that the client sent
+		std::size_t iReceived     { 0 };         // the bytes that the client received
+		std::size_t iReceivedBody { 0 };         // of these the bytes after the response header
+		std::size_t iBody         { 0 };         // the bytes of the request bodies as sent
+		std::size_t iContent      { 0 };         // the expected size of the response bodies
+		bool        bAllRead      { true };      // false if the server does not read the whole request
+		bool        bAllSent      { true };      // false if the client does not get what the server wrote
+	};
+
+	std::vector<Exchange> Exchanges;
+
+	{
+		KREST::Options Options;
+
+		Options.Type                 = KREST::HTTP;
+		Options.iPort                = 0;
+		Options.sBindAddress         = "127.0.0.1";
+		Options.Timeout              = chrono::seconds(2);
+		Options.bBlocking            = false;
+		Options.bCreateEphemeralCert = false;
+		Options.bPollForDisconnect   = true;
+
+		REQUIRE ( Options.Logger.Open(KHTTPLog::LOG_FORMAT::JSON, sLogFile) );
+
+		KREST Server;
+		REQUIRE ( Server.Execute(Options, Routes) );
+
+		auto sEndPoint = kFormat("127.0.0.1:{}", Server.GetPort());
+
+		// sends the requests, and reads until the server closes the connection - the
+		// server writes the log before that
+		auto Run = [&](KStringView sName, KStringView sRequest, std::size_t iRequests, std::size_t iBody, std::size_t iContent) -> Exchange&
+		{
+			KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(5)));
+			REQUIRE ( Stream.is_open() );
+
+			Stream.Write(sRequest).Flush();
+
+			KString sResponse;
+			Stream.ReadRemaining(sResponse);
+
+			Exchange Ex;
+			Ex.sName     = sName;
+			Ex.iRequests = iRequests;
+			Ex.iSent     = sRequest.size();
+			Ex.iReceived = sResponse.size();
+			Ex.iBody     = iBody;
+			Ex.iContent  = iContent;
+
+			auto iHeaderEnd = sResponse.find("\r\n\r\n");
+
+			if (iHeaderEnd != npos)
+			{
+				Ex.iReceivedBody = sResponse.size() - (iHeaderEnd + 4);
+			}
+
+			Exchanges.push_back(std::move(Ex));
+
+			return Exchanges.back();
+		};
+
+		// sends the request, and leaves when the route runs
+		auto RunAndLeave = [&](KStringView sName, KStringView sPath, std::atomic<bool>& bEntered)
+		{
+			auto sRequest = kFormat("GET {} HTTP/1.1\r\nHost: a\r\n\r\n", sPath);
+
+			{
+				KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(5)));
+				REQUIRE ( Stream.is_open() );
+
+				Stream.Write(sRequest).Flush();
+
+				for (int i = 0; i < 500 && !bEntered; ++i)
+				{
+					kSleep(chrono::milliseconds(10));
+				}
+
+				REQUIRE ( bEntered );
+			}
+
+			Exchange Ex;
+			Ex.sName    = sName;
+			Ex.iSent    = sRequest.size();
+			Ex.iContent = 0;
+			Exchanges.push_back(std::move(Ex));
+
+			// the server writes the log when the route noticed the disconnect
+			auto sLogged = kFormat("\"{}\"", sPath);
+
+			for (int i = 0; i < 6000 && !kReadAll(sLogFile).contains(sLogged); ++i)
+			{
+				kSleep(chrono::milliseconds(1));
+			}
+		};
+
+		KStringView sClose    = "Host: a\r\nConnection: close\r\n\r\n";
+		KStringView sGzip     = "Host: a\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n";
+		KStringView sJSON     = "{\"a\":\"bcdef\"}";
+		KStringView sJSONHead = "Host: a\r\nContent-Type: application/json\r\nContent-Length: 13\r\n";
+		KString     sBody(500, 'b');
+
+		REQUIRE ( sJSON.size() == 13 );
+
+		// plain, compressed and HEAD answers
+		Run("GET json"           , kFormat("GET /json HTTP/1.1\r\n{}"     , sClose), 1, 0, AsReceived);
+		Run("GET json gzip"      , kFormat("GET /json HTTP/1.1\r\n{}"     , sGzip ), 1, 0, Unchecked );
+		Run("HEAD json"          , kFormat("HEAD /json HTTP/1.1\r\n{}"    , sClose), 1, 0, Unchecked );
+		Run("GET big"            , kFormat("GET /big HTTP/1.1\r\n{}"      , sClose), 1, 0, iBigSize  );
+		Run("GET big gzip"       , kFormat("GET /big HTTP/1.1\r\n{}"      , sGzip ), 1, 0, iBigSize  );
+		Run("GET file"           , kFormat("GET /file HTTP/1.1\r\n{}"     , sClose), 1, 0, iFileSize );
+		Run("GET file gzip"      , kFormat("GET /file HTTP/1.1\r\n{}"     , sGzip ), 1, 0, iFileSize );
+		Run("HEAD file"          , kFormat("HEAD /file HTTP/1.1\r\n{}"    , sClose), 1, 0, iFileSize );
+		Run("GET nocontent"      , kFormat("GET /nocontent HTTP/1.1\r\n{}", sClose), 1, 0, 0         );
+
+		// a stream of unknown length: chunked, compressed, framed by the closed connection,
+		// and not read at all for HEAD
+		Run("GET unknown"        , kFormat("GET /unknown HTTP/1.1\r\n{}"  , sClose), 1, 0, iFileSize );
+		Run("GET unknown gzip"   , kFormat("GET /unknown HTTP/1.1\r\n{}"  , sGzip ), 1, 0, iFileSize );
+		Run("GET unknown 1.0"    , "GET /unknown HTTP/1.0\r\nHost: a\r\n\r\n"      , 1, 0, iFileSize );
+		Run("HEAD unknown"       , kFormat("HEAD /unknown HTTP/1.1\r\n{}" , sClose), 1, 0, 0         );
+
+		// the route writes the body itself: the body size is the size as sent
+		Run("GET streaming"      , kFormat("GET /streaming HTTP/1.1\r\n{}", sClose), 1, 0, AsReceived);
+		Run("GET streamcompressed", kFormat("GET /streamcompressed HTTP/1.1\r\n{}", sGzip), 1, 0, AsReceived);
+		// the connection ends without the buffered output
+		Run("GET streamthrow"    , kFormat("GET /streamthrow HTTP/1.1\r\n{}", sClose), 1, 0, 0       ).bAllSent = false;
+
+		// errors
+		Run("GET throw"          , kFormat("GET /throw HTTP/1.1\r\n{}"    , sClose), 1, 0, AsReceived);
+		Run("GET nowhere"        , kFormat("GET /nowhere HTTP/1.1\r\n{}"  , sClose), 1, 0, AsReceived);
+		// only the first line gets read
+		Run("invalid request"    , "INVALID\r\n\r\n"                               , 1, 0, AsReceived).bAllRead = false;
+
+		// request bodies
+		Run("POST json"          , kFormat("POST /json HTTP/1.1\r\n{}Connection: close\r\n\r\n{}", sJSONHead, sJSON), 1, sJSON.size(), AsReceived);
+		Run("POST json chunked"  , kFormat("POST /json HTTP/1.1\r\nHost: a\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\nd\r\n{}\r\n0\r\n\r\n", sJSON),
+		                           1, sJSON.size() + 10, AsReceived);
+		Run("POST expect"        , kFormat("POST /json HTTP/1.1\r\n{}Expect: 100-continue\r\nConnection: close\r\n\r\n{}", sJSONHead, sJSON), 1, sJSON.size(), Unchecked);
+		Run("POST readself"      , kFormat("POST /readself HTTP/1.1\r\nHost: a\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}" , sBody.size(), sBody), 1, sBody.size(), AsReceived);
+		Run("POST readthrow"     , kFormat("POST /readthrow HTTP/1.1\r\nHost: a\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", sBody.size(), sBody), 1, sBody.size(), AsReceived);
+		// the body of a request without a route is not read
+		Run("POST nowhere"       , kFormat("POST /nowhere HTTP/1.1\r\nHost: a\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}"  , sBody.size(), sBody), 1, 0, AsReceived).bAllRead = false;
+
+		// two requests on one connection: the counts of the first are not part of the second
+		Run("POST, GET"          , kFormat("POST /json HTTP/1.1\r\n{}\r\n{}GET /json HTTP/1.1\r\n{}", sJSONHead, sJSON, sClose), 2, sJSON.size(), Unchecked);
+		Run("big, nocontent"     , kFormat("GET /big HTTP/1.1\r\nHost: a\r\n\r\nGET /nocontent HTTP/1.1\r\n{}", sClose), 2, 0, iBigSize );
+		Run("big, HEAD"          , kFormat("GET /big HTTP/1.1\r\nHost: a\r\n\r\nHEAD /file HTTP/1.1\r\n{}"    , sClose), 2, 0, iBigSize + iFileSize);
+		Run("streaming, json"    , kFormat("GET /streaming HTTP/1.1\r\nHost: a\r\n\r\nGET /json HTTP/1.1\r\n{}", sClose), 2, 0, Unchecked);
+		Run("json, big gzip"     , kFormat("GET /json HTTP/1.1\r\nHost: a\r\n\r\nGET /big HTTP/1.1\r\n{}"     , sGzip ), 2, 0, Unchecked);
+		Run("POST, invalid"      , kFormat("POST /json HTTP/1.1\r\n{}\r\n{}INVALID\r\n\r\n", sJSONHead, sJSON), 2, sJSON.size(), Unchecked).bAllRead = false;
+
+		// a client that leaves before the response: nothing is sent, also not a prepared file
+		RunAndLeave("GET wait"    , "/wait"    , bWaitEntered    );
+		RunAndLeave("GET waitfile", "/waitfile", bWaitFileEntered);
+	}
+
+	std::vector<KJSON> Log;
+
+	for (auto sLine : kReadAll(sLogFile).Split("\n"))
+	{
+		if (!sLine.empty())
+		{
+			Log.push_back(kjson::Parse(sLine));
+		}
+	}
+
+	std::size_t iLine { 0 };
+
+	for (const auto& Ex : Exchanges)
+	{
+		INFO ( Ex.sName );
+		REQUIRE ( iLine + Ex.iRequests <= Log.size() );
+
+		std::size_t iRXSize { 0 };
+		std::size_t iRXRecv { 0 };
+		std::size_t iTXSize { 0 };
+		std::size_t iTXSent { 0 };
+
+		for (std::size_t i = 0; i < Ex.iRequests; ++i, ++iLine)
+		{
+			const auto& j = Log[iLine];
+
+			// no value is the unsigned form of a negative number
+			CHECK ( j("rx-size").UInt64() <= Ex.iSent );
+			CHECK ( j("rx-recv").UInt64() <= Ex.iSent );
+			CHECK ( j("tx-size").UInt64() <= iBigSize + iFileSize );
+			CHECK ( j("tx-sent").UInt64() <= iBigSize + iFileSize );
+
+			iRXSize += j("rx-size").UInt64();
+			iRXRecv += j("rx-recv").UInt64();
+			iTXSize += j("tx-size").UInt64();
+			iTXSent += j("tx-sent").UInt64();
+		}
+
+		CHECK ( iRXSize == Ex.iBody );
+
+		if (Ex.bAllRead)
+		{
+			CHECK ( iRXRecv == Ex.iSent );
+		}
+
+		if (Ex.bAllSent)
+		{
+			CHECK ( iTXSent == Ex.iReceived );
+		}
+
+		if (Ex.iContent == AsReceived)
+		{
+			CHECK ( iTXSize == Ex.iReceivedBody );
+		}
+		else if (Ex.iContent != Unchecked)
+		{
+			CHECK ( iTXSize == Ex.iContent );
+		}
+	}
+
+	CHECK ( iLine == Log.size() );
 }

@@ -55,6 +55,10 @@ bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 {
 	Flush();
 
+	// the filter stored its count when it got closed - the count of the next
+	// message starts at 0, also when that message has no body and creates no filter
+	m_iCount = 0;
+
 	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
 	KHTTPCompression::Parse(headers);

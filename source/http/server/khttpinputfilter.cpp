@@ -430,6 +430,10 @@ void KInHTTPFilter::NextRound()
 		m_Filter.reset();
 	}
 
+	// the filter stored its count when it got closed - the count of the next
+	// message starts at 0, also when that message has no body and creates no filter
+	m_iCount = 0;
+
 	KHTTPCompression::SetCompression(NONE);
 	m_bAllowUncompression = true;
 	m_bChunked            = false;

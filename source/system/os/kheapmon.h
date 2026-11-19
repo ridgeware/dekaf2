@@ -69,6 +69,20 @@ int LastError();
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString GetStats(bool bAsJSON = false);
 
+/// the memory that the heap holds, in bytes
+struct Usage
+{
+	std::size_t iAllocated { 0 }; ///< allocated by the program
+	std::size_t iActive    { 0 }; ///< in pages that hold allocations
+	std::size_t iResident  { 0 }; ///< resident in physical memory, with the bookkeeping of the allocator; 0 if the allocator does not tell
+	std::size_t iMapped    { 0 }; ///< mapped from the system
+};
+
+/// read the memory that the heap holds
+/// @return false if the numbers are not available, which is the case without jemalloc
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool GetUsage(Usage& usage);
+
 namespace Profiling {
 
 /// output format for profile dumps

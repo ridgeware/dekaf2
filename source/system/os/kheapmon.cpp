@@ -161,6 +161,30 @@ KString GetStats(bool bAsJSON)
 	return jemalloc::GetStats(bAsJSON);
 }
 
+//---------------------------------------------------------------------------
+bool GetUsage(Usage& usage)
+//---------------------------------------------------------------------------
+{
+	// jemalloc keeps its statistics as a snapshot, which an advance of the epoch renews
+	uint64_t iEpoch { 1 };
+
+	if (!jemalloc::ctlWrite("epoch"          , iEpoch          )
+	 || !jemalloc::ctlRead ("stats.allocated", usage.iAllocated)
+	 || !jemalloc::ctlRead ("stats.active"   , usage.iActive   )
+	 || !jemalloc::ctlRead ("stats.mapped"   , usage.iMapped   ))
+	{
+		return false;
+	}
+
+	// jemalloc has this value since version 4
+	if (!jemalloc::ctlRead("stats.resident", usage.iResident))
+	{
+		usage.iResident = 0;
+	}
+
+	return true;
+}
+
 namespace Profiling {
 
 //---------------------------------------------------------------------------
@@ -503,6 +527,7 @@ bool    IsStandardMalloc()    { return true;      }
 #endif
 int     LastError   ()        { return EPERM;     }
 KString GetStats    (bool)    { return KString{}; }
+bool    GetUsage    (Usage&)  { return false;     }
 
 namespace Profiling {
 

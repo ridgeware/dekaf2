@@ -56,8 +56,12 @@
 //                (the OP login sessions that make SSO work)
 //   * signing  : the RS256 private key is persisted as PEM (--key), so tokens
 //                stay verifiable across restarts.
-// (Authorization codes / refresh tokens are kept in memory - they are
-//  short-lived by design and a restart simply invalidates outstanding ones.)
+//   * grants   : KSSOdGrantStore - the refresh tokens (tables kssod_refresh_*),
+//                as SHA-256 only. A restart must not sign every user out of
+//                every application; --revoke-tokens and --revoke-all-tokens
+//                end them on purpose.
+// (Authorization codes are kept in memory - they live for seconds, and a
+//  restart in the middle of a sign-in only costs one more try.)
 //
 // This file is the OpenID Connect / routing / authentication half of the sample.
 // The HTML rendering lives in kssod_ui.{h,cpp} (built with the html:: KWebObjects
@@ -130,76 +134,6 @@
 using namespace dekaf2;
 
 namespace {
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-//  in-memory grant store (codes + refresh tokens; transient by design)
-class MemoryGrantStore : public KOpenIDServer::GrantStore
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-public:
-	bool SaveCode(const Code& Rec) override
-	{ std::lock_guard<std::mutex> L(m_Mutex); m_Codes[Rec.sCode] = Rec; return true; }
-
-	bool TakeCode(KStringView sCode, Code& Out) override
-	{
-		std::lock_guard<std::mutex> L(m_Mutex);
-		auto it = m_Codes.find(sCode);
-		if (it == m_Codes.end()) return false;
-		Out = it->second; m_Codes.erase(it); return true;
-	}
-	bool SaveRefresh(const Refresh& Rec) override
-	{ std::lock_guard<std::mutex> L(m_Mutex); m_Refresh[Rec.sToken] = Rec; return true; }
-
-	bool TakeRefresh(KStringView sToken, Refresh& Out) override
-	{
-		std::lock_guard<std::mutex> L(m_Mutex);
-		auto it = m_Refresh.find(sToken);
-		if (it == m_Refresh.end()) return false;
-		Out = it->second; m_Refresh.erase(it); return true;
-	}
-	void PurgeExpired(KUnixTime tNow) override
-	{
-		std::lock_guard<std::mutex> L(m_Mutex);
-		for (auto it = m_Codes.begin();    it != m_Codes.end();    ) { it = (tNow >= it->second.tExpiry) ? m_Codes.erase(it)    : std::next(it); }
-		for (auto it = m_Refresh.begin();  it != m_Refresh.end();  ) { it = (tNow >= it->second.tExpiry) ? m_Refresh.erase(it)  : std::next(it); }
-		for (auto it = m_Consumed.begin(); it != m_Consumed.end(); ) { it = (tNow >= it->second.tUntil)  ? m_Consumed.erase(it) : std::next(it); }
-	}
-
-	// reuse detection: rotated tokens leave a tombstone that names their family, so
-	// that a replay can revoke every token of that authorization
-	bool RememberConsumedRefresh(KStringView sToken, KStringView sFamily, KUnixTime tUntil) override
-	{
-		std::lock_guard<std::mutex> L(m_Mutex);
-		m_Consumed[KString(sToken)] = Consumed{ KString(sFamily), tUntil };
-		return true;
-	}
-	bool WasConsumedRefresh(KStringView sToken, KString& sFamilyOut) override
-	{
-		std::lock_guard<std::mutex> L(m_Mutex);
-		auto it = m_Consumed.find(KString(sToken));
-		if (it == m_Consumed.end()) return false;
-		sFamilyOut = it->second.sFamily;
-		return true;
-	}
-	void RevokeRefreshFamily(KStringView sFamily) override
-	{
-		std::lock_guard<std::mutex> L(m_Mutex);
-		for (auto it = m_Refresh.begin(); it != m_Refresh.end(); ) { it = (it->second.sFamily == sFamily) ? m_Refresh.erase(it) : std::next(it); }
-	}
-	void RevokeSubject(KStringView sSubject) override
-	{
-		std::lock_guard<std::mutex> L(m_Mutex);
-		for (auto it = m_Codes.begin();   it != m_Codes.end();   ) { it = (it->second.sSubject == sSubject) ? m_Codes.erase(it)   : std::next(it); }
-		for (auto it = m_Refresh.begin(); it != m_Refresh.end(); ) { it = (it->second.sSubject == sSubject) ? m_Refresh.erase(it) : std::next(it); }
-	}
-private:
-	struct Consumed { KString sFamily; KUnixTime tUntil; };
-
-	std::mutex                  m_Mutex;
-	std::map<KString, Code>     m_Codes;
-	std::map<KString, Refresh>  m_Refresh;
-	std::map<KString, Consumed> m_Consumed;
-};
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// In-memory store of half-finished logins: a user has passed the password step
@@ -786,6 +720,8 @@ int main(int argc, char** argv)
 		KString  sSettingsFile        = Options("settings <file>       : operator settings (JSON) with the mail relay, which the admin UI cannot change (default config.json in the config directory)", "");
 		bool     bDemo                = Options("demo                  : on an empty database, create demo users with known passwords (admin/admin123, alice/alice123) and the demo app - for local tests only", false);
 		KString  sReleaseName         = Options("release <username>    : allow the name of a deleted account for a new account again, then exit - apps that knew the deleted account take the new one for the same user", "");
+		KString  sRevokeTokensOf      = Options("revoke-tokens <username> : end all refresh tokens of the user, then exit - works beside a running kssod; the apps ask for a new sign-in once their access tokens have run out, within minutes", "");
+		bool     bRevokeAllTokens     = Options("revoke-all-tokens     : end all refresh tokens of all users, then exit - what a restart did before the tokens were kept in the database", false);
 
 		if (Options.Terminate())
 		{
@@ -929,6 +865,16 @@ int main(int argc, char** argv)
 			return 0;
 		}
 
+		if (!sRevokeTokensOf.empty() || bRevokeAllTokens)
+		{
+			KSSOdGrantStore Grants(sDB);
+			std::size_t iTokens = bRevokeAllTokens ? Grants.RevokeAllRefreshTokens() : Grants.RevokeRefreshTokensOf(sRevokeTokensOf);
+			KSSOdAuditStore(sDB, sAuditMirror).Write("operator.tokens.revoke", "ok", "", bRevokeAllTokens ? KStringView("*") : KStringView(sRevokeTokensOf),
+			                                         "", "", KJSON{ { "refresh_tokens", iTokens } });
+			KOut.FormatLine(":: ended {} refresh token{}", iTokens, iTokens == 1 ? "" : "s");
+			return 0;
+		}
+
 		// --- persistent RS256 signing key ------------------------------------
 		KRSAKey SigningKey;
 		if (!SigningKey.Load(sKeyFile))
@@ -953,7 +899,10 @@ int main(int argc, char** argv)
 		// --- stores ----------------------------------------------------------
 		auto pUsers    = std::make_shared<KSSOdUserStore>(sDB);
 		auto pClients  = std::make_shared<KSSOdClientStore>(sDB);
-		auto pGrants   = std::make_shared<MemoryGrantStore>();
+		auto pGrants   = std::make_shared<KSSOdGrantStore>(sDB);
+		// what ran out while kssod was down
+		pGrants->PurgeExpired(KUnixTime::now());
+		KOut.FormatLine(":: {} refresh tokens carried over", pGrants->CountRefreshTokens());
 		auto pSettings = std::make_shared<KSSOdSettingsStore>(sDB);
 
 		// --- operator settings -----------------------------------------------

@@ -60,6 +60,7 @@
 #include <dekaf2/io/readwrite/kwriter.h>   // KOutFile: the audit mirror
 #include <dekaf2/time/clock/ktime.h>       // KDuration: audit retention
 #include <functional>
+#include <map>
 #include <mutex>
 #include <vector>
 
@@ -379,6 +380,63 @@ private:
 	std::mutex m_Mutex;
 
 }; // KSSOdClientStore
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The grants of the provider. Refresh tokens are kept in the database, so that
+/// a restart of kssod does not sign every user out of every application: with
+/// the refresh token gone, an application has to send its user through a new
+/// sign-in as soon as the access token runs out, a few minutes later.
+///
+/// Only the SHA-256 of a refresh token is stored. The provider never needs the
+/// token itself, it only has to find the one a client presents - and a copy of
+/// the database (a backup, a stolen file) then holds nothing that can be
+/// redeemed. The same goes for the tombstones of rotated tokens, which make a
+/// replayed token recognizable also after a restart.
+///
+/// Authorization codes stay in memory: they live for seconds, and a restart in
+/// the middle of a sign-in only costs one more try.
+///
+/// Expired rows are removed as new grants come, an hour apart at least.
+class KSSOdGrantStore : public KOpenIDServer::GrantStore
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+public:
+	explicit KSSOdGrantStore(KString sDatabase) : m_sDatabase(std::move(sDatabase)) {}
+
+	// --- KOpenIDServer::GrantStore ---
+	bool SaveCode    (const Code& Rec)                  override;
+	bool TakeCode    (KStringView sCode, Code& Out)     override;
+	bool SaveRefresh (const Refresh& Rec)               override;
+	bool TakeRefresh (KStringView sToken, Refresh& Out) override;
+	void PurgeExpired(KUnixTime tNow)                   override;
+	void RevokeSubject(KStringView sSubject)            override;
+	bool RememberConsumedRefresh(KStringView sToken, KStringView sFamily, KUnixTime tUntil) override;
+	bool WasConsumedRefresh(KStringView sToken, KString& sFamilyOut) override;
+	void RevokeRefreshFamily(KStringView sFamily)       override;
+
+	// --- management ---
+	/// end the refresh tokens of one user. Unlike RevokeSubject() this works on
+	/// the database alone, also from another process than the running server (the
+	/// codes in the server's memory live for seconds only)
+	/// @returns the number of tokens ended
+	std::size_t RevokeRefreshTokensOf(KStringView sSubject);
+	/// end every refresh token - what a restart did, while they were in memory
+	/// @returns the number of tokens ended
+	std::size_t RevokeAllRefreshTokens();
+	/// the number of live refresh tokens
+	std::size_t CountRefreshTokens();
+
+private:
+	/// PurgeExpired(), if the last one is an hour ago. Called with m_Mutex held.
+	void PurgeIfDue(KUnixTime tNow);
+	void PurgeLocked(KUnixTime tNow);
+
+	KString                 m_sDatabase;
+	std::mutex              m_Mutex;
+	std::map<KString, Code> m_Codes;
+	KUnixTime               m_tNextPurge;
+
+}; // KSSOdGrantStore
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A tiny key/value settings store (one shared table) for the settings that the

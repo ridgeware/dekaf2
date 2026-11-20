@@ -212,6 +212,29 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"  primary key (client_id, role)"
 		")",
 
+		// the refresh tokens (see KSSOdGrantStore): only their SHA-256, so that a
+		// copy of this file holds nothing that could be redeemed
+		"create table if not exists kssod_refresh_tokens ("
+		"  token_hash   text    not null primary key,"
+		"  client_id    text    not null,"
+		"  scope        text    not null default '',"
+		"  subject      text    not null,"
+		"  auth_utc     integer not null default 0,"
+		"  expires_utc  integer not null default 0,"
+		"  family       text    not null default '',"
+		"  absolute_utc integer not null default 0"
+		")",
+		"create index if not exists kssod_refresh_tokens_subject on kssod_refresh_tokens(subject)",
+		"create index if not exists kssod_refresh_tokens_family  on kssod_refresh_tokens(family)",
+
+		// rotated refresh tokens: a tombstone until the family would have ended,
+		// so that a replay is recognized and ends the whole family
+		"create table if not exists kssod_refresh_consumed ("
+		"  token_hash text    not null primary key,"
+		"  family     text    not null,"
+		"  until_utc  integer not null default 0"
+		")",
+
 		// the audit trail (see KSSOdAuditStore). ts is ISO 8601 UTC text: it sorts
 		// and compares correctly as a string, which keeps the filters simple.
 		"create table if not exists kssod_audit ("
@@ -1582,6 +1605,256 @@ std::vector<KSSOdUserStore::Assignment> KSSOdUserStore::ListAssignments(KStringV
 	return Out;
 
 } // ListAssignments
+
+// =============================================================================
+// KSSOdGrantStore
+// =============================================================================
+
+namespace {
+
+/// what is stored of a refresh token
+KString RefreshTokenHash(KStringView sToken)
+{
+	return KSHA256(sToken).HexDigest();
+}
+
+/// expired grants are removed this far apart at most
+constexpr KDuration s_PurgeInterval = chrono::hours(1);
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+bool KSSOdGrantStore::SaveCode(const Code& Rec)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	PurgeIfDue(KUnixTime::now());
+	m_Codes[Rec.sCode] = Rec;
+	return true;
+
+} // SaveCode
+
+//-----------------------------------------------------------------------------
+bool KSSOdGrantStore::TakeCode(KStringView sCode, Code& Out)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto it = m_Codes.find(sCode);
+	if (it == m_Codes.end()) return false;
+
+	Out = std::move(it->second);
+	m_Codes.erase(it);
+	return true;
+
+} // TakeCode
+
+//-----------------------------------------------------------------------------
+bool KSSOdGrantStore::SaveRefresh(const Refresh& Rec)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	return static_cast<bool>(db.ExecSQL(
+		"insert or replace into kssod_refresh_tokens (token_hash, client_id, scope, subject, auth_utc, expires_utc, family, absolute_utc) "
+		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+		RefreshTokenHash(Rec.sToken),
+		Rec.sClientID,
+		Rec.sScope,
+		Rec.sSubject,
+		static_cast<int64_t>(Rec.tAuthTime.to_time_t()),
+		static_cast<int64_t>(Rec.tExpiry.to_time_t()),
+		Rec.sFamily,
+		static_cast<int64_t>(Rec.tAbsoluteExpiry.to_time_t())));
+
+} // SaveRefresh
+
+//-----------------------------------------------------------------------------
+bool KSSOdGrantStore::TakeRefresh(KStringView sToken, Refresh& Out)
+//-----------------------------------------------------------------------------
+{
+	if (sToken.empty()) return false;
+
+	KString sHash = RefreshTokenHash(sToken);
+
+	// fetch and remove under the mutex, and in one transaction: a token is
+	// redeemed once, whoever else presents it at the same moment finds nothing
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	auto Txn = db.BeginTransaction();
+
+	{
+		auto Query = Txn.ExecQuery("select client_id, scope, subject, auth_utc, expires_utc, family, absolute_utc "
+		                           "from kssod_refresh_tokens where token_hash=?1", sHash);
+		if (!Query.Next()) return false;
+
+		auto& Row = Query.GetRow();
+		Out.sToken          = sToken;
+		Out.sClientID       = Row.Col(1).String();
+		Out.sScope          = Row.Col(2).String();
+		Out.sSubject        = Row.Col(3).String();
+		Out.tAuthTime       = KUnixTime::from_time_t(Row.Col(4).Int64());
+		Out.tExpiry         = KUnixTime::from_time_t(Row.Col(5).Int64());
+		Out.sFamily         = Row.Col(6).String();
+		Out.tAbsoluteExpiry = KUnixTime::from_time_t(Row.Col(7).Int64());
+	}
+
+	if (Txn.ExecSQL("delete from kssod_refresh_tokens where token_hash=?1", sHash).AffectedRows() != 1) return false;
+
+	return Txn.Commit();
+
+} // TakeRefresh
+
+//-----------------------------------------------------------------------------
+void KSSOdGrantStore::PurgeLocked(KUnixTime tNow)
+//-----------------------------------------------------------------------------
+{
+	for (auto it = m_Codes.begin(); it != m_Codes.end(); )
+	{
+		it = (tNow >= it->second.tExpiry) ? m_Codes.erase(it) : std::next(it);
+	}
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return;
+
+	auto iNow = static_cast<int64_t>(tNow.to_time_t());
+
+	db.ExecSQL("delete from kssod_refresh_tokens   where expires_utc <= ?1", iNow);
+	db.ExecSQL("delete from kssod_refresh_consumed where until_utc   <= ?1", iNow);
+
+	m_tNextPurge = tNow + s_PurgeInterval;
+
+} // PurgeLocked
+
+//-----------------------------------------------------------------------------
+void KSSOdGrantStore::PurgeIfDue(KUnixTime tNow)
+//-----------------------------------------------------------------------------
+{
+	if (tNow >= m_tNextPurge) PurgeLocked(tNow);
+
+} // PurgeIfDue
+
+//-----------------------------------------------------------------------------
+void KSSOdGrantStore::PurgeExpired(KUnixTime tNow)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	PurgeLocked(tNow);
+
+} // PurgeExpired
+
+//-----------------------------------------------------------------------------
+void KSSOdGrantStore::RevokeSubject(KStringView sSubject)
+//-----------------------------------------------------------------------------
+{
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		for (auto it = m_Codes.begin(); it != m_Codes.end(); )
+		{
+			it = (it->second.sSubject == sSubject) ? m_Codes.erase(it) : std::next(it);
+		}
+	}
+
+	RevokeRefreshTokensOf(sSubject);
+
+} // RevokeSubject
+
+//-----------------------------------------------------------------------------
+bool KSSOdGrantStore::RememberConsumedRefresh(KStringView sToken, KStringView sFamily, KUnixTime tUntil)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	return static_cast<bool>(db.ExecSQL(
+		"insert or replace into kssod_refresh_consumed (token_hash, family, until_utc) values (?1, ?2, ?3)",
+		RefreshTokenHash(sToken), sFamily, static_cast<int64_t>(tUntil.to_time_t())));
+
+} // RememberConsumedRefresh
+
+//-----------------------------------------------------------------------------
+bool KSSOdGrantStore::WasConsumedRefresh(KStringView sToken, KString& sFamilyOut)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return false;
+
+	auto Query = db.ExecQuery("select family from kssod_refresh_consumed where token_hash=?1", RefreshTokenHash(sToken));
+	if (!Query.Next()) return false;
+
+	sFamilyOut = Query.GetRow().Col(1).String();
+	return true;
+
+} // WasConsumedRefresh
+
+//-----------------------------------------------------------------------------
+void KSSOdGrantStore::RevokeRefreshFamily(KStringView sFamily)
+//-----------------------------------------------------------------------------
+{
+	// tokens from before the family existed have none - an empty family must not
+	// end them all
+	if (sFamily.empty()) return;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return;
+
+	db.ExecSQL("delete from kssod_refresh_tokens where family=?1", sFamily);
+
+} // RevokeRefreshFamily
+
+//-----------------------------------------------------------------------------
+std::size_t KSSOdGrantStore::RevokeRefreshTokensOf(KStringView sSubject)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return 0;
+
+	return db.ExecSQL("delete from kssod_refresh_tokens where subject=?1", sSubject).AffectedRows();
+
+} // RevokeRefreshTokensOf
+
+//-----------------------------------------------------------------------------
+std::size_t KSSOdGrantStore::RevokeAllRefreshTokens()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return 0;
+
+	return db.ExecSQL("delete from kssod_refresh_tokens").AffectedRows();
+
+} // RevokeAllRefreshTokens
+
+//-----------------------------------------------------------------------------
+std::size_t KSSOdGrantStore::CountRefreshTokens()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return 0;
+
+	return static_cast<std::size_t>(db.SingleIntQuery("select count(*) from kssod_refresh_tokens"));
+
+} // CountRefreshTokens
 
 // =============================================================================
 // KSSOdClientStore

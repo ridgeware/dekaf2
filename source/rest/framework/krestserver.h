@@ -53,6 +53,7 @@
 #include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/http/server/khttplog.h>
 #include <dekaf2/http/websocket/kwebsocket.h>
+#include <dekaf2/http/protocol/kserversentevent.h>
 #include <dekaf2/net/address/kipnetwork.h>
 #include <dekaf2/rest/limits/kratelimiter.h>
 #include <utility>
@@ -652,6 +653,105 @@ public:
 	/// HTTP/1.1, the closed connection for HTTP/1.0 (only if bWriteHeaders is true, too). Without it the response
 	/// announces keep-alive, and the client waits for the end of the body until the connection gets closed.
 	void Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders = true, bool bFrameBody = false);
+	//-----------------------------------------------------------------------------
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Sends the events of an event stream (server-sent events) to the client,
+	/// returned by EventStream(). Every call sends its output at once.
+	class DEKAF2_PUBLIC EventWriter
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		friend class KRESTServer;
+
+	//------
+	public:
+	//------
+
+		//-----------------------------------------------------------------------------
+		/// @param Event the event to send
+		/// @return false if the event could not be sent, see Good()
+		bool Send(const KServerSentEvent& Event);
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// Send a comment line, which clients ignore. Sent in times without events it keeps
+		/// proxies from closing the connection, and its failure tells that the client left.
+		/// @return false if the line could not be sent, see Good()
+		bool KeepAlive();
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// @param Wait the time the client shall wait before it connects again after the
+		/// stream ended
+		/// @return false if the instruction could not be sent, see Good()
+		bool Retry(KDuration Wait);
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// @return false if the client left, if the server shuts down, or if the request is
+		/// a HEAD request, which gets no body. The route should return then.
+		DEKAF2_NODISCARD
+		bool Good() const;
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// @return the id of the last event that the client received before it connected
+		/// again (request header Last-Event-ID), empty at a first connection
+		DEKAF2_NODISCARD
+		const KString& GetLastEventID() const;
+		//-----------------------------------------------------------------------------
+
+	//------
+	private:
+	//------
+
+		//-----------------------------------------------------------------------------
+		EventWriter(KRESTServer& Server)
+		//-----------------------------------------------------------------------------
+		: m_Server(Server)
+		{
+		}
+
+		//-----------------------------------------------------------------------------
+		/// write to the response and flush it
+		DEKAF2_PRIVATE
+		bool Write(KStringView sOut);
+		//-----------------------------------------------------------------------------
+
+		KRESTServer& m_Server;
+
+	}; // EventWriter
+
+	//-----------------------------------------------------------------------------
+	/// Answer the request with an event stream (server-sent events, media type text/event-stream):
+	/// writes the response headers, and leaves the response open for the events. The route sends
+	/// them with the returned writer for as long as it runs, and occupies its worker thread for
+	/// that time. The stream ends when the route returns.
+	///
+	/// @code
+	/// Routes.AddRoute("/events").Get([](KRESTServer& HTTP)
+	/// {
+	///     auto Events = HTTP.EventStream();
+	///
+	///     while (Events.Good())
+	///     {
+	///         KServerSentEvent Event;
+	///
+	///         if (WaitForNews(Event, chrono::seconds(15)))
+	///         {
+	///             Events.Send(Event);
+	///         }
+	///         else
+	///         {
+	///             Events.KeepAlive();
+	///         }
+	///     }
+	/// });
+	/// @endcode
+	/// @param bAllowCompression compress the stream if the client accepts a compression that can be
+	/// flushed after every event
+	/// @return the writer for the events
+	EventWriter EventStream(bool bAllowCompression = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

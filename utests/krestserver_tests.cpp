@@ -2726,3 +2726,344 @@ TEST_CASE("KRESTServer: framing of a streamed response")
 		}
 	}
 }
+
+TEST_CASE("KRESTServer: event stream")
+{
+	// A route sends events with the writer of EventStream(). The first event has to reach
+	// the client while the route runs: the route continues only when the client has it.
+	std::atomic<bool> bClientHasFirst { false };
+	std::atomic<bool> bWaitedInVain   { false };
+	std::atomic<bool> bAllSent        { false };
+	std::atomic<bool> bGoodAtStart    { false };
+	std::atomic<bool> bWriterEnded    { false };
+	std::atomic<bool> bRouteEnded     { false };
+
+	auto SendEvents = [&](KRESTServer::EventWriter Events, bool bWithRetry)
+	{
+		bool bSent { true };
+
+		if (bWithRetry)
+		{
+			bSent = Events.Retry(chrono::seconds(3));
+		}
+
+		bSent = Events.Send({ kFormat("last id <{}>", Events.GetLastEventID()), "start", "1" }) && bSent;
+
+		for (std::size_t i = 0; i < 500 && !bClientHasFirst; ++i)
+		{
+			kSleep(chrono::milliseconds(10));
+		}
+
+		bWaitedInVain = !bClientHasFirst;
+
+		// an event without content sends nothing, and does not end the body
+		bSent = Events.Send(KServerSentEvent{}) && bSent;
+		bSent = Events.KeepAlive() && bSent;
+		bSent = Events.Send({ "two\nlines", "", "2" }) && bSent;
+
+		bAllSent = bSent;
+	};
+
+	KRESTRoutes Routes;
+
+	Routes.AddRoute("/events").Get([&](KRESTServer& HTTP)
+	{
+		SendEvents(HTTP.EventStream(), true);
+	});
+
+	Routes.AddRoute("/compressed").Get([&](KRESTServer& HTTP)
+	{
+		SendEvents(HTTP.EventStream(true), false);
+	});
+
+	// sends until the writer tells to end, for ten seconds at most
+	Routes.AddRoute("/endless").Get([&](KRESTServer& HTTP)
+	{
+		auto Events = HTTP.EventStream();
+
+		bGoodAtStart = Events.Good();
+
+		for (std::size_t i = 0; i < 1000 && Events.Good(); ++i)
+		{
+			Events.KeepAlive();
+			kSleep(chrono::milliseconds(10));
+		}
+
+		bWriterEnded = !Events.Good();
+		bRouteEnded  = true;
+	});
+
+	Routes.AddRoute("/json").Get([](KRESTServer& HTTP)
+	{
+		HTTP.json.tx["hello"] = "world";
+	});
+
+	KREST::Options Options;
+
+	Options.Type                 = KREST::HTTP;
+	Options.iPort                = 0;
+	Options.sBindAddress         = "127.0.0.1";
+	Options.Timeout              = chrono::seconds(2);
+	Options.bBlocking            = false;
+	Options.bCreateEphemeralCert = false;
+
+	auto Server = std::make_unique<KREST>();
+	REQUIRE ( Server->Execute(Options, Routes) );
+
+	auto sEndPoint = kFormat("127.0.0.1:{}", Server->GetPort());
+
+	// reads the header of a response, with one LF after each line
+	auto ReadHeader = [](KTCPStream& Stream) -> KString
+	{
+		KString sHeader;
+		KString sLine;
+
+		while (Stream.ReadLine(sLine) && !sLine.empty())
+		{
+			sHeader += sLine;
+			sHeader += '\n';
+		}
+
+		return sHeader;
+	};
+
+	// appends the next chunk of a chunked body to sBody, returns false after the last chunk
+	auto ReadChunk = [](KTCPStream& Stream, KString& sBody) -> bool
+	{
+		KString sLine;
+
+		if (!Stream.ReadLine(sLine))
+		{
+			return false;
+		}
+
+		auto iSize = sLine.UInt64(true);
+
+		if (!iSize || Stream.Read(sBody, iSize) != iSize)
+		{
+			// the empty line after the last chunk
+			Stream.ReadLine(sLine);
+			return false;
+		}
+
+		// the line break after the chunk
+		Stream.ReadLine(sLine);
+
+		return true;
+	};
+
+	auto WaitForRouteEnd = [&]()
+	{
+		for (std::size_t i = 0; i < 1500 && !bRouteEnded; ++i)
+		{
+			kSleep(chrono::milliseconds(10));
+		}
+	};
+
+	auto CheckEvents = [](const std::vector<KServerSentEvent>& Events, KStringView sLastEventID)
+	{
+		REQUIRE ( Events.size() == 2 );
+		CHECK ( Events[0].sData  == kFormat("last id <{}>", sLastEventID) );
+		CHECK ( Events[0].sEvent == "start" );
+		CHECK ( Events[0].sID    == "1" );
+		CHECK ( Events[1].sData  == "two\nlines" );
+		CHECK ( Events[1].sEvent == "" );
+		CHECK ( Events[1].sID    == "2" );
+	};
+
+	KStringView sLastRequest { "GET /json HTTP/1.1\r\nHost: a\r\nConnection: close\r\n\r\n" };
+
+	SECTION("the events arrive while the route runs, and the next request gets its response")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write(kFormat("GET /events HTTP/1.1\r\nHost: a\r\nLast-Event-ID: 41\r\n\r\n{}", sLastRequest)).Flush();
+
+		auto sHeader = ReadHeader(Stream);
+
+		INFO  ( sHeader );
+		CHECK ( sHeader.starts_with("HTTP/1.1 200 ") );
+		CHECK ( sHeader.contains("content-type: text/event-stream\n") );
+		CHECK ( sHeader.contains("cache-control: no-cache\n") );
+		CHECK ( sHeader.contains("transfer-encoding: chunked\n") );
+		CHECK ( sHeader.contains("connection: keep-alive\n") );
+		CHECK_FALSE ( sHeader.contains("content-encoding") );
+
+		KServerSentEventParser        Parser;
+		KServerSentEvent              Event;
+		std::vector<KServerSentEvent> Events;
+
+		for (bool bMore = true; bMore;)
+		{
+			KString sBody;
+			bMore = ReadChunk(Stream, sBody);
+			Parser.Add(sBody);
+
+			while (Parser.Next(Event))
+			{
+				Events.push_back(Event);
+				bClientHasFirst = true;
+			}
+		}
+
+		CHECK_FALSE ( bWaitedInVain );
+		CHECK ( bAllSent );
+		CheckEvents(Events, "41");
+		CHECK ( Parser.HasRetry() );
+		CHECK ( Parser.GetRetry() == chrono::seconds(3) );
+		CHECK ( Parser.GetLastEventID() == "2" );
+
+		KString sRest;
+		Stream.ReadRemaining(sRest);
+
+		CHECK ( sRest.starts_with("HTTP/1.1 200 ") );
+		CHECK ( sRest.contains("\"hello\"") );
+	}
+
+	SECTION("a compressed stream is flushed after each event")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write("GET /compressed HTTP/1.1\r\nHost: a\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n").Flush();
+
+		auto sHeader = ReadHeader(Stream);
+
+		INFO  ( sHeader );
+		CHECK ( sHeader.contains("content-type: text/event-stream\n") );
+		CHECK ( sHeader.contains("content-encoding: gzip\n") );
+		CHECK ( sHeader.contains("transfer-encoding: chunked\n") );
+
+		KString sCompressed;
+
+		while (ReadChunk(Stream, sCompressed))
+		{
+			// the header of the gzip format has 10 bytes, what follows is the first event
+			if (sCompressed.size() > 10)
+			{
+				bClientHasFirst = true;
+			}
+		}
+
+		CHECK_FALSE ( bWaitedInVain );
+		CHECK ( bAllSent );
+
+		KString     sBody;
+		KUnCompress UnCompress(sCompressed, KUnCompressIStream::GZIP);
+		UnCompress.ReadRemaining(sBody);
+
+		KServerSentEventParser        Parser;
+		KServerSentEvent              Event;
+		std::vector<KServerSentEvent> Events;
+
+		Parser.Add(sBody);
+
+		while (Parser.Next(Event))
+		{
+			Events.push_back(Event);
+		}
+
+		CheckEvents(Events, "");
+	}
+
+	SECTION("a compression that cannot be flushed is not used")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write("GET /compressed HTTP/1.1\r\nHost: a\r\nAccept-Encoding: bzip2\r\nConnection: close\r\n\r\n").Flush();
+
+		auto sHeader = ReadHeader(Stream);
+
+		INFO  ( sHeader );
+		CHECK ( sHeader.contains("content-type: text/event-stream\n") );
+		CHECK_FALSE ( sHeader.contains("content-encoding") );
+
+		KServerSentEventParser        Parser;
+		KServerSentEvent              Event;
+		std::vector<KServerSentEvent> Events;
+
+		for (bool bMore = true; bMore;)
+		{
+			KString sBody;
+			bMore = ReadChunk(Stream, sBody);
+			Parser.Add(sBody);
+
+			while (Parser.Next(Event))
+			{
+				Events.push_back(Event);
+				bClientHasFirst = true;
+			}
+		}
+
+		CHECK_FALSE ( bWaitedInVain );
+		CHECK ( bAllSent );
+		CheckEvents(Events, "");
+	}
+
+	SECTION("the writer tells when the client left")
+	{
+		{
+			KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+			REQUIRE ( Stream.is_open() );
+
+			Stream.Write("GET /endless HTTP/1.1\r\nHost: a\r\n\r\n").Flush();
+
+			auto sHeader = ReadHeader(Stream);
+			CHECK ( sHeader.contains("content-type: text/event-stream\n") );
+
+			KString sBody;
+			CHECK ( ReadChunk(Stream, sBody) );
+			CHECK ( sBody.starts_with(":\n") );
+		}
+
+		WaitForRouteEnd();
+
+		CHECK ( bRouteEnded  );
+		CHECK ( bGoodAtStart );
+		CHECK ( bWriterEnded );
+	}
+
+	SECTION("the writer tells when the server stops")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write("GET /endless HTTP/1.1\r\nHost: a\r\n\r\n").Flush();
+
+		auto sHeader = ReadHeader(Stream);
+		CHECK ( sHeader.contains("content-type: text/event-stream\n") );
+
+		KString sBody;
+		CHECK ( ReadChunk(Stream, sBody) );
+		CHECK_FALSE ( bRouteEnded );
+
+		// the destructor stops the server
+		Server.reset();
+		WaitForRouteEnd();
+
+		CHECK ( bRouteEnded  );
+		CHECK ( bGoodAtStart );
+		CHECK ( bWriterEnded );
+	}
+
+	SECTION("a HEAD request gets the headers, and the writer is not good")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write(kFormat("HEAD /endless HTTP/1.1\r\nHost: a\r\n\r\n{}", sLastRequest)).Flush();
+
+		KString sResponse;
+		Stream.ReadRemaining(sResponse);
+
+		INFO  ( sResponse );
+		CHECK ( bRouteEnded );
+		CHECK_FALSE ( bGoodAtStart );
+		CHECK ( sResponse.contains("content-type: text/event-stream\r\n") );
+		// no body, the second response follows the headers of the first
+		CHECK ( sResponse.contains("\r\n\r\nHTTP/1.1 200 ") );
+		CHECK ( sResponse.contains("\"hello\"") );
+	}
+}

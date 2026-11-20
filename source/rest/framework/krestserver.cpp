@@ -1670,6 +1670,104 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders, b
 } // Stream
 
 //-----------------------------------------------------------------------------
+KRESTServer::EventWriter KRESTServer::EventStream(bool bAllowCompression)
+//-----------------------------------------------------------------------------
+{
+	Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::EVENT_STREAM);
+
+	if (Response.Headers.Get(KHTTPHeader::CACHE_CONTROL).empty())
+	{
+		// events are no content that a cache could answer with
+		Response.Headers.Set(KHTTPHeader::CACHE_CONTROL, "no-cache");
+	}
+
+	if (bAllowCompression &&
+	    KHTTPCompression::GetBestCompressor(Request.AcceptedCompressors(true)) == KHTTPCompression::BZIP2)
+	{
+		// bzip2 cannot be flushed, the events would only arrive with the end of the stream
+		bAllowCompression = false;
+	}
+
+	// the framed body tells the client where the stream ends, and keeps the connection
+	Stream(bAllowCompression, true, true);
+
+	return EventWriter(*this);
+
+} // EventStream
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::EventWriter::Good() const
+//-----------------------------------------------------------------------------
+{
+	return !m_Server.IsDisconnected()
+	    && !m_Server.m_bLostConnection
+	    &&  m_Server.Request.Method != KHTTPMethod::HEAD
+	    && !(m_Server.m_StopCheck && m_Server.m_StopCheck());
+
+} // EventWriter::Good
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::EventWriter::Write(KStringView sOut)
+//-----------------------------------------------------------------------------
+{
+	if (!Good())
+	{
+		return false;
+	}
+
+	if (sOut.empty())
+	{
+		// an event without content, or a negative time to wait
+		return true;
+	}
+
+	auto& Response = m_Server.Response;
+
+	// the filter chain buffers, a lost connection only shows after the flush
+	if (Response.Write(sOut) != sOut.size() || !Response.Flush() || !Response.UnfilteredStream().Good())
+	{
+		kDebug(2, "write error, connection lost");
+		m_Server.m_bLostConnection = true;
+		return false;
+	}
+
+	return true;
+
+} // EventWriter::Write
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::EventWriter::Send(const KServerSentEvent& Event)
+//-----------------------------------------------------------------------------
+{
+	return Write(Event.Serialize());
+
+} // EventWriter::Send
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::EventWriter::KeepAlive()
+//-----------------------------------------------------------------------------
+{
+	return Write(KServerSentEvent::Comment());
+
+} // EventWriter::KeepAlive
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::EventWriter::Retry(KDuration Wait)
+//-----------------------------------------------------------------------------
+{
+	return Write(KServerSentEvent::Retry(Wait));
+
+} // EventWriter::Retry
+
+//-----------------------------------------------------------------------------
+const KString& KRESTServer::EventWriter::GetLastEventID() const
+//-----------------------------------------------------------------------------
+{
+	return m_Server.Request.Headers.Get(KHTTPHeader::LAST_EVENT_ID);
+
+} // EventWriter::GetLastEventID
+
+//-----------------------------------------------------------------------------
 void KRESTServer::Output()
 //-----------------------------------------------------------------------------
 {

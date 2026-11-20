@@ -283,6 +283,17 @@ void SendPage(KRESTServer& HTTP, html::Page& Page, uint16_t iStatus = 200)
 	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
 	HTTP.SetRawOutput(Page.Serialize());
 }
+/// the name of the service while the operator gave it none
+constexpr KStringView s_sProgramName = "kssod";
+
+//-----------------------------------------------------------------------------
+KString& ServiceNameRef()
+//-----------------------------------------------------------------------------
+{
+	static KString s_sServiceName { s_sProgramName };
+	return s_sServiceName;
+}
+
 //-----------------------------------------------------------------------------
 /// open a page: head meta + stylesheet + nav bar; returns the <main> content node
 KHTMLNode BeginPage(html::Page& Page, KStringView sUser, bool bAdmin, bool bWide = false)
@@ -294,7 +305,7 @@ KHTMLNode BeginPage(html::Page& Page, KStringView sUser, bool bAdmin, bool bWide
 	Page.Head().Add<html::Script>(THEME_JS);
 
 	auto Nav = Page.Body().Add<html::Element>("nav", html::Classes{"nav"});
-	Nav.Add<html::Link>("/", "kssod").SetClass(html::Classes{"brand"});
+	Nav.Add<html::Link>("/", ServiceName()).SetClass(html::Classes{"brand"});
 	if (sUser.empty())
 	{
 		Nav.Add<html::Link>("/login", "Sign in");
@@ -415,14 +426,31 @@ void BackLink(KHTMLNode Body, KStringView sURL = "/admin", KStringView sLabel = 
 // -- pages -------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+void SetServiceName(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	if (!sName.empty())
+	{
+		ServiceNameRef() = sName;
+	}
+}
+
+//-----------------------------------------------------------------------------
+const KString& ServiceName()
+//-----------------------------------------------------------------------------
+{
+	return ServiceNameRef();
+}
+
+//-----------------------------------------------------------------------------
 /// public landing for anonymous visitors (signed-in users are routed to their
 /// home by the "/" handler, so this only ever renders the sign-in entry point)
 void RenderLanding(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
-	html::Page Page("kssod", "en");
+	html::Page Page(ServiceName(), "en");
 	auto Body = BeginPage(Page, /*sUser=*/{}, /*bAdmin=*/false);
-	auto Card = Body.Add<html::ui::Card>("kssod");
+	auto Card = Body.Add<html::ui::Card>(ServiceName());
 	auto CB   = Card.Body();
 	CB.Add<html::Paragraph>().AddText("A minimal OpenID Connect provider with SQLite-backed users, clients and sessions.");
 	CB.Add<html::Link>("/login", "Sign in");
@@ -430,7 +458,8 @@ void RenderLanding(KRESTServer& HTTP)
 }
 
 //-----------------------------------------------------------------------------
-void RenderLogin(KRESTServer& HTTP, KStringView sError, bool bShowRecovery, uint16_t iStatus, bool bPasskeyFirst)
+void RenderLogin(KRESTServer& HTTP, KStringView sError, bool bShowRecovery, uint16_t iStatus, bool bPasskeyFirst,
+                 KStringView sClientID)
 //-----------------------------------------------------------------------------
 {
 	// with an error to show, the form has to be in sight
@@ -439,10 +468,27 @@ void RenderLogin(KRESTServer& HTTP, KStringView sError, bool bShowRecovery, uint
 		bPasskeyFirst = false;
 	}
 
-	html::Page Page("Sign in", "en");
+	// say where the user signs in, once the service has a name of its own
+	KString sTitle = "Sign in";
+
+	if (ServiceName() != s_sProgramName)
+	{
+		sTitle += kFormat(" to {}", ServiceName());
+	}
+
+	html::Page Page(sTitle, "en");
 	auto Body = BeginPage(Page, /*sUser=*/{}, /*bAdmin=*/false);
-	auto Card = Body.Add<html::ui::Card>("Sign in");
+	auto Card = Body.Add<html::ui::Card>(sTitle);
 	auto CB   = Card.Body();
+
+	if (!sClientID.empty())
+	{
+		// and what for: the application that sent the user here
+		auto App = CB.Add<html::Paragraph>(html::Classes{"help"});
+		App.AddText("to continue to ");
+		App.Add<html::Strong>(sClientID);
+	}
+
 	Msg(CB, sError, true);
 
 	// a passkey signs in without a user name and a password (see PASSKEY_JS). Its
@@ -1066,7 +1112,8 @@ void Render2FASetup(KRESTServer& HTTP, KStringView sUser, bool bAdmin,
 	    "Point your phone's camera at this code - or scan it from your authenticator "
 	    "app (Google Authenticator, Authy, 1Password, ...):");
 	// inline SVG QR of the otpauth:// URI - no external service, no image file
-	KString sURI = KTOTP(KString(sSecret)).URI("kssod", sUser);
+	// the authenticator app files the secret under the name of the service
+	KString sURI = KTOTP(KString(sSecret)).URI(ServiceName(), sUser);
 	KQRCode  QR(sURI, KQRCode::ECC::Medium);
 	if (!QR.empty())
 	{

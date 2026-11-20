@@ -90,11 +90,19 @@ struct AccountState
 };
 
 // --- end-user pages ---
+/// The name of this sign-in service, as its pages, its mails, the authenticator
+/// apps and the passkeys show it (see --name). Without one it is the name of the
+/// program. Set it once at the start, before the first request.
+void           SetServiceName(KStringView sName);
+const KString& ServiceName   ();
+
 void RenderLanding   (KRESTServer& HTTP);
 /// @param bPasskeyFirst the last sign-in in this browser was with a passkey: ask
 /// for the passkey at once, and fold the form for user name and password
+/// @param sClientID the application that sent the user here and waits for the
+/// sign-in, as registered - empty for a sign-in at this service itself
 void RenderLogin     (KRESTServer& HTTP, KStringView sError, bool bShowRecovery = false, uint16_t iStatus = 200,
-                      bool bPasskeyFirst = false);
+                      bool bPasskeyFirst = false, KStringView sClientID = {});
 void RenderTwoFactor (KRESTServer& HTTP, KStringView sPending, KStringView sMethod,
                       KStringView sMsg, bool bError, uint16_t iStatus = 200);
 void RenderAccount   (KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSON& Claims,

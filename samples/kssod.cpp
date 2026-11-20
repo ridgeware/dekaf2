@@ -788,6 +788,7 @@ int main(int argc, char** argv)
 		bool     bNoTLS               = Options("notls                 : serve plain HTTP instead of TLS — also disables Secure cookies; for local testing only", false);
 		KString  sIssuer              = Options("issuer <url>          : public issuer base URL (default http(s)://localhost:<port>)",
 		                                        kFormat("{}://localhost:{}", !bNoTLS ? "https" : "http", Settings.iPort));
+		KString  sName                = Options("name <text>           : the name of this sign-in service, as its pages, its mails, the authenticator apps and the passkeys show it (default kssod) - choose it before the first users set up an authenticator app or a passkey, those keep the name they were set up with", "");
 		KString  sDB                  = Options("db <path>             : SQLite database file", kFormat("{}/kssod.sqlite", sConfigDir));
 		KString  sKeyFile             = Options("signkey <path>        : RS256 token signing key (PEM); generated if missing", kFormat("{}/kssod.key", sConfigDir));
 		KString  sSpoolDir            = Options("spool <dir>           : mail spool directory - undeliverable mail waits here and survives restarts", kFormat("{}/spool", sConfigDir));
@@ -827,6 +828,9 @@ int main(int argc, char** argv)
 		{
 			return 0;
 		}
+
+		sName.Trim();
+		SetServiceName(sName);
 
 		// --- operator action without the database ----------------------------
 		if (!sSecretCreate.empty())
@@ -1442,7 +1446,7 @@ int main(int argc, char** argv)
 				if (sDisplayName.empty()) sDisplayName = sTarget;
 
 				KString sErr;
-				if (!SendMail(pSettings->GetSmtp(), sEmail, "Your kssod account",
+				if (!SendMail(pSettings->GetSmtp(), sEmail, kFormat("Your {} account", ServiceName()),
 				              kFormat("Hello {},\r\n\r\nan administrator created the account {} for you at {}.\r\n"
 				                      "To choose your password, open this link within 7 days:\r\n{}"
 				                      "\r\n\r\nIf you did not expect this mail, you can ignore it.",
@@ -1505,7 +1509,7 @@ int main(int argc, char** argv)
 			KStringView sDisplayName = kjson::GetStringRef(Claims, "name");
 			if (sDisplayName.empty()) sDisplayName = sTarget;
 
-			return SendMail(pSettings->GetSmtp(), pUsers->GetEmail(sTarget), "Remove your kssod authenticator app",
+			return SendMail(pSettings->GetSmtp(), pUsers->GetEmail(sTarget), kFormat("Remove your {} authenticator app", ServiceName()),
 			                kFormat("Hello {},\r\n\r\nto remove the authenticator app from your account {}, open this "
 			                        "link and confirm with your password:\r\n{}/totp-reset?token={}\r\n\r\n"
 			                        "The link is valid for one hour. If you did not ask for this, ignore this "
@@ -1529,7 +1533,7 @@ int main(int argc, char** argv)
 		// one origin. Browsers offer passkeys on https and on http://localhost only.
 		KWebAuthn::Config PasskeyConfig;
 		PasskeyConfig.sRelyingPartyID   = KURL(sIssuer).Domain.get().ToLower();
-		PasskeyConfig.sRelyingPartyName = "kssod";
+		PasskeyConfig.sRelyingPartyName = ServiceName();
 		PasskeyConfig.Origins           = { OriginOf(sIssuer) };
 
 		// passkey ceremonies in progress
@@ -1611,14 +1615,22 @@ int main(int argc, char** argv)
 			RenderLanding(HTTP);
 		});
 
+		// the login page. It names the application that sent the user here and waits
+		// for the sign-in: the client of the parked authorize request, which is one
+		// of the registered clients.
+		auto ShowLogin = [&Server, &pSettings](KRESTServer& HTTP, KStringView sError,
+		                                       uint16_t iStatus = KHTTPError::H2xx_OK, bool bPasskeyFirst = false)
+		{
+			RenderLogin(HTTP, sError, pSettings->SmtpConfigured(), iStatus, bPasskeyFirst, Server.PendingClientID(HTTP));
+		};
+
 		Routes.AddRoute("/login").Get(
-			[&pSession, &pSettings, &Server, &Redirect](KRESTServer& HTTP)
+			[&pSession, &Server, &Redirect, &ShowLogin](KRESTServer& HTTP)
 		{
 			// a signed-in user only gets the form when an authorize request is parked
 			// for re-authentication (prompt=login, max_age, a force-login client)
 			if (!CurrentUser(HTTP, *pSession).empty() && Server.PendingClientID(HTTP).empty()) Redirect(HTTP, "/");
-			RenderLogin(HTTP, "", pSettings->SmtpConfigured(), KHTTPError::H2xx_OK,
-			            /*bPasskeyFirst=*/!HTTP.GetCookie(s_sPasskeyCookie).empty());
+			ShowLogin(HTTP, "", KHTTPError::H2xx_OK, /*bPasskeyFirst=*/!HTTP.GetCookie(s_sPasskeyCookie).empty());
 		});
 
 		// note in the browser whether its last sign-in was with a passkey (see
@@ -1644,14 +1656,14 @@ int main(int argc, char** argv)
 			KString sCode  = KTOTP::GenerateNumericCode(6);
 			KString sToken = Pending2FA.BeginEmail(sUser, KTOTP::HashCode(sCode));
 			KString sErr;
-			SendMail(pSettings->GetSmtp(), pUsers->GetEmail(sUser), "Your kssod sign-in code",
+			SendMail(pSettings->GetSmtp(), pUsers->GetEmail(sUser), kFormat("Your {} sign-in code", ServiceName()),
 			         kFormat("Your sign-in code is {}\r\n\r\nIt expires in 5 minutes. "
 			                 "If you did not try to sign in, you can ignore this email.", sCode), sErr);
 			return sToken;
 		};
 
 		Routes.AddRoute("/login").Post(
-			[&Server, &pUsers, &pSettings, &Pending2FA, &BeginEmailOtp, &LoginThrottle, &Log, &RememberPasskey](KRESTServer& HTTP)
+			[&Server, &pUsers, &pSettings, &Pending2FA, &BeginEmailOtp, &LoginThrottle, &Log, &RememberPasskey, &ShowLogin](KRESTServer& HTTP)
 		{
 			const auto& Q = HTTP.GetQueryParms();
 			KString sUser = Q["username"];
@@ -1660,8 +1672,7 @@ int main(int argc, char** argv)
 			if (!LoginThrottle.Allowed(sUser) || !LoginThrottle.Allowed(sIP))
 			{
 				Log(HTTP, "auth.password", "throttled", "", sUser);
-				RenderLogin(HTTP, "Too many failed sign-in attempts. Please wait a few minutes and try again.",
-				            pSettings->SmtpConfigured(), KHTTPError::H4xx_TOOMANYREQUESTS);
+				ShowLogin(HTTP, "Too many failed sign-in attempts. Please wait a few minutes and try again.", KHTTPError::H4xx_TOOMANYREQUESTS);
 				return;
 			}
 
@@ -1671,8 +1682,7 @@ int main(int argc, char** argv)
 				LoginThrottle.Failure(sIP);
 				// the user sees one message for both cases, the log tells them apart
 				Log(HTTP, "auth.password", pUsers->Exists(sUser) ? "wrong" : "unknown_user", "", sUser);
-				RenderLogin(HTTP, "Invalid username or password.", pSettings->SmtpConfigured(),
-				            KHTTPError::H4xx_NOTAUTH);
+				ShowLogin(HTTP, "Invalid username or password.", KHTTPError::H4xx_NOTAUTH);
 				return;
 			}
 
@@ -1697,7 +1707,7 @@ int main(int argc, char** argv)
 					Log(HTTP, "auth.2fa", "unavailable", "", sUser, {{ "method", "email" }});
 					RenderLogin(HTTP, "Your account signs in with a code by email, and email is not available "
 					                  "right now. Please try again later or contact your administrator.",
-					            false, KHTTPError::H5xx_UNAVAILABLE);
+					            false, KHTTPError::H5xx_UNAVAILABLE, false, Server.PendingClientID(HTTP));
 					return;
 				}
 				Log(HTTP, "auth.password", "ok", "", sUser, {{ "next", "email" }});
@@ -1710,7 +1720,7 @@ int main(int argc, char** argv)
 		}).Parse(KRESTRoute::WWWFORM);
 
 		Routes.AddRoute("/login/2fa").Post(
-			[&Server, &pUsers, &pSettings, &Pending2FA, &Log](KRESTServer& HTTP)
+			[&Server, &pUsers, &Pending2FA, &Log, &ShowLogin](KRESTServer& HTTP)
 		{
 			const auto& Q        = HTTP.GetQueryParms();
 			KStringView sPending = Q["pending"];
@@ -1719,8 +1729,7 @@ int main(int argc, char** argv)
 			{
 				// the pending token expired or is unknown - send them back to step one
 				Log(HTTP, "auth.2fa", "expired", "", "");
-				RenderLogin(HTTP, "Your sign-in timed out. Please sign in again.",
-				            pSettings->SmtpConfigured(), KHTTPError::H4xx_NOTAUTH);
+				ShowLogin(HTTP, "Your sign-in timed out. Please sign in again.", KHTTPError::H4xx_NOTAUTH);
 				return;
 			}
 
@@ -1735,8 +1744,7 @@ int main(int argc, char** argv)
 				{
 					// too many wrong codes - the pending login is gone, back to step one
 					Log(HTTP, "auth.2fa", "too_many", "", P.sUsername, {{ "method", P.sMethod }});
-					RenderLogin(HTTP, "Too many wrong codes. Please sign in again.",
-					            pSettings->SmtpConfigured(), KHTTPError::H4xx_NOTAUTH);
+					ShowLogin(HTTP, "Too many wrong codes. Please sign in again.", KHTTPError::H4xx_NOTAUTH);
 					return;
 				}
 				Log(HTTP, "auth.2fa", "wrong", "", P.sUsername, {{ "method", P.sMethod }});
@@ -1829,13 +1837,12 @@ int main(int argc, char** argv)
 		// the user's mailbox, confirmed with the password (see /totp-reset), or the
 		// administrator has to help
 		Routes.AddRoute("/login/2fa/lost").Post(
-			[&Log, &pUsers, &pSettings, &Pending2FA, &NoMailReason, &MailTotpReset, TotpResetHold](KRESTServer& HTTP)
+			[&Log, &pUsers, &Pending2FA, &NoMailReason, &MailTotpReset, TotpResetHold, &ShowLogin](KRESTServer& HTTP)
 		{
 			auto P = Pending2FA.Peek(HTTP.GetQueryParms()["pending"]);
 			if (!P.bValid || P.sMethod != "totp")
 			{
-				RenderLogin(HTTP, "Your sign-in timed out. Please sign in again.",
-				            pSettings->SmtpConfigured(), KHTTPError::H4xx_NOTAUTH);
+				ShowLogin(HTTP, "Your sign-in timed out. Please sign in again.", KHTTPError::H4xx_NOTAUTH);
 				return;
 			}
 
@@ -1843,8 +1850,8 @@ int main(int argc, char** argv)
 			{
 				Log(HTTP, "account.2fa.totp", "lost_no_mail", "", P.sUsername);
 				RenderInfo(HTTP, "Ask your administrator",
-				           "kssod cannot mail you, so your administrator has to remove two-step verification for you. "
-				           "Afterwards you sign in with your password and can set it up again.",
+				           kFormat("{} cannot mail you, so your administrator has to remove two-step verification for you. "
+				                   "Afterwards you sign in with your password and can set it up again.", ServiceName()),
 				           "/login", "Back to sign in");
 				return;
 			}
@@ -2007,15 +2014,14 @@ int main(int argc, char** argv)
 
 		// resend the email sign-in code (email method only)
 		Routes.AddRoute("/login/2fa/resend").Post(
-			[&pUsers, &pSettings, &Pending2FA](KRESTServer& HTTP)
+			[&pUsers, &pSettings, &Pending2FA, &ShowLogin](KRESTServer& HTTP)
 		{
 			const auto& Q        = HTTP.GetQueryParms();
 			KStringView sPending = Q["pending"];
 			auto        P        = Pending2FA.Peek(sPending);
 			if (!P.bValid || P.sMethod != "email")
 			{
-				RenderLogin(HTTP, "Your sign-in timed out. Please sign in again.",
-				            pSettings->SmtpConfigured(), KHTTPError::H4xx_NOTAUTH);
+				ShowLogin(HTTP, "Your sign-in timed out. Please sign in again.", KHTTPError::H4xx_NOTAUTH);
 				return;
 			}
 			// mint a new code on the EXISTING pending token (so the same form works on) -
@@ -2028,7 +2034,7 @@ int main(int argc, char** argv)
 				return;
 			}
 			KString sErr;
-			SendMail(pSettings->GetSmtp(), pUsers->GetEmail(P.sUsername), "Your kssod sign-in code",
+			SendMail(pSettings->GetSmtp(), pUsers->GetEmail(P.sUsername), kFormat("Your {} sign-in code", ServiceName()),
 			         kFormat("Your sign-in code is {}\r\n\r\nIt expires in 5 minutes.", sCode), sErr);
 			RenderTwoFactor(HTTP, sPending, "email", "A new code is on its way.", false);
 		}).Parse(KRESTRoute::WWWFORM);
@@ -2202,7 +2208,7 @@ int main(int argc, char** argv)
 			KString sToken = pUsers->CreateEmailToken(sUser, "verify", sEmail); // payload: the address being confirmed
 			Log(HTTP, "account.email.verify_sent", "ok", sUser, sUser, {{ "email", sEmail }});
 			KString sErr;
-			SendMail(pSettings->GetSmtp(), sEmail, "Confirm your kssod email",
+			SendMail(pSettings->GetSmtp(), sEmail, kFormat("Confirm your {} email", ServiceName()),
 			         kFormat("Hello {},\r\n\r\nplease confirm this address by opening:\r\n{}/verify-email?token={}"
 			                 "\r\n\r\nThe link is valid for 24 hours.", sUser, sIssuer, sToken), sErr);
 
@@ -2267,7 +2273,7 @@ int main(int argc, char** argv)
 			// token carries the target address so /verify-email can tell a pending-change
 			// confirmation apart from a plain "verify my current address" link.
 			KString sVerify = pUsers->CreateEmailToken(sUser, "verify", sNewEmail);
-			SendMail(pSettings->GetSmtp(), sNewEmail, "Confirm your new kssod email",
+			SendMail(pSettings->GetSmtp(), sNewEmail, kFormat("Confirm your new {} email", ServiceName()),
 			         kFormat("Hello {},\r\n\r\nconfirm this as your new address by opening:\r\n{}/verify-email?token={}"
 			                 "\r\n\r\nUntil you do, your account keeps its current address. The link is valid for 24 hours.",
 			                 sUser, sIssuer, sVerify), sErr);
@@ -2277,7 +2283,7 @@ int main(int argc, char** argv)
 			if (!sOldEmail.empty())
 			{
 				KString sRevert = pUsers->CreateEmailToken(sUser, "revert", sOldEmail);
-				SendMail(pSettings->GetSmtp(), sOldEmail, "Your kssod email is being changed",
+				SendMail(pSettings->GetSmtp(), sOldEmail, kFormat("Your {} email is being changed", ServiceName()),
 				         kFormat("Hello {},\r\n\r\na change of your address to {} was requested. If this was you, "
 				                 "confirm via the link sent to the new address.\r\n\r\nIf this was NOT you, cancel it and "
 				                 "secure your account here:\r\n{}/undo-email-change?token={}\r\n\r\nThis link is valid for 7 days.",
@@ -2509,7 +2515,7 @@ int main(int argc, char** argv)
 					Log(HTTP, "auth.recovery", "sent", "", sUser, {{ "email", sEmail }});
 					KString sToken = pUsers->CreateEmailToken(sUser, "recovery");
 					KString sErr;
-					SendMail(pSettings->GetSmtp(), sEmail, "Reset your kssod password",
+					SendMail(pSettings->GetSmtp(), sEmail, kFormat("Reset your {} password", ServiceName()),
 					         kFormat("Hello {},\r\n\r\nto choose a new password, open:\r\n{}/reset?token={}"
 					                 "\r\n\r\nThe link is valid for one hour. If you did not request this, "
 					                 "you can ignore this email.", sUser, sIssuer, sToken), sErr);
@@ -2932,8 +2938,8 @@ int main(int argc, char** argv)
 			auto    Smtp = pSettings->GetSmtp();
 			KString sTo  = HTTP.GetQueryParms()["to"];
 			KString sErr;
-			bool    bOK  = SendMailNow(Smtp, sTo, "kssod test email",
-			                        "This is a test message from kssod. If you can read it, outgoing mail works.", sErr);
+			bool    bOK  = SendMailNow(Smtp, sTo, kFormat("{} test email", ServiceName()),
+			                        kFormat("This is a test message from {}. If you can read it, outgoing mail works.", ServiceName()), sErr);
 			Log(HTTP, "admin.settings.test_mail", bOK ? "ok" : "failed", sUser, sTo, bOK ? KJSON::object() : KJSON{{ "error", sErr }});
 
 			RenderSettings(HTTP, sUser, Smtp, sSettingsFile, pSettings->LoadAlerts(),
@@ -3187,11 +3193,11 @@ int main(int argc, char** argv)
 				KString sEmail = pUsers->GetEmail(sTarget);
 				KString sToken = pUsers->CreateEmailToken(sTarget, "recovery");
 				KString sErr;
-				if (sToken.empty() || !SendMail(pSettings->GetSmtp(), sEmail, "Reset your kssod password",
-				        kFormat("Hello {},\r\n\r\nan administrator asked kssod to send you a link to choose a new "
+				if (sToken.empty() || !SendMail(pSettings->GetSmtp(), sEmail, kFormat("Reset your {} password", ServiceName()),
+				        kFormat("Hello {},\r\n\r\nan administrator asked {} to send you a link to choose a new "
 				                "password:\r\n{}/reset?token={}\r\n\r\nThe link is valid for one hour. If you did "
 				                "not ask for it, you can ignore this email, and your password stays as it is.",
-				                sTarget, sIssuer, sToken), sErr))
+				                sTarget, ServiceName(), sIssuer, sToken), sErr))
 				{
 					Log(HTTP, "admin.user.reset_link", "failed", sUser, sTarget, {{ "error", sErr }});
 					RenderUsers(HTTP, sUser, *pUsers, kFormat("Could not send the reset link to {}: {}", sEmail, sErr),
@@ -3308,7 +3314,7 @@ int main(int argc, char** argv)
 				KString   sErr;
 
 				if (sToken.empty() || !pUsers->ScheduleEmail(sTarget, sEmail, sUser, tWhen)
-				    || !SendMail(pSettings->GetSmtp(), sOld, "Your kssod email address is about to change",
+				    || !SendMail(pSettings->GetSmtp(), sOld, kFormat("Your {} email address is about to change", ServiceName()),
 				                 kFormat("Hello {},\r\n\r\nan administrator {} of your account {} on {}. From then "
 				                         "on, password recovery mails go to the new address.\r\n\r\nIf you did not "
 				                         "ask for this, cancel it here before then, and talk to your administrators:"
@@ -3358,7 +3364,7 @@ int main(int argc, char** argv)
 				if (pSettings->SmtpConfigured() && !sOld.empty())
 				{
 					KString sErr;
-					SendMail(pSettings->GetSmtp(), sOld, "Your kssod email was changed",
+					SendMail(pSettings->GetSmtp(), sOld, kFormat("Your {} email was changed", ServiceName()),
 					         kFormat("Hello {},\r\n\r\nan administrator changed your account's email address to {}. "
 					                 "If you did not expect this, contact your administrator.", sTarget, sEmail), sErr);
 				}

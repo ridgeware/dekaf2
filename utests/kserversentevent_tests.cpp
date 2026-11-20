@@ -362,6 +362,121 @@ TEST_CASE("KServerSentEventParser")
 		CHECK ( Event.sID    == ""  );
 	}
 
+	SECTION("a line may have the permitted length")
+	{
+		// "data: " and 10 bytes, with each of the line breaks
+		for (KStringView sBreak : { "\n", "\r", "\r\n" })
+		{
+			KServerSentEventParser Parser(16);
+			KServerSentEvent       Event;
+
+			Parser.Add(kFormat("data: 0123456789{}{}", sBreak, sBreak));
+			REQUIRE ( Parser.Next(Event) );
+			CHECK ( Event.sData == "0123456789" );
+			CHECK_FALSE ( Parser.HasError() );
+		}
+	}
+
+	SECTION("a longer line fails the stream")
+	{
+		KServerSentEventParser Parser(16);
+		KServerSentEvent       Event;
+
+		Parser.Add("data: first\n\ndata: 0123456789A\n\ndata: not seen\n\n");
+		REQUIRE ( Parser.Next(Event) );
+		CHECK ( Event.sData == "first" );
+		CHECK_FALSE ( Parser.HasError() );
+
+		CHECK_FALSE ( Parser.Next(Event) );
+		CHECK ( Parser.HasError() );
+		CHECK ( Parser.GetLastError() == "line of the event stream is longer than 16 bytes" );
+
+		// further input is dropped
+		Parser.Add("data: also not seen\n\n");
+		CHECK_FALSE ( Parser.Next(Event) );
+		CHECK ( Parser.HasError() );
+
+		// until the parser starts with a new stream
+		Parser.clear();
+		CHECK_FALSE ( Parser.HasError() );
+		Parser.Add("data: again\n\n");
+		REQUIRE ( Parser.Next(Event) );
+		CHECK ( Event.sData == "again" );
+	}
+
+	SECTION("a line without end fails when it exceeds the permitted length")
+	{
+		KServerSentEventParser Parser(16);
+		KServerSentEvent       Event;
+
+		// 16 bytes may still become a line
+		Parser.Add("data: 0123");
+		CHECK_FALSE ( Parser.Next(Event) );
+		Parser.Add("456789");
+		CHECK_FALSE ( Parser.Next(Event) );
+		CHECK_FALSE ( Parser.HasError() );
+
+		Parser.Add("A");
+		CHECK_FALSE ( Parser.Next(Event) );
+		CHECK ( Parser.HasError() );
+	}
+
+	SECTION("a line in pieces is found when its end arrives")
+	{
+		KServerSentEventParser Parser(16);
+		KServerSentEvent       Event;
+
+		for (KStringView sPiece : { "da", "ta: ", "012", "3456", "789" })
+		{
+			Parser.Add(sPiece);
+			CHECK_FALSE ( Parser.Next(Event) );
+		}
+
+		Parser.Add("\n\ndata: next\n\n");
+		REQUIRE ( Parser.Next(Event) );
+		CHECK ( Event.sData == "0123456789" );
+		REQUIRE ( Parser.Next(Event) );
+		CHECK ( Event.sData == "next" );
+		CHECK_FALSE ( Parser.HasError() );
+	}
+
+	SECTION("the default length, and no limit")
+	{
+		// a line that is longer than the default by the name of its field
+		KString sLong(KServerSentEventParser::DefaultMaxLineLength, 'x');
+
+		sLong.insert(0, "data:");
+
+		auto iLineLength = sLong.size();
+
+		sLong += "\n\n";
+
+		KServerSentEvent Event;
+
+		{
+			KServerSentEventParser Parser;
+			Parser.Add(sLong);
+			CHECK_FALSE ( Parser.Next(Event) );
+			CHECK ( Parser.HasError() );
+		}
+
+		{
+			KServerSentEventParser Parser(iLineLength);
+			Parser.Add(sLong);
+			CHECK ( Parser.Next(Event) );
+			CHECK_FALSE ( Parser.HasError() );
+			CHECK ( Event.sData.size() == KServerSentEventParser::DefaultMaxLineLength );
+		}
+
+		{
+			KServerSentEventParser Parser(npos);
+			Parser.Add(sLong);
+			CHECK ( Parser.Next(Event) );
+			CHECK_FALSE ( Parser.HasError() );
+			CHECK ( Event.sData.size() == KServerSentEventParser::DefaultMaxLineLength );
+		}
+	}
+
 	SECTION("the parser reads what Serialize() writes")
 	{
 		std::vector<KServerSentEvent> Sent

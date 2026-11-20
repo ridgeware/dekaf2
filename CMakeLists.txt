@@ -1895,6 +1895,7 @@ set(PUBLIC_HEADERS
 	source/http/server/khttppath.h
 	source/http/server/khttprouter.h
 	source/http/server/khttpserver.h
+	source/http/server/kserversenteventserver.h
 	source/http/websocket/kwebsocket.h
 	source/http/websocket/kwebsocketclient.h
 	source/io/compression/kcompression.h
@@ -2196,6 +2197,7 @@ set (SOURCES
 	source/http/server/khttppath.cpp
 	source/http/server/khttprouter.cpp
 	source/http/server/khttpserver.cpp
+	source/http/server/kserversenteventserver.cpp
 	source/http/websocket/kwebsocket.cpp
 	source/http/websocket/kwebsocketclient.cpp
 	source/io/compression/kcompression.cpp

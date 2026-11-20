@@ -150,6 +150,7 @@ set (USOURCES
 	krsakey_tests.cpp
 	krsasign_tests.cpp
 	kserversentevent_tests.cpp
+	kserversenteventserver_tests.cpp
 	ksharedmemory_tests.cpp
 	ksession_tests.cpp
 	ksessioncachingstore_tests.cpp

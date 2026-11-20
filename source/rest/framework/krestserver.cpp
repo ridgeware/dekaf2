@@ -1696,6 +1696,86 @@ KRESTServer::EventWriter KRESTServer::EventStream(bool bAllowCompression)
 } // EventStream
 
 //-----------------------------------------------------------------------------
+KServerSentEventServer& KRESTServer::GetEventServer()
+//-----------------------------------------------------------------------------
+{
+	if (!m_EventServer)
+	{
+		throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "no event server in this output mode" };
+	}
+
+	return *m_EventServer;
+
+} // GetEventServer
+
+//-----------------------------------------------------------------------------
+KServerSentEventServer::Handle KRESTServer::SubscribeToEvents(KStringView sTopic)
+//-----------------------------------------------------------------------------
+{
+	auto& EventServer = GetEventServer();
+
+	if (!m_iEventHandle)
+	{
+		Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::EVENT_STREAM);
+
+		if (Response.Headers.Get(KHTTPHeader::CACHE_CONTROL).empty())
+		{
+			// events are no content that a cache could answer with
+			Response.Headers.Set(KHTTPHeader::CACHE_CONTROL, "no-cache");
+		}
+
+		if (Request.Method == KHTTPMethod::HEAD)
+		{
+			// the headers only, the connection stays with the worker
+			Stream(false);
+			return 0;
+		}
+
+		// the body ends with the connection, which does not return to the worker
+		Response.Headers.Set(KHTTPHeader::CONNECTION, "close");
+
+		Stream(false);
+
+		// the client shall see the start of the stream now, also if the route fails later
+		Response.Flush();
+
+		m_iEventHandle = EventServer.Reserve();
+	}
+
+	if (!sTopic.empty())
+	{
+		EventServer.Subscribe(m_iEventHandle, sTopic);
+	}
+
+	return m_iEventHandle;
+
+} // SubscribeToEvents
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::MoveToEventServer(std::unique_ptr<KIOStreamSocket>& Stream)
+//-----------------------------------------------------------------------------
+{
+	if (!m_iEventHandle)
+	{
+		return false;
+	}
+
+	auto iHandle = m_iEventHandle;
+
+	m_iEventHandle = 0;
+
+	if (IsDisconnected() || m_bLostConnection)
+	{
+		// the client left while the route ran
+		m_EventServer->Remove(iHandle);
+		return false;
+	}
+
+	return m_EventServer->Attach(iHandle, Stream);
+
+} // MoveToEventServer
+
+//-----------------------------------------------------------------------------
 bool KRESTServer::EventWriter::Good() const
 //-----------------------------------------------------------------------------
 {
@@ -2165,6 +2245,13 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 {
 	// avoid switching to the websocket protocol on a failed connection
 	m_bSwitchToWebSocket = false;
+
+	if (m_iEventHandle)
+	{
+		// a route that failed gives no connection to the event server
+		m_EventServer->Remove(m_iEventHandle);
+		m_iEventHandle = 0;
+	}
 
 	if (IsDisconnected())
 	{

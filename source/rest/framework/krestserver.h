@@ -54,6 +54,7 @@
 #include <dekaf2/http/server/khttplog.h>
 #include <dekaf2/http/websocket/kwebsocket.h>
 #include <dekaf2/http/protocol/kserversentevent.h>
+#include <dekaf2/http/server/kserversenteventserver.h>
 #include <dekaf2/net/address/kipnetwork.h>
 #include <dekaf2/rest/limits/kratelimiter.h>
 #include <utility>
@@ -755,6 +756,51 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Answer the request with an event stream (server-sent events) that the event server of KREST
+	/// sends: writes the response headers, and after the route returned the connection leaves the
+	/// worker thread and stays with the event server. The connection is known there by the returned
+	/// handle, and takes events into its queue from the return of this method on. The route should
+	/// return after this call; if it fails, the connection is closed. Throws without event server.
+	///
+	/// @code
+	/// Routes.AddRoute("/events/:TOPIC").Get([](KRESTServer& HTTP)
+	/// {
+	///     HTTP.SubscribeToEvents(HTTP.GetQueryParm(":TOPIC"));
+	/// });
+	///
+	/// // from any thread, with the KREST object that runs the server
+	/// Rest.GetEventServer().Publish("news", { sText, "headline" });
+	/// @endcode
+	/// @param sTopic a topic to subscribe the connection to, empty for none
+	/// @return the handle of the connection at the event server, 0 for a HEAD request, which gets
+	/// the headers only
+	/// @see KServerSentEventServer
+	KServerSentEventServer::Handle SubscribeToEvents(KStringView sTopic = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// @return the event server of the KREST object that runs this connection. Throws without
+	/// event server, which only the HTTP server of KREST has.
+	KServerSentEventServer& GetEventServer();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// set the event server - this is typically called by the method that builds a KRESTServer object
+	void SetEventServer(KServerSentEventServer& EventServer)
+	//-----------------------------------------------------------------------------
+	{
+		m_EventServer = &EventServer;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Give the stream of the connection to the event server, if the route subscribed to events -
+	/// this is typically called after Execute() by the method that built the KRESTServer object
+	/// @param Stream the stream of the connection
+	/// @return true if the event server took the stream
+	bool MoveToEventServer(std::unique_ptr<KIOStreamSocket>& Stream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// sets a callback that is called (once) after generating the response for the current request, directly before the
 	/// general logging.
 	/// @param PostResponseCallback called after generating the response for the current request, also in error cases
@@ -1046,40 +1092,42 @@ private:
 
 	static const KRESTRoute s_EmptyRoute;
 
-	const KRESTRoutes& m_Routes;         // the KRESTRoutes object used for routing
-	const struct Options& m_Options;     // the current set of Options
+	const KRESTRoutes&               m_Routes;                          // the KRESTRoutes object used for routing
+	const struct Options&            m_Options;                         // the current set of Options
 
-	KString     m_sRequestBody;
-	KString     m_sMessage;
-	KString     m_sRawOutput;
-	std::unique_ptr<KInStream> m_Stream; // stream that shall be sent
-	std::size_t m_iTXBytes;              // size of sent headers and content, after compression
-	std::size_t m_iContentLength;        // content length for stream output (before compression)
-	std::size_t m_iRequestHeaderLength;  // size of received query and headers
-	std::size_t m_iRequestBodyLength;    // size of received request body
-	KJWT        m_AuthToken;
-	KTempDir    m_TempDir;               // create a KTempDir object
-	std::unique_ptr<KJSON> m_JsonLogger;
-	std::unique_ptr<KStopDurations> m_Timers;
-	KStopTime   m_MetricsTimer { KStopTime::Halted }; // the start of the request for the metrics, used when m_Timers is not set
+	KString                          m_sRequestBody;
+	KString                          m_sMessage;
+	KString                          m_sRawOutput;
+	std::unique_ptr<KInStream>       m_Stream;                          // stream that shall be sent
+	std::size_t                      m_iTXBytes;                        // size of sent headers and content, after compression
+	std::size_t                      m_iContentLength;                  // content length for stream output (before compression)
+	std::size_t                      m_iRequestHeaderLength;            // size of received query and headers
+	std::size_t                      m_iRequestBodyLength;              // size of received request body
+	KJWT                             m_AuthToken;
+	KTempDir                         m_TempDir;                         // create a KTempDir object
+	std::unique_ptr<KJSON>           m_JsonLogger;
+	std::unique_ptr<KStopDurations>  m_Timers;
+	KStopTime   m_MetricsTimer { KStopTime::Halted };                   // the start of the request for the metrics, used when m_Timers is not set
 	std::unique_ptr<std::map<KStringView, KStringView>> m_RequestCookies;
-	std::function<void(const KRESTServer&)> m_PostResponseCallback; // if set, gets called after response generation
-	std::function<void(KWebSocket&)> m_WebSocketHandlerCallback; // filled by route handler during upgrade to websocket protocol, will be called every time a frame is received, or the connection is lost
+	std::function<void(const KRESTServer&)> m_PostResponseCallback;     // if set, gets called after response generation
+	std::function<void(KWebSocket&)> m_WebSocketHandlerCallback;        // filled by route handler during upgrade to websocket protocol, will be called every time a frame is received, or the connection is lost
 	std::function<void(KWebSocket&)> m_WebSocketConnectHandlerCallback; // optional, called once after the connection has been registered with the websocket server
 	std::function<void(std::size_t)> m_WebSocketCloseHandlerCallback;   // optional, called once when the connection is removed from the websocket server
 	KWebSocketPMCE::Parameters       m_WebSocketPMCEParams;             // permessage-deflate parameters negotiated during the upgrade (bEnabled false if not negotiated)
-	KIOStreamSocket*  m_StreamSocket     { nullptr };            // the underlying KIOStreamSocket, if existing
-	std::function<bool()> m_StopCheck;                           // polled while waiting for the next request, true = close the connection (server shutdown)
-	const KRESTRoute* m_pLastLoggedRoute { nullptr };            // remembers the last route written to access log within this connection; used by NO_REPEAT_LOG to suppress subsequent identical entries in keepalive
-	uint16_t    m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds
-	bool        m_bMetricsStarted { false }; // whether this request is counted as started in the metrics
-	bool        m_bMetricsTimed   { false }; // whether m_MetricsTimer holds the start of this request
-	bool        m_bKeepAlive;            // whether connection will be kept alive
-	bool        m_bLostConnection;       // whether we lost our peer during flight
-	bool        m_bIsStreaming;          // true if we switched to streaming output
-	bool        m_bResponseCompression;  // per-response compression gate; reset in clear()
-	bool        m_bSwitchToWebSocket;    // true if we will switch to the websocket protocol
-	bool        m_bKeepWebSocketThread;  // true if we will handle the websocket in the running thread, and not in a common socket server
+	KIOStreamSocket*                 m_StreamSocket     { nullptr };    // the underlying KIOStreamSocket, if existing
+	KServerSentEventServer*          m_EventServer      { nullptr };    // the event server of the server that runs this connection, if existing
+	KServerSentEventServer::Handle   m_iEventHandle     { 0 };          // set if the route subscribed to events: the connection moves to the event server
+	std::function<bool()>            m_StopCheck;                       // polled while waiting for the next request, true = close the connection (server shutdown)
+	const KRESTRoute*                m_pLastLoggedRoute { nullptr };    // remembers the last route written to access log within this connection; used by NO_REPEAT_LOG to suppress subsequent identical entries in keepalive
+	uint16_t                         m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds
+	bool                             m_bMetricsStarted  { false };      // whether this request is counted as started in the metrics
+	bool                             m_bMetricsTimed    { false };      // whether m_MetricsTimer holds the start of this request
+	bool                             m_bKeepAlive;                      // whether connection will be kept alive
+	bool                             m_bLostConnection;                 // whether we lost our peer during flight
+	bool                             m_bIsStreaming;                    // true if we switched to streaming output
+	bool                             m_bResponseCompression;            // per-response compression gate; reset in clear()
+	bool                             m_bSwitchToWebSocket;              // true if we will switch to the websocket protocol
+	bool                             m_bKeepWebSocketThread;            // true if we will handle the websocket in the running thread, and not in a common socket server
 
 	int m_iJSONPrint {
 #ifdef NDEBUG

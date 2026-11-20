@@ -106,6 +106,9 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 	// the full read timeout, and Stop() (systemctl stop) hangs that long
 	RESTServer.SetStopCheck([this]() { return KTCPServer::IsShuttingDown(); });
 
+	// routes may give their connection to the event server
+	RESTServer.SetEventServer(m_EventServer);
+
 	// keep a local copy of the socket for KSocketWatch
 	auto nativeSocket = Stream->GetNativeSocket();
 
@@ -208,6 +211,12 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 			kDebug(1, "route handler for '{}' did not set a websocket handler - connection upgrade aborted",
 				   RESTServer.Route->sRoute);
 		}
+	}
+	else if (RESTServer.MoveToEventServer(Stream))
+	{
+		// the route subscribed to events - the event server sends them from now
+		// on, and this thread returns into the pool
+		kDebug(2, "moved the connection to the event server for '{}'", RESTServer.Route->sRoute);
 	}
 
 } // Session
@@ -356,6 +365,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 																 Routes,
 																 *m_SocketWatch,
 																 *m_WebSocketServer,
+																 m_EventServer,
 																 iPort,
 																 bUseTLS,
 																 Options.iMaxConnections,
@@ -452,6 +462,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 																 Routes,
 																 *m_SocketWatch,
 																 *m_WebSocketServer,
+																 m_EventServer,
 																 Options.sSocketFile,
 																 Options.iMaxConnections,
 																 Options.Growth,

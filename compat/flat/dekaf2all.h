@@ -146,6 +146,7 @@
 #include <dekaf2/http/server/khttppath.h>
 #include <dekaf2/http/server/khttprouter.h>
 #include <dekaf2/http/server/khttpserver.h>
+#include <dekaf2/http/server/kserversenteventserver.h>
 #include <dekaf2/io/pipes/kinpipe.h>
 #include <dekaf2/system/process/kinshell.h>
 #include <dekaf2/io/streams/kinstringstream.h>

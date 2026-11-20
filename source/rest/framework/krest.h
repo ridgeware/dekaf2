@@ -244,6 +244,10 @@ public:
 	/// returns true if no error
 	DEKAF2_NODISCARD
 	bool Good() const;
+	/// returns the event server. It sends events (server-sent events) to the connections of the routes that
+	/// called KRESTServer::SubscribeToEvents(). Set its options before Execute().
+	DEKAF2_NODISCARD
+	KServerSentEventServer& GetEventServer() { return m_EventServer; }
 	/// get diagnostics when running with a TCP server
 	DEKAF2_NODISCARD
 	KThreadPool::Diagnostics GetDiagnostics() const;
@@ -292,6 +296,7 @@ private:
 				   const KRESTRoutes& Routes,
 				   KSocketWatch& SocketWatch,
 				   KWebSocketServer& WebSocketServer,
+				   KServerSentEventServer& EventServer,
 				   Args&&... args)
 		//-----------------------------------------------------------------------------
 			: KTCPServer        (std::forward<Args>(args)...)
@@ -299,6 +304,7 @@ private:
 			, m_Routes          (Routes)
 			, m_SocketWatch     (SocketWatch)
 			, m_WebSocketServer (WebSocketServer)
+			, m_EventServer     (EventServer)
 		{
 		}
 
@@ -310,22 +316,24 @@ private:
 	protected:
 	//----------
 
-		const KREST::Options& m_Options;
-		const KRESTRoutes&    m_Routes;
-		KSocketWatch&         m_SocketWatch;
-		KWebSocketServer&     m_WebSocketServer;
+		const KREST::Options&   m_Options;
+		const KRESTRoutes&      m_Routes;
+		KSocketWatch&           m_SocketWatch;
+		KWebSocketServer&       m_WebSocketServer;
+		KServerSentEventServer& m_EventServer;
 
 	}; // RESTServer
 
 	/// add the thread pool of the server to the metrics of the options, if they are set
 	void AddThreadPoolMetrics(const Options& Options);
 
-	std::unique_ptr<RESTServer>   m_Server;
-	std::shared_ptr<KRESTMetrics> m_Metrics;        // set while the thread pool of the server is in the metrics
-	KString                       m_sMetricsPool;   // its name there
-	KThreadPool::ShutdownCallback m_ShutdownCallback;
-	std::unique_ptr<KSocketWatch> m_SocketWatch;
+	std::unique_ptr<RESTServer>       m_Server;
+	std::shared_ptr<KRESTMetrics>     m_Metrics;        // set while the thread pool of the server is in the metrics
+	KString                           m_sMetricsPool;   // its name there
+	KThreadPool::ShutdownCallback     m_ShutdownCallback;
+	std::unique_ptr<KSocketWatch>     m_SocketWatch;
 	std::unique_ptr<KWebSocketServer> m_WebSocketServer;
+	KServerSentEventServer            m_EventServer;
 
 }; // KREST
 

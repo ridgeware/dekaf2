@@ -203,9 +203,14 @@ bool KOpenIDClient::EnsureDiscovery()
 } // EnsureDiscovery
 
 //-----------------------------------------------------------------------------
-KJSON KOpenIDClient::TokenRequest(KJSON jParams)
+KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected)
 //-----------------------------------------------------------------------------
 {
+	// until the provider has refused the request itself, a failure is one that
+	// may pass: no discovery, no connection, a gateway in front of a restarting
+	// provider
+	if (pbRejected) *pbRejected = false;
+
 	if (!EnsureDiscovery())
 	{
 		return {};
@@ -240,6 +245,14 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams)
 		return {};
 	}
 
+	if (Client.GetStatusCode() >= 500)
+	{
+		// the provider, or a gateway in front of it, is in trouble - whatever the
+		// body says, it is no answer to this request
+		kDebug(1, "token endpoint returned status {}", Client.GetStatusCode());
+		return {};
+	}
+
 	KJSON jResponse = kjson::Parse(sResponse);
 	if (!jResponse.is_object())
 	{
@@ -249,9 +262,26 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams)
 
 	if (kjson::Exists(jResponse, "error"))
 	{
-		kDebug(1, "token error={}, description={}",
-			kjson::GetStringRef(jResponse, "error"),
-			kjson::GetStringRef(jResponse, "error_description"));
+		const KString& sError = kjson::GetStringRef(jResponse, "error");
+
+		kDebug(1, "token error={}, description={}", sError, kjson::GetStringRef(jResponse, "error_description"));
+
+		// RFC 6749 5.2: the errors of the token endpoint are refusals (invalid_grant,
+		// invalid_client, ..), sent with 400 or 401. A 5xx, or one of the two errors
+		// that name a failure of the server, is not about this request
+		if (pbRejected)
+		{
+			*pbRejected = sError != "server_error"
+			           && sError != "temporarily_unavailable";
+		}
+		return {};
+	}
+
+	if (Client.HttpFailure())
+	{
+		// refused without an OAuth error object
+		kDebug(1, "token endpoint returned status {}", Client.GetStatusCode());
+		if (pbRejected) *pbRejected = true;
 		return {};
 	}
 
@@ -809,16 +839,41 @@ bool KOpenIDClient::RenewTokens(KRESTServer& HTTP, KStringView sToken, KSession:
 		return true;
 	}
 
+	{
+		// the provider did not answer a moment ago: do not make every request of
+		// every session wait for its timeout again
+		std::lock_guard<std::mutex> Lock(m_RenewalMutex);
+		if (KUnixTime::now() < m_tRenewalRetry)
+		{
+			return false;
+		}
+	}
+
 	KString sRefreshToken = kjson::GetStringRef(jTokens, "refresh_token");
+
+	// without a refresh_token there is nothing to renew with: sign in again
+	bool bRejected = sRefreshToken.empty();
 
 	KJSON jNew = sRefreshToken.empty() ? KJSON{} : TokenRequest({
 		{ "grant_type"   , "refresh_token" },
 		{ "refresh_token", sRefreshToken   }
-	});
+	}, &bRejected);
 
 	KString sNewAccess = kjson::GetStringRef(jNew, "access_token");
 	if (sNewAccess.empty())
 	{
+		if (!bRejected && !jNew.is_object())
+		{
+			// The provider did not answer - it restarts, or the network is away for
+			// a moment. The session and its refresh_token are still good: keep them,
+			// this request stays unauthorized, and a later one tries again. Clearing
+			// the session here would sign the user out for a hiccup.
+			kDebug(1, "access token expired and the provider did not answer the refresh, keeping session for user:{}", Record.sUsername);
+			std::lock_guard<std::mutex> Lock(m_RenewalMutex);
+			m_tRenewalRetry = KUnixTime::now() + m_Config.RenewalRetry;
+			return false;
+		}
+
 		kDebug(1, "access token expired and refresh failed, clearing session for user:{}", Record.sUsername);
 		m_pSession->Logout(Record.sToken);
 		ExpireSessionCookie(HTTP);
@@ -907,7 +962,14 @@ void KOpenIDClient::Logout(KRESTServer& HTTP)
 		return;
 	}
 
+	// OIDC RP-Initiated Logout 1.0, 2.: the id_token_hint tells the provider whose
+	// session ends and for which client. It is only at hand while the session here
+	// still lives - after the provider lost our refresh token (it restarted, the
+	// authorization ran out) the session is gone, and the user must still be able
+	// to sign out. So the client_id goes along always: without either, the provider
+	// cannot tell whose post_logout_redirect_uri this is, and has to refuse it.
 	KURL URL(m_sEndSessionEndpoint);
+	URL.Query->Set("client_id",                m_Config.sClientID);
 	URL.Query->Set("post_logout_redirect_uri", m_Config.sPostLogoutURI);
 	if (!sIDToken.empty())
 	{

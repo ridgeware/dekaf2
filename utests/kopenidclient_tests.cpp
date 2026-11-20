@@ -127,6 +127,7 @@ struct MockIdP
 	int     iRefreshExpiresIn { 3600 };  ///< "expires_in" of a renewal
 	bool    bRotateRefresh    { false }; ///< issue new tokens on every renewal, and accept a refresh_token once
 	KDuration RefreshDelay;              ///< time the token endpoint takes for a renewal
+	int     iRefreshStatus    { 0 };     ///< answer renewals with this HTTP status instead: 503 as a provider in trouble, 400 with invalid_grant
 	std::atomic<int> iRefreshes { 0 };   ///< count of renewals
 	std::mutex       UsedMutex;          ///< guards UsedRefreshTokens
 	std::set<KString> UsedRefreshTokens; ///< refresh tokens presented so far, with bRotateRefresh
@@ -360,6 +361,22 @@ TEST_CASE("KOpenIDClient")
 		if (bRefresh)
 		{
 			auto iRefresh = ++Mock.iRefreshes;
+
+			if (Mock.iRefreshStatus >= 500)
+			{
+				// the provider restarts, a gateway answers for it
+				http.SetStatus(Mock.iRefreshStatus);
+				http.json.tx = { { "message", "upstream not available" } };
+				return;
+			}
+
+			if (Mock.iRefreshStatus >= 400)
+			{
+				// RFC 6749 5.2: the refresh_token is refused
+				http.SetStatus(Mock.iRefreshStatus);
+				http.json.tx = { { "error", "invalid_grant" }, { "error_description", "unknown refresh_token" } };
+				return;
+			}
 
 			if (Mock.bRotateRefresh)
 			{
@@ -601,6 +618,126 @@ TEST_CASE("KOpenIDClient")
 		// first protected request triggers a refresh_token exchange -> access-2
 		KString sProtected = Drive(AppRoutes2, "GET", "/protected", Cookies.Header());
 		CHECK ( sProtected.contains("alice|access-2") );
+	}
+
+	SECTION("logout names the client, also without a session")
+	{
+		// after the session here is gone (the provider lost our refresh token, say)
+		// there is no id_token_hint - the provider then knows the client, and with
+		// it the registered post_logout_redirect_uri, by the client_id alone
+		KString sLogout = Drive(AppRoutes, "GET", "/auth/logout", "");
+		CHECK ( sLogout.contains("302") );
+		// the Location header of the redirect
+		CHECK ( sLogout.contains("/logout?client_id=test-client&") );
+		CHECK ( sLogout.contains("post_logout_redirect_uri=") );
+		CHECK_FALSE ( sLogout.contains("id_token_hint=") );
+	}
+
+	SECTION("a provider that does not answer a renewal keeps the session")
+	{
+		KOpenIDClient::Config cfg3 = cfg;
+		cfg3.ExpiryLeeway        = chrono::hours(2);   // every request is due for renewal
+		cfg3.RenewalRetry        = KDuration::zero();
+		cfg3.sSessionCookieName  = "session3";
+
+		KString sDB3 = kGenerateTempPath(".sqlite");
+		KOpenIDClient OIDC3(cfg3, sDB3);
+		KRESTRoutes AppRoutes3 = BuildAppRoutes(OIDC3);
+
+		CookieJar Cookies;
+
+		KString sLogin = Drive(AppRoutes3, "GET", "/auth/login", Cookies.Header());
+		Cookies.Apply(sLogin);
+		Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+		KString sState = URLParam(ResponseBody(sLogin), "state");
+
+		KString sCallback = Drive(AppRoutes3, "GET",
+			kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+		Cookies.Apply(sCallback);
+		REQUIRE ( Cookies.Has("session3") );
+
+		// the provider restarts: this request is not authorized, but the session stays
+		Mock.iRefreshStatus = 503;
+		KString sDown = Drive(AppRoutes3, "GET", "/protected", Cookies.Header());
+		Cookies.Apply(sDown);
+		CHECK ( sDown.contains("ANON") );
+		CHECK ( Cookies.Has("session3") );
+
+		// it is back: the same session renews
+		Mock.iRefreshStatus = 0;
+		KString sUp = Drive(AppRoutes3, "GET", "/protected", Cookies.Header());
+		CHECK ( sUp.contains("alice|access-2") );
+
+		kRemoveFile(sDB3);
+	}
+
+	SECTION("after a provider did not answer, the next renewal waits")
+	{
+		KOpenIDClient::Config cfg4 = cfg;
+		cfg4.ExpiryLeeway        = chrono::hours(2);
+		cfg4.RenewalRetry        = chrono::hours(1);
+		cfg4.sSessionCookieName  = "session4";
+
+		KString sDB4 = kGenerateTempPath(".sqlite");
+		KOpenIDClient OIDC4(cfg4, sDB4);
+		KRESTRoutes AppRoutes4 = BuildAppRoutes(OIDC4);
+
+		CookieJar Cookies;
+
+		KString sLogin = Drive(AppRoutes4, "GET", "/auth/login", Cookies.Header());
+		Cookies.Apply(sLogin);
+		Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+		KString sState = URLParam(ResponseBody(sLogin), "state");
+
+		KString sCallback = Drive(AppRoutes4, "GET",
+			kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+		Cookies.Apply(sCallback);
+		REQUIRE ( Cookies.Has("session4") );
+
+		Mock.iRefreshStatus = 503;
+		int iBefore = Mock.iRefreshes;
+		CHECK ( Drive(AppRoutes4, "GET", "/protected", Cookies.Header()).contains("ANON") );
+		CHECK ( Mock.iRefreshes == iBefore + 1 );
+
+		// not every request of every session asks a provider that is down
+		CHECK ( Drive(AppRoutes4, "GET", "/protected", Cookies.Header()).contains("ANON") );
+		CHECK ( Mock.iRefreshes == iBefore + 1 );
+
+		Mock.iRefreshStatus = 0;
+		kRemoveFile(sDB4);
+	}
+
+	SECTION("a refused refresh_token ends the session")
+	{
+		KOpenIDClient::Config cfg5 = cfg;
+		cfg5.ExpiryLeeway        = chrono::hours(2);
+		cfg5.sSessionCookieName  = "session5";
+
+		KString sDB5 = kGenerateTempPath(".sqlite");
+		KOpenIDClient OIDC5(cfg5, sDB5);
+		KRESTRoutes AppRoutes5 = BuildAppRoutes(OIDC5);
+
+		CookieJar Cookies;
+
+		KString sLogin = Drive(AppRoutes5, "GET", "/auth/login", Cookies.Header());
+		Cookies.Apply(sLogin);
+		Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+		KString sState = URLParam(ResponseBody(sLogin), "state");
+
+		KString sCallback = Drive(AppRoutes5, "GET",
+			kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+		Cookies.Apply(sCallback);
+		REQUIRE ( Cookies.Has("session5") );
+
+		// the provider does not know the refresh_token any more: sign in again
+		Mock.iRefreshStatus = 400;
+		KString sRefused = Drive(AppRoutes5, "GET", "/protected", Cookies.Header());
+		Cookies.Apply(sRefused);
+		CHECK ( sRefused.contains("ANON") );
+		CHECK_FALSE ( Cookies.Has("session5") );
+
+		Mock.iRefreshStatus = 0;
+		kRemoveFile(sDB5);
 	}
 
 	SECTION("missing expires_in defaults to Config::DefaultAccessTTL (no spurious refresh)")

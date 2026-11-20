@@ -123,6 +123,7 @@ public:
 		KDuration AbsoluteTimeout    { chrono::hours(8)    };
 		KDuration DiscoveryRefresh   { chrono::hours(24)   }; ///< how long discovery + JWKS are cached
 		KDuration ExpiryLeeway       { chrono::seconds(10) }; ///< treat the access token as expired this long before its real expiry
+		KDuration RenewalRetry       { chrono::seconds(10) }; ///< after the provider did not answer a renewal, wait this long before the next try
 		/// Assumed access-token lifetime when the token response omits "expires_in"
 		/// (RFC 6749 marks it OPTIONAL). Without a fallback a missing value would
 		/// collapse the expiry to "now", forcing a silent refresh — or, with no
@@ -259,7 +260,12 @@ private:
 	DEKAF2_PRIVATE KString    ComputeChallenge   (KStringView sVerifier);
 	DEKAF2_PRIVATE KString    GenerateRandom     (std::size_t iBytes = 16);
 	DEKAF2_PRIVATE bool       EnsureDiscovery    ();
-	DEKAF2_PRIVATE KJSON      TokenRequest       (KJSON jParams);
+	/// POST to the token endpoint. Returns the token response, or an empty KJSON.
+	/// @param pbRejected set to true if the provider answered and refused the
+	/// request (an OAuth error like invalid_grant), to false if it gave no usable
+	/// answer at all (not reachable, a gateway error, a server error) - in which
+	/// case the same request may succeed later
+	DEKAF2_PRIVATE KJSON      TokenRequest       (KJSON jParams, bool* pbRejected = nullptr);
 	/// absolute access-token expiry from a token response's "expires_in"
 	/// (seconds); falls back to Config::DefaultAccessTTL when it is absent or
 	/// non-positive, so a missing expires_in does not collapse to "expires now".
@@ -268,8 +274,10 @@ private:
 	DEKAF2_PRIVATE bool       IsRenewalDue       (const KJSON& jTokens) const;
 	/// Renew the access token of the session with its refresh_token, one renewal
 	/// per session at a time, and persist the new tokens into the session. Reads
-	/// the session again into Record and jTokens. Returns false and clears the
-	/// session if renewal is not possible.
+	/// the session again into Record and jTokens. Returns false if renewal is not
+	/// possible: the session is cleared if the provider refused the refresh_token,
+	/// and kept if the provider merely did not answer - the next request tries
+	/// again, after Config::RenewalRetry.
 	DEKAF2_PRIVATE bool       RenewTokens        (KRESTServer& HTTP, KStringView sToken,
 	                                              KSession::Record& Record, KJSON& jTokens);
 	/// Validate an id_token's signature (via KJWT against the provider's JWKS)
@@ -300,6 +308,7 @@ private:
 	std::mutex                m_RenewalMutex;          ///< guards m_Renewals
 	KUnorderedMap<KString, std::shared_future<void>>
 	                          m_Renewals;              ///< session tokens whose access token is being renewed
+	KUnixTime                 m_tRenewalRetry;         ///< no renewal before this, after the provider did not answer (guarded by m_RenewalMutex)
 	KString                   m_sTokenEndpoint;
 	KString                   m_sAuthEndpoint;
 	KString                   m_sEndSessionEndpoint;

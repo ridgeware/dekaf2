@@ -165,11 +165,12 @@ bool KCookie::Parse(const KURL& URL, KStringView sInput)
 			// this is the name-value pair for the cookie itself
 			bFirst = false;
 
-			if (Pair.first.remove_prefix("__Secure-"))
+			// the prefix is part of the name, and is sent back with it
+			if (Pair.first.starts_with("__Secure-"))
 			{
 				bNeedSecureKeyword = true;
 			}
-			else if (Pair.first.remove_prefix("__Host-"))
+			else if (Pair.first.starts_with("__Host-"))
 			{
 				bNeedSecureKeyword = true;
 				bMustNotHaveDomain = true;

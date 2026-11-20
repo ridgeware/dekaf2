@@ -21,6 +21,38 @@ TEST_CASE("KCookie")
 		CHECK ( Cookie.Serialize("https:/www.test.domain/XY") == "JSESSIONID=1C00976BBD8D9D3E9A52A7B887EFB616" );
 	}
 
+	SECTION("the prefixes __Host- and __Secure- are part of the name")
+	{
+		KURL URL ("https://www.test.domain/get");
+
+		KCookie Host(URL, "__Host-session=abc; Path=/; Secure; HttpOnly; SameSite=Strict");
+		CHECK ( Host.Name()         == "__Host-session" );
+		CHECK ( Host.Value()        == "abc" );
+		CHECK ( Host.Serialize(URL) == "__Host-session=abc" );
+
+		KCookie Secure(URL, "__Secure-id=xyz; Path=/; Secure");
+		CHECK ( Secure.Name()         == "__Secure-id" );
+		CHECK ( Secure.Serialize(URL) == "__Secure-id=xyz" );
+
+		// both need the Secure attribute, and __Host- takes no Domain
+		CHECK ( KCookie(URL, "__Host-session=abc; Path=/").empty() );
+		CHECK ( KCookie(URL, "__Secure-id=xyz; Path=/").empty() );
+		CHECK ( KCookie(URL, "__Host-session=abc; Path=/; Secure; Domain=www.test.domain").empty() );
+
+		// the name survives the cookie file
+		KCookies Cookies;
+		Cookies.Parse(URL, "__Host-session=abc; Path=/; Secure");
+
+		KString sStorage;
+		KOutStringStream oss(sStorage);
+		CHECK ( Cookies.Write(oss) == true );
+
+		Cookies.clear();
+		KInStringStream iss(sStorage);
+		CHECK ( Cookies.Read(iss) == true );
+		CHECK ( Cookies.Serialize(URL) == "__Host-session=abc" );
+	}
+
 	SECTION("KCookies")
 	{
 		KURL URL ("https:/www.test.domain/get");

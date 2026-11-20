@@ -48,6 +48,7 @@
 #include <dekaf2/http/protocol/khttp_header.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/strings/kjoin.h>
 #include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/core/init/dekaf2.h>  // Dekaf::getInstance().GetTimer() for the check watchdog
 #include <dekaf2/web/ui/kwebui.h>
@@ -3748,53 +3749,28 @@ void AdminUI::HandleLogStream (KRESTServer& HTTP)
 	// would otherwise feed back into the very stream they belong to
 	LogRing::SuppressForThisThread Suppress;
 
-	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE , "text/event-stream");
-	HTTP.Response.Headers.Set(KHTTPHeader::CACHE_CONTROL, "no-cache");
-
-	// switch to streaming output, without compression
-	HTTP.Stream(/*bAllowCompressionIfPossible*/false);
+	// switch to an event stream, without compression
+	auto Events = HTTP.EventStream();
 
 	// reconnect delay for the browser's EventSource
-	HTTP.Response.Write("retry: 3000\n\n");
-	HTTP.Response.Flush();
+	Events.Retry(chrono::seconds(3));
 
 	uint64_t iSince = 0;
 
-	for (;;)
+	while (Events.Good())
 	{
 		auto Result = Ring->GetSince(iSince);
 		iSince      = Result.first;
 
-		KString sEvent;
-
-		if (Result.second.empty())
-		{
-			// SSE comment as liveness probe - a failing write is our only
-			// reliable signal that the browser is gone
-			sEvent = ": ping\n\n";
-		}
-		else
-		{
-			for (const auto& sLine : Result.second)
-			{
-				sEvent += "data: ";
-				sEvent += sLine;
-				sEvent += '\n';
-			}
-			sEvent += '\n';
-		}
-
-		if (HTTP.Response.Write(sEvent) != sEvent.size() || HTTP.GetLostConnection())
-		{
-			break;
-		}
-
-		HTTP.Response.Flush();
+		// all new lines as one event, or a comment as liveness probe - a
+		// failing write is our only reliable signal that the browser is gone
+		bool bSent = Result.second.empty() ? Events.KeepAlive()
+		                                   : Events.Send(kJoined(Result.second, "\n"));
 
 		// end the stream when the server shuts down - otherwise this
 		// worker keeps running until the browser disconnects, and
 		// `systemctl stop` runs into its kill timeout
-		if (m_Server.IsShuttingDown())
+		if (!bSent || m_Server.IsShuttingDown())
 		{
 			break;
 		}

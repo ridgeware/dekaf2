@@ -1322,18 +1322,19 @@ bool kTouchFile(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
 					// give up
 					return false;
 				}
-
-				File.close();
-
-				if (iMode != DEKAF2_MODE_CREATE_FILE)
-				{
-					return kChangeMode(sPath, iMode);
-				}
 			}
 			else
 			{
 				return false;
 			}
+		}
+
+		File.close();
+
+		// the mode counts for every new file, not only for one in a new directory
+		if (iMode != DEKAF2_MODE_CREATE_FILE)
+		{
+			return kChangeMode(sPath, iMode);
 		}
 	}
 

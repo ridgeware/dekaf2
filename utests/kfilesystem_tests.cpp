@@ -430,6 +430,35 @@ TEST_CASE("KFilesystem")
 		CHECK ( kFileExists(sNested)  );
 	}
 
+#ifndef DEKAF2_IS_WINDOWS
+	SECTION("kTouchFile with a mode")
+	{
+		// in a directory that exists
+		KString sFile { sDirectory };
+		sFile += "/touched-for-owner.txt";
+
+		CHECK ( kTouchFile(sFile, 0600) );
+		CHECK ( kFileExists(sFile) );
+		CHECK ( (kGetMode(sFile) & 0777) == 0600 );
+
+		// and in one that has to be created
+		KString sNested { sDirectory };
+		sNested += "/far/away/touched-for-owner.txt";
+
+		CHECK ( kTouchFile(sNested, 0600) );
+		CHECK ( kFileExists(sNested) );
+		CHECK ( (kGetMode(sNested) & 0777) == 0600 );
+
+		// touching a file that exists leaves its mode
+		CHECK ( kChangeMode(sFile, 0640) );
+		CHECK ( kTouchFile(sFile, 0600) );
+		CHECK ( (kGetMode(sFile) & 0777) == 0640 );
+
+		CHECK ( kRemoveFile(sFile)   );
+		CHECK ( kRemoveFile(sNested) );
+	}
+#endif
+
 	SECTION("kTouchFile existing")
 	{
 		KString sNested { sDirectory };

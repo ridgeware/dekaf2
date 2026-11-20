@@ -1837,6 +1837,7 @@ constexpr KStringViewZ KMIME::PHP;
 constexpr KStringViewZ KMIME::PYTHON;
 constexpr KStringViewZ KMIME::RUBY;
 constexpr KStringViewZ KMIME::TEX;
+constexpr KStringViewZ KMIME::EVENT_STREAM;
 constexpr KStringViewZ KMIME::JSON;
 constexpr KStringViewZ KMIME::JSON_PATCH;
 constexpr KStringViewZ KMIME::JLIFF;

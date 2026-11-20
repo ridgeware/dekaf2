@@ -133,6 +133,7 @@ public:
 		IF_RANGE,
 		IF_UNMODIFIED_SINCE,
 		KEEP_ALIVE,
+		LAST_EVENT_ID,
 		LAST_MODIFIED,
 		LINK,
 		LOCATION,
@@ -363,6 +364,8 @@ public:
 				return "if-unmodified-since";
 			case KEEP_ALIVE:
 				return "keep-alive";
+			case LAST_EVENT_ID:
+				return "last-event-id";
 			case LAST_MODIFIED:
 				return "last-modified";
 			case LINK:
@@ -639,6 +642,8 @@ public:
 				return IF_UNMODIFIED_SINCE;
 			case "Keep-Alive"_casehash:
 				return KEEP_ALIVE;
+			case "Last-Event-ID"_casehash:
+				return LAST_EVENT_ID;
 			case "Last-Modified"_casehash:
 				return LAST_MODIFIED;
 			case "Link"_casehash:

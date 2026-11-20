@@ -1886,6 +1886,7 @@ set(PUBLIC_HEADERS
 	source/http/protocol/khttp_response.h
 	source/http/protocol/khttp_version.h
 	source/http/protocol/khttpcompression.h
+	source/http/protocol/kserversentevent.h
 	source/http/server/kcgistream.h
 	source/http/server/khttperror.h
 	source/http/server/khttpinputfilter.h
@@ -2186,6 +2187,7 @@ set (SOURCES
 	source/http/protocol/khttp_response.cpp
 	source/http/protocol/khttp_version.cpp
 	source/http/protocol/khttpcompression.cpp
+	source/http/protocol/kserversentevent.cpp
 	source/http/server/kcgistream.cpp
 	source/http/server/khttperror.cpp
 	source/http/server/khttpinputfilter.cpp

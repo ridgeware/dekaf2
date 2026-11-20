@@ -218,6 +218,7 @@
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/crypto/rsa/krsasign.h>
 #include <dekaf2/core/types/kscopeguard.h>
+#include <dekaf2/http/protocol/kserversentevent.h>
 #include <dekaf2/system/os/kservice.h>
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/system/shared/ksharedmemory.h>

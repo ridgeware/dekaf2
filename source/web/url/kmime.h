@@ -292,6 +292,7 @@ public:
 	static constexpr KStringViewZ PYTHON                 = "text/x-python";
 	static constexpr KStringViewZ RUBY                   = "text/x-ruby";
 	static constexpr KStringViewZ TEX                    = "text/x-tex";
+	static constexpr KStringViewZ EVENT_STREAM           = "text/event-stream";
 
 	static constexpr KStringViewZ AVI                    = "video/x-msvideo";
 	static constexpr KStringViewZ MPEG                   = "video/mpeg";

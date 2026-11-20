@@ -442,7 +442,7 @@ kurl::kurl ()
 	([&](KStringViewZ sCookieJar)
 	{
 		BuildMRQ.SetFlag(Flags::ALLOW_SET_COOKIE);
-		BuildMRQ.sLoadCookieJar = sCookieJar;
+		BuildMRQ.sStoreCookieJar = sCookieJar;
 	});
 
 	m_CLI
@@ -583,7 +583,7 @@ kurl::kurl ()
 	m_CLI
 		.Option("max-redirs <n>")
 		.MinArgs(1).MaxArgs(1)
-		.Range(1, 1000)
+		.Range(0, 1000)
 		.Type(KOptions::ArgTypes::Unsigned)
 		.Help("follow up to <n> HTTP redirects (default 20, 0 switches off)")
 		.Set(BuildMRQ.iMaxRedirects);

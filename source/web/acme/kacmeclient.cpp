@@ -136,19 +136,7 @@ KAcmeClient::KAcmeClient(Options Options)
 KString KAcmeClient::JWKThumbprint(const KRSAKey& Key)
 //-----------------------------------------------------------------------------
 {
-	auto jJWK = Key.GetPublicJWK();
-
-	if (jJWK.empty())
-	{
-		return {};
-	}
-
-	// RFC 7638: SHA-256 over the canonical JWK - only the key parameters, keys in
-	// lexicographic order, no whitespace
-	auto sCanonical = kFormat(R"({{"e":"{}","kty":"RSA","n":"{}"}})",
-	                          jJWK["e"].String(), jJWK["n"].String());
-
-	return KBase64Url::Encode(KSHA256(sCanonical).Digest());
+	return Key.GetJWKThumbprint();
 
 } // JWKThumbprint
 

@@ -174,6 +174,12 @@ public:
 	/// @return the JWK object, or an empty KJSON if no key is set
 	DEKAF2_NODISCARD
 	KJSON GetPublicJWK() const;
+	/// The JWK thumbprint of the public key (RFC 7638): the base64url-encoded
+	/// SHA-256 of the canonical form of GetPublicJWK(). It identifies the key,
+	/// and serves as a key id that changes with the key.
+	/// @return the thumbprint, or an empty string if no key is set
+	DEKAF2_NODISCARD
+	KString GetJWKThumbprint() const;
 	/// Export the public key as a JWK (JSON Web Key) suitable for a JWKS
 	/// document: { "kty":"RSA", "n":..., "e":..., "kid":..., "alg":..., "use":"sig" }.
 	/// Modulus and exponent are base64url-encoded big-endian (JWK spec, the

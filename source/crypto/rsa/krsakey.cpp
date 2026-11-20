@@ -47,6 +47,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h> // for Digest::GetOpenSSLError()
+#include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -647,6 +648,26 @@ KJSON KRSAKey::GetPublicJWK() const
 	};
 
 } // GetPublicJWK
+
+//---------------------------------------------------------------------------
+KString KRSAKey::GetJWKThumbprint() const
+//---------------------------------------------------------------------------
+{
+	auto jJWK = GetPublicJWK();
+
+	if (jJWK.empty())
+	{
+		return {};
+	}
+
+	// RFC 7638: SHA-256 over the canonical JWK - only the key parameters, keys in
+	// lexicographic order, no whitespace
+	auto sCanonical = kFormat(R"({{"e":"{}","kty":"RSA","n":"{}"}})",
+	                          jJWK["e"].String(), jJWK["n"].String());
+
+	return KBase64Url::Encode(KSHA256(sCanonical).Digest());
+
+} // GetJWKThumbprint
 
 //---------------------------------------------------------------------------
 KJSON KRSAKey::GetPublicJWK(KStringView sKid, KStringView sAlg) const

@@ -116,6 +116,8 @@ TEST_CASE("KAcmeClient")
 		REQUIRE ( Key.empty() == false );
 
 		CHECK ( KAcmeClient::JWKThumbprint(Key) == "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs" );
+		CHECK ( Key.GetJWKThumbprint()          == "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs" );
+		CHECK ( KRSAKey().GetJWKThumbprint().empty() );
 	}
 
 	SECTION("SignJWS")

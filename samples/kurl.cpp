@@ -1042,8 +1042,8 @@ int kurl::Main (int argc, char** argv)
 
 		if (iRetVal	|| m_CLI.Terminate())
 		{
-			// either error or completed
-			return iRetVal;
+			// either error or completed - a printed help (-1) is no error
+			return (iRetVal < 0) ? 0 : iRetVal;
 		}
 
 		// load default config if not already done..

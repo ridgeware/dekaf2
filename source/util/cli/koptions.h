@@ -399,7 +399,7 @@ public:
 	KOptions& AllowAdHocArgs(bool bYesNo = true)                      { m_bAllowAdHocArgs = bYesNo;                                           return *this; }
 
 	/// Parse arguments and call the registered callback functions. Returns 0
-	/// if valid, -1 if -help was called, and > 0 for error
+	/// if valid, -1 if the help was printed (Terminate() is true then), and > 0 for error
 	int Parse(int argc, char const* const* argv, KOutStream& out = KOut);
 
 	/// Parse arguments globbed together in a single string as if it was a command line
@@ -450,6 +450,14 @@ private:
 //----------
 
 	static constexpr KStringView UNKNOWN_ARG { "!" };
+
+	/// thrown by the automatic options to end the option parsing with a return value for Parse()
+	class EndOfParsing : public NoError
+	{
+	public:
+		explicit EndOfParsing(int iResult) : m_iResult(iResult) {}
+		int m_iResult;
+	};
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class DEKAF2_PUBLIC CallbackParam

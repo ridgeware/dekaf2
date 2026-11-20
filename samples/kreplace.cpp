@@ -271,7 +271,11 @@ int KReplace::Main(int argc, char** argv)
 {
 	auto iRetVal = m_CLI.Parse(argc, argv, KOut);
 
-	if (iRetVal	|| m_CLI.Terminate()) return iRetVal;
+	if (iRetVal	|| m_CLI.Terminate())
+	{
+		// either error or completed - a printed help (-1) is no error
+		return (iRetVal < 0) ? 0 : iRetVal;
+	}
 
 	if (m_Files.empty()) throw KError("no input files");
 	if (m_sSearch.empty() && !m_bRevert) throw KError("no search expression");

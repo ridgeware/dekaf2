@@ -163,8 +163,8 @@ int Main (int argc, char* argv[])
 
 	if (iRetVal	|| CLI.Terminate())
 	{
-		// either error or completed
-		return iRetVal;
+		// either error or completed - a printed help (-1) is no error
+		return (iRetVal < 0) ? 0 : iRetVal;
 	}
 
 	if (sDBHost.empty())

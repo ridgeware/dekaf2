@@ -417,8 +417,8 @@ TEST_CASE("KOptions")
 		KTempDir Temp;
 		CHECK ( Temp == true );
 
-		// a UTF-16 file cannot be read line by line: the error is reported, and parsing
-		// stops without applying anything (KOptions returns 0 after a reported file error)
+		// a UTF-16 file cannot be read line by line: the error is reported, parsing
+		// stops without applying anything, and Parse() returns an error
 		auto sUTF16File = kFormat("{}/utf16.ini", Temp.Name());
 		kWriteFile(sUTF16File, kutf::Encode<KString>(KString("-empty2\n"), kutf::Encoding::UTF16LE));
 
@@ -427,7 +427,8 @@ TEST_CASE("KOptions")
 			"-ini", sUTF16File.c_str()
 		};
 
-		Options.Parse(sizeof(CLI16)/sizeof(char*), CLI16);
+		int iResult = Options.Parse(sizeof(CLI16)/sizeof(char*), CLI16);
+		CHECK ( iResult > 0 );
 		CHECK ( a.bEmpty2 == false );
 	}
 
@@ -1443,5 +1444,85 @@ TEST_CASE("KOptions control flow")
 		CHECK ( Opt.Terminate() == true );
 		CHECK ( bOptionRan      == true );
 		CHECK ( bCommandRan     == true );
+	}
+}
+
+TEST_CASE("KOptions: end of parsing")
+{
+	bool bVerbose { false };
+
+	KOptions Opt(false);
+
+	Opt.Option("verbose")
+		.Help("be verbose")
+	([&]()
+	{
+		bVerbose = true;
+	});
+
+	Opt.Option("quit")
+		.Help("end the parsing")
+	([]()
+	{
+		throw KOptions::NoError {};
+	});
+
+	KString sOut;
+	KOutStringStream oss(sOut);
+
+	SECTION("the help returns -1 and tells to terminate")
+	{
+		for (const char* sHelp : { "-help", "--help", "-h" })
+		{
+			INFO ( sHelp );
+
+			const char* CLI[] {
+				"MyProgramName",
+				sHelp,
+				"-verbose"
+			};
+
+			sOut.clear();
+			bVerbose = false;
+
+			CHECK ( Opt.Parse(sizeof(CLI)/sizeof(char*), CLI, oss) == -1 );
+			CHECK ( Opt.Terminate() == true );
+			CHECK ( sOut.find("-verbose") != npos );
+			// the arguments after the help are not parsed
+			CHECK ( bVerbose == false );
+		}
+	}
+
+	SECTION("a run after the help does not terminate")
+	{
+		const char* Help[] {
+			"MyProgramName",
+			"-help"
+		};
+
+		CHECK ( Opt.Parse(sizeof(Help)/sizeof(char*), Help, oss) == -1 );
+		CHECK ( Opt.Terminate() == true );
+
+		const char* CLI[] {
+			"MyProgramName",
+			"-verbose"
+		};
+
+		CHECK ( Opt.Parse(sizeof(CLI)/sizeof(char*), CLI, oss) == 0 );
+		CHECK ( Opt.Terminate() == false );
+		CHECK ( bVerbose == true );
+	}
+
+	SECTION("a callback that throws NoError ends the parsing without error")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-quit",
+			"-verbose"
+		};
+
+		CHECK ( Opt.Parse(sizeof(CLI)/sizeof(char*), CLI, oss) == 0 );
+		CHECK ( Opt.Terminate() == false );
+		CHECK ( bVerbose == false );
 	}
 }

@@ -844,7 +844,7 @@ void KOptions::SetDefaults(KStringView sCliDebugTo/*=KLog::STDOUT*/)
 		if (!m_bProcessAdHocForHelp || !m_bInParse)
 		{
 			// abort further parsing
-			throw NoError {};
+			throw EndOfParsing { -1 };
 		}
 
 		// Check() prints the help of ad hoc options after the program requested them -
@@ -902,10 +902,12 @@ void KOptions::SetDefaults(KStringView sCliDebugTo/*=KLog::STDOUT*/)
 		.Help("load options from config file", -1)
 	([this](KStringViewZ sIni)
 	{
-		if (ParseFile(sIni, KOut))
+		auto iResult = ParseFile(sIni, KOut);
+
+		if (iResult)
 		{
-			// error was already displayed - just abort parsing
-			throw NoError {};
+			// the error was already displayed, or the help printed - just abort parsing
+			throw EndOfParsing { iResult };
 		}
 	});
 
@@ -1949,6 +1951,17 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 	DEKAF2_CATCH (const Error& error)
 	{
 		return SetError(error.what(), out);
+	}
+
+	DEKAF2_CATCH (const EndOfParsing& End)
+	{
+		if (End.m_iResult < 0)
+		{
+			// the help was printed, the program shall end
+			m_bStopAppAfterParsing = true;
+		}
+
+		return End.m_iResult;
 	}
 
 	DEKAF2_CATCH (const NoError& error)

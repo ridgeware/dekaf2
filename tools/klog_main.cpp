@@ -787,7 +787,8 @@ int main (int argc, char* argv[])
 		{
 			PrintHTMLFooter();
 		}
-		return iErrors; // either error or completed
+		// either error or completed - a printed help (-1) is no error
+		return (iErrors < 0) ? 0 : iErrors;
 	}
 
 	KString sLogFile = KLog::getInstance().GetDebugLog();

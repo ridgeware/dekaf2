@@ -29,7 +29,18 @@ struct EventTestServer
 		{
 			auto iHandle = HTTP.SubscribeToEvents(HTTP.GetQueryParm(":TOPIC"));
 
+			bMissedEvents     = HTTP.GetEventServer().HasMissedEvents(iHandle);
 			bSentBeforeReturn = HTTP.GetEventServer().Send(iHandle, { KString::to_string(iHandle), "hello" });
+		});
+
+		// two topics for one connection
+		Routes.AddRoute("/both").Get([this](KRESTServer& HTTP)
+		{
+			auto iHandle = HTTP.SubscribeToEvents("a", "b");
+
+			bMissedEvents = HTTP.GetEventServer().HasMissedEvents(iHandle);
+
+			HTTP.GetEventServer().Send(iHandle, { KString::to_string(iHandle), "hello" });
 		});
 
 		Routes.AddRoute("/fail").Get([](KRESTServer& HTTP)
@@ -48,6 +59,12 @@ struct EventTestServer
 
 		Rest.GetEventServer().SetCloseCallback([this](KServerSentEventServer::Handle iHandle)
 		{
+			if (bPublishOnClose)
+			{
+				// an application may tell the others who left
+				Rest.GetEventServer().Publish("left", { KString::to_string(iHandle) });
+			}
+
 			std::lock_guard<std::mutex> Lock(Mutex);
 			Closed.push_back(iHandle);
 		});
@@ -81,16 +98,25 @@ struct EventTestServer
 		return Events().size() == iCount;
 	}
 
+	// waits until the close callback was called for iHandle, for five seconds at most -
+	// the connection leaves the count of the server before the callback is called
 	bool WasClosed(KServerSentEventServer::Handle iHandle)
 	{
-		std::lock_guard<std::mutex> Lock(Mutex);
-
-		for (auto iClosed : Closed)
+		for (std::size_t i = 0; i < 500; ++i)
 		{
-			if (iClosed == iHandle)
 			{
-				return true;
+				std::lock_guard<std::mutex> Lock(Mutex);
+
+				for (auto iClosed : Closed)
+				{
+					if (iClosed == iHandle)
+					{
+						return true;
+					}
+				}
 			}
+
+			kSleep(chrono::milliseconds(10));
 		}
 
 		return false;
@@ -103,6 +129,8 @@ struct EventTestServer
 	std::mutex                                   Mutex;
 	std::vector<KServerSentEventServer::Handle>  Closed;
 	std::atomic<bool>                            bSentBeforeReturn { false };
+	std::atomic<bool>                            bMissedEvents     { false };
+	std::atomic<bool>                            bPublishOnClose   { false };
 	KString                                      sEndPoint;
 	KREST                                        Rest;
 
@@ -113,12 +141,20 @@ struct EventTestServer
 struct EventClient
 //-----------------------------------------------------------------------------
 {
-	EventClient(KStringView sEndPoint, KStringView sPath)
+	// with sLastEventID the client connects again, after it got the event with this id
+	EventClient(KStringView sEndPoint, KStringView sPath, KStringView sLastEventID = KStringView{})
 	: Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(5)))
 	{
 		REQUIRE ( Stream.is_open() );
 
-		Stream.Write(kFormat("GET {} HTTP/1.1\r\nHost: a\r\n\r\n", sPath)).Flush();
+		Stream.Write(kFormat("GET {} HTTP/1.1\r\nHost: a\r\n", sPath));
+
+		if (!sLastEventID.empty())
+		{
+			Stream.Write(kFormat("Last-Event-ID: {}\r\n", sLastEventID));
+		}
+
+		Stream.Write("\r\n").Flush();
 
 		KString sLine;
 
@@ -177,11 +213,20 @@ struct EventClient
 }; // EventClient
 
 // options without comment lines, which would come between the events of a test
-KServerSentEventServer::Options QuietOptions()
+KServerSentEventServer::Options QuietOptions(std::size_t iHistory = 0)
 {
 	KServerSentEventServer::Options Options;
 	Options.KeepAliveInterval = KDuration::zero();
+	Options.iHistory          = iHistory;
 	return Options;
+}
+
+// the count in an id of the event server, 0 if the id has none
+uint64_t CountOfID(KStringView sID)
+{
+	auto iDash = sID.rfind('-');
+
+	return iDash == KStringView::npos ? 0 : sID.substr(iDash + 1).UInt64();
 }
 
 } // end of anonymous namespace
@@ -449,5 +494,254 @@ TEST_CASE("KServerSentEventServer")
 		Stream.ReadRemaining(sResponse);
 
 		CHECK ( sResponse.contains("\"hello\"") );
+	}
+
+	SECTION("without a history the server sets no ids")
+	{
+		EventTestServer Server(QuietOptions());
+		EventClient     Client(Server.sEndPoint, "/events/news", "some-id");
+
+		auto iHandle = Client.Hello();
+
+		CHECK_FALSE ( Server.bMissedEvents );
+		CHECK_FALSE ( Server.Events().HasMissedEvents(iHandle) );
+		CHECK ( Server.Events().Publish("news", { "first" }) == 1 );
+
+		KServerSentEvent Event;
+
+		REQUIRE ( Client.Next(Event) );
+		CHECK ( Event.sData == "first" );
+		CHECK ( Event.sID   == "" );
+	}
+
+	SECTION("with a history a client that connects again gets the events it missed")
+	{
+		EventTestServer Server(QuietOptions(10));
+
+		KString          sFirstID;
+		KString          sThirdID;
+		KServerSentEvent Event;
+
+		{
+			EventClient Client(Server.sEndPoint, "/events/news");
+
+			Client.Hello();
+			CHECK_FALSE ( Server.bMissedEvents );
+
+			// an id of the application is replaced
+			CHECK ( Server.Events().Publish("news", { "first", "", "my own id" }) == 1 );
+			CHECK ( Server.Events().Publish("news", { "second", "headline" }) == 1 );
+			CHECK ( Server.Events().Publish("other", { "for another topic" }) == 0 );
+			CHECK ( Server.Events().Publish("news", { "third" }) == 1 );
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "first" );
+			sFirstID = Event.sID;
+			CHECK ( CountOfID(sFirstID) == 1 );
+			CHECK ( sFirstID != "my own id" );
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "second" );
+			CHECK ( CountOfID(Event.sID) == 2 );
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "third" );
+			sThirdID = Event.sID;
+			// the ids count over all topics
+			CHECK ( CountOfID(sThirdID) == 4 );
+			CHECK ( sThirdID.starts_with(sFirstID.substr(0, sFirstID.rfind('-') + 1)) );
+		}
+
+		CHECK ( Server.WaitForSize(0) );
+
+		// events without a connection are kept, events without a topic are not
+		CHECK ( Server.Events().Publish("news", { "fourth" }) == 0 );
+		CHECK ( Server.Events().Broadcast({ "not kept" }) == 0 );
+
+		{
+			// the client got the first event only
+			EventClient Client(Server.sEndPoint, "/events/news", sFirstID);
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData  == "second" );
+			CHECK ( Event.sEvent == "headline" );
+			CHECK ( CountOfID(Event.sID) == 2 );
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "third" );
+			CHECK ( Event.sID   == sThirdID );
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "fourth" );
+
+			// what the route sends follows the events that are sent again
+			auto iHandle = Client.Hello();
+
+			CHECK_FALSE ( Server.bMissedEvents );
+			CHECK_FALSE ( Server.Events().HasMissedEvents(iHandle) );
+
+			CHECK ( Server.Events().Publish("news", { "fifth" }) == 1 );
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "fifth" );
+			CHECK ( CountOfID(Event.sID) == 6 );
+		}
+
+		CHECK ( Server.WaitForSize(0) );
+
+		{
+			// a client that got all events gets none again
+			EventClient Client(Server.sEndPoint, "/events/news", Event.sID);
+
+			Client.Hello();
+			CHECK_FALSE ( Server.bMissedEvents );
+		}
+	}
+
+	SECTION("a history that does not reach back far enough sends nothing again")
+	{
+		EventTestServer Server(QuietOptions(2));
+
+		std::vector<KString> IDs;
+		KServerSentEvent     Event;
+
+		{
+			EventClient Client(Server.sEndPoint, "/events/news");
+
+			Client.Hello();
+
+			for (KStringView sData : { "first", "second", "third", "fourth" })
+			{
+				CHECK ( Server.Events().Publish("news", { sData }) == 1 );
+				REQUIRE ( Client.Next(Event) );
+				CHECK ( Event.sData == sData );
+				IDs.push_back(Event.sID);
+			}
+		}
+
+		CHECK ( Server.WaitForSize(0) );
+
+		{
+			// the second event has left the history, and the client has not seen it
+			EventClient Client(Server.sEndPoint, "/events/news", IDs[0]);
+
+			auto iHandle = Client.Hello();
+
+			CHECK ( Server.bMissedEvents );
+			CHECK ( Server.Events().HasMissedEvents(iHandle) );
+
+			// the connection gets the new events
+			CHECK ( Server.Events().Publish("news", { "fifth" }) == 1 );
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "fifth" );
+		}
+
+		CHECK ( Server.WaitForSize(0) );
+
+		{
+			// the history holds all events after the third: the fourth and the fifth
+			EventClient Client(Server.sEndPoint, "/events/news", IDs[2]);
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "fourth" );
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "fifth" );
+
+			Client.Hello();
+			CHECK_FALSE ( Server.bMissedEvents );
+		}
+	}
+
+	SECTION("an id that is not of this server sends nothing again")
+	{
+		EventTestServer Server(QuietOptions(10));
+
+		CHECK ( Server.Events().Publish("news", { "first" }) == 0 );
+
+		for (KStringView sLastEventID : { "0-1", "no id of the server", "-1" })
+		{
+			INFO ( sLastEventID );
+
+			EventClient Client(Server.sEndPoint, "/events/news", sLastEventID);
+
+			auto iHandle = Client.Hello();
+
+			CHECK ( Server.bMissedEvents );
+			CHECK ( Server.Events().HasMissedEvents(iHandle) );
+		}
+
+		CHECK_FALSE ( Server.Events().HasMissedEvents(1000) );
+	}
+
+	SECTION("the events of two topics are sent again in the order of their ids")
+	{
+		EventTestServer Server(QuietOptions(10));
+
+		KString          sFirstID;
+		KServerSentEvent Event;
+
+		{
+			EventClient Client(Server.sEndPoint, "/both");
+
+			Client.Hello();
+
+			CHECK ( Server.Events().size("a") == 1 );
+			CHECK ( Server.Events().size("b") == 1 );
+			CHECK ( Server.Events().Publish("a", { "a1" }) == 1 );
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "a1" );
+			sFirstID = Event.sID;
+		}
+
+		CHECK ( Server.WaitForSize(0) );
+
+		CHECK ( Server.Events().Publish("b", { "b1" }) == 0 );
+		CHECK ( Server.Events().Publish("a", { "a2" }) == 0 );
+		CHECK ( Server.Events().Publish("c", { "c1" }) == 0 );
+		CHECK ( Server.Events().Publish("b", { "b2" }) == 0 );
+		CHECK ( Server.Events().Publish("a", { "a3" }) == 0 );
+
+		EventClient Client(Server.sEndPoint, "/both", sFirstID);
+
+		uint64_t iLastCount { CountOfID(sFirstID) };
+
+		for (KStringView sData : { "b1", "a2", "b2", "a3" })
+		{
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == sData );
+			CHECK ( CountOfID(Event.sID) > iLastCount );
+			iLastCount = CountOfID(Event.sID);
+		}
+
+		Client.Hello();
+		CHECK_FALSE ( Server.bMissedEvents );
+	}
+
+	SECTION("the close callback may publish, also when a full queue closes a connection")
+	{
+		auto Options = QuietOptions(10);
+
+		Options.iMaxQueueBytes = 1000;
+
+		EventTestServer Server(Options);
+
+		Server.bPublishOnClose = true;
+
+		EventClient Watcher(Server.sEndPoint, "/events/left");
+		EventClient Client (Server.sEndPoint, "/events/news");
+
+		Watcher.Hello();
+
+		auto iHandle = Client.Hello();
+
+		// the queue of the client is full with this event
+		CHECK ( Server.Events().Publish("news", { KString(2000, 'x') }) == 0 );
+		CHECK ( Server.WasClosed(iHandle) );
+
+		KServerSentEvent Event;
+
+		REQUIRE ( Watcher.Next(Event) );
+		CHECK ( Event.sData.UInt64() == iHandle );
 	}
 }

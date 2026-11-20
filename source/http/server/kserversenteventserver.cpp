@@ -42,6 +42,9 @@
 #include <dekaf2/http/server/kserversenteventserver.h>
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/time/clock/ktime.h>
 #include <algorithm>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -57,6 +60,8 @@ KServerSentEventServer::KServerSentEventServer()
 KServerSentEventServer::KServerSentEventServer(Options Options)
 //-----------------------------------------------------------------------------
 : m_Options(std::move(Options))
+// the time of the start tells the ids of this server from those of an earlier run
+, m_sRun(KString::to_hexstring(static_cast<uint64_t>(chrono::duration_cast<chrono::microseconds>(KUnixTime::now().time_since_epoch()).count()), false, false))
 {
 	// the watcher thread starts with the first connection, the writers in Start()
 	m_Watch.SetThreadName("eventwatch");
@@ -405,8 +410,15 @@ bool KServerSentEventServer::Queue(const ConnectionPtr& pConnection, Connection:
 			// the client does not read fast enough
 			kDebug(1, "queue of event connection {} is full with {} bytes - closing it",
 			          pConnection->iHandle, pConnection->iQueuedBytes);
+			pConnection->bDead = true;
 			Lock.unlock();
-			Remove(pConnection->iHandle);
+
+			// a writer removes the connection: the caller may hold the lock of the
+			// history, which the close callback of the application may need
+			auto iHandle = pConnection->iHandle;
+			Start();
+			m_Writers.Post([this, iHandle]() { Remove(iHandle); });
+
 			return false;
 		}
 
@@ -446,8 +458,14 @@ std::size_t KServerSentEventServer::QueueAll(const std::vector<ConnectionPtr>& C
 	}
 
 	// all connections share the serialized event
-	auto sData = std::make_shared<const KString>(Event.Serialize());
+	return QueueAll(Connections, std::make_shared<const KString>(Event.Serialize()));
 
+} // QueueAll
+
+//-----------------------------------------------------------------------------
+std::size_t KServerSentEventServer::QueueAll(const std::vector<ConnectionPtr>& Connections, const std::shared_ptr<const KString>& sData)
+//-----------------------------------------------------------------------------
+{
 	if (sData->empty())
 	{
 		// an event without content
@@ -552,9 +570,132 @@ void KServerSentEventServer::KeepAlive()
 std::size_t KServerSentEventServer::Publish(KStringView sTopic, const KServerSentEvent& Event)
 //-----------------------------------------------------------------------------
 {
-	return QueueAll(GetConnections(sTopic, false), Event);
+	if (!m_Options.iHistory)
+	{
+		return QueueAll(GetConnections(sTopic, false), Event);
+	}
+
+	if (Event.sData.empty() && Event.sEvent.empty())
+	{
+		// clients drop an event without data and type, it gets no id
+		return 0;
+	}
+
+	// from the id to the queues under one lock: every connection gets the
+	// events in the order of their ids, and a replay misses none
+	std::lock_guard<std::mutex> Lock(m_HistoryMutex);
+
+	auto iID = ++m_iLastID;
+
+	KServerSentEvent WithID(Event);
+	WithID.sID = kFormat("{}-{}", m_sRun, iID);
+
+	auto sData = std::make_shared<const KString>(WithID.Serialize());
+
+	auto& History = m_History[sTopic];
+
+	History.Events.emplace_back(iID, sData);
+
+	if (History.Events.size() > m_Options.iHistory)
+	{
+		History.iLastEvicted = History.Events.front().iID;
+		History.Events.pop_front();
+	}
+
+	return QueueAll(GetConnections(sTopic, false), sData);
 
 } // Publish
+
+//-----------------------------------------------------------------------------
+bool KServerSentEventServer::ParseID(KStringView sID, uint64_t& iID) const
+//-----------------------------------------------------------------------------
+{
+	return sID.remove_prefix(m_sRun) && sID.remove_prefix("-") && kFromDigits(iID, sID);
+
+} // ParseID
+
+//-----------------------------------------------------------------------------
+void KServerSentEventServer::Replay(const ConnectionPtr& pConnection, const std::vector<KStringView>& Topics, KStringView sLastEventID)
+//-----------------------------------------------------------------------------
+{
+	uint64_t iLast { 0 };
+
+	if (!ParseID(sLastEventID, iLast))
+	{
+		kDebug(2, "event connection {}: last event id '{}' is not of this server", pConnection->iHandle, sLastEventID);
+		pConnection->bMissed = true;
+		return;
+	}
+
+	std::vector<History::Item> Items;
+	std::size_t                iFromTopics { 0 };
+
+	for (auto sTopic : Topics)
+	{
+		auto it = m_History.find(sTopic);
+
+		if (it == m_History.end())
+		{
+			// no event for this topic so far
+			continue;
+		}
+
+		const auto& History = it->second;
+
+		if (iLast < History.iLastEvicted)
+		{
+			// an event that the client has not seen left the history
+			kDebug(2, "event connection {}: the history of '{}' does not reach back to id {}", pConnection->iHandle, sTopic, iLast);
+			pConnection->bMissed = true;
+			return;
+		}
+
+		auto iBefore = Items.size();
+
+		for (const auto& Item : History.Events)
+		{
+			if (Item.iID > iLast)
+			{
+				Items.push_back(Item);
+			}
+		}
+
+		if (Items.size() > iBefore)
+		{
+			++iFromTopics;
+		}
+	}
+
+	if (iFromTopics > 1)
+	{
+		// the events of one topic are in the order of their ids already
+		std::sort(Items.begin(), Items.end(), [](const History::Item& left, const History::Item& right)
+		{
+			return left.iID < right.iID;
+		});
+	}
+
+	kDebug(2, "event connection {}: sending {} events again", pConnection->iHandle, Items.size());
+
+	for (auto& Item : Items)
+	{
+		if (!Queue(pConnection, Connection::OutMessage(std::move(Item.sData), false)))
+		{
+			break;
+		}
+	}
+
+} // Replay
+
+//-----------------------------------------------------------------------------
+bool KServerSentEventServer::HasMissedEvents(Handle iHandle) const
+//-----------------------------------------------------------------------------
+{
+	auto pConnection = GetConnection(iHandle);
+
+	return pConnection && pConnection->bMissed;
+
+} // HasMissedEvents
 
 //-----------------------------------------------------------------------------
 std::size_t KServerSentEventServer::Broadcast(const KServerSentEvent& Event)
@@ -584,18 +725,65 @@ bool KServerSentEventServer::Send(Handle iHandle, const KServerSentEvent& Event)
 bool KServerSentEventServer::Subscribe(Handle iHandle, KStringView sTopic)
 //-----------------------------------------------------------------------------
 {
-	auto Registry = m_Registry.unique();
+	return Subscribe(iHandle, std::vector<KStringView>{ sTopic }, KStringView{});
 
-	auto it = Registry->Connections.find(iHandle);
+} // Subscribe
 
-	if (it == Registry->Connections.end())
+//-----------------------------------------------------------------------------
+bool KServerSentEventServer::Subscribe(Handle iHandle, const std::vector<KStringView>& Topics, KStringView sLastEventID)
+//-----------------------------------------------------------------------------
+{
+	auto pConnection = GetConnection(iHandle);
+
+	if (!pConnection)
 	{
 		return false;
 	}
 
-	if (Registry->Topics[sTopic].insert(iHandle).second)
+	// with a history no event may be published between the replay and the subscription
+	std::unique_lock<std::mutex> HistoryLock(m_HistoryMutex, std::defer_lock);
+
+	if (m_Options.iHistory)
 	{
-		it->second->Topics.push_back(sTopic);
+		HistoryLock.lock();
+	}
+
+	// the topics that the connection does not have yet
+	std::vector<KStringView> NewTopics;
+
+	{
+		auto Registry = m_Registry.shared();
+
+		for (auto sTopic : Topics)
+		{
+			if (!sTopic.empty()
+			    && std::find(pConnection->Topics.begin(), pConnection->Topics.end(), sTopic) == pConnection->Topics.end()
+			    && std::find(NewTopics.begin(), NewTopics.end(), sTopic) == NewTopics.end())
+			{
+				NewTopics.push_back(sTopic);
+			}
+		}
+	}
+
+	if (HistoryLock.owns_lock() && !sLastEventID.empty() && !NewTopics.empty())
+	{
+		Replay(pConnection, NewTopics, sLastEventID);
+	}
+
+	auto Registry = m_Registry.unique();
+
+	if (Registry->Connections.find(iHandle) == Registry->Connections.end())
+	{
+		// removed in the meantime
+		return false;
+	}
+
+	for (auto sTopic : NewTopics)
+	{
+		if (Registry->Topics[sTopic].insert(iHandle).second)
+		{
+			pConnection->Topics.push_back(sTopic);
+		}
 	}
 
 	return true;

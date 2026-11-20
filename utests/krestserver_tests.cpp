@@ -22,6 +22,7 @@
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/net/util/kstreamoptions.h>
 #include <atomic>
+#include <new>
 
 using namespace dekaf2;
 
@@ -2725,6 +2726,22 @@ TEST_CASE("KRESTServer: framing of a streamed response")
 			CHECK ( CountResponses(sResponse) == 1 );
 		}
 	}
+}
+
+TEST_CASE("KRESTServer: the state of a new server")
+{
+	// what a new object tells does not depend on what its memory held before
+	KRESTRoutes          Routes;
+	KRESTServer::Options Options;
+
+	std::vector<unsigned char> Memory(sizeof(KRESTServer), 0xff);
+
+	auto& Server = *new (Memory.data()) KRESTServer(Routes, Options);
+
+	CHECK_FALSE ( Server.GetLostConnection() );
+	CHECK_FALSE ( Server.IsDisconnected()    );
+
+	Server.~KRESTServer();
 }
 
 TEST_CASE("KRESTServer: event stream")

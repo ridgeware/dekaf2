@@ -771,12 +771,29 @@ public:
 	/// // from any thread, with the KREST object that runs the server
 	/// Rest.GetEventServer().Publish("news", { sText, "headline" });
 	/// @endcode
-	/// @param sTopic a topic to subscribe the connection to, empty for none
+	///
+	/// If the event server keeps a history, and the client connects again with the id of the last
+	/// event it got (request header Last-Event-ID), the events of the topics since then are sent
+	/// again, see KServerSentEventServer::HasMissedEvents() for the case that they are not there.
+	/// @param Topics the topics to subscribe the connection to
 	/// @return the handle of the connection at the event server, 0 for a HEAD request, which gets
 	/// the headers only
 	/// @see KServerSentEventServer
-	KServerSentEventServer::Handle SubscribeToEvents(KStringView sTopic = KStringView{});
+	KServerSentEventServer::Handle SubscribeToEvents(const std::vector<KStringView>& Topics = std::vector<KStringView>{});
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Answer the request with an event stream that the event server of KREST sends, see
+	/// SubscribeToEvents(const std::vector<KStringView>&)
+	/// @param sTopic a topic to subscribe the connection to
+	/// @param MoreTopics further topics
+	/// @return the handle of the connection at the event server, 0 for a HEAD request
+	template<typename... Topics>
+	KServerSentEventServer::Handle SubscribeToEvents(KStringView sTopic, Topics&&... MoreTopics)
+	//-----------------------------------------------------------------------------
+	{
+		return SubscribeToEvents(std::vector<KStringView>{ sTopic, KStringView(std::forward<Topics>(MoreTopics))... });
+	}
 
 	//-----------------------------------------------------------------------------
 	/// @return the event server of the KREST object that runs this connection. Throws without
@@ -1123,7 +1140,7 @@ private:
 	bool                             m_bMetricsStarted  { false };      // whether this request is counted as started in the metrics
 	bool                             m_bMetricsTimed    { false };      // whether m_MetricsTimer holds the start of this request
 	bool                             m_bKeepAlive;                      // whether connection will be kept alive
-	bool                             m_bLostConnection;                 // whether we lost our peer during flight
+	bool                             m_bLostConnection  { false };      // whether we lost our peer during flight
 	bool                             m_bIsStreaming;                    // true if we switched to streaming output
 	bool                             m_bResponseCompression;            // per-response compression gate; reset in clear()
 	bool                             m_bSwitchToWebSocket;              // true if we will switch to the websocket protocol

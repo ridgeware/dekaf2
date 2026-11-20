@@ -1709,7 +1709,7 @@ KServerSentEventServer& KRESTServer::GetEventServer()
 } // GetEventServer
 
 //-----------------------------------------------------------------------------
-KServerSentEventServer::Handle KRESTServer::SubscribeToEvents(KStringView sTopic)
+KServerSentEventServer::Handle KRESTServer::SubscribeToEvents(const std::vector<KStringView>& Topics)
 //-----------------------------------------------------------------------------
 {
 	auto& EventServer = GetEventServer();
@@ -1742,10 +1742,8 @@ KServerSentEventServer::Handle KRESTServer::SubscribeToEvents(KStringView sTopic
 		m_iEventHandle = EventServer.Reserve();
 	}
 
-	if (!sTopic.empty())
-	{
-		EventServer.Subscribe(m_iEventHandle, sTopic);
-	}
+	// a client that connects again gets the events of the topics that it missed
+	EventServer.Subscribe(m_iEventHandle, Topics, Request.Headers.Get(KHTTPHeader::LAST_EVENT_ID));
 
 	return m_iEventHandle;
 

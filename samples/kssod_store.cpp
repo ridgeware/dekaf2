@@ -50,6 +50,7 @@
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/crypto/cipher/kblockcipher.h> // TOTP secrets at rest
 #include <dekaf2/crypto/kdf/khkdf.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/core/format/kformat.h>
@@ -165,6 +166,17 @@ KString ReadTotpSecret(KStringView sKey, KStringView sUsername, KStringView sSto
 bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_IS_UNIX
+	if (!kFileExists(sDatabase))
+	{
+		// SQLite creates a database that everybody may read, and gives its -wal and
+		// -shm files the mode of the database: create the file for its owner only.
+		// (Appending nothing creates it with that mode, and leaves a file alone that
+		// another kssod created at the same moment.)
+		kAppendFile(sDatabase, KStringView{}, 0600);
+	}
+#endif
+
 	KSQLite db(sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen())
 	{

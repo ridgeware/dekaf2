@@ -66,7 +66,8 @@
 
 using namespace dekaf2;
 
-/// Create the kssod schema (users + clients tables) and set WAL pragmas.
+/// Create the kssod schema (users + clients tables) and set WAL pragmas. A new
+/// database file is created for its owner only.
 /// @returns false and fills sError on failure.
 bool KSSOdInitDatabase(KString sDatabase, KString& sError);
 

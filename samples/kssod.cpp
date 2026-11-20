@@ -967,6 +967,15 @@ int main(int argc, char** argv)
 			return 1;
 		}
 
+#ifdef DEKAF2_IS_UNIX
+		// a new database is created for its owner only, one from before may be open
+		// to others - unless its directory keeps them out
+		if ((kGetMode(sDB) & 0077) && (kGetMode(KString(kDirname(sDB))) & 0077))
+		{
+			KErr.FormatLine("kssod: warning: {} holds the accounts and can be read by others - chmod 600 it, and its -wal and -shm files", sDB);
+		}
+#endif
+
 		// --- the operator's secret for the TOTP secrets ----------------------
 		KString sSecretSource;
 		KString sSecret = LoadSecret(sSecretFile, sSecretSource, sError);

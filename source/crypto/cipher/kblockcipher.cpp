@@ -1035,6 +1035,7 @@ bool KBlockCipher::AddString(KStringView sInput)
 				static_cast<int>(sChunk.size()))
 			)
 			{
+				m_OutString->resize(iOrigSize);
 				return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
 			}
 		}
@@ -1047,6 +1048,11 @@ bool KBlockCipher::AddString(KStringView sInput)
 			static_cast<int>(sChunk.size()))
 		)
 		{
+			// take back the room that was made for this chunk: a failed update has no output.
+			// (CCM checks its tag here and not in the finalization, which clears the output
+			// for the other modes - a ciphertext with a wrong tag left as many zero bytes as
+			// it had text.)
+			m_OutString->resize(iOrigSize);
 			return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
 		}
 

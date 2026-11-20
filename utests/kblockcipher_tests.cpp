@@ -1089,6 +1089,41 @@ TEST_CASE("KBlockCipher empty text")
 	}
 }
 
+TEST_CASE("KBlockCipher failed decryption")
+{
+	SECTION("a ciphertext with a wrong tag leaves no output")
+	{
+		struct Kind { KBlockCipher::Algorithm Algorithm; KBlockCipher::Mode Mode; KStringView sName; };
+
+		for (const auto& K : { Kind { KBlockCipher::AES,               KBlockCipher::GCM, "AES-256-GCM"       },
+		                       Kind { KBlockCipher::AES,               KBlockCipher::CCM, "AES-256-CCM"       },
+		                       Kind { KBlockCipher::ChaCha20_Poly1305, KBlockCipher::GCM, "ChaCha20-Poly1305" } })
+		{
+			INFO ( K.sName );
+
+			KBlockCipher Enc(KBlockCipher::Encrypt, K.Algorithm, K.Mode);
+			const auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+
+			KString sCipher;
+			CHECK ( Enc.SetKey(sKey) );
+			CHECK ( Enc.SingleRound("hello world", sCipher) );
+
+			// one bit of the tag
+			sCipher[0] = static_cast<char>(sCipher[0] ^ 0x01);
+
+			// to an empty string, and behind what a string holds already
+			for (KStringView sBefore : { "", "before" })
+			{
+				KString sClear(sBefore);
+				KBlockCipher Dec(KBlockCipher::Decrypt, K.Algorithm, K.Mode);
+				CHECK ( Dec.SetKey(sKey) );
+				CHECK_FALSE ( Dec.SingleRound(sCipher, sClear) );
+				CHECK ( sClear == sBefore );
+			}
+		}
+	}
+}
+
 TEST_CASE("KBlockCipher destructor never throws")
 {
 	// a destructor is implicitly noexcept, so a thrown exception would call

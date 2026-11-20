@@ -191,11 +191,18 @@ KString KServerSentEvent::Retry(KDuration Wait)
 void KServerSentEventParser::Add(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
+	if (HasError())
+	{
+		// a failed stream takes no more input
+		return;
+	}
+
 	if (m_iPos > 0)
 	{
 		// remove the input that is parsed
 		m_sInput.erase(0, m_iPos);
-		m_iPos = 0;
+		m_iScanned -= std::min(m_iScanned, m_iPos);
+		m_iPos      = 0;
 	}
 
 	m_sInput += sInput;
@@ -206,6 +213,11 @@ void KServerSentEventParser::Add(KStringView sInput)
 bool KServerSentEventParser::NextLine(KStringView& sLine)
 //-----------------------------------------------------------------------------
 {
+	if (HasError())
+	{
+		return false;
+	}
+
 	KStringView sInput(m_sInput);
 	sInput.remove_prefix(m_iPos);
 
@@ -237,11 +249,28 @@ bool KServerSentEventParser::NextLine(KStringView& sLine)
 		m_bAtStart = false;
 	}
 
-	auto iEnd = sInput.find_first_of(detail::kLineBreaksSet);
+	// what was searched in an earlier call is not searched again
+	auto iEnd = sInput.find_first_of(detail::kLineBreaksSet, std::max(m_iScanned, m_iPos) - m_iPos);
+
+	// the length of the line, or of what is there of a line that is not complete
+	if (std::min(iEnd, sInput.size()) > m_iMaxLineLength)
+	{
+		// give the memory back before the error is set, which may throw
+		KString().swap(m_sInput);
+		m_iPos     = 0;
+		m_iScanned = 0;
+		m_sData.clear();
+		m_sEvent.clear();
+
+		SetError(kFormat("line of the event stream is longer than {} bytes", m_iMaxLineLength));
+
+		return false;
+	}
 
 	if (iEnd == KStringView::npos)
 	{
 		// the line is not complete
+		m_iScanned = m_sInput.size();
 		return false;
 	}
 
@@ -262,7 +291,8 @@ bool KServerSentEventParser::NextLine(KStringView& sLine)
 		}
 	}
 
-	m_iPos += iNext;
+	m_iPos    += iNext;
+	m_iScanned = m_iPos;
 
 	return true;
 
@@ -366,8 +396,10 @@ bool KServerSentEventParser::Next(KServerSentEvent& Event)
 void KServerSentEventParser::clear()
 //-----------------------------------------------------------------------------
 {
+	ClearError();
 	m_sInput.clear();
 	m_iPos      = 0;
+	m_iScanned  = 0;
 	m_sData.clear();
 	m_sEvent.clear();
 	m_sID.clear();
@@ -378,5 +410,9 @@ void KServerSentEventParser::clear()
 	m_bSkipLF   = false;
 
 } // clear
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr std::size_t KServerSentEventParser::DefaultMaxLineLength;
+#endif
 
 DEKAF2_NAMESPACE_END

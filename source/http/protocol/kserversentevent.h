@@ -46,6 +46,7 @@
 /// and a parser for the stream
 
 #include <dekaf2/core/init/kdefinitions.h>
+#include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/time/duration/kduration.h>
@@ -132,7 +133,9 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Parser for an event stream. It takes the stream in pieces of any size, and
-/// returns the events that are complete.
+/// returns the events that are complete. A stream with a line that is longer than
+/// permitted fails: Next() returns false, HasError() is true, and the parser drops
+/// all further input until clear().
 ///
 /// @code
 /// KServerSentEventParser Parser;
@@ -148,13 +151,25 @@ public:
 ///     }
 /// }
 /// @endcode
-class DEKAF2_PUBLIC KServerSentEventParser
+class DEKAF2_PUBLIC KServerSentEventParser : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
 public:
 //------
+
+	/// the default for the largest permitted length of a line of the stream
+	static constexpr std::size_t DefaultMaxLineLength { 16 * 1024 * 1024 };
+
+	//-----------------------------------------------------------------------------
+	/// @param iMaxLineLength the largest permitted length of a line of the stream in
+	/// bytes, without its line break, npos for no limit
+	explicit KServerSentEventParser(std::size_t iMaxLineLength = DefaultMaxLineLength)
+	//-----------------------------------------------------------------------------
+	: m_iMaxLineLength(iMaxLineLength)
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// @param sInput the next piece of the stream
@@ -164,7 +179,8 @@ public:
 	//-----------------------------------------------------------------------------
 	/// @param Event receives the next event. Its id is the last id that the stream
 	/// has set, also if that was with an earlier event.
-	/// @return false if the input that was added so far has no further complete event
+	/// @return false if the input that was added so far has no further complete event,
+	/// or if the stream failed
 	bool Next(KServerSentEvent& Event);
 	//-----------------------------------------------------------------------------
 
@@ -197,7 +213,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// forget all input and state, to parse a new stream
+	/// forget all input, state and error, to parse a new stream
 	void clear();
 	//-----------------------------------------------------------------------------
 
@@ -218,7 +234,9 @@ private:
 	//-----------------------------------------------------------------------------
 
 	KString     m_sInput;                 // the input that is not parsed yet
+	std::size_t m_iMaxLineLength;
 	std::size_t m_iPos        { 0 };      // start of the unparsed input in m_sInput
+	std::size_t m_iScanned    { 0 };      // m_sInput has no line break between m_iPos and here
 	KString     m_sData;                  // data of the event being built, each line with a LF
 	KString     m_sEvent;                 // type of the event being built
 	KString     m_sID;                    // the id that the stream has set last

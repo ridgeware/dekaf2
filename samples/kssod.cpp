@@ -51,6 +51,11 @@
 //
 // Persistence (all in one SQLite file, --db):
 //   * users    : KSSOdUserStore   (table kssod_users)
+//                A TOTP secret has to be read back, so it is stored in clear, or
+//                encrypted with a secret that the operator supplies (--secret or
+//                KSSOD_SECRET). kssod creates that secret on request only
+//                (--secret-create): no data depends on a file that the operator
+//                does not know of.
 //   * clients  : KSSOdClientStore (table kssod_clients)
 //   * sessions : KSessionSQLiteStore behind a KSessionCachingStore
 //                (the OP login sessions that make SSO work), filed under the
@@ -436,6 +441,89 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+/// read the operator's secret for the TOTP secrets in the database: from the
+/// file of --secret, else from the environment
+/// @param sSource receives where the secret came from, for the messages
+/// @param sError  receives what is wrong with the secret that was given
+/// @returns the secret - empty if none is given, or with sError set
+KString LoadSecret(KStringViewZ sSecretFile, KString& sSource, KString& sError)
+//-----------------------------------------------------------------------------
+{
+	KString sSecret;
+
+	if (!sSecretFile.empty())
+	{
+		sSource = sSecretFile;
+
+		if (!kFileExists(sSecretFile))
+		{
+			sError = kFormat("the secret file {} does not exist", sSecretFile);
+			return KString{};
+		}
+
+#ifdef DEKAF2_IS_UNIX
+		if (kGetMode(sSecretFile) & 0077)
+		{
+			KErr.FormatLine("kssod: warning: {} holds the secret and can be read by others - chmod 600 it", sSecretFile);
+		}
+#endif
+
+		sSecret = kReadAll(sSecretFile);
+		sSecret.Trim();
+
+		if (sSecret.empty())
+		{
+			sError = kFormat("the secret file {} is empty", sSecretFile);
+			return KString{};
+		}
+	}
+	else
+	{
+		sSource = "the environment variable KSSOD_SECRET";
+		sSecret = kGetEnv("KSSOD_SECRET");
+		sSecret.Trim();
+
+		if (sSecret.empty())
+		{
+			// no secret given
+			sSource.clear();
+			return KString{};
+		}
+	}
+
+	// the key derivation does not stretch a short secret
+	if (sSecret.size() < 32)
+	{
+		sError = kFormat("the secret from {} is too short: it needs at least 32 random characters - --secret-create writes one", sSource);
+		return KString{};
+	}
+
+	return sSecret;
+}
+
+//-----------------------------------------------------------------------------
+/// hand the operator's secret to the user store, and say why it is not accepted
+bool AcceptSecret(KSSOdUserStore& Users, KStringView sSecret, KStringView sSource, KStringView sDB)
+//-----------------------------------------------------------------------------
+{
+	switch (Users.UseSecret(sSecret))
+	{
+		case KSSOdUserStore::SecretState::Accepted:
+			return true;
+
+		case KSSOdUserStore::SecretState::Mismatch:
+			KErr.FormatLine("kssod: the secret from {} is not the one that the TOTP secrets in {} are encrypted with - if that one is lost, see --secret-lost", sSource, sDB);
+			return false;
+
+		case KSSOdUserStore::SecretState::Failed:
+			KErr.FormatLine("kssod: cannot check the secret from {} against {}", sSource, sDB);
+			return false;
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
 /// verify a TOTP code and accept each time step only once (RFC 6238 5.2): a code
 /// that was observed - shoulder surfing, a phishing relay - cannot be replayed
 /// within its validity window
@@ -725,9 +813,34 @@ int main(int argc, char** argv)
 		KString  sReleaseName         = Options("release <username>    : allow the name of a deleted account for a new account again, then exit - apps that knew the deleted account take the new one for the same user", "");
 		KString  sRevokeTokensOf      = Options("revoke-tokens <username> : end all refresh tokens of the user, then exit - the name counts without regard to case; works beside a running kssod; the apps ask for a new sign-in once their access tokens have run out, within minutes", "");
 		bool     bRevokeAllTokens     = Options("revoke-all-tokens     : end all refresh tokens of all users, then exit - what a restart did before the tokens were kept in the database", false);
+		KString  sSecretFile          = Options("secret <file>         : store the TOTP secrets in the database encrypted, with the secret in this file - at least 32 random characters, see --secret-create; the secret may also come in the environment variable KSSOD_SECRET. kssod only reads it: keep a copy apart from the database and its backups, without the secret every user has to set up the authenticator app again (default: the TOTP secrets are stored in clear)", "");
+		KString  sSecretCreate        = Options("secret-create <file>  : write a new random secret for --secret into this file, then exit - a file that exists is left as it is", "");
+		bool     bSecretOff           = Options("secret-off            : with the secret: store the TOTP secrets in clear again, then exit - also the first step to change the secret; stop kssod before", false);
+		bool     bSecretLost          = Options("secret-lost           : the secret is lost: forget it, then exit, and kssod starts without it again - the TOTP secrets it encrypted stay unreadable, their users sign in with a backup code or have the second factor reset, and set up the authenticator app again; stop kssod before", false);
 
 		if (Options.Terminate())
 		{
+			return 0;
+		}
+
+		// --- operator action without the database ----------------------------
+		if (!sSecretCreate.empty())
+		{
+			if (kExists(sSecretCreate))
+			{
+				KErr.FormatLine("kssod: {} exists already - a secret is not overwritten, the TOTP secrets that it encrypted would be lost", sSecretCreate);
+				return 1;
+			}
+
+			// 48 random bytes, in 64 characters
+			if (!kWriteFile(sSecretCreate, kFormat("{}\n", KBase64Url::Encode(kGetRandom(48))), 0600))
+			{
+				KErr.FormatLine("kssod: cannot write {}", sSecretCreate);
+				return 1;
+			}
+
+			KOut.FormatLine(":: wrote a new secret to {} - start kssod with --secret {}", sSecretCreate, sSecretCreate);
+			KOut.FormatLine(":: keep a copy of it apart from the database and its backups: without the secret every user has to set up the authenticator app again");
 			return 0;
 		}
 
@@ -854,6 +967,90 @@ int main(int argc, char** argv)
 			return 1;
 		}
 
+		// --- the operator's secret for the TOTP secrets ----------------------
+		KString sSecretSource;
+		KString sSecret = LoadSecret(sSecretFile, sSecretSource, sError);
+
+		if (!sError.empty())
+		{
+			KErr.FormatLine("kssod: {}", sError);
+			return 1;
+		}
+
+		if (bSecretLost)
+		{
+			KSSOdUserStore Users(sDB);
+
+			if (!Users.HasSecretCheck())
+			{
+				KErr.FormatLine("kssod: the TOTP secrets in {} are not encrypted with a secret", sDB);
+				return 1;
+			}
+
+			if (!sSecret.empty() && Users.UseSecret(sSecret) == KSSOdUserStore::SecretState::Accepted)
+			{
+				KErr.FormatLine("kssod: the secret from {} is the right one, it is not lost - see --secret-off to store the TOTP secrets in clear again", sSecretSource);
+				return 1;
+			}
+
+			std::size_t iAccounts = Users.CountEncryptedTotp();
+
+			if (!Users.ForgetSecret())
+			{
+				KErr.FormatLine("kssod: cannot write to {}", sDB);
+				return 1;
+			}
+
+			KSSOdAuditStore(sDB, sAuditMirror).Write("operator.secret.forget", "ok", "", "*", "", "", KJSON{ { "accounts", iAccounts } });
+			KOut.FormatLine(":: forgot the secret - {} account{} cannot use the authenticator app until it is set up again",
+			                iAccounts, iAccounts == 1 ? "" : "s");
+			return 0;
+		}
+
+		if (bSecretOff)
+		{
+			if (sSecret.empty())
+			{
+				KErr.FormatLine("kssod: --secret-off needs the secret: give it with --secret <file> or in KSSOD_SECRET");
+				return 1;
+			}
+
+			KSSOdUserStore Users(sDB);
+
+			if (!Users.HasSecretCheck())
+			{
+				KErr.FormatLine("kssod: the TOTP secrets in {} are not encrypted with a secret", sDB);
+				return 1;
+			}
+
+			if (!AcceptSecret(Users, sSecret, sSecretSource, sDB))
+			{
+				return 1;
+			}
+
+			std::size_t iDecrypted  { 0 };
+			std::size_t iUnreadable { 0 };
+
+			if (!Users.RemoveEncryption(iDecrypted, iUnreadable))
+			{
+				KErr.FormatLine("kssod: cannot write to {}", sDB);
+				return 1;
+			}
+
+			KSSOdAuditStore(sDB, sAuditMirror).Write("operator.secret.off", "ok", "", "*", "", "",
+			                                         KJSON{ { "accounts", iDecrypted }, { "unreadable", iUnreadable } });
+			KOut.FormatLine(":: the TOTP secret{} of {} account{} {} stored in clear again",
+			                iDecrypted == 1 ? "" : "s", iDecrypted, iDecrypted == 1 ? "" : "s", iDecrypted == 1 ? "is" : "are");
+
+			if (iUnreadable > 0)
+			{
+				KOut.FormatLine(":: {} account{} had a TOTP secret from another secret, which stays unreadable",
+				                iUnreadable, iUnreadable == 1 ? "" : "s");
+			}
+
+			return 0;
+		}
+
 		// --- operator action instead of the server ---------------------------
 		if (!sReleaseName.empty())
 		{
@@ -950,6 +1147,40 @@ int main(int argc, char** argv)
 		pGrants->PurgeExpired(KUnixTime::now());
 		KOut.FormatLine(":: {} refresh tokens carried over", pGrants->CountRefreshTokens());
 		auto pSettings = std::make_shared<KSSOdSettingsStore>(sDB);
+
+		// --- encryption of the TOTP secrets ----------------------------------
+		// A database that was encrypted does not start without its secret: every
+		// sign-in with an authenticator app would fail, and new TOTP secrets would
+		// be stored in clear.
+		if (!sSecret.empty())
+		{
+			if (!AcceptSecret(*pUsers, sSecret, sSecretSource, sDB))
+			{
+				return 1;
+			}
+
+			std::size_t iEncrypted { 0 };
+
+			if (!pUsers->EncryptTotpSecrets(iEncrypted))
+			{
+				KErr.FormatLine("kssod: could not encrypt the TOTP secrets in {}", sDB);
+				return 1;
+			}
+
+			if (iEncrypted > 0)
+			{
+				KSSOdAuditStore(sDB, sAuditMirror).Write("operator.secret.encrypt", "ok", "", "*", "", "", KJSON{ { "accounts", iEncrypted } });
+				KOut.FormatLine(":: encrypted the TOTP secret{} of {} account{}",
+				                iEncrypted == 1 ? "" : "s", iEncrypted, iEncrypted == 1 ? "" : "s");
+			}
+
+			KOut.FormatLine(":: TOTP secrets are stored encrypted, with the secret from {}", sSecretSource);
+		}
+		else if (pUsers->HasSecretCheck())
+		{
+			KErr.FormatLine("kssod: the TOTP secrets in {} are encrypted - start with --secret <file> or with the secret in KSSOD_SECRET; if it is lost, see --secret-lost", sDB);
+			return 1;
+		}
 
 		// --- operator settings -----------------------------------------------
 		// the mail relay comes from the operator's settings file: an administrator

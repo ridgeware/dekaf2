@@ -48,6 +48,8 @@
 #include <dekaf2/crypto/encoding/kbase64.h>   // passkeys: binary values as base64url
 #include <dekaf2/crypto/encoding/khex.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
+#include <dekaf2/crypto/cipher/kblockcipher.h> // TOTP secrets at rest
+#include <dekaf2/crypto/kdf/khkdf.h>
 #include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/core/format/kformat.h>
@@ -84,6 +86,77 @@ KString DefaultRoleOn(KSQLite& db, KStringView sClientID)
 //-----------------------------------------------------------------------------
 {
 	return db.SingleStringQuery("select role from kssod_roles where client_id=?1 and is_default<>0 limit 1", sClientID);
+}
+
+/// starts a TOTP secret that is stored encrypted - a base32 secret has neither
+/// lower case letters nor a colon
+constexpr KStringView s_sEncryptedPrefix = "enc1:";
+
+/// the setting with the check value of the operator's secret
+constexpr KStringView s_sSecretCheckKey = "secret_check";
+
+//-----------------------------------------------------------------------------
+/// what the database keeps of the operator's secret to recognize it
+KString SecretCheck(KStringView sSecret)
+//-----------------------------------------------------------------------------
+{
+	return kHex(KHKDF::DeriveKey("kssod", sSecret, "check", 32));
+}
+
+//-----------------------------------------------------------------------------
+/// the key for the TOTP secrets
+KString TotpKey(KStringView sSecret)
+//-----------------------------------------------------------------------------
+{
+	return KHKDF::DeriveKey("kssod", sSecret, "totp", 32);
+}
+
+//-----------------------------------------------------------------------------
+/// @returns what is stored for a TOTP secret, empty on failure
+KString EncryptTotpSecret(KStringView sKey, KStringView sUsername, KStringView sBase32)
+//-----------------------------------------------------------------------------
+{
+	// AES-256-GCM, with a random IV and the authentication tag in the ciphertext.
+	// The name of the account is authenticated with the secret: a ciphertext
+	// that is copied to another account does not decrypt there.
+	KBlockCipher Cipher(KBlockCipher::Encrypt);
+	KString      sCiphertext;
+
+	if (!Cipher.SetKey(sKey) || !Cipher.SetAuthenticatedData(sUsername) || !Cipher.SingleRound(sBase32, sCiphertext))
+	{
+		return KString{};
+	}
+
+	return kFormat("{}{}", s_sEncryptedPrefix, KBase64Url::Encode(sCiphertext));
+}
+
+//-----------------------------------------------------------------------------
+/// @returns the base32 TOTP secret out of what is stored for it. Empty if it is
+/// encrypted and does not decrypt: without a key, with another one, for another
+/// account, or after a change of the stored value.
+KString ReadTotpSecret(KStringView sKey, KStringView sUsername, KStringView sStored)
+//-----------------------------------------------------------------------------
+{
+	if (!sStored.remove_prefix(s_sEncryptedPrefix))
+	{
+		// stored in clear
+		return KString(sStored);
+	}
+
+	if (sKey.empty())
+	{
+		return KString{};
+	}
+
+	KBlockCipher Cipher(KBlockCipher::Decrypt);
+	KString      sBase32;
+
+	if (!Cipher.SetKey(sKey) || !Cipher.SetAuthenticatedData(sUsername) || !Cipher.SingleRound(KBase64Url::Decode(sStored), sBase32))
+	{
+		return KString{};
+	}
+
+	return sBase32;
 }
 
 } // anonymous namespace
@@ -632,7 +705,14 @@ std::vector<KSSOdUserStore::User> KSSOdUserStore::List()
 bool KSSOdUserStore::HasTotp(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
-	return !GetTotpSecret(sUsername).empty();
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return false;
+
+	// what is stored counts, not what can be decrypted: an account whose secret
+	// is unreadable keeps asking for its second factor
+	return !db.SingleStringQuery("select totp_secret from kssod_users where username=?1", sUsername).empty();
 
 } // HasTotp
 
@@ -645,7 +725,8 @@ KString KSSOdUserStore::GetTotpSecret(KStringView sUsername)
 	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return KString{};
 
-	return db.SingleStringQuery("select totp_secret from kssod_users where username=?1", sUsername);
+	return ReadTotpSecret(m_sTotpKey, sUsername,
+	                      db.SingleStringQuery("select totp_secret from kssod_users where username=?1", sUsername));
 
 } // GetTotpSecret
 
@@ -658,10 +739,214 @@ bool KSSOdUserStore::SetTotpSecret(KStringView sUsername, KStringView sSecretBas
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
+	KString sStored(sSecretBase32);
+
+	if (!m_sTotpKey.empty() && !sStored.empty())
+	{
+		sStored = EncryptTotpSecret(m_sTotpKey, sUsername, sSecretBase32);
+
+		if (sStored.empty())
+		{
+			// better no second factor than one stored in clear beside the others
+			return false;
+		}
+	}
+
 	return static_cast<bool>(db.ExecSQL("update kssod_users set totp_secret=?1 where username=?2",
-	                                    sSecretBase32, sUsername));
+	                                    sStored, sUsername));
 
 } // SetTotpSecret
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::HasSecretCheck()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return false;
+
+	return !db.SingleStringQuery("select value from kssod_settings where key=?1", s_sSecretCheckKey).empty();
+
+} // HasSecretCheck
+
+//-----------------------------------------------------------------------------
+KSSOdUserStore::SecretState KSSOdUserStore::UseSecret(KStringView sSecret)
+//-----------------------------------------------------------------------------
+{
+	KString sCheck = SecretCheck(sSecret);
+	KString sKey   = TotpKey(sSecret);
+
+	if (sSecret.empty() || sCheck.empty() || sKey.empty())
+	{
+		return SecretState::Failed;
+	}
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return SecretState::Failed;
+
+	KString sStored = db.SingleStringQuery("select value from kssod_settings where key=?1", s_sSecretCheckKey);
+
+	if (sStored.empty())
+	{
+		if (!db.ExecSQL("insert or replace into kssod_settings (key, value) values (?1, ?2)", s_sSecretCheckKey, sCheck))
+		{
+			return SecretState::Failed;
+		}
+	}
+	else if (sStored != sCheck)
+	{
+		return SecretState::Mismatch;
+	}
+
+	m_sTotpKey = std::move(sKey);
+
+	return SecretState::Accepted;
+
+} // UseSecret
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::EncryptTotpSecrets(std::size_t& iEncrypted)
+//-----------------------------------------------------------------------------
+{
+	iEncrypted = 0;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	if (m_sTotpKey.empty()) return false;
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	auto Txn = db.BeginTransaction();
+	if (!Txn.IsOpen()) return false;
+
+	struct Entry { KString sUsername; KString sStored; };
+	std::vector<Entry> Clear;
+
+	for (auto& DBRow : Txn.ExecQuery("select username, totp_secret from kssod_users where totp_secret<>''"))
+	{
+		Entry E { DBRow.Col(1).String(), DBRow.Col(2).String() };
+
+		if (!E.sStored.starts_with(s_sEncryptedPrefix))
+		{
+			Clear.push_back(std::move(E));
+		}
+	}
+
+	for (const auto& E : Clear)
+	{
+		KString sEncrypted = EncryptTotpSecret(m_sTotpKey, E.sUsername, E.sStored);
+
+		// without Commit() the transaction is rolled back
+		if (sEncrypted.empty()) return false;
+
+		if (!Txn.ExecSQL("update kssod_users set totp_secret=?1 where username=?2", sEncrypted, E.sUsername)) return false;
+	}
+
+	if (!Txn.Commit()) return false;
+
+	iEncrypted = Clear.size();
+
+	return true;
+
+} // EncryptTotpSecrets
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::RemoveEncryption(std::size_t& iDecrypted, std::size_t& iUnreadable)
+//-----------------------------------------------------------------------------
+{
+	iDecrypted  = 0;
+	iUnreadable = 0;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	if (m_sTotpKey.empty()) return false;
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	auto Txn = db.BeginTransaction();
+	if (!Txn.IsOpen()) return false;
+
+	struct Entry { KString sUsername; KString sStored; };
+	std::vector<Entry> Encrypted;
+
+	for (auto& DBRow : Txn.ExecQuery("select username, totp_secret from kssod_users where totp_secret<>''"))
+	{
+		Entry E { DBRow.Col(1).String(), DBRow.Col(2).String() };
+
+		if (E.sStored.starts_with(s_sEncryptedPrefix))
+		{
+			Encrypted.push_back(std::move(E));
+		}
+	}
+
+	std::size_t iClear    { 0 };
+	std::size_t iLeftAsIs { 0 };
+
+	for (const auto& E : Encrypted)
+	{
+		KString sBase32 = ReadTotpSecret(m_sTotpKey, E.sUsername, E.sStored);
+
+		if (sBase32.empty())
+		{
+			// encrypted with a secret that was forgotten before
+			++iLeftAsIs;
+			continue;
+		}
+
+		// without Commit() the transaction is rolled back
+		if (!Txn.ExecSQL("update kssod_users set totp_secret=?1 where username=?2", sBase32, E.sUsername)) return false;
+
+		++iClear;
+	}
+
+	if (!Txn.ExecSQL("delete from kssod_settings where key=?1", s_sSecretCheckKey)) return false;
+
+	if (!Txn.Commit()) return false;
+
+	m_sTotpKey.clear();
+
+	iDecrypted  = iClear;
+	iUnreadable = iLeftAsIs;
+
+	return true;
+
+} // RemoveEncryption
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::ForgetSecret()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	if (!db.ExecSQL("delete from kssod_settings where key=?1", s_sSecretCheckKey)) return false;
+
+	m_sTotpKey.clear();
+
+	return true;
+
+} // ForgetSecret
+
+//-----------------------------------------------------------------------------
+std::size_t KSSOdUserStore::CountEncryptedTotp()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return 0;
+
+	return static_cast<std::size_t>(db.SingleIntQuery("select count(*) from kssod_users where substr(totp_secret, 1, ?1)=?2",
+	                                                   static_cast<int64_t>(s_sEncryptedPrefix.size()), s_sEncryptedPrefix));
+
+} // CountEncryptedTotp
 
 //-----------------------------------------------------------------------------
 bool KSSOdUserStore::ClearTotp(KStringView sUsername)

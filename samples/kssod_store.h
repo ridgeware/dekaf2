@@ -143,13 +143,49 @@ public:
 
 	// --- two-factor auth (TOTP) ---
 	bool        HasTotp       (KStringView sUsername);             ///< 2FA enrolled?
-	KString     GetTotpSecret (KStringView sUsername);             ///< base32 secret, empty if none
+	KString     GetTotpSecret (KStringView sUsername);             ///< base32 secret, empty if none or if it cannot be decrypted
 	bool        SetTotpSecret (KStringView sUsername, KStringView sSecretBase32); ///< enroll/enable
 	bool        ClearTotp     (KStringView sUsername);             ///< disable (also drops backup codes)
 	/// accept a TOTP time step once (RFC 6238 5.2): false if this step, or a later one,
 	/// was already used to sign in - a code that was observed cannot be replayed
 	bool        AcceptTotpStep(KStringView sUsername, int64_t iStep);
 	// backup/recovery codes: stored hashed, single-use
+	// --- encryption of the TOTP secrets in the database ---
+	// A TOTP secret has to be read back, so it cannot be stored as a hash. With a
+	// secret that the operator supplies it is stored encrypted (AES-256-GCM), under
+	// a key that is derived from that secret, and authenticated together with the
+	// name of the account. The database keeps a check value of the secret, to tell
+	// a wrong or a missing secret at the start.
+
+	/// what UseSecret() found
+	enum class SecretState
+	{
+		Accepted,   ///< the secret is the one of this database, or the first it sees
+		Mismatch,   ///< the database holds the check value of another secret
+		Failed      ///< the database could not be read or written
+	};
+
+	/// does the database hold the check value of a secret?
+	bool        HasSecretCheck();
+	/// take the secret for the TOTP secrets, and note its check value in the
+	/// database if there is none yet
+	SecretState UseSecret     (KStringView sSecret);
+	/// encrypt the TOTP secrets that are stored in clear
+	/// @param iEncrypted receives their count
+	/// @returns false if not all of them could be encrypted - none is changed then
+	bool        EncryptTotpSecrets(std::size_t& iEncrypted);
+	/// store the TOTP secrets in clear again, remove the check value and stop
+	/// encrypting. A secret that does not decrypt stays as it is.
+	/// @param iDecrypted  receives the count of secrets now in clear
+	/// @param iUnreadable receives the count of secrets that did not decrypt
+	/// @returns false if the database could not be written - nothing is changed then
+	bool        RemoveEncryption(std::size_t& iDecrypted, std::size_t& iUnreadable);
+	/// remove the check value of a secret that is lost. What it encrypted stays
+	/// in the database, unreadable: HasTotp() remains true for these accounts.
+	bool        ForgetSecret  ();
+	/// count of accounts with an encrypted TOTP secret
+	std::size_t CountEncryptedTotp();
+
 	bool        SetBackupCodes(KStringView sUsername, const std::vector<KString>& Hashes); ///< replace the set
 	bool        ConsumeBackupCode(KStringView sUsername, KStringView sCodeHash);           ///< verify+delete one
 	std::size_t CountBackupCodes (KStringView sUsername);
@@ -266,6 +302,7 @@ public:
 private:
 	KString    m_sDatabase;
 	std::mutex m_Mutex;
+	KString    m_sTotpKey;  ///< the key for the TOTP secrets, from the operator's secret - empty: stored in clear
 
 }; // KSSOdUserStore
 

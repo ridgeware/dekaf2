@@ -714,7 +714,8 @@ void RenderAccount(KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSO
 	CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(
 	    "Signed in on a shared or someone else's computer? This ends your single sign-on "
 	    "session in every browser, so no app can sign you in silently again. Apps you are "
-	    "already signed in to stay open until they next check with this provider.");
+	    "already signed in to ask for a new sign-in when they next check with this provider, "
+	    "within minutes.");
 	{
 		auto F = CB.Add<html::Form>("/account/sessions/close-all");
 		F.SetMethod(html::Form::POST);

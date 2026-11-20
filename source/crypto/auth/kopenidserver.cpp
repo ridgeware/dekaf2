@@ -1339,6 +1339,25 @@ void KOpenIDServer::HandleLogout(KRESTServer& HTTP)
 	}
 	HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, m_LoginSession->SerializeExpiryCookie());
 
+	// The refresh tokens that the application holds for this user end with the
+	// logout: the application drops its copy, and a copy in other hands would
+	// work on until it expires. The user is the one of the hint, or of the
+	// session that ends here. A request that is neither backed by a hint nor
+	// confirmed (a link that somebody planted) does not get that far. The hint
+	// has to be an id_token for this: an access_token verifies as well, but it
+	// also reaches the resource servers.
+	bool bIDTokenHint = bHintVerified && kjson::GetStringRef(Hint, "token_use") == "id";
+
+	if (!sClientID.empty() && (bIDTokenHint || HTTP.Request.Method == KHTTPMethod::POST))
+	{
+		KStringView sSubject = bIDTokenHint ? KStringView(kjson::GetStringRef(Hint, "sub")) : KStringView(sSessionUser);
+
+		if (!sSubject.empty())
+		{
+			m_Grants->RevokeSubjectForClient(sSubject, sClientID);
+		}
+	}
+
 	if (m_Config.AuditHook && !sSessionUser.empty())
 	{
 		m_Config.AuditHook(HTTP, "sso.logout", sSessionUser, sClientID, true);

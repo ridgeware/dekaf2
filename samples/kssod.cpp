@@ -721,7 +721,7 @@ int main(int argc, char** argv)
 		KString  sSettingsFile        = Options("settings <file>       : operator settings (JSON) with the mail relay, which the admin UI cannot change (default config.json in the config directory)", "");
 		bool     bDemo                = Options("demo                  : on an empty database, create demo users with known passwords (admin/admin123, alice/alice123) and the demo app - for local tests only", false);
 		KString  sReleaseName         = Options("release <username>    : allow the name of a deleted account for a new account again, then exit - apps that knew the deleted account take the new one for the same user", "");
-		KString  sRevokeTokensOf      = Options("revoke-tokens <username> : end all refresh tokens of the user, then exit - works beside a running kssod; the apps ask for a new sign-in once their access tokens have run out, within minutes", "");
+		KString  sRevokeTokensOf      = Options("revoke-tokens <username> : end all refresh tokens of the user, then exit - the name counts without regard to case; works beside a running kssod; the apps ask for a new sign-in once their access tokens have run out, within minutes", "");
 		bool     bRevokeAllTokens     = Options("revoke-all-tokens     : end all refresh tokens of all users, then exit - what a restart did before the tokens were kept in the database", false);
 
 		if (Options.Terminate())
@@ -866,13 +866,56 @@ int main(int argc, char** argv)
 			return 0;
 		}
 
-		if (!sRevokeTokensOf.empty() || bRevokeAllTokens)
+		if (bRevokeAllTokens)
 		{
-			KSSOdGrantStore Grants(sDB);
-			std::size_t iTokens = bRevokeAllTokens ? Grants.RevokeAllRefreshTokens() : Grants.RevokeRefreshTokensOf(sRevokeTokensOf);
-			KSSOdAuditStore(sDB, sAuditMirror).Write("operator.tokens.revoke", "ok", "", bRevokeAllTokens ? KStringView("*") : KStringView(sRevokeTokensOf),
-			                                         "", "", KJSON{ { "refresh_tokens", iTokens } });
+			std::size_t iTokens = KSSOdGrantStore(sDB).RevokeAllRefreshTokens();
+			KSSOdAuditStore(sDB, sAuditMirror).Write("operator.tokens.revoke", "ok", "", "*", "", "", KJSON{ { "refresh_tokens", iTokens } });
 			KOut.FormatLine(":: ended {} refresh token{}", iTokens, iTokens == 1 ? "" : "s");
+			return 0;
+		}
+
+		if (!sRevokeTokensOf.empty())
+		{
+			// The name of an account is case sensitive, but the operator need not know
+			// how the user spelled it: 'Alice' ends the tokens of 'alice' as well, and
+			// of every other account that differs by case only.
+			KSSOdGrantStore Grants(sDB);
+			auto Subjects = Grants.FindSubjects(sRevokeTokensOf);
+
+			if (Subjects.empty())
+			{
+				// nothing to end: tell a user without tokens from a name that is wrong
+				KString sLowerName = sRevokeTokensOf.ToLower();
+				bool    bKnown { false };
+
+				for (const auto& User : KSSOdUserStore(sDB).List())
+				{
+					if (User.sUsername.ToLower() == sLowerName)
+					{
+						bKnown = true;
+						break;
+					}
+				}
+
+				if (!bKnown)
+				{
+					KErr.FormatLine("kssod: '{}' is not the name of an account", sRevokeTokensOf);
+					return 1;
+				}
+
+				KOut.FormatLine(":: '{}' has no refresh tokens", sRevokeTokensOf);
+				return 0;
+			}
+
+			KSSOdAuditStore Audit(sDB, sAuditMirror);
+
+			for (const auto& sSubject : Subjects)
+			{
+				std::size_t iTokens = Grants.RevokeRefreshTokensOf(sSubject);
+				Audit.Write("operator.tokens.revoke", "ok", "", sSubject, "", "", KJSON{ { "refresh_tokens", iTokens } });
+				KOut.FormatLine(":: ended {} refresh token{} of '{}'", iTokens, iTokens == 1 ? "" : "s", sSubject);
+			}
+
 			return 0;
 		}
 
@@ -1727,18 +1770,20 @@ int main(int argc, char** argv)
 			RenderAccount(HTTP, sUser, pUsers->IsAdmin(sUser), Claims, {}, false, AccountStateFor(HTTP, sUser));
 		});
 
-		// sign out of every browser: end all of this user's OP login sessions. Apps
-		// the user is already signed in to stay open until they next contact us, but
-		// no further silent SSO can happen anywhere — and this browser is logged out
-		// at once. (Existing app sessions ending only on their next sign-in is the
-		// inherent limit of provider-side logout; see the help text on the page.)
+		// sign out of every browser: end all of this user's OP login sessions, and
+		// the refresh tokens of the apps. No further silent SSO can happen anywhere,
+		// this browser is logged out at once, and an app the user is signed in to
+		// asks for a new sign-in when its access token has run out and it comes for
+		// a new one - without the refresh tokens it would get one for weeks. (An app
+		// that keeps its own session and never asks again is the inherent limit of
+		// provider-side logout; see the help text on the page.)
 		Routes.AddRoute("/account/sessions/close-all").Post(
-			[&pSession, &Redirect, &Log](KRESTServer& HTTP)
+			[&pSession, &Server, &Redirect, &Log](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty()) Redirect(HTTP, "/login");
-			pSession->LogoutAllFor(sUser);
-			Log(HTTP, "session.close_all", "ok", sUser, sUser);
+			std::size_t iSessions = Server.RevokeSubject(sUser);
+			Log(HTTP, "session.close_all", "ok", sUser, sUser, {{ "sessions", iSessions }});
 			HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, pSession->SerializeExpiryCookie());
 			Redirect(HTTP, "/login");
 		}).Parse(KRESTRoute::WWWFORM);
@@ -1812,7 +1857,7 @@ int main(int argc, char** argv)
 		}).Parse(KRESTRoute::WWWFORM);
 
 		Routes.AddRoute("/account/password").Post(
-			[&Log, &pSession, &pUsers, &AccountStateFor, &Redirect](KRESTServer& HTTP)
+			[&Log, &pSession, &pUsers, &pGrants, &AccountStateFor, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty()) Redirect(HTTP, "/login");
@@ -1838,8 +1883,26 @@ int main(int argc, char** argv)
 				return;
 			}
 			pUsers->ChangePassword(sUser, sNew);
-			Log(HTTP, "account.password", "ok", sUser, sUser);
-			RenderAccount(HTTP, sUser, bAdmin, Claims, "Password changed.", false, AccountStateFor(HTTP, sUser));
+
+			// a new password can follow a suspicion: whoever else holds a session or a
+			// refresh token of the account loses it. This browser, which just proved
+			// the old password, stays signed in.
+			KString     sCurrentID = KSession::GetSessionID(HTTP.GetCookie(pSession->GetCookieName()));
+			std::size_t iSessions { 0 };
+
+			for (const auto& Rec : pSession->ListSessionsFor(sUser))
+			{
+				if (Rec.sID != sCurrentID && pSession->LogoutByID(Rec.sID))
+				{
+					++iSessions;
+				}
+			}
+
+			pGrants->RevokeSubject(sUser);
+
+			Log(HTTP, "account.password", "ok", sUser, sUser, {{ "sessions", iSessions }});
+			RenderAccount(HTTP, sUser, bAdmin, Claims, "Password changed. Your other sessions were signed out, and your apps "
+			              "ask for a new sign-in.", false, AccountStateFor(HTTP, sUser));
 		}).Parse(KRESTRoute::WWWFORM);
 
 		// ----- email: verification + email-OTP-as-2FA toggle -----

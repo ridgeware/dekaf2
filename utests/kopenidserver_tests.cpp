@@ -207,6 +207,18 @@ struct TestGrantStore : KOpenIDServer::GrantStore
 			it = (it->second.sSubject == sSubject) ? Refreshes.erase(it) : std::next(it);
 		}
 	}
+	void RevokeSubjectForClient(KStringView sSubject, KStringView sClientID) override
+	{
+		std::lock_guard<std::mutex> L(Mutex);
+		for (auto it = Codes.begin(); it != Codes.end(); )
+		{
+			it = (it->second.sSubject == sSubject && it->second.sClientID == sClientID) ? Codes.erase(it) : std::next(it);
+		}
+		for (auto it = Refreshes.begin(); it != Refreshes.end(); )
+		{
+			it = (it->second.sSubject == sSubject && it->second.sClientID == sClientID) ? Refreshes.erase(it) : std::next(it);
+		}
+	}
 };
 
 // a browser-ish cookie jar
@@ -274,6 +286,8 @@ TEST_CASE("KOpenIDServer")
 	Routes.AddRoute({ KHTTPMethod::GET,  false, "/authorize", [&Server](KRESTServer& h){ Server.HandleAuthorize(h); }});
 	Routes.AddRoute({ KHTTPMethod::GET,  false, "/userinfo",  [&Server](KRESTServer& h){ Server.HandleUserInfo(h); }});
 	Routes.AddRoute({ KHTTPMethod::GET,  false, "/logout",    [&Server](KRESTServer& h){ Server.HandleLogout(h); }});
+	// the confirmed logout comes as a POST
+	Routes.AddRoute({ KHTTPMethod::POST, false, "/logout",    [&Server](KRESTServer& h){ Server.HandleLogout(h); }, KRESTRoute::WWWFORM });
 	Routes.AddRoute({ KHTTPMethod::POST, false, "/token",     [&Server](KRESTServer& h){ Server.HandleToken(h); }, KRESTRoute::WWWFORM });
 	// the application owns the login UI; here a minimal POST handler that
 	// verifies the password and resumes the pending authorize
@@ -845,6 +859,106 @@ TEST_CASE("KOpenIDServer")
 
 		// without the session the browser goes back to the login page, without a code
 		CHECK ( FirstHeader(Drive("GET", sAuthorizeQuery, Cookies.Header()), "Location") == "/login" );
+	}
+
+	SECTION("a logout ends the refresh tokens of the user at the client")
+	{
+		auto RefreshBody = [](KStringView sRT, KStringView sClientID = "test-client")
+		{
+			return kFormat("grant_type=refresh_token&refresh_token={}&client_id={}&client_secret=test-secret", sRT, sClientID);
+		};
+
+		KString sAccessToken;
+
+		// signs alice in at test-client: the login session goes into Cookies
+		auto SignIn = [&](CookieJar& Cookies, KString& sRT, KString& sIdToken)
+		{
+			Cookies.Apply(Drive("GET", sAuthorizeQuery, Cookies.Header()));
+			KString sLogin = Drive("POST", "/login", Cookies.Header(), "username=alice&password=secret");
+			Cookies.Apply(sLogin);
+			KJSON jTok = kjson::Parse(ResponseBody(Drive("POST", "/token", "", CodeBody(URLParam(FirstHeader(sLogin, "Location"), "code")))));
+			sRT          = kjson::GetStringRef(jTok, "refresh_token");
+			sIdToken     = kjson::GetStringRef(jTok, "id_token");
+			sAccessToken = kjson::GetStringRef(jTok, "access_token");
+			REQUIRE_FALSE ( sRT.empty() );
+			REQUIRE_FALSE ( sIdToken.empty() );
+			REQUIRE_FALSE ( sAccessToken.empty() );
+		};
+
+		// a logout with the id_token_hint of the application
+		{
+			CookieJar Cookies;
+			KString sRT, sIdToken;
+			SignIn(Cookies, sRT, sIdToken);
+
+			// the same user at a second application, through the live login session
+			KString sOtherQuery = sAuthorizeQuery;
+			sOtherQuery.Replace("client_id=test-client", "client_id=other-client");
+			KString sOtherCode  = URLParam(FirstHeader(Drive("GET", sOtherQuery, Cookies.Header()), "Location"), "code");
+			REQUIRE_FALSE ( sOtherCode.empty() );
+			KString sOtherRT    = kjson::GetStringRef(kjson::Parse(ResponseBody(Drive("POST", "/token", "", CodeBody(sOtherCode, "other-client")))), "refresh_token");
+			REQUIRE_FALSE ( sOtherRT.empty() );
+
+			KString sLogout = Drive("GET", kFormat("/logout?id_token_hint={}", sIdToken), Cookies.Header());
+			CHECK ( sLogout.contains("302") );
+
+			CHECK ( TokenError(Drive("POST", "/token", "", RefreshBody(sRT))) == "invalid_grant" );
+			// the other application keeps its own
+			CHECK_FALSE ( kjson::GetStringRef(kjson::Parse(ResponseBody(Drive("POST", "/token", "", RefreshBody(sOtherRT, "other-client")))), "access_token").empty() );
+		}
+
+		// a logout that names the client only, and that nobody confirmed: it may
+		// be a planted link, the refresh tokens stay
+		{
+			CookieJar Cookies;
+			KString sRT, sIdToken;
+			SignIn(Cookies, sRT, sIdToken);
+
+			KString sLogout = Drive("GET", "/logout?client_id=test-client", Cookies.Header());
+			CHECK ( sLogout.contains("302") );
+
+			KString sRT2 = kjson::GetStringRef(kjson::Parse(ResponseBody(Drive("POST", "/token", "", RefreshBody(sRT)))), "refresh_token");
+			CHECK_FALSE ( sRT2.empty() );
+		}
+
+		// an access_token as the hint: it names the same user and client, but it is
+		// also in the hands of the resource servers - the refresh tokens stay
+		{
+			CookieJar Cookies;
+			KString sRT, sIdToken;
+			SignIn(Cookies, sRT, sIdToken);
+
+			Drive("GET", kFormat("/logout?id_token_hint={}", sAccessToken), "");
+
+			KString sRT2 = kjson::GetStringRef(kjson::Parse(ResponseBody(Drive("POST", "/token", "", RefreshBody(sRT)))), "refresh_token");
+			CHECK_FALSE ( sRT2.empty() );
+		}
+
+		// the confirmed logout of the session's user
+		{
+			CookieJar Cookies;
+			KString sRT, sIdToken;
+			SignIn(Cookies, sRT, sIdToken);
+
+			KString sLogout = Drive("POST", "/logout", Cookies.Header(), "client_id=test-client");
+			CHECK ( sLogout.contains("302") );
+
+			CHECK ( TokenError(Drive("POST", "/token", "", RefreshBody(sRT))) == "invalid_grant" );
+		}
+
+		// confirmed, but without a session and without a hint there is no user
+		// whose tokens could end
+		{
+			CookieJar Cookies;
+			KString sRT, sIdToken;
+			SignIn(Cookies, sRT, sIdToken);
+
+			KString sLogout = Drive("POST", "/logout", "", "client_id=test-client");
+			CHECK ( sLogout.contains("302") );
+
+			KString sRT2 = kjson::GetStringRef(kjson::Parse(ResponseBody(Drive("POST", "/token", "", RefreshBody(sRT)))), "refresh_token");
+			CHECK_FALSE ( sRT2.empty() );
+		}
 	}
 
 	SECTION("PKCE mismatch is rejected at the token endpoint")

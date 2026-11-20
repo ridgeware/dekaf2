@@ -1769,6 +1769,24 @@ void KSSOdGrantStore::RevokeSubject(KStringView sSubject)
 } // RevokeSubject
 
 //-----------------------------------------------------------------------------
+void KSSOdGrantStore::RevokeSubjectForClient(KStringView sSubject, KStringView sClientID)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	for (auto it = m_Codes.begin(); it != m_Codes.end(); )
+	{
+		it = (it->second.sSubject == sSubject && it->second.sClientID == sClientID) ? m_Codes.erase(it) : std::next(it);
+	}
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return;
+
+	db.ExecSQL("delete from kssod_refresh_tokens where subject=?1 and client_id=?2", sSubject, sClientID);
+
+} // RevokeSubjectForClient
+
+//-----------------------------------------------------------------------------
 bool KSSOdGrantStore::RememberConsumedRefresh(KStringView sToken, KStringView sFamily, KUnixTime tUntil)
 //-----------------------------------------------------------------------------
 {
@@ -1842,6 +1860,34 @@ std::size_t KSSOdGrantStore::RevokeAllRefreshTokens()
 	return db.ExecSQL("delete from kssod_refresh_tokens").AffectedRows();
 
 } // RevokeAllRefreshTokens
+
+//-----------------------------------------------------------------------------
+std::vector<KString> KSSOdGrantStore::FindSubjects(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KString> Subjects;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return Subjects;
+
+	// compared here and not in SQL: lower() of sqlite folds ASCII only
+	KString sLowerName = sName.ToLower();
+
+	for (auto& Row : db.ExecQuery("select distinct subject from kssod_refresh_tokens order by subject"))
+	{
+		KString sSubject = Row.Col(1).String();
+
+		if (sSubject.ToLower() == sLowerName)
+		{
+			Subjects.push_back(std::move(sSubject));
+		}
+	}
+
+	return Subjects;
+
+} // FindSubjects
 
 //-----------------------------------------------------------------------------
 std::size_t KSSOdGrantStore::CountRefreshTokens()
@@ -1997,11 +2043,14 @@ bool KSSOdClientStore::DeleteClient(KStringView sClientID)
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
-	// cascade: deleting an app removes everything tied to it - its role catalog
-	// and every user assignment to it - so no orphaned rows are left behind
-	for (KStringView sSQL : { "delete from kssod_assignments where client_id=?1",
-	                          "delete from kssod_roles       where client_id=?1",
-	                          "delete from kssod_clients     where client_id=?1" })
+	// cascade: deleting an app removes everything tied to it - its role catalog,
+	// every user assignment to it and the refresh tokens it holds - so no orphaned
+	// rows are left behind. A refresh token that outlived its app would work
+	// again for a new app with the same client_id.
+	for (KStringView sSQL : { "delete from kssod_assignments    where client_id=?1",
+	                          "delete from kssod_roles          where client_id=?1",
+	                          "delete from kssod_refresh_tokens where client_id=?1",
+	                          "delete from kssod_clients        where client_id=?1" })
 	{
 		db.ExecSQL(sSQL, sClientID);
 	}

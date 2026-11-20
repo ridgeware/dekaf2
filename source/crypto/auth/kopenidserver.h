@@ -276,6 +276,13 @@ public:
 		{
 			(void)sSubject;
 		}
+		/// drop every live code and refresh token that the client sClientID holds
+		/// for sSubject - called when the user signs out of that application. The
+		/// default keeps them, so they stay valid until they expire.
+		virtual void RevokeSubjectForClient(KStringView sSubject, KStringView sClientID)
+		{
+			(void)sSubject; (void)sClientID;
+		}
 
 		// --- refresh token reuse detection (OAuth 2.0 Security BCP 4.14.2) ---
 		// A rotated token that is presented again means the token was stolen (or the
@@ -330,7 +337,9 @@ public:
 	/// GET /logout — clear the OP session and 302 to post_logout_redirect_uri. An
 	/// id_token_hint has to belong to the current session (and to client_id, if both
 	/// are given); without a verifiable hint the request is sent to
-	/// Config::sLogoutConfirmPath when that is set
+	/// Config::sLogoutConfirmPath when that is set. A logout with a verified
+	/// id_token as hint, or a confirmed one (POST), also ends the refresh tokens of
+	/// the user at the client, see GrantStore::RevokeSubjectForClient()
 	void HandleLogout   (KRESTServer& HTTP);
 
 	/// Verify a username/password pair (thin pass-through to the UserStore), for

@@ -410,6 +410,7 @@ public:
 	bool TakeRefresh (KStringView sToken, Refresh& Out) override;
 	void PurgeExpired(KUnixTime tNow)                   override;
 	void RevokeSubject(KStringView sSubject)            override;
+	void RevokeSubjectForClient(KStringView sSubject, KStringView sClientID) override;
 	bool RememberConsumedRefresh(KStringView sToken, KStringView sFamily, KUnixTime tUntil) override;
 	bool WasConsumedRefresh(KStringView sToken, KString& sFamilyOut) override;
 	void RevokeRefreshFamily(KStringView sFamily)       override;
@@ -425,6 +426,10 @@ public:
 	std::size_t RevokeAllRefreshTokens();
 	/// the number of live refresh tokens
 	std::size_t CountRefreshTokens();
+	/// the users with live refresh tokens whose name is sName without regard to
+	/// case: the name of an account is case sensitive, but who revokes by hand
+	/// need not know how the user spelled it
+	std::vector<KString> FindSubjects(KStringView sName);
 
 private:
 	/// PurgeExpired(), if the last one is an hour ago. Called with m_Mutex held.

@@ -108,7 +108,12 @@ public:
 	struct Config
 	{
 		KString   sIssuer;                          ///< issuer URL (== the "iss" claim); must be HTTPS in production
-		KString   sKid { "key-1" };                 ///< key id advertised in the JWKS and JWT headers
+		/// key id advertised in the JWKS and JWT headers. A relying party keeps the keys
+		/// by their id, and asks for them again when a token names an id it does not know:
+		/// a fixed id therefore has to change together with the signing key. Leave it
+		/// empty to take the thumbprint of the signing key (KRSAKey::GetJWKThumbprint()),
+		/// which does.
+		KString   sKid { "key-1" };
 		KDuration AuthCodeTTL    { chrono::seconds(60) }; ///< authorization code lifetime (issuance -> token exchange)
 		KDuration AccessTTL      { chrono::minutes(5)  }; ///< access_token lifetime
 		KDuration IdTokenTTL     { chrono::minutes(5)  }; ///< id_token lifetime

@@ -74,6 +74,13 @@ KOpenIDServer::KOpenIDServer(Config config,
 , m_SigningKey   (std::move(SigningKey))
 , m_PublicJWK    (m_SigningKey.GetPublicJWK(m_Config.sKid, "RS256"))
 {
+	if (m_Config.sKid.empty())
+	{
+		// no key id was chosen: the thumbprint of the key is one that changes with it
+		m_Config.sKid = m_SigningKey.GetJWKThumbprint();
+		m_PublicJWK   = m_SigningKey.GetPublicJWK(m_Config.sKid, "RS256");
+	}
+
 } // ctor
 
 //-----------------------------------------------------------------------------

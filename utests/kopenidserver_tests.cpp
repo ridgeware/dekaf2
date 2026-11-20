@@ -1141,3 +1141,68 @@ TEST_CASE("KOpenIDServer")
 		}
 	}
 }
+
+//=============================================================================
+TEST_CASE("KOpenIDServer key id")
+//=============================================================================
+{
+	// the public key of RFC 7638 section 3.1, with the thumbprint that the RFC gives
+	const auto MakeKey = []()
+	{
+		return KRSAKey(KJSON {
+			{ "n", "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw" },
+			{ "e", "AQAB" }
+		});
+	};
+
+	// the key id that a server with this configuration publishes
+	const auto PublishedKid = [&MakeKey](KOpenIDServer::Config cfg)
+	{
+		cfg.sIssuer = "http://localhost:48999";
+
+		KSession::Config sc;
+		sc.sCookieName = "op_session";
+		sc.bSecure     = false;
+
+		KOpenIDServer Server(std::move(cfg),
+		                     std::make_shared<KSession>(std::make_unique<KSessionMemoryStore>(), sc),
+		                     std::make_shared<TestUserStore>(),
+		                     std::make_shared<TestClientStore>(),
+		                     std::make_shared<TestGrantStore>(),
+		                     MakeKey());
+
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/jwks", [&Server](KRESTServer& h){ Server.ServeJWKS(h); }});
+
+		KString sResp;
+		KInStringStream  iss("GET /jwks HTTP/1.1\r\nHost: localhost\r\nUser-Agent: utest\r\n\r\n");
+		KOutStringStream oss(sResp);
+		KStream stream(iss, oss);
+		KRESTServer::Options Options;
+		KRESTServer Srv(stream, "127.0.0.1:48999", url::KProtocol::HTTP, 48999, Routes, Options);
+		Srv.Execute();
+
+		KJSON jJWKS = kjson::Parse(ResponseBody(sResp));
+		REQUIRE ( jJWKS["keys"].size() == 1 );
+
+		return KString(kjson::GetStringRef(jJWKS["keys"][0], "kid"));
+	};
+
+	REQUIRE_FALSE ( MakeKey().empty() );
+
+	SECTION("the default and a chosen key id are published as they are")
+	{
+		CHECK ( PublishedKid(KOpenIDServer::Config{}) == "key-1" );
+
+		KOpenIDServer::Config cfg;
+		cfg.sKid = "my-key";
+		CHECK ( PublishedKid(cfg) == "my-key" );
+	}
+
+	SECTION("without a key id the thumbprint of the signing key is published")
+	{
+		KOpenIDServer::Config cfg;
+		cfg.sKid.clear();
+		CHECK ( PublishedKid(cfg) == "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs" );
+	}
+}

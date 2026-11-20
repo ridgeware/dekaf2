@@ -56,7 +56,9 @@
 //                (the OP login sessions that make SSO work), filed under the
 //                SHA-256 of the session token
 //   * signing  : the RS256 private key is persisted as PEM (--signkey), so
-//                tokens stay verifiable across restarts.
+//                tokens stay verifiable across restarts. Its key id is the
+//                thumbprint of the key: when the key file is lost, the new key
+//                has a new id, and the relying parties ask for the keys again.
 //   * grants   : KSSOdGrantStore - the refresh tokens (tables kssod_refresh_*),
 //                as SHA-256 only. A restart must not sign every user out of
 //                every application; --revoke-tokens and --revoke-all-tokens
@@ -1079,7 +1081,10 @@ int main(int argc, char** argv)
 		// --- the provider ----------------------------------------------------
 		KOpenIDServer::Config Config;
 		Config.sIssuer        = sIssuer;
-		Config.sKid           = "kssod-key-1";
+		// no fixed key id, but the thumbprint of the signing key: a relying party asks
+		// for the keys again when it meets an id it does not know, and keeps rejecting
+		// the tokens of a new key that comes with the id of the old one
+		Config.sKid.clear();
 		Config.bSecureCookies = bTLS;
 		// a GET /logout without an id_token_hint (i.e. not from a relying party acting for
 		// the signed-in user) asks the user first instead of ending the session

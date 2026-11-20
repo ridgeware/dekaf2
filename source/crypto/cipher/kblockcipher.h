@@ -94,7 +94,10 @@ DEKAF2_NAMESPACE_BEGIN
 /// on decryption. You can suppress this, but then you have to transport these over another channel
 /// to the recipient of the ciphertext.
 ///
-/// Currently KBlockCipher does not support AAD data (for CCM and GCM modes).
+/// The ciphers that compute an authentication tag (the CCM and GCM modes, and ChaCha20_Poly1305) can
+/// authenticate additional data together with the text (AAD), see SetAuthenticatedData(). This data is
+/// neither encrypted nor part of the ciphertext: the decryptor has to know it, and decryption fails with
+/// any other data.
 ///
 /// After instantiation you have to set either a password and optional salt, or a key of the right size, see
 /// SetPassword() and SetKey().
@@ -277,6 +280,12 @@ public:
 	/// like GCM - call before adding any input data
 	bool SetAuthenticationTag(KStringView sTag);
 
+	/// set additional data that is authenticated together with the text, but neither encrypted nor part of the
+	/// ciphertext (AAD) - only for ciphers with an authentication tag, like GCM. Decryption needs the same data,
+	/// and fails with any other. Call before adding any input data. The data counts for one round of encryption
+	/// or decryption.
+	bool SetAuthenticatedData(KStringView sData);
+
 	/// run one single round of SetOutput(), Add(), Finalize() - can be called repeatedly, will generate independent
 	/// encrypt/decrypt rounds reusing the same algorithm and password/key
 	bool SingleRound(KStringView sInput, KStringRef& sOutput);
@@ -331,6 +340,7 @@ private:
 	bool StartNewData();
 	bool SetTag();
 	bool SetIV();
+	bool SetAAD();
 	bool AddString(KStringView sInput);
 	bool AddStream(KStringView sInput);
 	bool FinalizeString();
@@ -355,6 +365,7 @@ private:
 	KString              m_sTag;
 	KString              m_sLastIV;
 	KString              m_sLastTag;
+	KString              m_sAAD;
 	KOutStream*          m_OutStream      { nullptr };
 	KStringRef*          m_OutString      { nullptr };
 	std::size_t          m_iStartOfString {       0 };
@@ -369,6 +380,7 @@ private:
 	bool                 m_bInitCompleted   { false };
 	bool                 m_bTagIsSet        { false };
 	bool                 m_bIVIsSet         { false };
+	bool                 m_bAADIsSet        { false };
 	bool                 m_bCCMDataAdded    { false };
 
 }; // KBlockCipher

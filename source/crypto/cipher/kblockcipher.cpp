@@ -624,6 +624,23 @@ bool KBlockCipher::SetAuthenticationTag(KStringView sTag)
 } // SetAuthenticationTag
 
 //---------------------------------------------------------------------------
+bool KBlockCipher::SetAuthenticatedData(KStringView sData)
+//---------------------------------------------------------------------------
+{
+	if (!m_iTagLength) return SetError("authenticated data not supported for selected cipher");
+
+	if (m_bInitCompleted) return SetError("authenticated data has to be set before any input data");
+
+	// EVP_CipherUpdate takes int for input length
+	if (sData.size() > static_cast<std::size_t>(INT_MAX)) return SetError("authenticated data too large");
+
+	m_sAAD = sData;
+
+	return true;
+
+} // SetAuthenticatedData
+
+//---------------------------------------------------------------------------
 bool KBlockCipher::SetOutput(KStringRef& sOutput)
 //---------------------------------------------------------------------------
 {
@@ -718,14 +735,44 @@ bool KBlockCipher::SetIV()
 } // SetIV
 
 //---------------------------------------------------------------------------
+bool KBlockCipher::SetAAD()
+//---------------------------------------------------------------------------
+{
+	if (m_bAADIsSet || m_sAAD.empty()) return true;
+
+	kDebug(3, "set authenticated data of size {}", m_sAAD.size());
+
+	int iOutLen;
+
+	// input without an output buffer is authenticated only
+	if (!::EVP_CipherUpdate(
+		m_evpctx.get(),
+		nullptr,
+		&iOutLen,
+		reinterpret_cast<const unsigned char*>(m_sAAD.data()),
+		static_cast<int>(m_sAAD.size()))
+	)
+	{
+		return SetError(GetOpenSSLError(kFormat("{}: cannot set authenticated data", m_Direction ? "encryption" : "decryption")));
+	}
+
+	m_bAADIsSet = true;
+
+	return true;
+
+} // SetAAD
+
+//---------------------------------------------------------------------------
 void KBlockCipher::PrepareNextRound()
 //---------------------------------------------------------------------------
 {
 	m_sTag.clear();
 	m_sIV.clear();
+	m_sAAD.clear();
 	m_bInitCompleted = false;
 	m_bTagIsSet = false;
 	m_bIVIsSet = false;
+	m_bAADIsSet = false;
 	m_bCCMDataAdded = false;
 
 } // PrepareNextRound
@@ -1004,6 +1051,12 @@ bool KBlockCipher::AddString(KStringView sInput)
 		}
 		m_bCCMDataAdded = true;
 	}
+	else
+	{
+		// the authenticated data goes in behind the IV and before the text - CCM
+		// takes it further down, once it knows the size of the text
+		if (!SetAAD()) return false;
+	}
 
 	// EVP_CipherUpdate takes int for input length - chunk large inputs to avoid overflow
 	static constexpr int iMaxChunk = INT_MAX / 2;
@@ -1037,6 +1090,12 @@ bool KBlockCipher::AddString(KStringView sInput)
 			{
 				m_OutString->resize(iOrigSize);
 				return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
+			}
+
+			if (!SetAAD())
+			{
+				m_OutString->resize(iOrigSize);
+				return false;
 			}
 		}
 
@@ -1170,14 +1229,24 @@ bool KBlockCipher::FinalizeString()
 		unsigned char NoOutput { 0 };
 		int iNoLen { 0 };
 
-		if (!::EVP_CipherUpdate(m_evpctx.get(), nullptr, &iNoLen, nullptr, 0) ||
-		    !::EVP_CipherUpdate(m_evpctx.get(), &NoOutput, &iNoLen, &NoInput, 0))
+		if (!::EVP_CipherUpdate(m_evpctx.get(), nullptr, &iNoLen, nullptr, 0))
+		{
+			return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
+		}
+
+		// the authenticated data has its place between the length and the text
+		if (!SetAAD()) return false;
+
+		if (!::EVP_CipherUpdate(m_evpctx.get(), &NoOutput, &iNoLen, &NoInput, 0))
 		{
 			return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
 		}
 
 		m_bCCMDataAdded = true;
 	}
+
+	// a text of no bytes has its authenticated data, too
+	if (!SetAAD()) return false;
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000L
 	// do not call EVP_CipherFinal_ex() in CCM mode - it fails with old OpenSSL versions

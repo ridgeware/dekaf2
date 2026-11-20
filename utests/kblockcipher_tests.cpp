@@ -899,20 +899,19 @@ TEST_CASE("KBlockCipher empty text")
 
 	SECTION("ChaCha20-Poly1305 known answer (RFC 8439, 2.8.2)")
 	{
-		// the RFC's AEAD example has additional data, which this class does not take. What
-		// can be compared without is the keystream: the text is encrypted with the block
-		// counter starting at 1 - the same bytes as plain ChaCha20 in RFC 8439, 2.4.2,
-		// which uses another nonce, though. So only the shape is checked against the RFC
-		// here, and the tag by decrypting: see the section above.
+		// the RFC's AEAD example, with its additional data
 		KBlockCipher Enc(KBlockCipher::Encrypt, KBlockCipher::ChaCha20_Poly1305, KBlockCipher::GCM, KBlockCipher::B256, false, false);
 		const KString sKey = kUnHex("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f");
 		const KString sIV  = kUnHex("070000004041424344454647");
+		const KString sAAD = kUnHex("50515253c0c1c2c3c4c5c6c7");
 		const KStringView sText = "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
 
 		KString sCipher;
 		CHECK ( Enc.SetKey(sKey) );
 		CHECK ( Enc.SetInitializationVector(sIV) );
+		CHECK ( Enc.SetAuthenticatedData(sAAD) );
 		CHECK ( Enc.SingleRound(sText, sCipher) );
+		CHECK ( kHex(Enc.GetAuthenticationTag()) == "1ae10b594f09e26a7e902ecbd0600691" );
 		// the ciphertext does not depend on the additional data, the tag does
 		CHECK ( kHex(sCipher) ==
 			"d31a8d34648e60db7b86afbc53ef7ec2"
@@ -1121,6 +1120,277 @@ TEST_CASE("KBlockCipher failed decryption")
 				CHECK ( sClear == sBefore );
 			}
 		}
+	}
+}
+
+TEST_CASE("KBlockCipher authenticated data")
+{
+	// additional data that is authenticated with the text, but not part of the ciphertext
+
+	struct Kind { KBlockCipher::Algorithm Algorithm; KBlockCipher::Mode Mode; KBlockCipher::Bits Bits; KStringView sName; };
+
+	static constexpr Kind Kinds[] =
+	{
+		{ KBlockCipher::AES,               KBlockCipher::GCM, KBlockCipher::B128, "AES-128-GCM"       },
+		{ KBlockCipher::AES,               KBlockCipher::GCM, KBlockCipher::B256, "AES-256-GCM"       },
+		{ KBlockCipher::AES,               KBlockCipher::CCM, KBlockCipher::B128, "AES-128-CCM"       },
+		{ KBlockCipher::AES,               KBlockCipher::CCM, KBlockCipher::B256, "AES-256-CCM"       },
+		{ KBlockCipher::ChaCha20_Poly1305, KBlockCipher::GCM, KBlockCipher::B256, "ChaCha20-Poly1305" }
+	};
+
+	static constexpr KStringView Texts[] = { "", "hello", "a longer text of more than one block of sixteen bytes" };
+
+	SECTION("GCM known answers (McGrew/Viega, The Galois/Counter Mode of Operation, test cases 4 and 16)")
+	{
+		const KString sText = kUnHex("d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a72"
+		                             "1c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39");
+		const KString sAAD  = kUnHex("feedfacedeadbeeffeedfacedeadbeefabaddad2");
+		const KString sIV   = kUnHex("cafebabefacedbaddecaf888");
+
+		struct Case { KBlockCipher::Bits Bits; KStringView sKey; KStringView sCipher; KStringView sTag; };
+
+		for (const auto& C : { Case { KBlockCipher::B128,
+		                              "feffe9928665731c6d6a8f9467308308",
+		                              "42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e"
+		                              "21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e091",
+		                              "5bc94fbc3221a5db94fae95ae7121a47" },
+		                       Case { KBlockCipher::B256,
+		                              "feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308",
+		                              "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa"
+		                              "8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662",
+		                              "76fc6ece0f4e1768cddf8853bb2d551b" } })
+		{
+			INFO ( kFormat("key of {} bytes", C.sKey.size() / 2) );
+
+			KString sCipher;
+			KBlockCipher Enc(KBlockCipher::Encrypt, KBlockCipher::AES, KBlockCipher::GCM, C.Bits, false, false);
+			CHECK ( Enc.SetKey(kUnHex(C.sKey)) );
+			CHECK ( Enc.SetInitializationVector(sIV) );
+			CHECK ( Enc.SetAuthenticatedData(sAAD) );
+			CHECK ( Enc.SingleRound(sText, sCipher) );
+			CHECK ( kHex(sCipher) == C.sCipher );
+			CHECK ( kHex(Enc.GetAuthenticationTag()) == C.sTag );
+
+			// and back
+			KString sClear;
+			KBlockCipher Dec(KBlockCipher::Decrypt, KBlockCipher::AES, KBlockCipher::GCM, C.Bits, false, false);
+			CHECK ( Dec.SetKey(kUnHex(C.sKey)) );
+			CHECK ( Dec.SetInitializationVector(sIV) );
+			CHECK ( Dec.SetAuthenticationTag(kUnHex(C.sTag)) );
+			CHECK ( Dec.SetAuthenticatedData(sAAD) );
+			CHECK ( Dec.SingleRound(kUnHex(C.sCipher), sClear) );
+			CHECK ( sClear == sText );
+		}
+	}
+
+	SECTION("decryption needs the same data")
+	{
+		for (const auto& K : Kinds)
+		{
+			for (bool bInline : { true, false })
+			{
+				for (KStringView sText : Texts)
+				{
+					INFO ( kFormat("{}, {}, text of {} bytes", K.sName, bInline ? "inline" : "not inline", sText.size()) );
+
+					KBlockCipher Enc(KBlockCipher::Encrypt, K.Algorithm, K.Mode, K.Bits, bInline, bInline);
+					const auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+
+					KString sCipher;
+					CHECK ( Enc.SetKey(sKey) );
+					CHECK ( Enc.SetAuthenticatedData("alice") );
+					CHECK ( Enc.SingleRound(sText, sCipher) );
+
+					const KString sIV  = Enc.GetInitializationVector();
+					const KString sTag = Enc.GetAuthenticationTag();
+
+					// the data is not part of the output
+					CHECK ( sCipher.size() == sText.size() + (bInline ? sTag.size() + sIV.size() : 0) );
+					CHECK_FALSE ( sCipher.contains("alice") );
+
+					// what was authenticated with the text: right, wrong, longer, none
+					for (KStringView sData : { "alice", "alicf", "alice ", "" })
+					{
+						INFO ( kFormat("data '{}'", sData) );
+
+						// (a cipher of its own: one that has failed stays failed)
+						KBlockCipher Dec(KBlockCipher::Decrypt, K.Algorithm, K.Mode, K.Bits, bInline, bInline);
+						CHECK ( Dec.SetKey(sKey) );
+
+						if (!bInline)
+						{
+							CHECK ( Dec.SetInitializationVector(sIV) );
+							CHECK ( Dec.SetAuthenticationTag(sTag) );
+						}
+
+						CHECK ( Dec.SetAuthenticatedData(sData) );
+
+						KString sClear;
+
+						if (sData == "alice")
+						{
+							CHECK ( Dec.SingleRound(sCipher, sClear) );
+							CHECK ( sClear == sText );
+						}
+						else
+						{
+							CHECK_FALSE ( Dec.SingleRound(sCipher, sClear) );
+							CHECK ( sClear.empty() );
+						}
+					}
+
+					// a text without data does not pass for one with
+					KString sPlainCipher;
+					KBlockCipher Enc2(KBlockCipher::Encrypt, K.Algorithm, K.Mode, K.Bits, true, true);
+					CHECK ( Enc2.SetKey(sKey) );
+					CHECK ( Enc2.SingleRound(sText, sPlainCipher) );
+
+					KString sNot;
+					KBlockCipher Dec2(KBlockCipher::Decrypt, K.Algorithm, K.Mode, K.Bits, true, true);
+					CHECK ( Dec2.SetKey(sKey) );
+					CHECK ( Dec2.SetAuthenticatedData("alice") );
+					CHECK_FALSE ( Dec2.SingleRound(sPlainCipher, sNot) );
+					CHECK ( sNot.empty() );
+				}
+			}
+		}
+	}
+
+	SECTION("the data counts for one round")
+	{
+		for (const auto& K : Kinds)
+		{
+			INFO ( K.sName );
+
+			KBlockCipher Enc(KBlockCipher::Encrypt, K.Algorithm, K.Mode, K.Bits);
+			KBlockCipher Dec(KBlockCipher::Decrypt, K.Algorithm, K.Mode, K.Bits);
+			const auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+			CHECK ( Enc.SetKey(sKey) );
+			CHECK ( Dec.SetKey(sKey) );
+
+			KString sFirst;
+			KString sSecond;
+			KString sThird;
+			CHECK ( Enc.SetAuthenticatedData("first") );
+			CHECK ( Enc.SingleRound("one", sFirst) );
+			CHECK ( Enc.SingleRound("two", sSecond) );
+			CHECK ( Enc.SetAuthenticatedData("third") );
+			CHECK ( Enc.SingleRound("three", sThird) );
+
+			KString sClear;
+			CHECK ( Dec.SetAuthenticatedData("first") );
+			CHECK ( Dec.SingleRound(sFirst, sClear) );
+			CHECK ( sClear == "one" );
+
+			// the second round had no data
+			sClear.clear();
+			CHECK ( Dec.SingleRound(sSecond, sClear) );
+			CHECK ( sClear == "two" );
+
+			sClear.clear();
+			CHECK ( Dec.SetAuthenticatedData("third") );
+			CHECK ( Dec.SingleRound(sThird, sClear) );
+			CHECK ( sClear == "three" );
+		}
+	}
+
+	SECTION("the ciphertext may come in pieces")
+	{
+		// the inlined tag and IV arrive over several calls, the data is due behind the IV
+		KBlockCipher Enc(KBlockCipher::Encrypt);
+		const auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+		const KStringView sText = "a longer text of more than one block of sixteen bytes";
+
+		KString sCipher;
+		CHECK ( Enc.SetKey(sKey) );
+		CHECK ( Enc.SetAuthenticatedData("alice") );
+		CHECK ( Enc.SetOutput(sCipher) );
+		CHECK ( Enc.Add(sText.substr(0, 7)) );
+		CHECK ( Enc.Add(sText.substr(7)) );
+		CHECK ( Enc.Finalize() );
+
+		for (KStringView sData : { "alice", "bob" })
+		{
+			INFO ( kFormat("data '{}'", sData) );
+
+			KString sClear;
+			KBlockCipher Dec(KBlockCipher::Decrypt);
+			CHECK ( Dec.SetKey(sKey) );
+			CHECK ( Dec.SetAuthenticatedData(sData) );
+			CHECK ( Dec.SetOutput(sClear) );
+
+			for (std::size_t iPos = 0; iPos < sCipher.size(); iPos += 5)
+			{
+				CHECK ( Dec.Add(KStringView(sCipher).substr(iPos, 5)) );
+			}
+
+			if (sData == "alice")
+			{
+				CHECK ( Dec.Finalize() );
+				CHECK ( sClear == sText );
+			}
+			else
+			{
+				CHECK_FALSE ( Dec.Finalize() );
+				CHECK ( sClear.empty() );
+			}
+		}
+	}
+
+	SECTION("to a stream")
+	{
+		for (KStringView sText : Texts)
+		{
+			INFO ( kFormat("text of {} bytes", sText.size()) );
+
+			KToAES Enc;
+			CHECK ( Enc.SetPassword("MySecretPassword") );
+			CHECK ( Enc.SetAuthenticatedData("alice") );
+
+			KString sCipher;
+			{
+				std::ostringstream oss;
+				KOutStream Out(oss);
+				CHECK ( Enc.SetOutput(Out) );
+				if (!sText.empty()) CHECK ( Enc.Add(sText) );
+				CHECK ( Enc.Finalize() );
+				sCipher = oss.str();
+			}
+
+			KString  sClear;
+			KFromAES Dec;
+			CHECK ( Dec.SetPassword("MySecretPassword") );
+			CHECK ( Dec.SetAuthenticatedData("alice") );
+			CHECK ( Dec.SingleRound(sCipher, sClear) );
+			CHECK ( sClear == sText );
+
+			KString  sNot;
+			KFromAES Dec2;
+			CHECK ( Dec2.SetPassword("MySecretPassword") );
+			CHECK_FALSE ( Dec2.SingleRound(sCipher, sNot) );
+			CHECK ( sNot.empty() );
+		}
+	}
+
+	SECTION("only with a tag, and before the text")
+	{
+		// a mode without a tag cannot authenticate anything
+		for (auto Mode : { KBlockCipher::CBC, KBlockCipher::ECB, KBlockCipher::CTR })
+		{
+			KBlockCipher Enc(KBlockCipher::Encrypt, KBlockCipher::AES, Mode);
+			CHECK_FALSE ( Enc.SetAuthenticatedData("alice") );
+			CHECK ( Enc.HasError() );
+		}
+
+		// once the text has begun, the data comes too late
+		KString sCipher;
+		KBlockCipher Enc(KBlockCipher::Encrypt);
+		CHECK ( Enc.SetPassword("MySecretPassword") );
+		CHECK ( Enc.SetOutput(sCipher) );
+		CHECK ( Enc.SetAuthenticatedData("alice") );
+		CHECK ( Enc.SetAuthenticatedData("bob") ); // replaces the former
+		CHECK ( Enc.Add("hello") );
+		CHECK_FALSE ( Enc.SetAuthenticatedData("carol") );
 	}
 }
 

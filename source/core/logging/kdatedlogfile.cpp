@@ -42,6 +42,7 @@
 #include <dekaf2/core/logging/kdatedlogfile.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/format/kformat.h>
+#include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <algorithm>
 #include <vector>
@@ -150,15 +151,6 @@ KUnixTime LocalMidnight(const chrono::time_zone* Zone, LocalDays Midnight)
 #endif
 
 //-----------------------------------------------------------------------------
-/// returns true if sDigits consists of digits only
-bool IsDigits(KStringView sDigits)
-//-----------------------------------------------------------------------------
-{
-	return std::all_of(sDigits.begin(), sDigits.end(), [](char ch) { return KASCII::kIsDigit(ch); });
-
-} // IsDigits
-
-//-----------------------------------------------------------------------------
 /// returns true if sDate is a date as YYYYMMDD, YYYYWww or YYYYMM
 bool IsDate(KStringView sDate)
 //-----------------------------------------------------------------------------
@@ -167,10 +159,10 @@ bool IsDate(KStringView sDate)
 	{
 		case 6:
 		case 8:
-			return IsDigits(sDate);
+			return kIsDigits(sDate);
 
 		case 7:
-			return sDate[4] == 'W' && IsDigits(sDate.substr(0, 4)) && IsDigits(sDate.substr(5));
+			return sDate[4] == 'W' && kIsDigits(sDate.substr(0, 4)) && kIsDigits(sDate.substr(5));
 	}
 
 	return false;
@@ -320,7 +312,7 @@ std::vector<KDatedLogNames::PastFile> KDatedLogNames::GetPastFiles(KStringView s
 		auto sDate = sName.substr(0, iDot);
 		auto sPart = (iDot == KStringView::npos) ? KStringView{} : sName.substr(iDot + 1);
 
-		if (!IsDate(sDate) || (iDot != KStringView::npos && (sPart.empty() || !IsDigits(sPart))))
+		if (!IsDate(sDate) || (iDot != KStringView::npos && (sPart.empty() || !kIsDigits(sPart))))
 		{
 			continue;
 		}

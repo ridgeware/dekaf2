@@ -129,12 +129,12 @@ bool ParseRule(KStringView sRule, Condition& Cond)
 		{
 			++i;
 
-			if (i >= Tokens.size() || !kIsInteger(Tokens[i], false))
+			if (i >= Tokens.size() || !kFromDigits(Rel.iModulus, Tokens[i]))
 			{
 				return false;
 			}
 
-			Rel.iModulus = Tokens[i++].Int64();
+			++i;
 		}
 
 		// = or != (TR35 also knows 'is', 'in', 'within', 'not' - the CLDR data use = and !=)
@@ -164,12 +164,13 @@ bool ParseRule(KStringView sRule, Condition& Cond)
 
 			if (iDots == KStringView::npos)
 			{
-				if (!kIsInteger(sRange, false))
+				int64_t iValue { 0 };
+
+				if (!kFromDigits(iValue, sRange))
 				{
 					return false;
 				}
 
-				auto iValue = sRange.Int64();
 				Rel.Ranges.emplace_back(iValue, iValue);
 			}
 			else
@@ -177,12 +178,15 @@ bool ParseRule(KStringView sRule, Condition& Cond)
 				auto sLo = sRange.substr(0, iDots);
 				auto sHi = sRange.substr(iDots + 2);
 
-				if (!kIsInteger(sLo, false) || !kIsInteger(sHi, false))
+				int64_t iLo { 0 };
+				int64_t iHi { 0 };
+
+				if (!kFromDigits(iLo, sLo) || !kFromDigits(iHi, sHi))
 				{
 					return false;
 				}
 
-				Rel.Ranges.emplace_back(sLo.Int64(), sHi.Int64());
+				Rel.Ranges.emplace_back(iLo, iHi);
 			}
 		}
 

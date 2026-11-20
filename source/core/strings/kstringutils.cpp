@@ -599,6 +599,27 @@ bool kIsBinary(KStringView sBuffer)
 } // kIsBinary
 
 //-----------------------------------------------------------------------------
+bool kIsDigits(KStringView str) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (str.empty())
+	{
+		return false;
+	}
+
+	for (auto ch : str)
+	{
+		if (!KASCII::kIsDigit(ch))
+		{
+			return false;
+		}
+	}
+
+	return true;
+
+} // kIsDigits
+
+//-----------------------------------------------------------------------------
 bool kIsInteger(KStringView str, bool bSigned) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -607,27 +628,14 @@ bool kIsInteger(KStringView str, bool bSigned) noexcept
 		return false;
 	}
 
-	const auto* start = str.data();
-	const auto* buf   = start;
-	size_t size       = str.size();
-	bool bHadDigit { false };
+	auto ch = str.front();
 
-	while (size--)
+	if (ch == '+' || (bSigned && ch == '-'))
 	{
-		if (!KASCII::kIsDigit(*buf++))
-		{
-			if (!size || buf != start + 1 || ((!bSigned || *start != '-') && *start != '+'))
-			{
-				return false;
-			}
-		}
-		else
-		{
-			bHadDigit = true;
-		}
+		str.remove_prefix(1);
 	}
 
-	return bHadDigit;
+	return kIsDigits(str);
 
 } // kIsInteger
 

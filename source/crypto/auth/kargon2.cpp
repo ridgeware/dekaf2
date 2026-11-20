@@ -266,12 +266,12 @@ bool KArgon2::Parse(KStringView sHash, Parts& parts) const
 		auto sValue = (iEqual == KStringView::npos) ? KStringView{} : sParameter.substr(iEqual + 1);
 
 		// a count with up to ten digits
-		if (sValue.empty() || sValue.size() > 10 || !kIsUnsigned(sValue) || sValue.UInt64() > std::numeric_limits<uint32_t>::max())
+		uint32_t iValue { 0 };
+
+		if (sValue.size() > 10 || !kFromDigits(iValue, sValue))
 		{
 			return SetError(kFormat("invalid parameter: {}", sParameter));
 		}
-
-		auto iValue = sValue.UInt32();
 
 		if (sName == "m")
 		{

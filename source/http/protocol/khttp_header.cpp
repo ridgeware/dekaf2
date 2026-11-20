@@ -633,31 +633,11 @@ std::streamsize KHTTPHeaders::ParseContentLength(KStringView sValue) noexcept
 	// mislead the body framing / smuggling checks). This is intentionally
 	// stricter than KStringView::UInt64().
 
-	if (sValue.empty())
-	{
-		return -1;
-	}
-
-	constexpr std::streamsize iMax = std::numeric_limits<std::streamsize>::max();
-
 	std::streamsize iSize { 0 };
 
-	for (auto ch : sValue)
+	if (!kFromDigits(iSize, sValue))
 	{
-		if (!KASCII::kIsDigit(ch))
-		{
-			return -1;
-		}
-
-		std::streamsize iDigit = ch - '0';
-
-		// reject before multiplying/adding would overflow
-		if (iSize > (iMax - iDigit) / 10)
-		{
-			return -1;
-		}
-
-		iSize = iSize * 10 + iDigit;
+		return -1;
 	}
 
 	return iSize;

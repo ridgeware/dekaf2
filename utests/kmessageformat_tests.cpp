@@ -182,6 +182,7 @@ TEST_CASE("KMessageFormat")
 			{ "{g, select, a {A}}",                   "no other"                },
 			{ "{n, plural, one {x} one {y} other {z}}", "duplicate selector"    },
 			{ "{n, plural, =1.5 {x} other {y}}",      "exact selector not an integer" },
+			{ "{n, plural, =+1 {x} other {y}}",       "exact selector with a sign" },
 			{ "{n, plural, some {x} other {y}}",      "no plural category"      },
 			{ "{n, plural, one {x} other {y}",        "missing brace"           },
 			{ "{n, plural, one {x other {y}}",        "missing brace in branch" },

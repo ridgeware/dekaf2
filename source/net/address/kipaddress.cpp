@@ -227,10 +227,9 @@ KIPAddress6::ScopeT KIPAddress6::ResolveScope(KStringView sZone) noexcept
 	{
 		KIPAddress6::ScopeT iScope { 0 };
 
-		for (auto ch : sZone)
+		if (!kFromDigits(iScope, sZone))
 		{
-			if (!KASCII::kIsDigit(ch)) return 0;
-			iScope = iScope * 10 + (ch - '0');
+			return 0;
 		}
 
 		return iScope;

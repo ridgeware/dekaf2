@@ -611,6 +611,151 @@ TEST_CASE("KStringUtils") {
 		CHECK( !kIsInteger(s) );
 	}
 
+	SECTION("kIsInteger and the place of the sign")
+	{
+		// a sign counts at the start only, and only once
+		CHECK_FALSE ( kIsInteger("5+")   );
+		CHECK_FALSE ( kIsInteger("5-")   );
+		CHECK_FALSE ( kIsInteger("1+2")  );
+		CHECK_FALSE ( kIsInteger("+-5")  );
+		CHECK_FALSE ( kIsInteger("--5")  );
+		CHECK_FALSE ( kIsInteger("++5")  );
+		CHECK_FALSE ( kIsInteger(" 5")   );
+		CHECK_FALSE ( kIsInteger("5 ")   );
+
+		// an unsigned integer may have a plus, but no minus
+		CHECK       ( kIsUnsigned("+5")  );
+		CHECK_FALSE ( kIsUnsigned("-5")  );
+		CHECK_FALSE ( kIsUnsigned("+")   );
+		CHECK_FALSE ( kIsUnsigned("")    );
+	}
+
+	SECTION("kIsDigits")
+	{
+		CHECK       ( kIsDigits("0")          );
+		CHECK       ( kIsDigits("007")        );
+		CHECK       ( kIsDigits("1234567890") );
+		// more digits than any integer type holds
+		CHECK       ( kIsDigits(KString(100, '9')) );
+
+		CHECK_FALSE ( kIsDigits("")           );
+		CHECK_FALSE ( kIsDigits("+5")         );
+		CHECK_FALSE ( kIsDigits("-5")         );
+		CHECK_FALSE ( kIsDigits(" 5")         );
+		CHECK_FALSE ( kIsDigits("5 ")         );
+		CHECK_FALSE ( kIsDigits("1.5")        );
+		CHECK_FALSE ( kIsDigits("12a")        );
+		CHECK_FALSE ( kIsDigits("a12")        );
+		CHECK_FALSE ( kIsDigits(KStringView("1\0002", 3)) );
+		// digits of other scripts are no ASCII digits: fullwidth and Arabic-Indic
+		CHECK_FALSE ( kIsDigits("\xef\xbc\x91") );
+		CHECK_FALSE ( kIsDigits("\xd9\xa1")     );
+	}
+
+	SECTION("kFromDigits")
+	{
+		uint64_t iValue { 42 };
+
+		CHECK ( kFromDigits(iValue, "0")    );
+		CHECK ( iValue == 0 );
+		CHECK ( kFromDigits(iValue, "007")  );
+		CHECK ( iValue == 7 );
+		CHECK ( kFromDigits(iValue, "1234567890") );
+		CHECK ( iValue == 1234567890 );
+		// leading zeros do not count for the range
+		CHECK ( kFromDigits(iValue, KString(100, '0') + "5") );
+		CHECK ( iValue == 5 );
+
+		// the value remains unchanged if the conversion fails
+		iValue = 42;
+
+		for (KStringView sInput : { "", "+5", "-5", " 5", "5 ", "1.5", "12a", "a12", "0x10", "\xef\xbc\x91", "\xd9\xa1" })
+		{
+			INFO ( sInput );
+			CHECK_FALSE ( kFromDigits(iValue, sInput) );
+			CHECK ( iValue == 42 );
+		}
+
+		CHECK_FALSE ( kFromDigits(iValue, KStringView("1\0002", 3)) );
+		CHECK ( iValue == 42 );
+	}
+
+	SECTION("kFromDigits at the limits of the integer types")
+	{
+		// the largest value of each type converts, the next one fails
+		{
+			uint8_t iValue { 1 };
+			CHECK ( kFromDigits(iValue, KString::to_string(std::numeric_limits<uint8_t>::max())) );
+			CHECK ( iValue == std::numeric_limits<uint8_t>::max() );
+			iValue = 1;
+			CHECK_FALSE ( kFromDigits(iValue, KString::to_string(static_cast<unsigned>(std::numeric_limits<uint8_t>::max()) + 1)) );
+			CHECK_FALSE ( kFromDigits(iValue, "1000") );
+			CHECK ( iValue == 1 );
+		}
+		{
+			int8_t iValue { 1 };
+			CHECK ( kFromDigits(iValue, KString::to_string(std::numeric_limits<int8_t>::max())) );
+			CHECK ( iValue == std::numeric_limits<int8_t>::max() );
+			iValue = 1;
+			CHECK_FALSE ( kFromDigits(iValue, KString::to_string(static_cast<int>(std::numeric_limits<int8_t>::max()) + 1)) );
+			CHECK ( iValue == 1 );
+		}
+		{
+			uint16_t iValue { 1 };
+			CHECK ( kFromDigits(iValue, KString::to_string(std::numeric_limits<uint16_t>::max())) );
+			CHECK ( iValue == std::numeric_limits<uint16_t>::max() );
+			iValue = 1;
+			CHECK_FALSE ( kFromDigits(iValue, KString::to_string(static_cast<unsigned>(std::numeric_limits<uint16_t>::max()) + 1)) );
+			CHECK ( iValue == 1 );
+		}
+		{
+			int32_t iValue { 1 };
+			CHECK ( kFromDigits(iValue, KString::to_string(std::numeric_limits<int32_t>::max())) );
+			CHECK ( iValue == std::numeric_limits<int32_t>::max() );
+			iValue = 1;
+			CHECK_FALSE ( kFromDigits(iValue, KString::to_string(static_cast<int64_t>(std::numeric_limits<int32_t>::max()) + 1)) );
+			CHECK ( iValue == 1 );
+		}
+		{
+			uint32_t iValue { 1 };
+			CHECK ( kFromDigits(iValue, KString::to_string(std::numeric_limits<uint32_t>::max())) );
+			CHECK ( iValue == std::numeric_limits<uint32_t>::max() );
+			iValue = 1;
+			CHECK_FALSE ( kFromDigits(iValue, KString::to_string(static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()) + 1)) );
+			CHECK ( iValue == 1 );
+		}
+		{
+			int64_t iValue { 1 };
+			auto sMax = KString::to_string(std::numeric_limits<int64_t>::max());
+			CHECK ( kFromDigits(iValue, sMax) );
+			CHECK ( iValue == std::numeric_limits<int64_t>::max() );
+			iValue = 1;
+			CHECK_FALSE ( kFromDigits(iValue, KString::to_string(static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) + 1)) );
+			// one digit more
+			CHECK_FALSE ( kFromDigits(iValue, sMax + "0") );
+			CHECK ( iValue == 1 );
+		}
+		{
+			uint64_t iValue { 1 };
+			auto sMax = KString::to_string(std::numeric_limits<uint64_t>::max());
+			CHECK ( kFromDigits(iValue, sMax) );
+			CHECK ( iValue == std::numeric_limits<uint64_t>::max() );
+			iValue = 1;
+			// the last digit one higher, and one digit more
+			auto sNext = sMax;
+			++sNext.back();
+			CHECK_FALSE ( kFromDigits(iValue, sNext) );
+			CHECK_FALSE ( kFromDigits(iValue, sMax + "0") );
+			CHECK_FALSE ( kFromDigits(iValue, KString(100, '9')) );
+			CHECK ( iValue == 1 );
+		}
+		{
+			std::size_t iValue { 1 };
+			CHECK ( kFromDigits(iValue, KString::to_string(std::numeric_limits<std::size_t>::max())) );
+			CHECK ( iValue == std::numeric_limits<std::size_t>::max() );
+		}
+	}
+
 	SECTION("kIsUnsigned on strings")
 	{
 		KString s;

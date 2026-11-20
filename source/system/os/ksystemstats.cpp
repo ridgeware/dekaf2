@@ -441,7 +441,7 @@ std::vector<ProcessInfo> ListProcessesFromProc()
 		auto sPID = Entry.Filename();
 
 		// a process can end between the listing and the reading of its tables
-		if (kIsInteger(sPID, false) && ReadProcProcess(sPID, Process))
+		if (kIsDigits(sPID) && ReadProcProcess(sPID, Process))
 		{
 			Processes.push_back(std::move(Process));
 		}

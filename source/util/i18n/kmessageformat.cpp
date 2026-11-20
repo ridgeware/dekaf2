@@ -408,7 +408,7 @@ private:
 				if (sSelector.front() == '=')
 				{
 					// an exact match, integer digits only - like intl-messageformat
-					if (!kIsInteger(sSelector.substr(1), false))
+					if (!kIsDigits(sSelector.substr(1)))
 					{
 						return Fail(kFormat("expected digits after '=' in selector '{}'", sSelector));
 					}
@@ -531,9 +531,10 @@ const KJSON* KMessageFormat::Lookup(const KJSON& jArgs, KStringView sName)
 		return jArgs.find(sName) != jArgs.end() ? &jArgs[sName] : nullptr;
 	}
 
-	if (jArgs.is_array() && kIsInteger(sName, false))
+	std::size_t iIndex { 0 };
+
+	if (jArgs.is_array() && kFromDigits(iIndex, sName))
 	{
-		auto iIndex = sName.UInt64();
 		return iIndex < jArgs.size() ? &jArgs[iIndex] : nullptr;
 	}
 

@@ -57,6 +57,8 @@
 #include <cctype>
 #include <map>
 #include <array>
+#include <limits>
+#include <type_traits>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -1184,6 +1186,61 @@ inline size_t kCountChar(KStringView str, const char ch) noexcept
 {
 	return std::count(str.begin(), str.end(), ch);
 }
+
+//-----------------------------------------------------------------------------
+/// Returns true if str consists of ASCII digits only, and has at least one
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool kIsDigits(KStringView str) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Converts a string that consists of ASCII digits only into an integer. Different
+/// to kToInt() it takes no sign and no white space, and it fails on an overflow.
+/// @param iValue receives the value, and remains unchanged if the conversion fails
+/// @param sDigits the string to convert
+/// @return false if sDigits is empty, has other characters than ASCII digits, or
+/// has a value that does not fit into Integer
+template<class Integer,
+         typename std::enable_if<std::is_integral<Integer>::value && !std::is_same<Integer, bool>::value, int>::type = 0>
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_14
+bool kFromDigits(Integer& iValue, KStringView sDigits) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (sDigits.empty())
+	{
+		return false;
+	}
+
+	using Unsigned = typename std::make_unsigned<Integer>::type;
+
+	// the largest value of Integer, also if that is a signed type
+	Unsigned iMax    = static_cast<Unsigned>(std::numeric_limits<Integer>::max());
+	Unsigned iResult { 0 };
+
+	for (auto ch : sDigits)
+	{
+		// the value of a digit - all other characters give a value above 9
+		Unsigned iDigit = static_cast<unsigned char>(ch - '0');
+
+		if (iDigit > 9)
+		{
+			return false;
+		}
+
+		// fail before the multiplication or the addition would overflow
+		if (iResult > (iMax - iDigit) / 10)
+		{
+			return false;
+		}
+
+		iResult = static_cast<Unsigned>(iResult * 10 + iDigit);
+	}
+
+	iValue = static_cast<Integer>(iResult);
+
+	return true;
+
+} // kFromDigits
 
 //-----------------------------------------------------------------------------
 /// Returns true if str contains an integer, possibly with a leading + or -

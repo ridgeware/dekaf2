@@ -116,11 +116,13 @@ struct Kron_utils
 
 	static uint16_t to_cron_int(const stringview_t& text)
 	{
-		if (!kIsInteger(text, false))
+		uint16_t iValue { 0 };
+
+		if (!kFromDigits(iValue, text))
 		{
 			throw std::runtime_error("input is not a (positive) integer");
 		}
-		return text.UInt16();
+		return iValue;
 	}
 
 }; // Kron_utils

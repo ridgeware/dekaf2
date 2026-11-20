@@ -176,6 +176,8 @@ TEST_CASE("KRON")
 		CRON_EXPECT_EXCEPT("TEN * * * * *");
 		CRON_EXPECT_EXCEPT("60 * * * * *");
 		CRON_EXPECT_EXCEPT("-1 * * * * *");
+		CRON_EXPECT_EXCEPT("+1 * * * * *");
+		CRON_EXPECT_EXCEPT("70000 * * * * *");
 		CRON_EXPECT_EXCEPT("0-60 * * * * *");
 		CRON_EXPECT_EXCEPT("0-10-20 * * * * *");
 		CRON_EXPECT_EXCEPT(", * * * * *");

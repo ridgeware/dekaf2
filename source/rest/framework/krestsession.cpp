@@ -118,6 +118,7 @@ bool KRESTSession::AcceptNewSession(KString sToken, KStringView sUsername,
 	                            m_Session.SerializeSetCookie(sToken));
 
 	// update local state so caller can immediately observe the new session
+	m_Record.sID        = KSession::GetSessionID(sToken);
 	m_Record.sToken     = std::move(sToken);
 	m_Record.sUsername  = sUsername;
 	m_Record.tCreated   = KUnixTime::now();

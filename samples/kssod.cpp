@@ -53,9 +53,10 @@
 //   * users    : KSSOdUserStore   (table kssod_users)
 //   * clients  : KSSOdClientStore (table kssod_clients)
 //   * sessions : KSessionSQLiteStore behind a KSessionCachingStore
-//                (the OP login sessions that make SSO work)
-//   * signing  : the RS256 private key is persisted as PEM (--key), so tokens
-//                stay verifiable across restarts.
+//                (the OP login sessions that make SSO work), filed under the
+//                SHA-256 of the session token
+//   * signing  : the RS256 private key is persisted as PEM (--signkey), so
+//                tokens stay verifiable across restarts.
 //   * grants   : KSSOdGrantStore - the refresh tokens (tables kssod_refresh_*),
 //                as SHA-256 only. A restart must not sign every user out of
 //                every application; --revoke-tokens and --revoke-all-tokens
@@ -620,19 +621,19 @@ KStringView DeviceTypeName(KHTTPUserAgent::DeviceType Type)
 
 //-----------------------------------------------------------------------------
 /// build the renderable session list for a user, marking the request's own
-/// session and deriving a stable, non-secret revoke id from each token
+/// session and taking the session ID as the revoke id
 std::vector<SessionView> SessionViewsFor(KRESTServer& HTTP, KSession& Session, KStringView sUser)
 //-----------------------------------------------------------------------------
 {
 	std::vector<SessionView> Out;
-	KStringView sCurrentToken = HTTP.GetCookie(Session.GetCookieName());
+	KString sCurrentID = KSession::GetSessionID(HTTP.GetCookie(Session.GetCookieName()));
 
 	for (const auto& Rec : Session.ListSessionsFor(sUser))
 	{
 		SessionView V;
-		// the revoke id is a hash of the token: stable, opaque, safe in HTML -
-		// the raw token (the live credential) never leaves the server
-		V.sRevokeID = KSHA256(Rec.sToken).HexDigest();
+		// the revoke id is the session ID, a hash of the token: stable, opaque,
+		// safe in HTML - the token (the live credential) is not even stored
+		V.sRevokeID = Rec.sID;
 
 #if DEKAF2_HAS_USER_AGENT_PARSER
 		if (!Rec.sUserAgent.empty())
@@ -647,7 +648,7 @@ std::vector<SessionView> SessionViewsFor(KRESTServer& HTTP, KSession& Session, K
 		V.sClientIP   = Rec.sClientIP;
 		V.sSignedIn   = Rec.tCreated.to_string();
 		V.sLastActive = Rec.tLastSeen.to_string();
-		V.bCurrent    = (Rec.sToken == sCurrentToken);
+		V.bCurrent    = (Rec.sID == sCurrentID);
 		Out.push_back(std::move(V));
 	}
 	return Out;
@@ -1789,15 +1790,15 @@ int main(int argc, char** argv)
 			KStringView sId = HTTP.GetQueryParms()["id"];
 			if (!sId.empty())
 			{
-				KStringView sCurrentToken = HTTP.GetCookie(pSession->GetCookieName());
+				KString sCurrentID = KSession::GetSessionID(HTTP.GetCookie(pSession->GetCookieName()));
 				for (const auto& Rec : pSession->ListSessionsFor(sUser))
 				{
-					if (KSHA256(Rec.sToken).HexDigest() == sId)
+					if (Rec.sID == sId)
 					{
-						pSession->Logout(Rec.sToken);
+						pSession->LogoutByID(Rec.sID);
 						Log(HTTP, "session.close", "ok", sUser, sUser, {{ "session_ip", Rec.sClientIP }});
 						// if the user closed their own current session, also drop the cookie
-						if (Rec.sToken == sCurrentToken)
+						if (Rec.sID == sCurrentID)
 						{
 							HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, pSession->SerializeExpiryCookie());
 							Redirect(HTTP, "/login");

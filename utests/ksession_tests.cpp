@@ -2,8 +2,13 @@
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/readwrite/kreader.h>
 #include <thread>
 #include <chrono>
+#include <memory>
+#include <vector>
 
 using namespace dekaf2;
 
@@ -33,6 +38,52 @@ KSession::Config TestConfig()
 	cfg.iTokenBytes     = 32;
 	return cfg;
 }
+
+// A memory store that notes every token it is called with, to check what
+// KSession hands to its store
+class RecordingStore : public KSessionMemoryStore
+{
+public:
+
+	explicit RecordingStore(std::shared_ptr<std::vector<KString>> Seen)
+	: m_Seen(std::move(Seen))
+	{
+	}
+
+	bool Create(const KSession::Record& Rec) override
+	{
+		m_Seen->push_back(Rec.sToken);
+		return KSessionMemoryStore::Create(Rec);
+	}
+
+	bool Lookup(KStringView sToken, KSession::Record* pOut) override
+	{
+		m_Seen->push_back(sToken);
+		return KSessionMemoryStore::Lookup(sToken, pOut);
+	}
+
+	bool Touch(KStringView sToken, KUnixTime tLastSeen) override
+	{
+		m_Seen->push_back(sToken);
+		return KSessionMemoryStore::Touch(sToken, tLastSeen);
+	}
+
+	bool UpdateExtra(KStringView sToken, KStringView sExtra) override
+	{
+		m_Seen->push_back(sToken);
+		return KSessionMemoryStore::UpdateExtra(sToken, sExtra);
+	}
+
+	bool Erase(KStringView sToken) override
+	{
+		m_Seen->push_back(sToken);
+		return KSessionMemoryStore::Erase(sToken);
+	}
+
+private:
+
+	std::shared_ptr<std::vector<KString>> m_Seen;
+};
 
 } // anonymous
 
@@ -89,6 +140,115 @@ TEST_CASE("KSession")
 		// repeated logout → false (already gone)
 		CHECK_FALSE ( Session.Logout(sToken) );
 	}
+
+	SECTION("Validate returns the token and the session ID")
+	{
+		KSession Session(std::make_unique<KSessionMemoryStore>(), TestConfig());
+		Session.SetAuthenticator(TestAuthenticator);
+
+		auto sToken = Session.Login("alice", "wonder");
+		REQUIRE ( !sToken.empty() );
+
+		KSession::Record Rec;
+		CHECK ( Session.Validate(sToken, &Rec) );
+		CHECK ( Rec.sToken == sToken );
+		CHECK ( Rec.sID    == KSession::GetSessionID(sToken) );
+		// the hex encoded SHA-256
+		CHECK ( Rec.sID.size() == 64 );
+		CHECK ( Rec.sID    != sToken );
+
+		// the record may be the one that holds the token
+		Rec.sToken = sToken;
+		CHECK ( Session.Validate(Rec.sToken, &Rec) );
+		CHECK ( Rec.sToken == sToken );
+	}
+
+	SECTION("the store gets the session ID, never the token")
+	{
+		auto Seen = std::make_shared<std::vector<KString>>();
+
+		KSession Session(std::make_unique<RecordingStore>(Seen), TestConfig());
+		Session.SetAuthenticator(TestAuthenticator);
+
+		auto sToken = Session.Login("alice", "wonder");
+		REQUIRE ( !sToken.empty() );
+
+		CHECK ( Session.Validate(sToken) );
+		CHECK ( Session.UpdateExtra(sToken, "{}") );
+		CHECK ( Session.Logout(sToken) );
+
+		// Create, Lookup, Touch, UpdateExtra and Erase
+		CHECK ( Seen->size() == 5 );
+
+		for (const auto& sSeen : *Seen)
+		{
+			CHECK ( sSeen == KSession::GetSessionID(sToken) );
+		}
+	}
+
+	SECTION("a session ID is not accepted as a token")
+	{
+		KSession Session(std::make_unique<KSessionMemoryStore>(), TestConfig());
+		Session.SetAuthenticator(TestAuthenticator);
+
+		auto sToken = Session.Login("alice", "wonder");
+		REQUIRE ( !sToken.empty() );
+		auto sID = KSession::GetSessionID(sToken);
+
+		// what the store holds does not open the session
+		CHECK_FALSE ( Session.Validate(sID) );
+		CHECK_FALSE ( Session.UpdateExtra(sID, "{}") );
+		CHECK_FALSE ( Session.Logout(sID) );
+		CHECK ( Session.Count() == 1 );
+		CHECK ( Session.Validate(sToken) );
+
+		// and a token is not taken for an ID
+		CHECK_FALSE ( Session.LogoutByID(sToken) );
+		CHECK_FALSE ( Session.LogoutByID("") );
+		CHECK ( Session.Count() == 1 );
+
+		CHECK ( Session.LogoutByID(sID) );
+		CHECK ( Session.Count() == 0 );
+		CHECK_FALSE ( Session.Validate(sToken) );
+	}
+
+#if DEKAF2_HAS_SQLITE3
+	SECTION("the SQLite store holds no session token")
+	{
+		KTempDir Tmp;
+		auto sDB = kFormat("{}/sessions.sqlite", Tmp.Name());
+
+		KSession Session(sDB, TestConfig());
+		REQUIRE_FALSE ( Session.HasError() );
+		Session.SetAuthenticator(TestAuthenticator);
+
+		auto sToken = Session.Login("alice", "wonder");
+		REQUIRE ( !sToken.empty() );
+		CHECK ( Session.Validate(sToken) );
+
+		// the database file, and what its write-ahead log may still hold
+		auto sStored = kReadAll(sDB) + kReadAll(sDB + "-wal");
+		CHECK_FALSE ( sStored.contains(sToken) );
+		CHECK ( sStored.contains(KSession::GetSessionID(sToken)) );
+
+		// another KSession on the same file finds the session by its token
+		KSession Second(sDB, TestConfig());
+		REQUIRE_FALSE ( Second.HasError() );
+
+		KSession::Record Rec;
+		CHECK ( Second.Validate(sToken, &Rec) );
+		CHECK ( Rec.sUsername == "alice" );
+		CHECK ( Rec.sToken    == sToken  );
+
+		auto List = Second.ListSessionsFor("alice");
+		REQUIRE ( List.size() == 1 );
+		CHECK ( List.front().sToken.empty() );
+		CHECK ( List.front().sID == Rec.sID );
+
+		CHECK ( Second.LogoutByID(List.front().sID) );
+		CHECK_FALSE ( Session.Validate(sToken) );
+	}
+#endif
 
 	SECTION("CreateTrustedSession bypasses the authenticator")
 	{
@@ -205,15 +365,15 @@ TEST_CASE("KSession")
 		for (const auto& Rec : Alice)
 		{
 			CHECK ( Rec.sUsername == "alice" );
-			CHECK ( !Rec.sToken.empty() );            // the raw token is carried for correlation/revoke
-			if (Rec.sToken == sA1)
+			CHECK ( Rec.sToken.empty() );             // the token is not stored, the session ID identifies the session
+			if (Rec.sID == KSession::GetSessionID(sA1))
 			{
 				bHasA1 = true;
 				CHECK ( Rec.sClientIP  == "10.0.0.1" );
 				CHECK ( Rec.sUserAgent == "Mozilla/5.0 Chrome/138 Safari" );
 			}
-			if (Rec.sToken == sA2) bHasA2     = true;
-			if (Rec.sToken == sB1) bLeakedBob = true;
+			if (Rec.sID == KSession::GetSessionID(sA2)) bHasA2     = true;
+			if (Rec.sID == KSession::GetSessionID(sB1)) bLeakedBob = true;
 		}
 		CHECK ( bHasA1 );
 		CHECK ( bHasA2 );
@@ -223,11 +383,14 @@ TEST_CASE("KSession")
 		CHECK ( Session.ListSessionsFor("nobody").empty() );
 		CHECK ( Session.ListSessionsFor("").empty() );
 
-		// revoking a single session (per-session logout) removes just that one
-		CHECK ( Session.Logout(sA1) );
+		// revoking a single session (per-session logout) by its ID out of the list
+		// removes just that one
+		CHECK ( Session.LogoutByID(KSession::GetSessionID(sA1)) );
+		CHECK_FALSE ( Session.Validate(sA1) );
 		auto Alice2 = Session.ListSessionsFor("alice");
 		CHECK ( Alice2.size() == 1 );
-		CHECK ( Alice2.front().sToken == sA2 );
+		CHECK ( Alice2.front().sID == KSession::GetSessionID(sA2) );
+		CHECK ( Session.Validate(sA2) );
 	}
 
 	SECTION("ListSessionsFor omits idle-expired sessions")
@@ -250,7 +413,7 @@ TEST_CASE("KSession")
 		// the store still holds both rows, but the live-list filters the idle one out
 		auto Live = Session.ListSessionsFor("alice");
 		CHECK ( Live.size() == 1 );
-		CHECK ( Live.front().sToken == sNew );
+		CHECK ( Live.front().sID == KSession::GetSessionID(sNew) );
 	}
 
 	SECTION("PurgeExpired removes idle- and absolute-expired sessions only")

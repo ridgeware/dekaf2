@@ -42,6 +42,7 @@
 
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/random/krandom.h>
+#include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/init/dekaf2.h>
@@ -113,6 +114,16 @@ KString KSession::GenerateToken() const
 } // GenerateToken
 
 //-----------------------------------------------------------------------------
+KString KSession::GetSessionID(KStringView sToken)
+//-----------------------------------------------------------------------------
+{
+	// the token is random and long, which makes a plain hash without salt
+	// irreversible
+	return KSHA256(sToken).HexDigest();
+
+} // GetSessionID
+
+//-----------------------------------------------------------------------------
 KString KSession::Login(KStringView sUsername,
                         KStringView sPassword,
                         KStringView sClientIP,
@@ -173,8 +184,11 @@ KString KSession::MakeSession(KStringView sUsername, KStringView sClientIP,
                               KStringView sUserAgent, KStringView sExtra)
 //-----------------------------------------------------------------------------
 {
+	auto sToken = GenerateToken();
+
+	// the store files the session under its ID and never gets the token
 	Record Rec;
-	Rec.sToken     = GenerateToken();
+	Rec.sToken     = GetSessionID(sToken);
 	Rec.sUsername  = sUsername;
 	Rec.tCreated   = KUnixTime::now();
 	Rec.tLastSeen  = Rec.tCreated;
@@ -189,7 +203,7 @@ KString KSession::MakeSession(KStringView sUsername, KStringView sClientIP,
 	}
 
 	kDebug(2, "new session for user '{}' from {}", sUsername, sClientIP);
-	return std::move(Rec.sToken);
+	return sToken;
 
 } // MakeSession
 
@@ -202,9 +216,11 @@ bool KSession::Validate(KStringView sToken, Record* pOut)
 		return false;
 	}
 
+	auto sID = GetSessionID(sToken);
+
 	Record Rec;
 
-	if (!m_Store->Lookup(sToken, &Rec))
+	if (!m_Store->Lookup(sID, &Rec))
 	{
 		return false;
 	}
@@ -216,7 +232,7 @@ bool KSession::Validate(KStringView sToken, Record* pOut)
 		&& tNow - Rec.tCreated > m_Config.AbsoluteTimeout)
 	{
 		kDebug(2, "session for '{}' exceeded absolute timeout", Rec.sUsername);
-		m_Store->Erase(sToken);
+		m_Store->Erase(sID);
 		return false;
 	}
 
@@ -225,17 +241,20 @@ bool KSession::Validate(KStringView sToken, Record* pOut)
 		&& tNow - Rec.tLastSeen > m_Config.IdleTimeout)
 	{
 		kDebug(2, "session for '{}' exceeded idle timeout", Rec.sUsername);
-		m_Store->Erase(sToken);
+		m_Store->Erase(sID);
 		return false;
 	}
 
 	// refresh LastSeen — both in the store and in our local copy
 	Rec.tLastSeen = tNow;
-	m_Store->Touch(sToken, tNow);
+	m_Store->Touch(sID, tNow);
 
 	if (pOut)
 	{
-		*pOut = std::move(Rec);
+		// the store returned the record with the ID in place of the token
+		Rec.sToken = sToken;
+		Rec.sID    = std::move(sID);
+		*pOut      = std::move(Rec);
 	}
 
 	return true;
@@ -251,9 +270,22 @@ bool KSession::Logout(KStringView sToken)
 		return false;
 	}
 
-	return m_Store->Erase(sToken);
+	return m_Store->Erase(GetSessionID(sToken));
 
 } // Logout
+
+//-----------------------------------------------------------------------------
+bool KSession::LogoutByID(KStringView sID)
+//-----------------------------------------------------------------------------
+{
+	if (sID.empty())
+	{
+		return false;
+	}
+
+	return m_Store->Erase(sID);
+
+} // LogoutByID
 
 //-----------------------------------------------------------------------------
 bool KSession::UpdateExtra(KStringView sToken, KStringView sExtra)
@@ -264,7 +296,7 @@ bool KSession::UpdateExtra(KStringView sToken, KStringView sExtra)
 		return false;
 	}
 
-	return m_Store->UpdateExtra(sToken, sExtra);
+	return m_Store->UpdateExtra(GetSessionID(sToken), sExtra);
 
 } // UpdateExtra
 
@@ -312,6 +344,14 @@ std::vector<KSession::Record> KSession::ListSessionsFor(KStringView sUsername)
 	// most recently active first
 	std::sort(Sessions.begin(), Sessions.end(),
 		[](const Record& a, const Record& b) { return a.tLastSeen > b.tLastSeen; });
+
+	// the store returned the records with the ID in place of the token, which
+	// is not stored
+	for (auto& Rec : Sessions)
+	{
+		Rec.sID = std::move(Rec.sToken);
+		Rec.sToken.clear();
+	}
 
 	return Sessions;
 

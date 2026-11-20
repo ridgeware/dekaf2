@@ -121,13 +121,14 @@ public:
 	struct DEKAF2_PUBLIC Record
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		KString    sToken;        ///< primary key, base64url-encoded random bytes
+		KString    sToken;        ///< the session token, base64url-encoded random bytes - empty in the records of ListSessionsFor()
 		KString    sUsername;     ///< the logged-in user
 		KUnixTime  tCreated;      ///< session creation time (UTC)
 		KUnixTime  tLastSeen;     ///< last activity (UTC), refreshed by Validate()
 		KString    sClientIP;     ///< optional: client IP at login time
 		KString    sUserAgent;    ///< optional: user-agent at login time
 		KString    sExtra;        ///< application-specific opaque data (JSON recommended)
+		KString    sID;           ///< the session ID, see GetSessionID() - identifies the session without being a credential
 	};
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -136,6 +137,11 @@ public:
 	/// provided in crypto/auth/bits/. Custom backends can be implemented
 	/// by deriving from this class and passing an instance to the
 	/// KSession constructor.
+	///
+	/// A Store never gets a session token. What KSession passes as the token,
+	/// in the sToken parameters and in Record::sToken, is the session ID (see
+	/// GetSessionID()), and Record::sID is empty. A copy of the stored sessions
+	/// therefore holds nothing that a client could present.
 	class DEKAF2_PUBLIC Store
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -315,7 +321,8 @@ public:
 	/// Validate an existing session token. On success, refreshes
 	/// LastSeen (both in the Store and in *pOut if given).
 	/// @param sToken the token received from the client's cookie
-	/// @param pOut   if non-null and validation succeeds, receives the session record
+	/// @param pOut   if non-null and validation succeeds, receives the session record,
+	///               with sToken and the session ID that belongs to it
 	/// @returns true if the token is valid and not expired
 	DEKAF2_NODISCARD
 	bool Validate (KStringView sToken, Record* pOut = nullptr);
@@ -331,18 +338,32 @@ public:
 	/// @returns true if a session was found and erased
 	bool Logout (KStringView sToken);
 
+	/// Invalidate the session with the given session ID, as taken from
+	/// Record::sID - for a session whose token is not at hand, like one out of
+	/// ListSessionsFor().
+	/// @returns true if a session was found and erased
+	bool LogoutByID (KStringView sID);
+
 	/// Invalidate every session for the given user (e.g. after password change).
 	/// @returns count of sessions erased
 	std::size_t LogoutAllFor (KStringView sUsername);
 
 	/// List all currently live sessions for a user (idle- and absolute-expired
 	/// ones are filtered out, applying the same rule as Validate()), ordered most
-	/// recently active first. Each returned Record still carries its raw sToken,
-	/// so callers can correlate the request's own session or revoke a specific
-	/// one via Logout() — do NOT expose sToken to clients. Requires a Store that
-	/// implements ListFor (all bundled backends do); returns empty otherwise.
+	/// recently active first. The records carry no token, which is not stored:
+	/// Record::sID identifies each session, to compare with the request's own
+	/// session (GetSessionID()) or to end a specific one (LogoutByID()). Requires
+	/// a Store that implements ListFor (all bundled backends do); returns empty
+	/// otherwise.
 	DEKAF2_NODISCARD
 	std::vector<Record> ListSessionsFor (KStringView sUsername);
+
+	/// @returns the session ID of the session with the given token: the hex
+	/// encoded SHA-256 of the token. The stores file a session under its ID
+	/// instead of its token. The ID is not accepted as a token, and may be shown
+	/// to the user that owns the session.
+	DEKAF2_NODISCARD
+	static KString GetSessionID (KStringView sToken);
 
 	/// Manually trigger the expired-session purge. Called automatically
 	/// by the background timer if PurgeInterval is positive.

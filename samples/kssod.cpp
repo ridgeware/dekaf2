@@ -440,6 +440,11 @@ private:
 	KDuration                m_TTL { std::chrono::minutes(10) };
 };
 
+/// The cookie of a browser whose last sign-in was with a passkey: the login page
+/// then asks for the passkey at once, instead of showing the form for user name
+/// and password first. It says nothing about who signed in.
+constexpr KStringView s_sPasskeyCookie = "kssod_passkey";
+
 //-----------------------------------------------------------------------------
 /// read the operator's secret for the TOTP secrets in the database: from the
 /// file of --secret, else from the environment
@@ -1612,8 +1617,25 @@ int main(int argc, char** argv)
 			// a signed-in user only gets the form when an authorize request is parked
 			// for re-authentication (prompt=login, max_age, a force-login client)
 			if (!CurrentUser(HTTP, *pSession).empty() && Server.PendingClientID(HTTP).empty()) Redirect(HTTP, "/");
-			RenderLogin(HTTP, "", pSettings->SmtpConfigured());
+			RenderLogin(HTTP, "", pSettings->SmtpConfigured(), KHTTPError::H2xx_OK,
+			            /*bPasskeyFirst=*/!HTTP.GetCookie(s_sPasskeyCookie).empty());
 		});
+
+		// note in the browser whether its last sign-in was with a passkey (see
+		// s_sPasskeyCookie). SameSite=Lax, like the session cookie: the login page is
+		// reached by a redirect from the application.
+		auto RememberPasskey = [bTLS](KRESTServer& HTTP, bool bPasskey)
+		{
+			if (!bPasskey && HTTP.GetCookie(s_sPasskeyCookie).empty())
+			{
+				// nothing to forget
+				return;
+			}
+
+			HTTP.SetCookie(s_sPasskeyCookie, bPasskey ? "1" : "",
+			               kFormat("Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
+			                       bPasskey ? 365 * 24 * 60 * 60 : 0, bTLS ? "; Secure" : ""));
+		};
 
 		// kicks off the email-OTP step: mint a code, mail it, remember its hash.
 		// shared by POST /login and the "resend" route.
@@ -1629,7 +1651,7 @@ int main(int argc, char** argv)
 		};
 
 		Routes.AddRoute("/login").Post(
-			[&Server, &pUsers, &pSettings, &Pending2FA, &BeginEmailOtp, &LoginThrottle, &Log](KRESTServer& HTTP)
+			[&Server, &pUsers, &pSettings, &Pending2FA, &BeginEmailOtp, &LoginThrottle, &Log, &RememberPasskey](KRESTServer& HTTP)
 		{
 			const auto& Q = HTTP.GetQueryParms();
 			KString sUser = Q["username"];
@@ -1655,6 +1677,8 @@ int main(int argc, char** argv)
 			}
 
 			LoginThrottle.Reset(sUser);
+			// who signs in with the password gets the form first the next time, too
+			RememberPasskey(HTTP, false);
 			// password ok - demand the second factor (if any) before the session
 			// cookie is issued (CompleteLogin runs only after step two). An
 			// authenticator app takes precedence over email codes.
@@ -1748,7 +1772,7 @@ int main(int argc, char** argv)
 		});
 
 		Routes.AddRoute("/login/passkey").Post(
-			[&Server, &pUsers, &PasskeyConfig, &PendingPasskeys, &LoginThrottle, &Log](KRESTServer& HTTP)
+			[&Server, &pUsers, &PasskeyConfig, &PendingPasskeys, &LoginThrottle, &Log, &RememberPasskey](KRESTServer& HTTP)
 		{
 			KString sIP = HTTP.GetRemoteIP();
 
@@ -1778,6 +1802,8 @@ int main(int argc, char** argv)
 
 			if (!pUsers->GetPasskey(KWebAuthn::GetCredentialID(jCredential), Passkey) || !pUsers->Exists(Passkey.sUsername))
 			{
+				// a passkey that was removed here: do not ask this browser for it again
+				RememberPasskey(HTTP, false);
 				Fail("unknown", "", "", "This passkey is not registered here.");
 			}
 
@@ -1793,6 +1819,8 @@ int main(int argc, char** argv)
 			Log(HTTP, "auth.login", "ok", Passkey.sUsername, Passkey.sUsername, {{ "factors", 2 }, { "method", "passkey" }});
 
 			auto sLocation = Server.CompleteLogin(HTTP, Passkey.sUsername);
+
+			RememberPasskey(HTTP, true);
 
 			HTTP.json.tx["redirect"] = sLocation.empty() ? KString("/") : sLocation;
 		});
@@ -2709,7 +2737,7 @@ int main(int argc, char** argv)
 		});
 
 		Routes.AddRoute("/account/passkeys/add").Post(
-			[&Log, &pSession, &pUsers, &PasskeyConfig, &PendingPasskeys](KRESTServer& HTTP)
+			[&Log, &pSession, &pUsers, &PasskeyConfig, &PendingPasskeys, &RememberPasskey](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 
@@ -2757,11 +2785,14 @@ int main(int argc, char** argv)
 
 			Log(HTTP, "account.passkey", "added", sUser, sUser, {{ "name", sName }, { "format", Credential.sAttestationFormat }});
 
+			// the next sign-in in this browser starts with the new passkey
+			RememberPasskey(HTTP, true);
+
 			HTTP.json.tx["added"] = true;
 		});
 
 		Routes.AddRoute("/account/passkeys/delete").Post(
-			[&Log, &pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+			[&Log, &pSession, &pUsers, &Redirect, &RememberPasskey](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 
@@ -2774,6 +2805,12 @@ int main(int argc, char** argv)
 			if (pUsers->DeletePasskey(sUser, KBase64Url::Decode(HTTP.GetQueryParms()["id"])))
 			{
 				Log(HTTP, "account.passkey", "removed", sUser, sUser);
+
+				if (pUsers->ListPasskeys(sUser).empty())
+				{
+					// no passkey left to ask for
+					RememberPasskey(HTTP, false);
+				}
 			}
 
 			Redirect(HTTP, "/account");

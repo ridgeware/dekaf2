@@ -91,7 +91,10 @@ struct AccountState
 
 // --- end-user pages ---
 void RenderLanding   (KRESTServer& HTTP);
-void RenderLogin     (KRESTServer& HTTP, KStringView sError, bool bShowRecovery = false, uint16_t iStatus = 200);
+/// @param bPasskeyFirst the last sign-in in this browser was with a passkey: ask
+/// for the passkey at once, and fold the form for user name and password
+void RenderLogin     (KRESTServer& HTTP, KStringView sError, bool bShowRecovery = false, uint16_t iStatus = 200,
+                      bool bPasskeyFirst = false);
 void RenderTwoFactor (KRESTServer& HTTP, KStringView sPending, KStringView sMethod,
                       KStringView sMsg, bool bError, uint16_t iStatus = 200);
 void RenderAccount   (KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSON& Claims,

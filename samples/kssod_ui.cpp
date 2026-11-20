@@ -167,9 +167,12 @@ constexpr KStringView CSS =
 	".badge.on{background:#1f7a3f;color:#fff}.badge.off{background:var(--secondary-bg);color:var(--muted)}"
 	// the enrolment QR: always dark-on-white (a QR must keep that contrast), with a
 	// white quiet-zone padding so it scans even in dark mode
-	// passkeys: the sign-in button below the password form, and the message of the page script
-	".passkey{margin-top:1.2rem;padding-top:.4rem;border-top:1px solid var(--border)}"
+	// passkeys: the sign-in button above the password form, the message of the page
+	// script, and the password form that is folded while the page asks for a passkey
+	".passkey{margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}"
+	".passkey button{margin-top:0}.passkey button.secondary{background:#6b7280}"
 	"#passkey-msg:empty{display:none}"
+	"#password-login summary{cursor:pointer;color:var(--primary);font-size:.9rem}"
 	".qr{text-align:center;margin:.8rem 0}"
 	".qr svg{width:12rem;height:12rem;background:#fff;padding:.5rem;border-radius:8px}";
 
@@ -210,15 +213,41 @@ constexpr KStringView PASSKEY_JS =
 	"n==='InvalidStateError'?'This device has a passkey for this account already.':"
 	"(e&&e.message)||'The passkey request failed.');}"
 	"function kssodPasskeyIDs(l){(l||[]).forEach(function(c){c.id=kssodBytes(c.id);});}"
-	// sign in: no user name, the authenticator offers the passkeys it has for this site
-	"function kssodPasskeyLogin(){kssodPasskeyMsg('');"
-	"kssodPost('/login/passkey/options',{}).then(function(o){var p=o.options,ch=p.challenge;"
+	// sign in: no user name, the authenticator offers the passkeys it has for this site.
+	// bSuggest: do not ask now, but offer the passkeys among the suggestions that the
+	// browser shows for the user name field - that request waits until one is chosen,
+	// and has to be aborted before another one starts
+	"var kssodSuggest=null;"
+	"function kssodPasskeyGet(bSuggest){"
+	"return kssodPost('/login/passkey/options',{}).then(function(o){var p=o.options,ch=p.challenge,q={publicKey:p};"
 	"p.challenge=kssodBytes(ch);kssodPasskeyIDs(p.allowCredentials);"
-	"return navigator.credentials.get({publicKey:p}).then(function(c){var r=c.response;"
+	"if(bSuggest){kssodSuggest=new AbortController();q.mediation='conditional';q.signal=kssodSuggest.signal;}"
+	"return navigator.credentials.get(q).then(function(c){var r=c.response;"
 	"return kssodPost('/login/passkey',{challenge:ch,credential:{id:c.id,rawId:kssodB64(c.rawId),type:c.type,"
 	"response:{clientDataJSON:kssodB64(r.clientDataJSON),authenticatorData:kssodB64(r.authenticatorData),"
 	"signature:kssodB64(r.signature),userHandle:r.userHandle?kssodB64(r.userHandle):''}}});});"
-	"}).then(function(j){window.location.href=j.redirect||'/';}).catch(kssodPasskeyError);}"
+	"}).then(function(j){try{sessionStorage.removeItem('kssod-passkey-skip');}catch(x){}"
+	"window.location.href=j.redirect||'/';});}"
+	// the form for user name and password, where the page had folded it
+	"function kssodShowPassword(){var d=document.getElementById('password-login'),u=document.getElementById('username');"
+	"if(d&&!d.open){d.open=true;if(u)u.focus();}}"
+	// the button
+	"function kssodPasskeyLogin(){kssodPasskeyMsg('');if(kssodSuggest){kssodSuggest.abort();kssodSuggest=null;}"
+	"kssodPasskeyGet(false).catch(function(e){kssodPasskeyError(e);kssodShowPassword();});}"
+	// the suggestions: only what the server said is a message, the browser may end
+	// such a request at any time
+	"function kssodPasskeySuggest(){var P=window.PublicKeyCredential;"
+	"if(!P||!P.isConditionalMediationAvailable||kssodSuggest)return;"
+	"P.isConditionalMediationAvailable().then(function(b){if(b&&!kssodSuggest)"
+	"kssodPasskeyGet(true).catch(function(e){if(e&&e.name==='Error')kssodPasskeyError(e);});}).catch(function(){});}"
+	// the login page: ask for the passkey at once where the last sign-in was with one
+	// (data-auto) - but not again in a tab in which that was cancelled or refused
+	"function kssodPasskeyStart(){var d=document.getElementById('passkey-login'),s=false;if(!d)return;"
+	"if(!d.getAttribute('data-auto')){kssodPasskeySuggest();return;}"
+	"try{s=sessionStorage.getItem('kssod-passkey-skip')==='1';}catch(x){}"
+	"if(s){kssodShowPassword();kssodPasskeySuggest();return;}"
+	"kssodPasskeyGet(false).catch(function(e){try{sessionStorage.setItem('kssod-passkey-skip','1');}catch(x){}"
+	"if(e&&e.name==='Error')kssodPasskeyError(e);kssodShowPassword();kssodPasskeySuggest();});}"
 	// add a passkey to the signed-in account, confirmed with the password
 	"function kssodPasskeyAdd(f){kssodPasskeyMsg('');"
 	"kssodPost('/account/passkeys/options',{password:f.password.value}).then(function(o){var p=o.options,ch=p.challenge;"
@@ -229,8 +258,9 @@ constexpr KStringView PASSKEY_JS =
 	"transports:r.getTransports?r.getTransports():[]}}});});"
 	"}).then(function(){window.location.href='/account';}).catch(kssodPasskeyError);return false;}"
 	// a browser without WebAuthn does not show what it cannot do
-	"document.addEventListener('DOMContentLoaded',function(){if(window.PublicKeyCredential)return;"
-	"['passkey-login','passkey-add'].forEach(function(i){var e=document.getElementById(i);if(e)e.style.display='none';});});";
+	"document.addEventListener('DOMContentLoaded',function(){if(window.PublicKeyCredential){kssodPasskeyStart();return;}"
+	"['passkey-login','passkey-add'].forEach(function(i){var e=document.getElementById(i);if(e)e.style.display='none';});"
+	"kssodShowPassword();});";
 
 // Inline outline icons (Feather-style, stroke=currentColor so they pick up the
 // tile's white text colour). Recognisable admin iconography: people, app grid,
@@ -400,32 +430,69 @@ void RenderLanding(KRESTServer& HTTP)
 }
 
 //-----------------------------------------------------------------------------
-void RenderLogin(KRESTServer& HTTP, KStringView sError, bool bShowRecovery, uint16_t iStatus)
+void RenderLogin(KRESTServer& HTTP, KStringView sError, bool bShowRecovery, uint16_t iStatus, bool bPasskeyFirst)
 //-----------------------------------------------------------------------------
 {
+	// with an error to show, the form has to be in sight
+	if (!sError.empty())
+	{
+		bPasskeyFirst = false;
+	}
+
 	html::Page Page("Sign in", "en");
 	auto Body = BeginPage(Page, /*sUser=*/{}, /*bAdmin=*/false);
 	auto Card = Body.Add<html::ui::Card>("Sign in");
 	auto CB   = Card.Body();
 	Msg(CB, sError, true);
-	auto Form = CB.Add<html::Form>("/login");
-	Form.SetMethod(html::Form::POST);
-	LabeledInput(Form, "Username", "username", html::Input::TEXT).SetAutofocus(true);
-	LabeledInput(Form, "Password", "password", html::Input::PASSWORD);
-	Form.Add<html::Button>("Sign in");
-	// the recovery link only appears when an email relay is configured
-	if (bShowRecovery)
-	{
-		CB.Add<html::Paragraph>(html::Classes{"help"}).Add<html::Link>("/forgot", "Forgot your password?");
-	}
 
-	// a passkey signs in without a user name and a password (see PASSKEY_JS)
+	// a passkey signs in without a user name and a password (see PASSKEY_JS). Its
+	// button stands above the form: a phone lays its offer of saved passwords over
+	// what follows the input fields.
 	Page.Head().Add<html::Script>(PASSKEY_JS);
 
 	auto Passkey = CB.Add<html::Div>(html::Classes{"passkey"});
 	Passkey.SetID("passkey-login");
-	Passkey.Add<html::Button>("Sign in with a passkey", html::Button::BUTTON).SetAttribute("onclick", "kssodPasskeyLogin()");
+	Passkey.Add<html::Button>("Sign in with a passkey", html::Button::BUTTON,
+	                          bPasskeyFirst ? html::Classes{} : html::Classes{"secondary"})
+	       .SetAttribute("onclick", "kssodPasskeyLogin()");
 	Passkey.Add<html::Paragraph>(html::Classes{"err"}).SetID("passkey-msg");
+
+	auto AddForm = [bShowRecovery, bPasskeyFirst](KHTMLNode Parent)
+	{
+		auto Form = Parent.Add<html::Form>("/login");
+		Form.SetMethod(html::Form::POST);
+
+		auto Username = LabeledInput(Form, "Username", "username", html::Input::TEXT);
+		Username.SetID("username");
+		// the browser offers the passkeys among its suggestions for this field
+		Username.SetAttribute("autocomplete", "username webauthn");
+		// the focus opens the keyboard of a phone, and its offer of saved passwords
+		Username.SetAutofocus(!bPasskeyFirst);
+
+		LabeledInput(Form, "Password", "password", html::Input::PASSWORD).SetAttribute("autocomplete", "current-password");
+		Form.Add<html::Button>("Sign in");
+
+		// the recovery link only appears when an email relay is configured
+		if (bShowRecovery)
+		{
+			Parent.Add<html::Paragraph>(html::Classes{"help"}).Add<html::Link>("/forgot", "Forgot your password?");
+		}
+	};
+
+	if (bPasskeyFirst)
+	{
+		// the page asks for the passkey at once, and opens the form when that is
+		// cancelled - or the user does
+		Passkey.SetAttribute("data-auto", "1");
+
+		auto Details = CB.Add<html::Details>(html::Classes{}, "password-login");
+		Details.Add<html::Summary>("Sign in with user name and password");
+		AddForm(Details);
+	}
+	else
+	{
+		AddForm(CB);
+	}
 
 	SendPage(HTTP, Page, iStatus);
 }

@@ -1365,3 +1365,37 @@ TEST_CASE("KWebSocketPMCE")
 		CHECK ( true );
 	}
 }
+
+TEST_CASE("KWebSocket ReadState")
+{
+	SECTION("a Close frame of the peer")
+	{
+		KWebSocketPair Pair(7681);
+		REQUIRE ( Pair.pServer != nullptr );
+		REQUIRE ( Pair.pClient != nullptr );
+
+		Pair.pServer->SetReadTimeout(chrono::seconds(2));
+
+		CHECK ( Pair.pClient->Close() );
+
+		KString sFrame;
+		CHECK ( Pair.pServer->Read(sFrame) == false );
+		CHECK ( Pair.pServer->GetReadState() == KWebSocket::ReadState::PeerClose );
+	}
+
+	SECTION("a lost connection")
+	{
+		KWebSocketPair Pair(7682);
+		REQUIRE ( Pair.pServer != nullptr );
+		REQUIRE ( Pair.pClient != nullptr );
+
+		Pair.pServer->SetReadTimeout(chrono::seconds(2));
+
+		// the client goes away without a Close frame
+		Pair.pClient.reset();
+
+		KString sFrame;
+		CHECK ( Pair.pServer->Read(sFrame) == false );
+		CHECK ( Pair.pServer->GetReadState() == KWebSocket::ReadState::Error );
+	}
+}

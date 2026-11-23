@@ -1513,7 +1513,8 @@ bool KWebSocket::Read()
 			{
 				if (!m_Frame.Read(*m_Stream, *m_Stream, m_bMaskTx))
 				{
-					m_ReadState = ReadState::Error;
+					// the frame reader answers a Close frame and returns false
+					m_ReadState = (m_Frame.Type() == Frame::FrameType::Close) ? ReadState::PeerClose : ReadState::Error;
 					return false;
 				}
 
@@ -1575,7 +1576,7 @@ bool KWebSocket::ReadInt(std::function<bool(const KString&)> Func)
 			case KWebSocket::Frame::FrameType::Binary:
 				return Func(m_Frame.GetPayload());
 
-			// answered by the Frame reader itself, simply return false
+			// Read() fails on a Close frame, so this is not reached
 			case KWebSocket::Frame::FrameType::Close:
 				m_ReadState = ReadState::PeerClose;
 				return false;

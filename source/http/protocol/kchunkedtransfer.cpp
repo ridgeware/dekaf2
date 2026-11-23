@@ -43,6 +43,7 @@
 #include <dekaf2/http/protocol/kchunkedtransfer.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/io/readwrite/kread.h>
 #include <limits>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -145,7 +146,9 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 					len = std::min(m_iContentLen, n);
 				}
 
-				iResult = m_src.Read(s, len);
+				// what has arrived - a stream that sends in pieces, like one of events,
+				// would else only return when the request is filled
+				iResult = static_cast<std::streamsize>(kReadSome(m_src.istream(), s, static_cast<std::size_t>(len)));
 
 				// only an empty read is the end of the input - a short read may also
 				// end with a timeout after which the stream can still deliver
@@ -188,7 +191,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 				auto len = std::min(n - iResult, m_iRemainingInChunk);
 
-				auto ird = m_src.Read(s + iResult, len);
+				auto ird = static_cast<std::streamsize>(kReadSome(m_src.istream(), s + iResult, static_cast<std::size_t>(len)));
 
 				m_iCount += ird;
 				m_iRemainingInChunk -= ird;
@@ -208,7 +211,9 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 					return iResult;
 				}
 
-				break;
+				// return what is there - the next chunk may come much later, as in a
+				// stream of events, and the reader shall have this one now
+				return iResult;
 			}
 
 			case ReadingChunkEnd:

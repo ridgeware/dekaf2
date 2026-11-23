@@ -42,6 +42,7 @@
 #include <dekaf2/io/readwrite/kread.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/init/kcompatibility.h>
+#include <algorithm>
 #include <limits>
 
 #ifdef DEKAF2_IS_WINDOWS
@@ -273,6 +274,52 @@ std::size_t kRead(std::istream& Stream, void* sBuffer, std::size_t iCount)
 	return static_cast<std::size_t>(iRead);
 
 } // kRead
+
+//-----------------------------------------------------------------------------
+std::size_t kReadSome(std::istream& Stream, void* sBuffer, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	auto streambuf = Stream.rdbuf();
+
+	if (DEKAF2_UNLIKELY(streambuf == nullptr))
+	{
+		Stream.setstate(std::ios::failbit);
+		return 0;
+	}
+
+	if (!iCount)
+	{
+		return 0;
+	}
+
+	// the chars in the buffer of the stream
+	auto iAvailable = streambuf->in_avail();
+
+	if (iAvailable <= 0)
+	{
+		// wait for the next input - a buffered stream reads what arrives
+		if (std::istream::traits_type::eq_int_type(streambuf->sgetc(), std::istream::traits_type::eof()))
+		{
+			Stream.setstate(std::ios::eofbit);
+			return 0;
+		}
+
+		// a stream without buffer has at least the char that sgetc() saw
+		iAvailable = std::max(streambuf->in_avail(), std::streamsize(1));
+	}
+
+	auto iRead = streambuf->sgetn(static_cast<std::istream::char_type*>(sBuffer),
+	                              std::min(static_cast<std::streamsize>(iCount), iAvailable));
+
+	if (DEKAF2_UNLIKELY(iRead <= 0))
+	{
+		Stream.setstate(iRead < 0 ? std::ios::badbit : std::ios::eofbit);
+		return 0;
+	}
+
+	return static_cast<std::size_t>(iRead);
+
+} // kReadSome
 
 //-----------------------------------------------------------------------------
 std::istream::int_type kRead(std::istream& Stream)

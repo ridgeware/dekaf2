@@ -72,6 +72,11 @@ std::size_t kRead(FILE* fp, void* sBuffer, std::size_t iCount);
 DEKAF2_PUBLIC
 std::size_t kRead(std::istream& Stream, void* sBuffer, std::size_t iCount);
 
+/// Reads up to iCount chars from Stream into sBuffer - waits only for the first chars,
+/// and returns what is available then. Returns 0 at the end of the input or on error
+DEKAF2_PUBLIC
+std::size_t kReadSome(std::istream& Stream, void* sBuffer, std::size_t iCount);
+
 /// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
 DEKAF2_PUBLIC
 std::istream::int_type kRead(std::istream& Stream);

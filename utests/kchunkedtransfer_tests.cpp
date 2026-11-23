@@ -4,6 +4,7 @@
 #include <dekaf2/http/protocol/khttp_header.h>
 #include <dekaf2/http/server/khttpoutputfilter.h>
 #include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/io/streams/kfdstream.h>
 #include <dekaf2/io/compression/kcompression.h>
 #include <dekaf2/core/format/kformat.h>
 #include <zlib.h>
@@ -11,11 +12,22 @@
 	#include <lzma.h>
 #endif
 #include <array>
+#ifndef DEKAF2_IS_WINDOWS
+	#include <unistd.h>
+#endif
 #include <vector>
 
 using namespace dekaf2;
 
 namespace {
+
+#ifndef DEKAF2_IS_WINDOWS
+// write all of sData to a file descriptor
+bool WriteTo(int fd, KStringView sData)
+{
+	return ::write(fd, sData.data(), sData.size()) == static_cast<ssize_t>(sData.size());
+}
+#endif
 
 // read a whole chunked body through KChunkedSource
 KString ReadChunked(KStringView sInput)
@@ -153,6 +165,88 @@ TEST_CASE("KChunkedSource")
 	{
 		CHECK ( ReadChunked("0\r\n\r\n").empty() );
 	}
+
+	SECTION("a read returns a chunk, and does not wait for the next one")
+	{
+		KInStringStream iss("4\r\nWiki\r\n5\r\npedia\r\n0\r\n\r\n");
+		KChunkedSource  Source(iss, true);
+
+		std::array<char, 100> Buffer;
+
+		auto iRead = Source.read(Buffer.data(), Buffer.size());
+		REQUIRE ( iRead == 4 );
+		CHECK   ( KStringView(Buffer.data(), 4) == "Wiki" );
+
+		iRead = Source.read(Buffer.data(), Buffer.size());
+		REQUIRE ( iRead == 5 );
+		CHECK   ( KStringView(Buffer.data(), 5) == "pedia" );
+
+		CHECK ( Source.read(Buffer.data(), Buffer.size()) <= 0 );
+		CHECK ( Source.read(Buffer.data(), Buffer.size()) == -1 );
+		CHECK_FALSE ( Source.HadError() );
+	}
+
+#ifndef DEKAF2_IS_WINDOWS
+	SECTION("a chunk is returned while the next one has not yet arrived")
+	{
+		std::array<int, 2> Pipe;
+		REQUIRE ( ::pipe(Pipe.data()) == 0 );
+
+		KFDReader      Reader(Pipe[0]);
+		KChunkedSource Source(Reader, true);
+
+		std::array<char, 100> Buffer;
+
+		REQUIRE ( WriteTo(Pipe[1], "6\r\nevent1\r\n") );
+
+		// the write end stays open: a read that waited for more would not return
+		auto iRead = Source.read(Buffer.data(), Buffer.size());
+		REQUIRE ( iRead == 6 );
+		CHECK   ( KStringView(Buffer.data(), 6) == "event1" );
+
+		REQUIRE ( WriteTo(Pipe[1], "5\r\nabc") );
+
+		// a part of a chunk is also returned
+		iRead = Source.read(Buffer.data(), Buffer.size());
+		REQUIRE ( iRead == 3 );
+		CHECK   ( KStringView(Buffer.data(), 3) == "abc" );
+
+		REQUIRE ( WriteTo(Pipe[1], "de\r\n0\r\n\r\n") );
+		::close(Pipe[1]);
+
+		iRead = Source.read(Buffer.data(), Buffer.size());
+		REQUIRE ( iRead == 2 );
+		CHECK   ( KStringView(Buffer.data(), 2) == "de" );
+
+		CHECK ( Source.read(Buffer.data(), Buffer.size()) <= 0 );
+		CHECK_FALSE ( Source.HadError() );
+
+		Reader.close();
+	}
+
+	SECTION("a body without chunks is returned as it arrives")
+	{
+		std::array<int, 2> Pipe;
+		REQUIRE ( ::pipe(Pipe.data()) == 0 );
+
+		KFDReader      Reader(Pipe[0]);
+		KChunkedSource Source(Reader, false);
+
+		std::array<char, 100> Buffer;
+
+		REQUIRE ( WriteTo(Pipe[1], "data: x\n\n") );
+
+		auto iRead = Source.read(Buffer.data(), Buffer.size());
+		REQUIRE ( iRead == 9 );
+		CHECK   ( KStringView(Buffer.data(), 9) == "data: x\n\n" );
+
+		::close(Pipe[1]);
+
+		CHECK ( Source.read(Buffer.data(), Buffer.size()) <= 0 );
+
+		Reader.close();
+	}
+#endif
 
 	SECTION("chunk extensions are ignored")
 	{

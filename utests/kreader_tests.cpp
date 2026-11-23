@@ -7,6 +7,9 @@
 #include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/io/streams/kinstringstream.h>
+#include <dekaf2/io/readwrite/kread.h>
+#include <array>
+#include <sstream>
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1029,4 +1032,50 @@ TEST_CASE("KReader") {
 			CHECK ( sContent.empty() );
 		}
 	}
+}
+
+TEST_CASE("kReadSome from a stream")
+{
+	SECTION("what the buffer of the stream holds, then the end")
+	{
+		std::istringstream iss("abcdef");
+		std::array<char, 4> Buffer;
+
+		auto iRead = kReadSome(iss, Buffer.data(), Buffer.size());
+		CHECK ( KStringView(Buffer.data(), iRead) == "abcd" );
+		CHECK_FALSE ( iss.eof() );
+
+		iRead = kReadSome(iss, Buffer.data(), Buffer.size());
+		CHECK ( KStringView(Buffer.data(), iRead) == "ef" );
+
+		CHECK ( kReadSome(iss, Buffer.data(), Buffer.size()) == 0 );
+		CHECK ( iss.eof() );
+		CHECK ( kReadSome(iss, Buffer.data(), 0) == 0 );
+	}
+
+#ifndef DEKAF2_IS_WINDOWS
+	SECTION("it does not wait for more input than has arrived")
+	{
+		std::array<int, 2> Pipe;
+		REQUIRE ( ::pipe(Pipe.data()) == 0 );
+
+		KFDReader Reader(Pipe[0]);
+
+		REQUIRE ( ::write(Pipe[1], "abc", 3) == 3 );
+
+		// the write end stays open - kRead() would wait here for 100 chars
+		std::array<char, 100> Buffer;
+		auto iRead = kReadSome(Reader.istream(), Buffer.data(), Buffer.size());
+		CHECK ( KStringView(Buffer.data(), iRead) == "abc" );
+
+		REQUIRE ( ::write(Pipe[1], "de", 2) == 2 );
+		::close(Pipe[1]);
+
+		iRead = kReadSome(Reader.istream(), Buffer.data(), Buffer.size());
+		CHECK ( KStringView(Buffer.data(), iRead) == "de" );
+		CHECK ( kReadSome(Reader.istream(), Buffer.data(), Buffer.size()) == 0 );
+
+		Reader.close();
+	}
+#endif
 }

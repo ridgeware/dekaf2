@@ -4,12 +4,16 @@
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/http/client/khttpclient.h>
+#include <dekaf2/http/protocol/kserversentevent.h>
+#include <dekaf2/web/url/kmime.h>
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -48,6 +52,23 @@ struct EventTestServer
 			HTTP.SubscribeToEvents("news");
 
 			throw KHTTPError { KHTTPError::H5xx_ERROR, "failed after subscribing" };
+		});
+
+		// events from the worker thread: the second one only after the client has the first
+		Routes.AddRoute("/writer").Get([this](KRESTServer& HTTP)
+		{
+			auto Events = HTTP.EventStream();
+
+			Events.Send({ "first", "", "1" });
+
+			for (std::size_t i = 0; i < 500 && !bClientHasFirst; ++i)
+			{
+				kSleep(chrono::milliseconds(10));
+			}
+
+			bWaitedInVain = !bClientHasFirst;
+
+			Events.Send({ "second", "", "2" });
 		});
 
 		Routes.AddRoute("/json").Get([](KRESTServer& HTTP)
@@ -131,6 +152,8 @@ struct EventTestServer
 	std::atomic<bool>                            bSentBeforeReturn { false };
 	std::atomic<bool>                            bMissedEvents     { false };
 	std::atomic<bool>                            bPublishOnClose   { false };
+	std::atomic<bool>                            bClientHasFirst   { false };
+	std::atomic<bool>                            bWaitedInVain     { false };
 	KString                                      sEndPoint;
 	KREST                                        Rest;
 
@@ -211,6 +234,46 @@ struct EventClient
 	KServerSentEventParser Parser;
 
 }; // EventClient
+
+//-----------------------------------------------------------------------------
+/// a client that reads an event stream with KHTTPClient and KServerSentEventReader
+struct ReaderClient
+//-----------------------------------------------------------------------------
+{
+	ReaderClient(KStringView sEndPoint, KStringView sPath, KStringView sLastEventID = KStringView{})
+	{
+		KURL URL(kFormat("http://{}{}", sEndPoint, sPath));
+
+		HTTP.SetTimeout(chrono::seconds(5));
+		HTTP.RequestCompression(false);
+
+		REQUIRE ( HTTP.Connect(URL) );
+		REQUIRE ( HTTP.Resource(URL) );
+
+		HTTP.AddHeader(KHTTPHeader::ACCEPT, KMIME::EVENT_STREAM);
+
+		if (!sLastEventID.empty())
+		{
+			HTTP.AddHeader(KHTTPHeader::LAST_EVENT_ID, sLastEventID);
+		}
+
+		REQUIRE ( HTTP.SendRequest() );
+
+		iStatus = HTTP.Response.GetStatusCode();
+
+		Reader = std::make_unique<KServerSentEventReader>(HTTP.Response.FilteredStream());
+	}
+
+	bool Next(KServerSentEvent& Event)
+	{
+		return Reader->Next(Event);
+	}
+
+	KHTTPClient                             HTTP;
+	std::unique_ptr<KServerSentEventReader> Reader;
+	uint16_t                                iStatus { 0 };
+
+}; // ReaderClient
 
 // options without comment lines, which would come between the events of a test
 KServerSentEventServer::Options QuietOptions(std::size_t iHistory = 0)
@@ -743,5 +806,70 @@ TEST_CASE("KServerSentEventServer")
 
 		REQUIRE ( Watcher.Next(Event) );
 		CHECK ( Event.sData.UInt64() == iHandle );
+	}
+}
+
+TEST_CASE("KServerSentEventReader with KHTTPClient")
+{
+	SECTION("events from the worker thread arrive while the route runs")
+	{
+		EventTestServer Server(QuietOptions());
+		ReaderClient    Client(Server.sEndPoint, "/writer");
+
+		CHECK ( Client.iStatus == 200 );
+
+		KServerSentEvent Event;
+
+		REQUIRE ( Client.Next(Event) );
+		CHECK ( Event.sData == "first" );
+		Server.bClientHasFirst = true;
+
+		REQUIRE ( Client.Next(Event) );
+		CHECK ( Event.sData == "second" );
+		CHECK ( Client.Reader->GetLastEventID() == "2" );
+
+		// the stream ends with the route
+		CHECK_FALSE ( Client.Next(Event) );
+		CHECK_FALSE ( Client.Reader->HasError() );
+		CHECK_FALSE ( Server.bWaitedInVain );
+	}
+
+	SECTION("events from the event server, and the events that a client missed")
+	{
+		EventTestServer  Server(QuietOptions(10));
+		KServerSentEvent Event;
+		KString          sLastEventID;
+
+		{
+			ReaderClient Client(Server.sEndPoint, "/events/news");
+
+			CHECK ( Client.iStatus == 200 );
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sEvent == "hello" );
+
+			CHECK ( Server.Events().Publish("news", { "first" }) == 1 );
+
+			REQUIRE ( Client.Next(Event) );
+			CHECK ( Event.sData == "first" );
+
+			sLastEventID = Client.Reader->GetLastEventID();
+			CHECK ( CountOfID(sLastEventID) == 1 );
+		}
+
+		CHECK ( Server.WaitForSize(0) );
+		CHECK ( Server.Events().Publish("news", { "second" }) == 0 );
+		CHECK ( Server.Events().Publish("news", { "third" })  == 0 );
+
+		ReaderClient Client(Server.sEndPoint, "/events/news", sLastEventID);
+
+		REQUIRE ( Client.Next(Event) );
+		CHECK ( Event.sData == "second" );
+		REQUIRE ( Client.Next(Event) );
+		CHECK ( Event.sData == "third" );
+		REQUIRE ( Client.Next(Event) );
+		CHECK ( Event.sEvent == "hello" );
+		CHECK ( CountOfID(Client.Reader->GetLastEventID()) == 3 );
+		CHECK_FALSE ( Server.bMissedEvents );
 	}
 }

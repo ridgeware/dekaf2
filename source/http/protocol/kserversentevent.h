@@ -43,7 +43,7 @@
 
 /// @file kserversentevent.h
 /// events of an event stream (server-sent events, media type text/event-stream),
-/// and a parser for the stream
+/// a parser for the stream, and a reader of the stream from an input stream
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/errors/kerror.h>
@@ -52,6 +52,8 @@
 #include <dekaf2/time/duration/kduration.h>
 
 DEKAF2_NAMESPACE_BEGIN
+
+class KInStream;
 
 /// @addtogroup http_protocol
 /// @{
@@ -134,8 +136,9 @@ public:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Parser for an event stream. It takes the stream in pieces of any size, and
 /// returns the events that are complete. A stream with a line that is longer than
-/// permitted fails: Next() returns false, HasError() is true, and the parser drops
-/// all further input until clear().
+/// permitted, or with an event whose data is larger than permitted, fails: Next()
+/// returns false, HasError() is true, and the parser drops all further input until
+/// clear().
 ///
 /// @code
 /// KServerSentEventParser Parser;
@@ -161,13 +164,19 @@ public:
 
 	/// the default for the largest permitted length of a line of the stream
 	static constexpr std::size_t DefaultMaxLineLength { 16 * 1024 * 1024 };
+	/// the default for the largest permitted size of the data of an event
+	static constexpr std::size_t DefaultMaxEventSize  { 16 * 1024 * 1024 };
 
 	//-----------------------------------------------------------------------------
 	/// @param iMaxLineLength the largest permitted length of a line of the stream in
 	/// bytes, without its line break, npos for no limit
-	explicit KServerSentEventParser(std::size_t iMaxLineLength = DefaultMaxLineLength)
+	/// @param iMaxEventSize the largest permitted size of the data of an event in bytes,
+	/// with the line breaks between its lines, npos for no limit
+	explicit KServerSentEventParser(std::size_t iMaxLineLength = DefaultMaxLineLength,
+	                                std::size_t iMaxEventSize  = DefaultMaxEventSize)
 	//-----------------------------------------------------------------------------
 	: m_iMaxLineLength(iMaxLineLength)
+	, m_iMaxEventSize(iMaxEventSize)
 	{
 	}
 
@@ -229,12 +238,20 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// take a line with a field into the event that is being built
+	/// @return false if the stream failed
 	DEKAF2_PRIVATE
-	void AddField(KStringView sLine);
+	bool AddField(KStringView sLine);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// drop the input and the event that is being built, and set the error
+	DEKAF2_PRIVATE
+	void Fail(KStringViewZ sError);
 	//-----------------------------------------------------------------------------
 
 	KString     m_sInput;                 // the input that is not parsed yet
 	std::size_t m_iMaxLineLength;
+	std::size_t m_iMaxEventSize;
 	std::size_t m_iPos        { 0 };      // start of the unparsed input in m_sInput
 	std::size_t m_iScanned    { 0 };      // m_sInput has no line break between m_iPos and here
 	KString     m_sData;                  // data of the event being built, each line with a LF
@@ -247,6 +264,122 @@ private:
 	bool        m_bSkipLF     { false };  // the last line ended with a CR at the end of the input
 
 }; // KServerSentEventParser
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Reads the events of an event stream from an input stream, e.g. from the body of
+/// a response that a KHTTPClient receives. Next() waits for the next complete event.
+///
+/// A compressed response reaches its decompressor in pieces, and the decompressor
+/// hands on its output only in larger blocks: request the stream without compression.
+/// The read timeout of the stream ends the stream when the server sends nothing for
+/// that long - it has to be longer than the time between the comment lines that the
+/// server sends.
+///
+/// @code
+/// KHTTPClient HTTP;
+/// HTTP.RequestCompression(false);
+/// HTTP.Connect(URL);
+/// HTTP.Resource(URL);
+/// HTTP.AddHeader(KHTTPHeader::ACCEPT, KMIME::EVENT_STREAM);
+///
+/// if (!sLastEventID.empty())
+/// {
+///     // a client that connects again
+///     HTTP.AddHeader(KHTTPHeader::LAST_EVENT_ID, sLastEventID);
+/// }
+///
+/// if (HTTP.SendRequest() && HTTP.Response.GetStatusCode() == KHTTPError::H2xx_OK)
+/// {
+///     KServerSentEventReader Events(HTTP.Response.FilteredStream());
+///     KServerSentEvent       Event;
+///
+///     while (Events.Next(Event))
+///     {
+///         // use Event
+///     }
+///
+///     sLastEventID = Events.GetLastEventID();
+/// }
+/// @endcode
+class DEKAF2_PUBLIC KServerSentEventReader
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	/// @param Stream the stream to read from
+	/// @param iMaxLineLength the largest permitted length of a line of the stream in
+	/// bytes, without its line break, npos for no limit
+	/// @param iMaxEventSize the largest permitted size of the data of an event in bytes,
+	/// with the line breaks between its lines, npos for no limit
+	explicit KServerSentEventReader(KInStream&  Stream,
+	                                std::size_t iMaxLineLength = KServerSentEventParser::DefaultMaxLineLength,
+	                                std::size_t iMaxEventSize  = KServerSentEventParser::DefaultMaxEventSize);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// @param Event receives the next event, see KServerSentEventParser::Next()
+	/// @return false at the end of the stream, or if the stream failed (see HasError())
+	bool Next(KServerSentEvent& Event);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// @return the last id that the stream has set with a complete event - a client
+	/// sends it in the request header Last-Event-ID when it connects again
+	DEKAF2_NODISCARD
+	const KString& GetLastEventID() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Parser.GetLastEventID();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// @return true if the stream has set a time to wait before connecting again
+	DEKAF2_NODISCARD
+	bool HasRetry() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Parser.HasRetry();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// @return the time to wait before connecting again, if the stream has set one
+	DEKAF2_NODISCARD
+	KDuration GetRetry() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Parser.GetRetry();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// @return true if the stream failed: a line or an event exceeded its limit
+	DEKAF2_NODISCARD
+	bool HasError() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Parser.HasError();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// @return the reason why the stream failed
+	DEKAF2_NODISCARD
+	KStringViewZ GetLastError() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Parser.GetLastError();
+	}
+
+//------
+private:
+//------
+
+	KInStream&             m_Stream;
+	KServerSentEventParser m_Parser;
+
+}; // KServerSentEventReader
 
 /// @}
 

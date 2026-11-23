@@ -4,6 +4,7 @@
 #include <dekaf2/http/protocol/khttp_header.h>
 #include <dekaf2/web/url/kmime.h>
 #include <dekaf2/core/format/kformat.h>
+#include <dekaf2/io/streams/kinstringstream.h>
 #include <limits>
 #include <vector>
 
@@ -477,6 +478,71 @@ TEST_CASE("KServerSentEventParser")
 		}
 	}
 
+	SECTION("an event may have the permitted size")
+	{
+		// two lines of 4 bytes and the line break between them
+		KServerSentEventParser Parser(npos, 9);
+		KServerSentEvent       Event;
+
+		Parser.Add("data: 1234\ndata: 5678\n\n");
+		REQUIRE ( Parser.Next(Event) );
+		CHECK ( Event.sData == "1234\n5678" );
+		CHECK_FALSE ( Parser.HasError() );
+	}
+
+	SECTION("a larger event fails the stream")
+	{
+		KServerSentEventParser Parser(npos, 9);
+		KServerSentEvent       Event;
+
+		// each line is short, together they are too large - the empty line is not needed
+		Parser.Add("data: first\n\ndata: 1234\ndata: 56789\ndata: not seen\n\n");
+		REQUIRE ( Parser.Next(Event) );
+		CHECK ( Event.sData == "first" );
+
+		CHECK_FALSE ( Parser.Next(Event) );
+		CHECK ( Parser.HasError() );
+		CHECK ( Parser.GetLastError() == "event of the event stream is larger than 9 bytes" );
+
+		Parser.Add("data: also not seen\n\n");
+		CHECK_FALSE ( Parser.Next(Event) );
+
+		Parser.clear();
+		Parser.Add("data: again\n\n");
+		REQUIRE ( Parser.Next(Event) );
+		CHECK ( Event.sData == "again" );
+	}
+
+	SECTION("fields other than data do not count for the size of an event")
+	{
+		KServerSentEventParser Parser(npos, 4);
+		KServerSentEvent       Event;
+
+		Parser.Add(": a long comment line\nevent: a long event type\nid: a long id\ndata: 1234\n\n");
+		REQUIRE ( Parser.Next(Event) );
+		CHECK ( Event.sData  == "1234" );
+		CHECK ( Event.sEvent == "a long event type" );
+	}
+
+	SECTION("no limit for the size of an event")
+	{
+		KServerSentEventParser Parser(npos, npos);
+		KServerSentEvent       Event;
+
+		KString sStream;
+
+		for (std::size_t i = 0; i < 1000; ++i)
+		{
+			sStream += "data: 0123456789\n";
+		}
+
+		sStream += '\n';
+
+		Parser.Add(sStream);
+		REQUIRE ( Parser.Next(Event) );
+		CHECK ( Event.sData.size() == 1000 * 11 - 1 );
+	}
+
 	SECTION("the parser reads what Serialize() writes")
 	{
 		std::vector<KServerSentEvent> Sent
@@ -521,5 +587,55 @@ TEST_CASE("KServerSentEventParser")
 			CHECK ( Parser.GetLastEventID() == "2" );
 			CHECK ( Parser.GetRetry() == chrono::seconds(5) );
 		}
+	}
+}
+
+TEST_CASE("KServerSentEventReader")
+{
+	SECTION("the events of a stream, and its state")
+	{
+		KInStringStream iss("retry: 2000\n: comment\nid: 1\ndata: one\n\nevent: two\ndata: second\ndata: line\n\ndata: incomplete");
+		KServerSentEventReader Reader(iss);
+		KServerSentEvent       Event;
+
+		REQUIRE ( Reader.Next(Event) );
+		CHECK ( Event.sData  == "one" );
+		CHECK ( Event.sID    == "1" );
+
+		REQUIRE ( Reader.Next(Event) );
+		CHECK ( Event.sData  == "second\nline" );
+		CHECK ( Event.sEvent == "two" );
+		CHECK ( Event.sID    == "1" );
+
+		// the last block has no empty line
+		CHECK_FALSE ( Reader.Next(Event) );
+		CHECK_FALSE ( Reader.HasError() );
+		CHECK ( Reader.GetLastEventID() == "1" );
+		CHECK ( Reader.HasRetry() );
+		CHECK ( Reader.GetRetry() == chrono::seconds(2) );
+	}
+
+	SECTION("a stream that exceeds a limit fails")
+	{
+		KInStringStream        iss("data: ok\n\ndata: 0123456789\n\n");
+		KServerSentEventReader Reader(iss, 16, 8);
+		KServerSentEvent       Event;
+
+		REQUIRE ( Reader.Next(Event) );
+		CHECK ( Event.sData == "ok" );
+
+		CHECK_FALSE ( Reader.Next(Event) );
+		CHECK ( Reader.HasError() );
+		CHECK ( Reader.GetLastError() == "event of the event stream is larger than 8 bytes" );
+	}
+
+	SECTION("an empty stream")
+	{
+		KInStringStream        iss("");
+		KServerSentEventReader Reader(iss);
+		KServerSentEvent       Event;
+
+		CHECK_FALSE ( Reader.Next(Event) );
+		CHECK_FALSE ( Reader.HasError() );
 	}
 }

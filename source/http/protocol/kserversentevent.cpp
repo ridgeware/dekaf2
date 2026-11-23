@@ -43,6 +43,9 @@
 #include <dekaf2/http/protocol/kserversentevent.h>
 #include <dekaf2/core/strings/bits/kfindsetofchars.h>
 #include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/io/readwrite/kread.h>
+#include <array>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -255,15 +258,7 @@ bool KServerSentEventParser::NextLine(KStringView& sLine)
 	// the length of the line, or of what is there of a line that is not complete
 	if (std::min(iEnd, sInput.size()) > m_iMaxLineLength)
 	{
-		// give the memory back before the error is set, which may throw
-		KString().swap(m_sInput);
-		m_iPos     = 0;
-		m_iScanned = 0;
-		m_sData.clear();
-		m_sEvent.clear();
-
-		SetError(kFormat("line of the event stream is longer than {} bytes", m_iMaxLineLength));
-
+		Fail(kFormat("line of the event stream is longer than {} bytes", m_iMaxLineLength));
 		return false;
 	}
 
@@ -299,7 +294,22 @@ bool KServerSentEventParser::NextLine(KStringView& sLine)
 } // NextLine
 
 //-----------------------------------------------------------------------------
-void KServerSentEventParser::AddField(KStringView sLine)
+void KServerSentEventParser::Fail(KStringViewZ sError)
+//-----------------------------------------------------------------------------
+{
+	// give the memory back before the error is set, which may throw
+	KString().swap(m_sInput);
+	KString().swap(m_sData);
+	m_iPos     = 0;
+	m_iScanned = 0;
+	m_sEvent.clear();
+
+	SetError(sError);
+
+} // Fail
+
+//-----------------------------------------------------------------------------
+bool KServerSentEventParser::AddField(KStringView sLine)
 //-----------------------------------------------------------------------------
 {
 	auto iColon = sLine.find(':');
@@ -316,6 +326,14 @@ void KServerSentEventParser::AddField(KStringView sLine)
 
 	if (sField == "data")
 	{
+		// the data keeps a line break after each line, the last one is removed
+		// when the event is complete
+		if (m_iMaxEventSize != npos && m_sData.size() + sValue.size() > m_iMaxEventSize)
+		{
+			Fail(kFormat("event of the event stream is larger than {} bytes", m_iMaxEventSize));
+			return false;
+		}
+
 		m_sData += sValue;
 		m_sData += '\n';
 	}
@@ -343,6 +361,8 @@ void KServerSentEventParser::AddField(KStringView sLine)
 	}
 
 	// all other fields are ignored
+
+	return true;
 
 } // AddField
 
@@ -385,7 +405,10 @@ bool KServerSentEventParser::Next(KServerSentEvent& Event)
 			continue;
 		}
 
-		AddField(sLine);
+		if (!AddField(sLine))
+		{
+			return false;
+		}
 	}
 
 	return false;
@@ -411,8 +434,46 @@ void KServerSentEventParser::clear()
 
 } // clear
 
+//-----------------------------------------------------------------------------
+KServerSentEventReader::KServerSentEventReader(KInStream& Stream, std::size_t iMaxLineLength, std::size_t iMaxEventSize)
+//-----------------------------------------------------------------------------
+: m_Stream(Stream)
+, m_Parser(iMaxLineLength, iMaxEventSize)
+{
+}
+
+//-----------------------------------------------------------------------------
+bool KServerSentEventReader::Next(KServerSentEvent& Event)
+//-----------------------------------------------------------------------------
+{
+	std::array<char, 4096> Buffer;
+
+	while (!m_Parser.Next(Event))
+	{
+		if (m_Parser.HasError())
+		{
+			return false;
+		}
+
+		// what has arrived, without waiting for a full buffer
+		auto iRead = kReadSome(m_Stream.istream(), Buffer.data(), Buffer.size());
+
+		if (!iRead)
+		{
+			// the end of the stream - an event without its empty line is dropped
+			return false;
+		}
+
+		m_Parser.Add(KStringView(Buffer.data(), iRead));
+	}
+
+	return true;
+
+} // KServerSentEventReader::Next
+
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr std::size_t KServerSentEventParser::DefaultMaxLineLength;
+constexpr std::size_t KServerSentEventParser::DefaultMaxEventSize;
 #endif
 
 DEKAF2_NAMESPACE_END

@@ -1687,3 +1687,38 @@ TEST_CASE("KWebSocket control frames within a message")
 		CHECK ( sReplies.size() > 0 );
 	}
 }
+
+TEST_CASE("KWebSocketClient stream write")
+{
+	SECTION("text, with a length")
+	{
+		KWebSocketClientPair Pair(7690, chrono::seconds(2));
+		REQUIRE ( Pair.pServer != nullptr );
+
+		KString sPayload = "stream payload, and more";
+		KInStringStream iss(sPayload);
+		CHECK ( Pair.Client.Write(iss, 14) );
+
+		KString sFrame;
+		CHECK ( Pair.pServer->Read(sFrame) );
+		CHECK ( sFrame == "stream payload" );
+		CHECK ( Pair.pServer->GetFrame().Type() == KWebSocket::FrameHeader::Text );
+	}
+
+	SECTION("binary, the whole stream")
+	{
+		KWebSocketClientPair Pair(7691, chrono::seconds(2));
+		REQUIRE ( Pair.pServer != nullptr );
+
+		Pair.Client.SetBinary();
+
+		KString sPayload = "stream payload, and more";
+		KInStringStream iss(sPayload);
+		CHECK ( Pair.Client.Write(iss) );
+
+		KString sFrame;
+		CHECK ( Pair.pServer->Read(sFrame) );
+		CHECK ( sFrame == sPayload );
+		CHECK ( Pair.pServer->GetFrame().Type() == KWebSocket::FrameHeader::Binary );
+	}
+}

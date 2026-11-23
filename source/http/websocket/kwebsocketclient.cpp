@@ -281,7 +281,7 @@ bool KWebSocketClient::Write(KInStream& stream, std::size_t len)
 {
 	class KWebSocket::Frame OutFrame;
 
-	return OutFrame.Write(Request.UnfilteredStream(), true, stream, len);
+	return OutFrame.Write(Request.UnfilteredStream(), true, stream, m_bIsBinary, len);
 
 } // Write
 

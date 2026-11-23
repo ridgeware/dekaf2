@@ -1008,6 +1008,8 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 	KString   sBuffer;
 	// make sure the payload is empty
 	m_sPayload.clear();
+	// a first fragment of a message was read, and its last one is still to come
+	bool      bInMessage { false };
 
 	for(;;)
 	{
@@ -1041,6 +1043,17 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 		if (Type() == FrameType::Text || Type() == FrameType::Binary)
 		{
 			m_bMessageCompressed = GetRSV1();
+		}
+
+		// a control frame may arrive between the fragments of a message (RFC 6455 5.4) -
+		// the payload collected so far is set aside while the control frame is handled
+		bool bInterleaved = bInMessage && (Type() == FrameType::Ping || Type() == FrameType::Pong || Type() == FrameType::Close);
+		KString sCollected;
+
+		if (bInterleaved)
+		{
+			sCollected = std::move(m_sPayload);
+			m_sPayload.clear();
 		}
 
 		if (!GetHaveEncoder())
@@ -1139,9 +1152,18 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 				break;
 		}
 
-		if (Finished())
+		if (bInterleaved)
+		{
+			// the control frame is handled, go on with the message
+			m_sPayload = std::move(sCollected);
+		}
+		else if (Finished())
 		{
 			return true;
+		}
+		else
+		{
+			bInMessage = true;
 		}
 
 		sBuffer.clear();

@@ -342,8 +342,7 @@ bool KWebSocketClient::Ping(KString sMessage)
 std::istream::int_type KWebSocketClient::Read()
 //-----------------------------------------------------------------------------
 {
-	if (!Good()                ||
-	    !GetNextFrameIfEmpty() ||
+	if (!GetNextFrameIfEmpty() ||
 	    m_sRXBuffer.empty())
 	{
 		return std::istream::traits_type::eof();
@@ -361,7 +360,7 @@ std::size_t KWebSocketClient::Read(KOutStream& stream, std::size_t len)
 {
 	std::size_t iRead { 0 };
 
-	if (len > 0 && Good())
+	if (len > 0)
 	{
 		if (!GetNextFrameIfEmpty())
 		{
@@ -393,21 +392,58 @@ bool KWebSocketClient::GetNextFrameIfEmpty()
 	{
 		if (!Good())
 		{
+			m_ReadState = KWebSocket::ReadState::Error;
 			return false;
 		}
 
+		auto& Stream = *GetStream();
+
 		for(;;)
 		{
+			// wait for input before reading: a read that runs into the timeout closes
+			// the connection, a timeout of this wait leaves it intact
+			if (!Stream.IsReadReady(Stream.GetTimeout()))
+			{
+				// the wait sets a stream error for all its failure modes except an
+				// expired timeout
+				m_ReadState = Stream.HasError() ? KWebSocket::ReadState::Error : KWebSocket::ReadState::Timeout;
+				return false;
+			}
+
+			m_RXFrame.clear();
+
 			// a client masks its frames, also the automatic pong and close replies
 			// written from within Read() (RFC 6455 5.1) - this also tells Read() that
 			// the unmasked frames of the server are the expected ones
 			if (!m_RXFrame.Read(Response.UnfilteredStream(), Request.UnfilteredStream(), true))
 			{
+				// the frame reader answers a Close frame and returns false
+				m_ReadState = (m_RXFrame.Type() == KWebSocket::Frame::FrameType::Close)
+				            ? KWebSocket::ReadState::PeerClose
+				            : KWebSocket::ReadState::Error;
 				return false;
 			}
 
+			bool bIsData { false };
+
+			switch (m_RXFrame.Type())
+			{
+				// a fragmented message ends with the type Continuation
+				case KWebSocket::Frame::FrameType::Text:
+				case KWebSocket::Frame::FrameType::Binary:
+				case KWebSocket::Frame::FrameType::Continuation:
+					bIsData = true;
+					break;
+
+				// control frames are handled by the frame reader, their payload is no data
+				case KWebSocket::Frame::FrameType::Ping:
+				case KWebSocket::Frame::FrameType::Pong:
+				case KWebSocket::Frame::FrameType::Close:
+					break;
+			}
+
 			// simply skip empty input frames
-			if (!m_RXFrame.empty())
+			if (bIsData && !m_RXFrame.empty())
 			{
 				break;
 			}
@@ -420,6 +456,7 @@ bool KWebSocketClient::GetNextFrameIfEmpty()
 
 			if (!m_PMCE->Decompress(m_RXFrame.GetPayload(), m_sRXDecompressed))
 			{
+				m_ReadState = KWebSocket::ReadState::Error;
 				return false;
 			}
 
@@ -430,6 +467,8 @@ bool KWebSocketClient::GetNextFrameIfEmpty()
 			m_sRXBuffer = m_RXFrame.GetPayload();
 		}
 	}
+
+	m_ReadState = KWebSocket::ReadState::Success;
 
 	return true;
 

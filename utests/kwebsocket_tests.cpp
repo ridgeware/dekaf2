@@ -77,6 +77,69 @@ struct KWebSocketPair
 
 }; // KWebSocketPair
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+// answers the upgrade request of a websocket client, then hands the socket
+// over to the test
+class KWebSocketHandoverServer : public KSocketHandoverServer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+public:
+
+	using KSocketHandoverServer::KSocketHandoverServer;
+
+protected:
+
+	virtual void Session(std::unique_ptr<KIOStreamSocket>& Stream) override
+	{
+		KInHTTPRequest Request(*Stream);
+
+		if (Request.Parse())
+		{
+			Stream->Write(kFormat("HTTP/1.1 101 Switching Protocols\r\n"
+			                      "Upgrade: websocket\r\n"
+			                      "Connection: Upgrade\r\n"
+			                      "Sec-WebSocket-Accept: {}\r\n\r\n",
+			                      KWebSocket::GenerateServerSecKeyResponse(Request.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_KEY), false)));
+			Stream->Flush();
+		}
+
+		KSocketHandoverServer::Session(Stream);
+	}
+
+}; // KWebSocketHandoverServer
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+// a KWebSocketClient connected over loopback TCP to a KWebSocket of the test,
+// which plays the server
+struct KWebSocketClientPair
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KWebSocketClientPair(uint16_t iPort, KDuration ClientTimeout)
+	: Server(iPort)
+	, Client(KURL(kFormat("ws://127.0.0.1:{}/", iPort)), KHTTPStreamOptions{})
+	{
+		Server.Start(chrono::seconds(2), false);
+		Client.SetTimeout(ClientTimeout);
+
+		// the server answers the upgrade request in its own thread
+		if (Client.Connect())
+		{
+			auto ServerStream = Server.WaitForSocket();
+
+			if (ServerStream && ServerStream->Good())
+			{
+				pServer = KWebSocket::Create(ServerStream, [](KWebSocket&){}, false);
+				pServer->SetReadTimeout(chrono::seconds(2));
+			}
+		}
+	}
+
+	KWebSocketHandoverServer    Server;
+	KWebSocketClient            Client;
+	std::shared_ptr<KWebSocket> pServer;
+
+}; // KWebSocketClientPair
+
 } // end of anonymous namespace
 
 TEST_CASE("KWebSocket")
@@ -913,6 +976,22 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate 
 			CHECK ( sBurst == kFormat("msg{}", iMsg) );
 		}
 
+		// a read without input times out, and the connection stays usable
+		{
+			Client.SetTimeout(chrono::milliseconds(200));
+			KStringRef sNone;
+			CHECK ( Client.Read(sNone) == 0 );
+			CHECK ( Client.GetReadState() == KWebSocket::ReadState::Timeout );
+			CHECK ( Client.Good() );
+			Client.SetTimeout(chrono::seconds(3));
+
+			CHECK ( pServer.load()->Send(iHandle.load(), "after timeout", false) );
+			KStringRef sAfter;
+			Client.Read(sAfter);
+			CHECK ( sAfter == "after timeout" );
+			CHECK ( Client.GetReadState() == KWebSocket::ReadState::Success );
+		}
+
 		CHECK ( pServer.load()->size() == 1 );
 
 		// send a ping (no read afterwards) - the server auto-answers with a pong, but the ping
@@ -1414,5 +1493,197 @@ TEST_CASE("KWebSocket ReadState")
 		CHECK ( Pair.pServer->Read(sFrame) );
 		CHECK ( sFrame == "fragmented" );
 		CHECK ( Pair.pServer->GetReadState() == KWebSocket::ReadState::Success );
+	}
+}
+
+TEST_CASE("KWebSocketClient ReadState")
+{
+	SECTION("not connected")
+	{
+		KWebSocketClient Client { KHTTPStreamOptions{} };
+
+		KStringRef sFrame;
+		CHECK ( Client.Read(sFrame) == 0 );
+		CHECK ( Client.GetReadState() == KWebSocket::ReadState::Error );
+	}
+
+	SECTION("timeout, then reading on")
+	{
+		KWebSocketClientPair Pair(7684, chrono::milliseconds(300));
+		REQUIRE ( Pair.pServer != nullptr );
+
+		KStringRef sFrame;
+		CHECK ( Pair.Client.Read(sFrame) == 0 );
+		CHECK ( Pair.Client.GetReadState() == KWebSocket::ReadState::Timeout );
+		CHECK ( Pair.Client.Good() );
+
+		// the same for the read of a character
+		CHECK ( Pair.Client.Read() == std::istream::traits_type::eof() );
+		CHECK ( Pair.Client.GetReadState() == KWebSocket::ReadState::Timeout );
+		CHECK ( Pair.Client.Good() );
+
+		// the connection still works in both directions
+		CHECK ( Pair.pServer->Write("after timeout", false) );
+		CHECK ( Pair.Client.Read(sFrame) == 13 );
+		CHECK ( sFrame == "after timeout" );
+		CHECK ( Pair.Client.GetReadState() == KWebSocket::ReadState::Success );
+
+		CHECK ( Pair.Client.Write("reply") );
+		KString sReply;
+		CHECK ( Pair.pServer->Read(sReply) );
+		CHECK ( sReply == "reply" );
+
+		// and a second timeout is as harmless as the first
+		sFrame.clear();
+		CHECK ( Pair.Client.Read(sFrame) == 0 );
+		CHECK ( Pair.Client.GetReadState() == KWebSocket::ReadState::Timeout );
+		CHECK ( Pair.Client.Good() );
+	}
+
+	SECTION("a Close frame of the server")
+	{
+		KWebSocketClientPair Pair(7685, chrono::seconds(2));
+		REQUIRE ( Pair.pServer != nullptr );
+
+		CHECK ( Pair.pServer->Close() );
+
+		KStringRef sFrame;
+		CHECK ( Pair.Client.Read(sFrame) == 0 );
+		CHECK ( Pair.Client.GetReadState() == KWebSocket::ReadState::PeerClose );
+	}
+
+	SECTION("a lost connection")
+	{
+		KWebSocketClientPair Pair(7686, chrono::seconds(2));
+		REQUIRE ( Pair.pServer != nullptr );
+
+		// the server goes away without a Close frame
+		Pair.pServer.reset();
+
+		KStringRef sFrame;
+		CHECK ( Pair.Client.Read(sFrame) == 0 );
+		CHECK ( Pair.Client.GetReadState() == KWebSocket::ReadState::Error );
+	}
+
+	SECTION("a timeout within a frame")
+	{
+		KWebSocketClientPair Pair(7687, chrono::milliseconds(300));
+		REQUIRE ( Pair.pServer != nullptr );
+
+		// the header of a text frame of ten bytes, but only three bytes of payload
+		CHECK ( Pair.pServer->GetStream().Write(KStringView("\x81\x0a" "abc", 5)).Flush().Good() );
+
+		KStringRef sFrame;
+		CHECK ( Pair.Client.Read(sFrame) == 0 );
+		CHECK ( Pair.Client.GetReadState() == KWebSocket::ReadState::Error );
+		CHECK ( Pair.Client.Good() == false );
+	}
+
+	SECTION("ping and pong with payload are no data")
+	{
+		KWebSocketClientPair Pair(7688, chrono::seconds(2));
+		REQUIRE ( Pair.pServer != nullptr );
+
+		// a ping of the server before a message
+		CHECK ( Pair.pServer->Ping("ping payload") );
+		CHECK ( Pair.pServer->Write("first", false) );
+
+		KStringRef sFrame;
+		CHECK ( Pair.Client.Read(sFrame) == 5 );
+		CHECK ( sFrame == "first" );
+
+		// the pong of the server on a ping of the client, before a message
+		CHECK ( Pair.Client.Ping("pong payload") );
+		CHECK ( Pair.Client.Write("to server") );
+
+		KString sReply;
+		CHECK ( Pair.pServer->Read(sReply) );
+		CHECK ( sReply == "to server" );
+		CHECK ( Pair.pServer->Write("second", false) );
+
+		sFrame.clear();
+		CHECK ( Pair.Client.Read(sFrame) == 6 );
+		CHECK ( sFrame == "second" );
+		CHECK ( Pair.Client.GetReadState() == KWebSocket::ReadState::Success );
+	}
+
+	SECTION("a fragmented message")
+	{
+		KWebSocketClientPair Pair(7689, chrono::seconds(2));
+		REQUIRE ( Pair.pServer != nullptr );
+
+		CHECK ( Pair.pServer->Write(KWebSocket::Frame(KWebSocket::Frame::FrameType::Text,         "frag",   false)) );
+		CHECK ( Pair.pServer->Write(KWebSocket::Frame(KWebSocket::Frame::FrameType::Continuation, "mented", true )) );
+
+		KStringRef sFrame;
+		CHECK ( Pair.Client.Read(sFrame) == 10 );
+		CHECK ( sFrame == "fragmented" );
+		CHECK ( Pair.Client.GetReadState() == KWebSocket::ReadState::Success );
+	}
+}
+
+TEST_CASE("KWebSocket control frames within a message")
+{
+	SECTION("ping between two fragments")
+	{
+		// a client sends a message in two fragments, with a ping in between
+		KString sWire;
+		KOutStringStream oss(sWire);
+		CHECK ( KWebSocket::Frame(KWebSocket::Frame::FrameType::Text,         "frag",      false).Write(oss, true) );
+		CHECK ( KWebSocket::Frame(KWebSocket::Frame::FrameType::Ping,         "ping-data", true ).Write(oss, true) );
+		CHECK ( KWebSocket::Frame(KWebSocket::Frame::FrameType::Continuation, "mented",    true ).Write(oss, true) );
+
+		KInStringStream iss(sWire);
+		KString sReplies;
+		KOutStringStream oss2(sReplies);
+		KWebSocket::Frame RxFrame;
+		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.GetPayload() == "fragmented" );
+		CHECK ( RxFrame.Type()       == KWebSocket::FrameHeader::Continuation );
+
+		// the ping was answered with its payload
+		KInStringStream iss2(sReplies);
+		KString sNone;
+		KOutStringStream oss3(sNone);
+		KWebSocket::Frame Reply;
+		CHECK ( Reply.Read(iss2, oss3, true) );
+		CHECK ( Reply.Type()       == KWebSocket::FrameHeader::Pong );
+		CHECK ( Reply.GetPayload() == "ping-data" );
+	}
+
+	SECTION("pong between two fragments")
+	{
+		KString sWire;
+		KOutStringStream oss(sWire);
+		CHECK ( KWebSocket::Frame(KWebSocket::Frame::FrameType::Binary,       "frag",      false).Write(oss, false) );
+		CHECK ( KWebSocket::Frame(KWebSocket::Frame::FrameType::Pong,         "pong-data", true ).Write(oss, false) );
+		CHECK ( KWebSocket::Frame(KWebSocket::Frame::FrameType::Continuation, "mented",    true ).Write(oss, false) );
+
+		KInStringStream iss(sWire);
+		KString sReplies;
+		KOutStringStream oss2(sReplies);
+		KWebSocket::Frame RxFrame;
+		CHECK ( RxFrame.Read(iss, oss2, true) );
+		CHECK ( RxFrame.GetPayload() == "fragmented" );
+		CHECK ( sReplies.empty() );
+	}
+
+	SECTION("close between two fragments")
+	{
+		KString sWire;
+		KOutStringStream oss(sWire);
+		CHECK ( KWebSocket::Frame(KWebSocket::Frame::FrameType::Text, "frag", false).Write(oss, false) );
+		KWebSocket::Frame Close;
+		Close.Close(1001);
+		CHECK ( Close.Write(oss, false) );
+
+		KInStringStream iss(sWire);
+		KString sReplies;
+		KOutStringStream oss2(sReplies);
+		KWebSocket::Frame RxFrame;
+		CHECK ( RxFrame.Read(iss, oss2, true) == false );
+		CHECK ( RxFrame.Type()          == KWebSocket::FrameHeader::Close );
+		CHECK ( RxFrame.GetStatusCode() == 1001 );
+		CHECK ( sReplies.size() > 0 );
 	}
 }

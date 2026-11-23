@@ -135,16 +135,21 @@ public:
 	bool Ping(KString sMessage = KString{});
 
 	/// Read a character
-	/// @returns std::istream::traits_type::eof() (== -1) if no input available
+	/// @returns std::istream::traits_type::eof() (== -1) if no input available - see GetReadState()
 	std::istream::int_type Read();
 
 	/// read into outstream, returns read character count - always only reads max one
-	/// WebSocket frame
+	/// WebSocket frame. Returns 0 on timeout, received Close frame, or error - see GetReadState()
 	std::size_t Read(KOutStream& stream, std::size_t len = npos);
 
 	/// append to sBuffer, returns read character count - always only reads max one
-	/// WebSocket frame
+	/// WebSocket frame. Returns 0 on timeout, received Close frame, or error - see GetReadState()
 	std::size_t Read(KStringRef& sBuffer, std::size_t len = npos);
+
+	/// @returns the reason for the outcome of the last Read() - after a Read() without
+	/// result, a Timeout justifies reading again: the connection is still alive. The
+	/// timeout is the one set with SetTimeout().
+	KWebSocket::ReadState GetReadState() const { return m_ReadState; }
 
 	/// read one line into sBuffer, including EOL - not yet implemented
 	bool ReadLine(KStringRef& sBuffer, std::size_t maxlen = npos);
@@ -193,6 +198,7 @@ protected:
 	bool        m_bRequestPMCE { false };
 	bool        m_bClientNoContextTakeover { false };
 	bool        m_bServerNoContextTakeover { false };
+	KWebSocket::ReadState m_ReadState { KWebSocket::ReadState::Success };
 	std::unique_ptr<KWebSocketPMCE> m_PMCE;
 	class KWebSocket::Frame m_RXFrame;
 	KString     m_sRXDecompressed;          // holds the decompressed payload when permessage-deflate is active

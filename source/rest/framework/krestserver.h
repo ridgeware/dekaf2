@@ -775,6 +775,8 @@ public:
 	/// If the event server keeps a history, and the client connects again with the id of the last
 	/// event it got (request header Last-Event-ID), the events of the topics since then are sent
 	/// again, see KServerSentEventServer::HasMissedEvents() for the case that they are not there.
+	/// A connection that the limits of KServerSentEventServer::Options do not permit gets the error
+	/// response 503 or 429 instead of the stream.
 	/// @param Topics the topics to subscribe the connection to
 	/// @return the handle of the connection at the event server, 0 for a HEAD request, which gets
 	/// the headers only

@@ -1716,6 +1716,28 @@ KServerSentEventServer::Handle KRESTServer::SubscribeToEvents(const std::vector<
 
 	if (!m_iEventHandle)
 	{
+		bool bIsHead = Request.Method == KHTTPMethod::HEAD;
+
+		if (!bIsHead)
+		{
+			// before the headers: a refused connection gets an error response
+			KServerSentEventServer::Refusal Refused;
+
+			m_iEventHandle = EventServer.Reserve(GetRemoteIP(), Refused);
+
+			switch (Refused)
+			{
+				case KServerSentEventServer::Refusal::None:
+					break;
+
+				case KServerSentEventServer::Refusal::TooManyConnections:
+					throw KHTTPError { KHTTPError::H5xx_UNAVAILABLE, "too many event stream connections" };
+
+				case KServerSentEventServer::Refusal::TooManyFromClient:
+					throw KHTTPError { KHTTPError::H4xx_TOOMANYREQUESTS, "too many event stream connections from this client" };
+			}
+		}
+
 		Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::EVENT_STREAM);
 
 		if (Response.Headers.Get(KHTTPHeader::CACHE_CONTROL).empty())
@@ -1724,7 +1746,7 @@ KServerSentEventServer::Handle KRESTServer::SubscribeToEvents(const std::vector<
 			Response.Headers.Set(KHTTPHeader::CACHE_CONTROL, "no-cache");
 		}
 
-		if (Request.Method == KHTTPMethod::HEAD)
+		if (bIsHead)
 		{
 			// the headers only, the connection stays with the worker
 			Stream(false);
@@ -1738,8 +1760,6 @@ KServerSentEventServer::Handle KRESTServer::SubscribeToEvents(const std::vector<
 
 		// the client shall see the start of the stream now, also if the route fails later
 		Response.Flush();
-
-		m_iEventHandle = EventServer.Reserve();
 	}
 
 	// a client that connects again gets the events of the topics that it missed

@@ -809,6 +809,102 @@ TEST_CASE("KServerSentEventServer")
 	}
 }
 
+TEST_CASE("KServerSentEventServer: limits for the count of connections")
+{
+	SECTION("connections over the limit are answered with 503")
+	{
+		auto Options = QuietOptions();
+
+		Options.iMaxConnections = 2;
+
+		EventTestServer Server(Options);
+
+		auto ClientA = std::make_unique<EventClient>(Server.sEndPoint, "/events/news");
+		EventClient ClientB(Server.sEndPoint, "/events/news");
+
+		auto iHandleA = ClientA->Hello();
+		ClientB.Hello();
+
+		CHECK ( Server.Events().size() == 2 );
+
+		{
+			EventClient Refused(Server.sEndPoint, "/events/news");
+
+			INFO  ( Refused.sHeader );
+			CHECK ( Refused.sHeader.starts_with("HTTP/1.1 503 ") );
+			CHECK_FALSE ( Refused.sHeader.contains("text/event-stream") );
+		}
+
+		CHECK ( Server.Events().size()       == 2 );
+		CHECK ( Server.Events().size("news") == 2 );
+
+		// a connection that ends makes room for another one
+		ClientA.reset();
+		CHECK ( Server.WasClosed(iHandleA) );
+
+		EventClient ClientC(Server.sEndPoint, "/events/news");
+
+		INFO  ( ClientC.sHeader );
+		CHECK ( ClientC.sHeader.starts_with("HTTP/1.1 200 ") );
+		CHECK ( ClientC.Hello() > 0 );
+		CHECK ( Server.Events().size() == 2 );
+	}
+
+	SECTION("connections of one client over the limit are answered with 429")
+	{
+		auto Options = QuietOptions();
+
+		Options.iMaxConnectionsPerClient = 1;
+
+		EventTestServer Server(Options);
+
+		auto ClientA = std::make_unique<EventClient>(Server.sEndPoint, "/events/news");
+		auto iHandleA = ClientA->Hello();
+
+		{
+			EventClient Refused(Server.sEndPoint, "/events/news");
+
+			INFO  ( Refused.sHeader );
+			CHECK ( Refused.sHeader.starts_with("HTTP/1.1 429 ") );
+		}
+
+		CHECK ( Server.Events().size() == 1 );
+
+		ClientA.reset();
+		CHECK ( Server.WasClosed(iHandleA) );
+
+		EventClient ClientB(Server.sEndPoint, "/events/news");
+
+		INFO  ( ClientB.sHeader );
+		CHECK ( ClientB.sHeader.starts_with("HTTP/1.1 200 ") );
+		CHECK ( ClientB.Hello() > 0 );
+	}
+
+	SECTION("a HEAD request does not count")
+	{
+		auto Options = QuietOptions();
+
+		Options.iMaxConnections = 1;
+
+		EventTestServer Server(Options);
+		EventClient     Client(Server.sEndPoint, "/events/news");
+
+		Client.Hello();
+
+		KTCPStream Stream(KTCPEndPoint(Server.sEndPoint), KStreamOptions(chrono::seconds(5)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write("HEAD /events/news HTTP/1.1\r\nHost: a\r\nConnection: close\r\n\r\n").Flush();
+
+		KString sResponse;
+		Stream.ReadRemaining(sResponse);
+
+		INFO  ( sResponse );
+		CHECK ( sResponse.starts_with("HTTP/1.1 200 ") );
+		CHECK ( sResponse.contains("content-type: text/event-stream\r\n") );
+	}
+}
+
 TEST_CASE("KServerSentEventReader with KHTTPClient")
 {
 	SECTION("events from the worker thread arrive while the route runs")

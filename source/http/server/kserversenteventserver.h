@@ -143,6 +143,12 @@ public:
 		/// that connects again (0 = none: the server gives no ids to the events, and
 		/// sends nothing again). The history of a topic stays, also without connections.
 		std::size_t iHistory          { 0 };
+		/// the count of connections the server takes (0 = no limit) - a route that
+		/// subscribes another one is answered with 503
+		std::size_t iMaxConnections   { 0 };
+		/// the count of connections the server takes from one client, by its address
+		/// (0 = no limit) - a route that subscribes another one is answered with 429
+		std::size_t iMaxConnectionsPerClient { 0 };
 
 	}; // Options
 
@@ -264,9 +270,10 @@ private:
 			bool                           bClose;  // close the connection at this item
 		};
 
-		explicit Connection(Handle iHandle) : iHandle(iHandle) {}
+		Connection(Handle iHandle, KString sClient) : sClient(std::move(sClient)), iHandle(iHandle) {}
 
 		std::unique_ptr<KIOStreamSocket> Stream;                 // empty until the route returned
+		KString                          sClient;                // the address of the client
 		Handle                           iHandle;
 		int                              iFd          { -1 };
 		std::mutex                       Mutex;                  // guards the queue and the flags below
@@ -307,14 +314,26 @@ private:
 	{
 		KUnorderedMap<Handle, ConnectionPtr>          Connections;
 		KUnorderedMap<KString, KUnorderedSet<Handle>> Topics;
+		KUnorderedMap<KString, std::size_t>           Clients;     // the count of connections per client
+	};
+
+	/// why Reserve() did not create a connection
+	enum class Refusal
+	{
+		None,
+		TooManyConnections,
+		TooManyFromClient
 	};
 
 	//-----------------------------------------------------------------------------
 	/// Create a connection that waits for its stream. It takes events into its
 	/// queue already. Called by KRESTServer when a route subscribes.
-	/// @return the handle of the connection
+	/// @param sClient the address of the client
+	/// @param Refused receives why no connection was created
+	/// @return the handle of the connection, 0 if a limit of the options does not
+	/// permit another one
 	DEKAF2_PRIVATE
-	Handle Reserve();
+	Handle Reserve(KStringView sClient, Refusal& Refused);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

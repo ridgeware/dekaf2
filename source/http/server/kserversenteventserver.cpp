@@ -197,9 +197,27 @@ std::vector<KServerSentEventServer::ConnectionPtr> KServerSentEventServer::GetCo
 } // GetConnections
 
 //-----------------------------------------------------------------------------
-KServerSentEventServer::Handle KServerSentEventServer::Reserve()
+KServerSentEventServer::Handle KServerSentEventServer::Reserve(KStringView sClient, Refusal& Refused)
 //-----------------------------------------------------------------------------
 {
+	auto Registry = m_Registry.unique();
+
+	if (m_Options.iMaxConnections && Registry->Connections.size() >= m_Options.iMaxConnections)
+	{
+		kDebug(1, "refusing event connection from {}: {} connections", sClient, Registry->Connections.size());
+		Refused = Refusal::TooManyConnections;
+		return 0;
+	}
+
+	auto& iFromClient = Registry->Clients[sClient];
+
+	if (m_Options.iMaxConnectionsPerClient && iFromClient >= m_Options.iMaxConnectionsPerClient)
+	{
+		kDebug(1, "refusing event connection from {}: {} connections of the client", sClient, iFromClient);
+		Refused = Refusal::TooManyFromClient;
+		return 0;
+	}
+
 	Handle iHandle { ++m_iLastHandle };
 
 	if (!iHandle)
@@ -208,9 +226,12 @@ KServerSentEventServer::Handle KServerSentEventServer::Reserve()
 		iHandle = ++m_iLastHandle;
 	}
 
-	m_Registry.unique()->Connections.insert({ iHandle, std::make_shared<Connection>(iHandle) });
+	Registry->Connections.insert({ iHandle, std::make_shared<Connection>(iHandle, sClient) });
+	++iFromClient;
 
-	kDebug(2, "reserved event connection with handle {}", iHandle);
+	kDebug(2, "reserved event connection with handle {} for {}", iHandle, sClient);
+
+	Refused = Refusal::None;
 
 	return iHandle;
 
@@ -324,6 +345,13 @@ void KServerSentEventServer::Remove(Handle iHandle)
 
 		pConnection = std::move(it->second);
 		Registry->Connections.erase(it);
+
+		auto Client = Registry->Clients.find(pConnection->sClient);
+
+		if (Client != Registry->Clients.end() && --Client->second == 0)
+		{
+			Registry->Clients.erase(Client);
+		}
 
 		for (const auto& sTopic : pConnection->Topics)
 		{

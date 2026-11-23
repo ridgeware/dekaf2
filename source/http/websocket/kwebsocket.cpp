@@ -1571,9 +1571,11 @@ bool KWebSocket::ReadInt(std::function<bool(const KString&)> Func)
 		{
 			// this is what we waited for - a false return from Func (e.g. a
 			// failed JSON parse) leaves the state at Success: the frame level
-			// is intact, only the payload was rejected
+			// is intact, only the payload was rejected. A fragmented message
+			// ends with the type Continuation.
 			case KWebSocket::Frame::FrameType::Text:
 			case KWebSocket::Frame::FrameType::Binary:
+			case KWebSocket::Frame::FrameType::Continuation:
 				return Func(m_Frame.GetPayload());
 
 			// Read() fails on a Close frame, so this is not reached
@@ -1588,9 +1590,6 @@ bool KWebSocket::ReadInt(std::function<bool(const KString&)> Func)
 				           KWebSocket::Frame::FrameTypeToString(m_Frame.Type()),
 				           m_Frame.GetPayload(),
 				           m_Frame.GetPayload().size());
-				break;
-
-			case KWebSocket::Frame::FrameType::Continuation:
 				break;
 		}
 	}

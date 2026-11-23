@@ -1398,4 +1398,21 @@ TEST_CASE("KWebSocket ReadState")
 		CHECK ( Pair.pServer->Read(sFrame) == false );
 		CHECK ( Pair.pServer->GetReadState() == KWebSocket::ReadState::Error );
 	}
+
+	SECTION("a fragmented message")
+	{
+		KWebSocketPair Pair(7683);
+		REQUIRE ( Pair.pServer != nullptr );
+		REQUIRE ( Pair.pClient != nullptr );
+
+		Pair.pServer->SetReadTimeout(chrono::seconds(2));
+
+		CHECK ( Pair.pClient->Write(KWebSocket::Frame(KWebSocket::Frame::FrameType::Text,         "frag",   false)) );
+		CHECK ( Pair.pClient->Write(KWebSocket::Frame(KWebSocket::Frame::FrameType::Continuation, "mented", true )) );
+
+		KString sFrame;
+		CHECK ( Pair.pServer->Read(sFrame) );
+		CHECK ( sFrame == "fragmented" );
+		CHECK ( Pair.pServer->GetReadState() == KWebSocket::ReadState::Success );
+	}
 }

@@ -174,6 +174,8 @@ public:
 	using base::AutoConfigureProxy;
 	using base::AllowRedirects;
 	using base::AllowConnectionRetry;
+	using base::PropagateTraceContext;
+	using base::GetPropagateTraceContext;
 	using base::GetStreamOptions;
 	using base::SetVerifyCerts;
 	using base::GetVerifyCerts;

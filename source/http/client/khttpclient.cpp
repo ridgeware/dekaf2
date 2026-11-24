@@ -48,6 +48,7 @@
 #include <dekaf2/core/strings/kcaseless.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/crypto/random/krandom.h>
+#include <dekaf2/core/logging/ktracecontext.h>
 #include <cerrno>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -1005,6 +1006,31 @@ bool KHTTPClient::SetupAutomaticHeaders(KStringView* svPostData, KInStream* Post
 		AddHeader(KHTTPHeader::USER_AGENT, "dekaf/" DEKAF_VERSION);
 	}
 
+	if (m_bTraceHeadersAdded)
+	{
+		// the trace headers of the previous request - the context may have changed
+		Request.Headers.Remove(KHTTPHeader::TRACEPARENT);
+		Request.Headers.Remove(KHTTPHeader::TRACESTATE);
+		m_bTraceHeadersAdded = false;
+	}
+
+	if (m_bPropagateTraceContext && !Request.Headers.Contains(KHTTPHeader::TRACEPARENT))
+	{
+		const auto& Trace = KTraceContext::Current();
+
+		if (!Trace.empty())
+		{
+			AddHeader(KHTTPHeader::TRACEPARENT, Trace.Serialize());
+
+			if (!Trace.GetTraceState().empty())
+			{
+				AddHeader(KHTTPHeader::TRACESTATE, Trace.GetTraceState());
+			}
+
+			m_bTraceHeadersAdded = true;
+		}
+	}
+
 	return true;
 
 } // SetupAutomaticHeaders
@@ -1593,5 +1619,6 @@ const KTCPEndPoint& KHTTPClient::GetEndpointAddress() const
 } // GetEndpointAddress
 
 KTCPEndPoint KHTTPClient::s_EmptyEndpoint;
+std::atomic<bool> KHTTPClient::s_bDefaultTracePropagation { false };
 
 DEKAF2_NAMESPACE_END

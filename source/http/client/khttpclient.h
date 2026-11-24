@@ -67,6 +67,7 @@
 	#include <dekaf2/http/protocol/khttp3.h>
 #endif
 
+#include <atomic>
 #include <istream>
 
 #ifdef DEKAF2_IS_WINDOWS
@@ -538,6 +539,39 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Send the trace context of the thread (KTraceContext::Current()) with the requests of this
+	/// client, as headers traceparent and tracestate - not if the request has a traceparent already.
+	/// Switch it on only for clients that talk to own services: the trace id lets the receiver
+	/// connect the requests of one transaction, and tracestate may carry data of the tracing
+	/// systems of the caller. A redirect to another host gets the headers as well. A client that
+	/// does not call this method has the setting of SetDefaultTracePropagation() at the time it
+	/// was created - false, unless the program changed it.
+	self& PropagateTraceContext(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		m_bPropagateTraceContext = bYesNo;
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// @return true if the client sends the trace context of the thread
+	DEKAF2_NODISCARD
+	bool GetPropagateTraceContext() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bPropagateTraceContext;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Set the default of PropagateTraceContext() for clients that are created from now on,
+	/// for the whole process - default off
+	static void SetDefaultTracePropagation(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		s_bDefaultTracePropagation.store(bYesNo, std::memory_order_relaxed);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Uncompress incoming response if compressed? Default is true
 	self& AllowUncompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
@@ -714,6 +748,7 @@ private:
 	//-----------------------------------------------------------------------------
 
 	static KTCPEndPoint s_EmptyEndpoint;
+	static std::atomic<bool> s_bDefaultTracePropagation;
 
 	// the connection is declared before the protocol sessions, which refer to it:
 	// members are destroyed in reverse order, the sessions have to go first
@@ -777,6 +812,8 @@ private:
 	KURL               m_Proxy;
 	KHTTPStreamOptions m_StreamOptions;
 	bool               m_bRequestCompression   { true  };
+	bool               m_bPropagateTraceContext{ s_bDefaultTracePropagation.load(std::memory_order_relaxed) };
+	bool               m_bTraceHeadersAdded    { false }; // the trace headers of the request are automatic ones
 	bool               m_bAutoProxy            { false };
 	bool               m_bUseHTTPProxyProtocol { false };
 	TransportError     m_TransportError        { TransportError::None };

@@ -2,6 +2,7 @@
 #include <random>
 
 #include <dekaf2/rest/framework/krestserver.h>
+#include <dekaf2/core/logging/ktracecontext.h>
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/data/json/kjson.h>
@@ -3348,5 +3349,172 @@ TEST_CASE("KRESTServer: trace context")
 
 		INFO  ( sLine );
 		CHECK ( sLine.starts_with(kFormat("200 [{}]", sTraceID)) );
+	}
+}
+
+TEST_CASE("KHTTPClient: trace context")
+{
+	// service B continues the traces of local callers, and returns what it got
+	KRESTRoutes RoutesB;
+
+	RoutesB.AddRoute("/echo").Get([](KRESTServer& HTTP)
+	{
+		HTTP.json.tx["traceparent"] = HTTP.Request.Headers.Get(KHTTPHeader::TRACEPARENT);
+		HTTP.json.tx["tracestate"]  = HTTP.Request.Headers.Get(KHTTPHeader::TRACESTATE);
+		HTTP.json.tx["trace_id"]    = HTTP.GetTraceContext().GetTraceID();
+		HTTP.json.tx["parent_id"]   = HTTP.GetTraceContext().GetParentID();
+	});
+
+	KREST::Options OptionsB;
+
+	OptionsB.Type                 = KREST::HTTP;
+	OptionsB.iPort                = 0;
+	OptionsB.sBindAddress         = "127.0.0.1";
+	OptionsB.Timeout              = chrono::seconds(2);
+	OptionsB.bBlocking            = false;
+	OptionsB.bCreateEphemeralCert = false;
+	OptionsB.Trace                = KRESTServer::Options::TraceMode::Continue;
+
+	OptionsB.AddTraceSources("127.0.0.1");
+
+	KREST ServiceB;
+	REQUIRE ( ServiceB.Execute(OptionsB, RoutesB) );
+
+	KURL EchoURL(kFormat("http://127.0.0.1:{}/echo", ServiceB.GetPort()));
+
+	auto Echo = [&](KWebClient& Client) -> KJSON
+	{
+		auto sBody = Client.Get(EchoURL);
+		INFO ( sBody );
+		return kjson::Parse(sBody);
+	};
+
+	SECTION("off unless switched on")
+	{
+		KTraceContext::Scope Trace(KTraceContext::Start());
+
+		KWebClient Client;
+		CHECK_FALSE ( Client.GetPropagateTraceContext() );
+
+		auto j = Echo(Client);
+		CHECK ( j("traceparent").String().empty() );
+	}
+
+	SECTION("nothing without a context of the thread")
+	{
+		KWebClient Client;
+		Client.PropagateTraceContext(true);
+
+		auto j = Echo(Client);
+		CHECK ( j("traceparent").String().empty() );
+	}
+
+	SECTION("the context of the thread goes with the request")
+	{
+		KTraceContext Context;
+		REQUIRE ( Context.Parse("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "a=1,b=2") );
+
+		KTraceContext::Scope Trace(Context);
+
+		KWebClient Client;
+		Client.PropagateTraceContext(true);
+
+		auto j = Echo(Client);
+
+		CHECK ( j("traceparent").String() == Context.Serialize() );
+		CHECK ( j("tracestate").String()  == "a=1,b=2" );
+		// the receiver continues the trace, with our span as its parent
+		CHECK ( j("trace_id").String()    == "4bf92f3577b34da6a3ce929d0e0e4736" );
+		CHECK ( j("parent_id").String()   == Context.GetSpanID() );
+	}
+
+	SECTION("a traceparent of the caller stays")
+	{
+		KTraceContext::Scope Trace(KTraceContext::Start());
+
+		KWebClient Client;
+		Client.PropagateTraceContext(true);
+		Client.AddHeader(KHTTPHeader::TRACEPARENT, "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
+
+		auto j = Echo(Client);
+		CHECK ( j("traceparent").String() == "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01" );
+	}
+
+	SECTION("each request of a client takes the context that the thread has then")
+	{
+		KWebClient Client;
+		Client.PropagateTraceContext(true);
+
+		auto First = KTraceContext::Start();
+
+		{
+			KTraceContext::Scope Trace(First);
+			CHECK ( Echo(Client)("traceparent").String() == First.Serialize() );
+		}
+
+		// no stale header without a context
+		CHECK ( Echo(Client)("traceparent").String().empty() );
+
+		auto Second = KTraceContext::Start();
+
+		{
+			KTraceContext::Scope Trace(Second);
+			CHECK ( Echo(Client)("traceparent").String() == Second.Serialize() );
+		}
+	}
+
+	SECTION("the default for new clients")
+	{
+		KTraceContext::Scope Trace(KTraceContext::Start());
+
+		KHTTPClient::SetDefaultTracePropagation(true);
+		KWebClient On;
+		KHTTPClient::SetDefaultTracePropagation(false);
+		KWebClient Off;
+
+		CHECK ( On.GetPropagateTraceContext() );
+		CHECK_FALSE ( Off.GetPropagateTraceContext() );
+		CHECK_FALSE ( Echo(On)("traceparent").String().empty() );
+		CHECK ( Echo(Off)("traceparent").String().empty() );
+	}
+
+	SECTION("a request through two services keeps its trace")
+	{
+		// service A starts a trace for each request, and asks service B
+		KRESTRoutes RoutesA;
+
+		RoutesA.AddRoute("/call").Get([&](KRESTServer& HTTP)
+		{
+			KWebClient Client;
+			Client.PropagateTraceContext(true);
+
+			HTTP.json.tx["trace_id"] = HTTP.GetTraceContext().GetTraceID();
+			HTTP.json.tx["span_id"]  = HTTP.GetTraceContext().GetSpanID();
+			HTTP.json.tx["b"]        = kjson::Parse(Client.Get(EchoURL));
+		});
+
+		KREST::Options OptionsA;
+
+		OptionsA.Type                 = KREST::HTTP;
+		OptionsA.iPort                = 0;
+		OptionsA.sBindAddress         = "127.0.0.1";
+		OptionsA.Timeout              = chrono::seconds(2);
+		OptionsA.bBlocking            = false;
+		OptionsA.bCreateEphemeralCert = false;
+		OptionsA.Trace                = KRESTServer::Options::TraceMode::Start;
+
+		KREST ServiceA;
+		REQUIRE ( ServiceA.Execute(OptionsA, RoutesA) );
+
+		KWebClient Client;
+		auto sBody = Client.Get(KURL(kFormat("http://127.0.0.1:{}/call", ServiceA.GetPort())));
+
+		INFO ( sBody );
+
+		auto j = kjson::Parse(sBody);
+
+		CHECK ( j("trace_id").String().size() == 32 );
+		CHECK ( j("b")("trace_id").String()  == j("trace_id").String() );
+		CHECK ( j("b")("parent_id").String() == j("span_id").String() );
 	}
 }

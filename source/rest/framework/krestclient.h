@@ -175,6 +175,8 @@ public:
 	using base::AllowRedirects;
 	using base::AllowConnectionRetry;
 	using base::RequestCompression;
+	using base::PropagateTraceContext;
+	using base::GetPropagateTraceContext;
 	using base::AllowCompression;
 	using base::SetStreamOptions;
 	using base::GetStreamOptions;

@@ -326,6 +326,14 @@ void KHTTPLog::WriteJSONAccessLog(const KRESTServer& HTTP) const
 	Log.Write("user"      , kjson::GetString(HTTP.GetAuthToken(), "sub")             );
 	Log.Write("TTLB"      , HTTP.GetTimeToLastByte().microseconds().count()          );
 
+	const auto& Trace = HTTP.GetTraceContext();
+
+	if (!Trace.empty())
+	{
+		Log.Write("trace_id", Trace.GetTraceID());
+		Log.Write("span_id" , Trace.GetSpanID() );
+	}
+
 	Output(Log.Dump(), tRecord);
 
 } // WriteJSONAccessLog
@@ -398,8 +406,11 @@ void KHTTPLog::CompileFormat(KStringView sFormat)
 					case 'A': // local IP address (interface) - TBD
 					case 'f': // filename?
 					case 'l': // remote log name
-					case 'L': // error log ID
 						Add(Empty);
+						break;
+
+					case 'L': // the request log id, our trace id
+						Add(TraceID);
 						break;
 
 					case 'b': // content length with -
@@ -760,6 +771,10 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 
 			case Cookie:
 				Log.Escape(HTTP.Request.GetCookie(Entry.sValue));
+				break;
+
+			case TraceID:
+				Log.Write(HTTP.GetTraceContext().GetTraceID());
 				break;
 		}
 	}

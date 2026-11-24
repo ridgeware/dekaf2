@@ -22,6 +22,7 @@
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/net/util/kstreamoptions.h>
 #include <atomic>
+#include <mutex>
 #include <new>
 
 using namespace dekaf2;
@@ -3082,5 +3083,270 @@ TEST_CASE("KRESTServer: event stream")
 		// no body, the second response follows the headers of the first
 		CHECK ( sResponse.contains("\r\n\r\nHTTP/1.1 200 ") );
 		CHECK ( sResponse.contains("\"hello\"") );
+	}
+}
+
+TEST_CASE("KRESTServer: trace context")
+{
+	// the example of the W3C Trace Context
+	KStringView sTraceParent { "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01" };
+	KStringView sTraceID     { "4bf92f3577b34da6a3ce929d0e0e4736" };
+
+	// what the route and the post response callback of the error route saw
+	std::mutex        Mutex;
+	KString           sSeenInRoute;
+	KString           sSeenAfterError;
+
+	KRESTRoutes Routes;
+
+	// returns the context of the request and of the thread
+	Routes.AddRoute("/trace").Get([](KRESTServer& HTTP)
+	{
+		const auto& Trace = HTTP.GetTraceContext();
+
+		HTTP.json.tx["trace_id"]    = Trace.GetTraceID();
+		HTTP.json.tx["span_id"]     = Trace.GetSpanID();
+		HTTP.json.tx["parent_id"]   = Trace.GetParentID();
+		HTTP.json.tx["tracestate"]  = Trace.GetTraceState();
+		HTTP.json.tx["thread"]      = KTraceContext::Current().GetTraceID();
+	});
+
+	// fails after it set a callback, which runs at the end of the request
+	Routes.AddRoute("/fail").Get([&](KRESTServer& HTTP)
+	{
+		{
+			std::lock_guard<std::mutex> Lock(Mutex);
+			sSeenInRoute = KTraceContext::Current().GetTraceID();
+		}
+
+		HTTP.SetPostResponseCallback([&](const KRESTServer&)
+		{
+			std::lock_guard<std::mutex> Lock(Mutex);
+			sSeenAfterError = KTraceContext::Current().GetTraceID();
+		});
+
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "failing on purpose" };
+	});
+
+	KTempDir TempDir;
+
+	auto sJSONLog   = kFormat("{}/access.json", TempDir.Name());
+	auto sParsedLog = kFormat("{}/access.log" , TempDir.Name());
+
+	// runs a server with the trace options, and requests /trace with the headers
+	auto Request = [&](KRESTServer::Options::TraceMode Mode, KStringView sSources, KStringView sHeaders,
+	                   KStringView sPath = "/trace", KStringView sTrustedProxies = KStringView{}) -> KJSON
+	{
+		KREST::Options Options;
+
+		Options.Type                 = KREST::HTTP;
+		Options.iPort                = 0;
+		Options.sBindAddress         = "127.0.0.1";
+		Options.Timeout              = chrono::seconds(2);
+		Options.bBlocking            = false;
+		Options.bCreateEphemeralCert = false;
+		Options.Trace                = Mode;
+
+		Options.AddTraceSources(sSources);
+		Options.AddTrustedProxies(sTrustedProxies);
+
+		KREST Server;
+		REQUIRE ( Server.Execute(Options, Routes) );
+
+		KTCPStream Stream(KTCPEndPoint(kFormat("127.0.0.1:{}", Server.GetPort())), KStreamOptions(chrono::seconds(5)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write(kFormat("GET {} HTTP/1.1\r\nHost: a\r\nConnection: close\r\n{}\r\n", sPath, sHeaders)).Flush();
+
+		KString sResponse;
+		Stream.ReadRemaining(sResponse);
+
+		auto iBody = sResponse.find("\r\n\r\n");
+		REQUIRE ( iBody != npos );
+
+		INFO ( sResponse );
+
+		return kjson::Parse(sResponse.substr(iBody + 4));
+	};
+
+	auto IsNewTrace = [&](const KJSON& j)
+	{
+		CHECK ( j("trace_id").String().size() == 32 );
+		CHECK ( j("trace_id").String() != sTraceID );
+		CHECK ( j("span_id").String().size()  == 16 );
+		CHECK ( j("parent_id").String().empty() );
+		CHECK ( j("tracestate").String().empty() );
+		CHECK ( j("thread") == j("trace_id") );
+	};
+
+	auto sHeaders = kFormat("traceparent: {}\r\ntracestate: a=1\r\n", sTraceParent);
+
+	SECTION("off: no trace context")
+	{
+		auto j = Request(KRESTServer::Options::TraceMode::Off, "127.0.0.1", sHeaders);
+
+		CHECK ( j("trace_id").String().empty() );
+		CHECK ( j("thread").String().empty() );
+	}
+
+	SECTION("start: every request starts a new trace")
+	{
+		IsNewTrace(Request(KRESTServer::Options::TraceMode::Start, "127.0.0.1", sHeaders));
+		IsNewTrace(Request(KRESTServer::Options::TraceMode::Start, "127.0.0.1", ""));
+	}
+
+	SECTION("continue: the trace of a trace source")
+	{
+		auto j = Request(KRESTServer::Options::TraceMode::Continue, "127.0.0.1/32", sHeaders);
+
+		CHECK ( j("trace_id").String()   == sTraceID );
+		CHECK ( j("parent_id").String()  == "00f067aa0ba902b7" );
+		CHECK ( j("span_id").String().size() == 16 );
+		CHECK ( j("span_id").String()    != "00f067aa0ba902b7" );
+		CHECK ( j("tracestate").String() == "a=1" );
+		CHECK ( j("thread").String()     == sTraceID );
+
+		// any case of the header name
+		j = Request(KRESTServer::Options::TraceMode::Continue, "0.0.0.0/0,::/0", kFormat("TraceParent: {}\r\n", sTraceParent));
+		CHECK ( j("trace_id").String() == sTraceID );
+	}
+
+	SECTION("continue: a new trace for other sources, without header, or with an invalid one")
+	{
+		IsNewTrace(Request(KRESTServer::Options::TraceMode::Continue, "10.0.0.0/8", sHeaders));
+		IsNewTrace(Request(KRESTServer::Options::TraceMode::Continue, "", sHeaders));
+		IsNewTrace(Request(KRESTServer::Options::TraceMode::Continue, "127.0.0.1", ""));
+		IsNewTrace(Request(KRESTServer::Options::TraceMode::Continue, "127.0.0.1", "traceparent: 00-4BF92F3577B34DA6A3CE929D0E0E4736-00f067aa0ba902b7-01\r\n"));
+	}
+
+	SECTION("continue: behind a trusted proxy the client that the proxy confirms counts")
+	{
+		auto sForwarded = kFormat("X-Forwarded-For: 10.1.2.3\r\n{}", sHeaders);
+
+		// the client is a trace source
+		auto j = Request(KRESTServer::Options::TraceMode::Continue, "10.0.0.0/8", sForwarded, "/trace", "127.0.0.1");
+		CHECK ( j("trace_id").String() == sTraceID );
+
+		// the proxy is one, but not its client
+		IsNewTrace(Request(KRESTServer::Options::TraceMode::Continue, "127.0.0.1", sForwarded, "/trace", "127.0.0.1"));
+
+		// without trusted proxies the forwarded address does not count, the direct peer does
+		IsNewTrace(Request(KRESTServer::Options::TraceMode::Continue, "10.0.0.0/8", sForwarded));
+		j = Request(KRESTServer::Options::TraceMode::Continue, "127.0.0.1", sForwarded);
+		CHECK ( j("trace_id").String() == sTraceID );
+	}
+
+	SECTION("a failing request keeps its trace to the end")
+	{
+		Request(KRESTServer::Options::TraceMode::Continue, "127.0.0.1", sHeaders, "/fail");
+
+		std::lock_guard<std::mutex> Lock(Mutex);
+		CHECK ( sSeenInRoute    == sTraceID );
+		CHECK ( sSeenAfterError == sTraceID );
+	}
+
+	SECTION("the access log has the trace id")
+	{
+		for (auto Mode : { KRESTServer::Options::TraceMode::Continue, KRESTServer::Options::TraceMode::Off })
+		{
+			bool bOn = Mode != KRESTServer::Options::TraceMode::Off;
+
+			KREST::Options Options;
+
+			Options.Type                 = KREST::HTTP;
+			Options.iPort                = 0;
+			Options.sBindAddress         = "127.0.0.1";
+			Options.Timeout              = chrono::seconds(2);
+			Options.bBlocking            = false;
+			Options.bCreateEphemeralCert = false;
+			Options.Trace                = Mode;
+
+			Options.AddTraceSources("127.0.0.1");
+
+			KString sLog = bOn ? sJSONLog : sParsedLog;
+
+			if (bOn)
+			{
+				REQUIRE ( Options.Logger.Open(KHTTPLog::LOG_FORMAT::JSON, sJSONLog) );
+			}
+			else
+			{
+				REQUIRE ( Options.Logger.Open(KHTTPLog::LOG_FORMAT::PARSED, sParsedLog, "%s [%L]") );
+			}
+
+			{
+				KREST Server;
+				REQUIRE ( Server.Execute(Options, Routes) );
+
+				KTCPStream Stream(KTCPEndPoint(kFormat("127.0.0.1:{}", Server.GetPort())), KStreamOptions(chrono::seconds(5)));
+				REQUIRE ( Stream.is_open() );
+
+				Stream.Write(kFormat("GET /trace HTTP/1.1\r\nHost: a\r\nConnection: close\r\n{}\r\n", sHeaders)).Flush();
+
+				KString sResponse;
+				Stream.ReadRemaining(sResponse);
+
+				for (int i = 0; i < 500 && !kReadAll(sLog).contains("200"); ++i)
+				{
+					kSleep(chrono::milliseconds(10));
+				}
+			}
+
+			auto sLine = kReadAll(sLog);
+
+			INFO  ( sLine );
+
+			if (bOn)
+			{
+				auto j = kjson::Parse(sLine);
+				CHECK ( j("trace_id").String() == sTraceID );
+				CHECK ( j("span_id").String().size() == 16 );
+			}
+			else
+			{
+				// without a trace the field is empty
+				CHECK ( sLine.starts_with("200 [") );
+				CHECK_FALSE ( sLine.contains(sTraceID) );
+			}
+		}
+
+		// %L with a trace
+		KREST::Options Options;
+
+		Options.Type                 = KREST::HTTP;
+		Options.iPort                = 0;
+		Options.sBindAddress         = "127.0.0.1";
+		Options.Timeout              = chrono::seconds(2);
+		Options.bBlocking            = false;
+		Options.bCreateEphemeralCert = false;
+		Options.Trace                = KRESTServer::Options::TraceMode::Continue;
+
+		Options.AddTraceSources("127.0.0.1");
+
+		auto sTracedLog = kFormat("{}/traced.log", TempDir.Name());
+		REQUIRE ( Options.Logger.Open(KHTTPLog::LOG_FORMAT::PARSED, sTracedLog, "%s [%L]") );
+
+		{
+			KREST Server;
+			REQUIRE ( Server.Execute(Options, Routes) );
+
+			KTCPStream Stream(KTCPEndPoint(kFormat("127.0.0.1:{}", Server.GetPort())), KStreamOptions(chrono::seconds(5)));
+			REQUIRE ( Stream.is_open() );
+
+			Stream.Write(kFormat("GET /trace HTTP/1.1\r\nHost: a\r\nConnection: close\r\n{}\r\n", sHeaders)).Flush();
+
+			KString sResponse;
+			Stream.ReadRemaining(sResponse);
+
+			for (int i = 0; i < 500 && !kReadAll(sTracedLog).contains("200"); ++i)
+			{
+				kSleep(chrono::milliseconds(10));
+			}
+		}
+
+		auto sLine = kReadAll(sTracedLog);
+
+		INFO  ( sLine );
+		CHECK ( sLine.starts_with(kFormat("200 [{}]", sTraceID)) );
 	}
 }

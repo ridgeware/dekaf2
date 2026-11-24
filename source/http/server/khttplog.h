@@ -211,7 +211,8 @@ private:
 		RequestHeader,     ///< %{name}i
 		ResponseHeader,    ///< %{name}o
 		Environment,       ///< %{name}e
-		Cookie             ///< %{name}C
+		Cookie,            ///< %{name}C
+		TraceID            ///< %L (the request log id of Apache), the trace id of the request
 	};
 
 	/// one field of the PARSED format

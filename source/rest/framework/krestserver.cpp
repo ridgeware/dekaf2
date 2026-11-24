@@ -143,6 +143,30 @@ void KRESTServer::Options::AddTrustedProxies(KStringView sProxies)
 } // AddTrustedProxies
 
 //-----------------------------------------------------------------------------
+void KRESTServer::Options::AddTraceSources(KStringView sSources)
+//-----------------------------------------------------------------------------
+{
+	for (auto& sSource : sSources.Split())
+	{
+		KIPError ec;
+		KIPNetwork Source(sSource, true, ec);
+
+		if (ec &&
+		    ec.value() != KIPError::PREFIX_TOO_LARGE &&
+		    ec.value() != KIPError::INVALID_DIGIT_IN_PREFIX)
+		{
+			kDebug(1, "{}: {}", sSource, ec.what());
+		}
+		else
+		{
+			kDebug(3, "adding trace source: {}", Source);
+			TraceSources.push_back(std::move(Source));
+		}
+	}
+
+} // AddTraceSources
+
+//-----------------------------------------------------------------------------
 void KRESTServer::Options::SetRateLimit(double dRequestsPerSecond, uint16_t iBurstSize)
 //-----------------------------------------------------------------------------
 {
@@ -777,6 +801,64 @@ KString KRESTServer::ThreadNameForRoute(const KRESTRoute& Route) const
 } // ThreadNameForRoute
 
 //-----------------------------------------------------------------------------
+void KRESTServer::SetupTraceContext()
+//-----------------------------------------------------------------------------
+{
+	switch (m_Options.Trace)
+	{
+		case Options::TraceMode::Off:
+			return;
+
+		case Options::TraceMode::Continue:
+		{
+			const auto& sTraceParent = Request.Headers.Get(KHTTPHeader::TRACEPARENT);
+
+			if (!sTraceParent.empty())
+			{
+				// the client, as the trusted proxies confirm it - without trusted
+				// proxies the direct peer of the connection
+				auto       sClientIP = GetRemoteIP();
+				KIPError   ec;
+				KIPAddress ClientIP(sClientIP, ec);
+
+				bool bTrusted { false };
+
+				if (!ec)
+				{
+					for (const auto& Source : m_Options.TraceSources)
+					{
+						if (Source.Contains(ClientIP))
+						{
+							bTrusted = true;
+							break;
+						}
+					}
+				}
+
+				if (!bTrusted)
+				{
+					kDebug(2, "ignoring the traceparent of {}, not a trace source", sClientIP);
+				}
+				else if (m_TraceContext.Parse(sTraceParent, Request.Headers.Get(KHTTPHeader::TRACESTATE)))
+				{
+					return;
+				}
+				else
+				{
+					kDebug(2, "ignoring a traceparent that is not valid: {}", sTraceParent);
+				}
+			}
+		}
+		DEKAF2_FALLTHROUGH;
+
+		case Options::TraceMode::Start:
+			m_TraceContext = KTraceContext::Start();
+			return;
+	}
+
+} // SetupTraceContext
+
+//-----------------------------------------------------------------------------
 bool KRESTServer::WaitForRequest()
 //-----------------------------------------------------------------------------
 {
@@ -986,6 +1068,10 @@ bool KRESTServer::Execute()
 			}
 
 			bHeaderRead = true;
+
+			// from here on the log lines of this request carry its trace id
+			SetupTraceContext();
+			KTraceContext::Scope Trace(m_TraceContext);
 
 			if (m_Options.Metrics)
 			{
@@ -1363,6 +1449,9 @@ bool KRESTServer::Execute()
 
 	catch (const std::exception& ex)
 	{
+		// the error output and the access log belong to the trace of the request
+		KTraceContext::Scope Trace(m_TraceContext);
+
 		if (bHeaderRead)
 		{
 			// the body parser or the route may have read (part of) the request
@@ -1371,9 +1460,9 @@ bool KRESTServer::Execute()
 		}
 
 		ErrorHandler(ex);
-	}
 
-	RunPostResponse();
+		RunPostResponse();
+	}
 
 	return false;
 
@@ -2690,6 +2779,7 @@ void KRESTServer::clear()
 	m_bResponseCompression = true;
 	m_bSwitchToWebSocket   = false;
 	m_bKeepWebSocketThread = false;
+	m_TraceContext.clear();
 	// do not clear m_Timers, the main Execute loop takes care of it
 
 	m_iJSONPrint =

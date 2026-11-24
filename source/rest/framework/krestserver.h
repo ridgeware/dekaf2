@@ -55,6 +55,7 @@
 #include <dekaf2/http/websocket/kwebsocket.h>
 #include <dekaf2/http/protocol/kserversentevent.h>
 #include <dekaf2/http/server/kserversenteventserver.h>
+#include <dekaf2/core/logging/ktracecontext.h>
 #include <dekaf2/net/address/kipnetwork.h>
 #include <dekaf2/rest/limits/kratelimiter.h>
 #include <utility>
@@ -144,6 +145,16 @@ public:
 			RouteName    ///< use the full route template, e.g. "/user/:id" - reveals the API's route structure to all local users
 		};
 
+		/// whether requests get a trace context (see KTraceContext): KLog writes its trace id into
+		/// the log lines of the request, and the access log into its line of the request
+		enum class TraceMode : uint8_t
+		{
+			Off,         ///< no trace context (default)
+			Start,       ///< every request starts a new trace, the header traceparent is ignored
+			Continue     ///< a request from an address in TraceSources continues the trace of its header
+			             ///< traceparent, every other request starts a new trace
+		};
+
 		/// Add one header to the list of fixed additional headers
 		/// @param Header the KHTTPHeader to add
 		/// @param sValue the value for the header
@@ -156,6 +167,9 @@ public:
 		/// .AddTrustedProxies("192.168.1.0/24,10.10.12.0,fc00:ad23:fe54::9921:0000/112");
 		/// @endcode
 		void AddTrustedProxies(KStringView sProxies);
+		/// Add comma separated addresses to the sources of trace contexts, see TraceSources
+		/// @param sSources the comma separated IP addresses (+ /prefix for a whole subnet)
+		void AddTraceSources(KStringView sSources);
 		/// Enable per-IP rate limiting with a token bucket algorithm.
 		/// @param dRequestsPerSecond maximum sustained request rate per client IP
 		/// @param iBurstSize maximum burst capacity (number of requests). Must be >= 1.
@@ -274,6 +288,13 @@ public:
 		bool bEmitEmptyJsonContainers { true };
 		/// Name the worker thread after the executed route? (default = None, see ThreadNameMode)
 		ThreadNameMode ThreadName { ThreadNameMode::None };
+		/// Give requests a trace context? (default = Off, see TraceMode)
+		TraceMode Trace { TraceMode::Off };
+		/// With TraceMode::Continue, the addresses whose header traceparent is taken. The address of the
+		/// client counts as GetRemoteIP() has it: behind trusted proxies (TrustedProxies) the client
+		/// that they confirm, else the direct peer of the connection. Every address is 0.0.0.0/0 and
+		/// ::/0. See also AddTraceSources().
+		std::vector<KIPNetwork> TraceSources;
 		/// Maximum request body size in bytes (default 256 MB). Set to 0 for unlimited.
 		/// Can be overridden per route with KRESTRoute::iMaxRequestBodySize.
 		std::size_t iMaxRequestBodySize { 256 * 1024 * 1024 };
@@ -635,6 +656,16 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return m_Timers ? m_Timers->duration() : KDuration::zero();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// @return the trace context of the request, empty with TraceMode::Off - while the request
+	/// runs, it is also the context of the thread, KTraceContext::Current()
+	DEKAF2_NODISCARD
+	const KTraceContext& GetTraceContext() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_TraceContext;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1094,6 +1125,12 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// set the trace context of the request, per Options::Trace
+	DEKAF2_PRIVATE
+	void SetupTraceContext();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// run the post response callback if existing, and the logger and reporting facilities
 	void RunPostResponse();
 	void RecordMetrics();
@@ -1136,6 +1173,7 @@ private:
 	KIOStreamSocket*                 m_StreamSocket     { nullptr };    // the underlying KIOStreamSocket, if existing
 	KServerSentEventServer*          m_EventServer      { nullptr };    // the event server of the server that runs this connection, if existing
 	KServerSentEventServer::Handle   m_iEventHandle     { 0 };          // set if the route subscribed to events: the connection moves to the event server
+	KTraceContext                    m_TraceContext;                    // the trace context of the request, see Options::Trace
 	std::function<bool()>            m_StopCheck;                       // polled while waiting for the next request, true = close the connection (server shutdown)
 	const KRESTRoute*                m_pLastLoggedRoute { nullptr };    // remembers the last route written to access log within this connection; used by NO_REPEAT_LOG to suppress subsequent identical entries in keepalive
 	uint16_t                         m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds

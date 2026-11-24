@@ -799,6 +799,7 @@ int main(int argc, char** argv)
 		uint16_t iRateBurst           = Options("rateburst <count>     : rate limit burst size (default 10)", 10);
 		uint16_t iConnLimit           = Options("connlimit <max>       : per-IP max concurrent connections (default 0 == off)", 0);
 		KString  sTrustedProxies      = Options("trusted-proxies <list>: comma-separated IPs/CIDRs of trusted reverse proxies, for X-Forwarded-For — record the real client IP instead of the proxy's, e.g. 172.31.0.0/16 (default none)", "");
+		KString  sTraceSources        = Options("trace-sources <list>  : comma-separated IPs/CIDRs of callers whose header traceparent (W3C Trace Context) continues their trace, e.g. the apps that call /token - behind --trusted-proxies the client counts, not the proxy (default none: every request starts a trace of its own)", "");
 		KString  sAuditMirror         = Options("auditlog <path>       : mirror the audit trail (see /admin/audit) as JSON lines to this file, '-' for stdout (default: no mirror)", "");
 		KDuration AuditKeep           = chrono::days(Options("audit-keep <days>     : delete audit records older than this many days at startup (default 365, 0 = keep forever)", 365));
 		KStringViewZ sMaxBody         = Options("maxbody <size>        : max request body size, supports k/M/G suffixes (default 1M, 0 == unlimited)", "1M");
@@ -886,6 +887,14 @@ int main(int argc, char** argv)
 		// trust boundary for client-IP spoofing and belongs to whoever controls
 		// the deployment topology, not to the admin web session.
 		if (!sTrustedProxies.empty()) Settings.AddTrustedProxies(sTrustedProxies);
+
+		// every request gets a trace id, which the log lines of the request show (the
+		// first 16 hex digits) - a request of a trace source continues the trace of its
+		// caller, so that its lines can be found together with the caller's
+		Settings.Trace = sTraceSources.empty() ? KRESTServer::Options::TraceMode::Start
+		                                       : KRESTServer::Options::TraceMode::Continue;
+		Settings.AddTraceSources(sTraceSources);
+		KLog::getInstance().SetShowTraceID(true);
 
 		Settings.iMaxRequestBodySize = kFromBinarySize(sMaxBody);
 

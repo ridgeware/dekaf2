@@ -292,6 +292,32 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// show the first 16 hex digits of the trace id in a text line of a thread with a trace
+	/// context (see KTraceContext), after the thread column - default off. The JSON output
+	/// has the ids always.
+	self& SetShowTraceID(bool bYesNo)
+	//---------------------------------------------------------------------------
+	{
+#ifdef DEKAF2_WITH_KLOG
+		m_bShowTraceID = bYesNo;
+#endif
+		return *this;
+	}
+
+	//---------------------------------------------------------------------------
+	/// @return true if text lines show the start of the trace id
+	DEKAF2_NODISCARD
+	bool GetShowTraceID()
+	//---------------------------------------------------------------------------
+	{
+#ifdef DEKAF2_WITH_KLOG
+		return m_bShowTraceID;
+#else
+		return false;
+#endif
+	}
+
+	//---------------------------------------------------------------------------
 	/// Get level at which back traces are automatically generated.
 	DEKAF2_NODISCARD
 	inline int GetBackTraceLevel() const
@@ -825,6 +851,7 @@ private:
 	bool m_bInvertedGrep           { false };
 	bool m_bKeepCLIMode            { false };
 	bool m_bIsUSecMode             { false };
+	bool m_bShowTraceID            { false };
 
 	LOGMODE m_Logmode              { CLI   };
 

@@ -158,6 +158,8 @@ public:
 		SERVER,
 		SET_COOKIE,
 		STRICT_TRANSPORT_SECURITY,
+		TRACEPARENT,
+		TRACESTATE,
 		TRAILER,
 		TRANSFER_ENCODING,
 		UPGRADE,
@@ -414,6 +416,10 @@ public:
 				return "set-cookie";
 			case STRICT_TRANSPORT_SECURITY:
 				return "strict-transport-security";
+			case TRACEPARENT:
+				return "traceparent";
+			case TRACESTATE:
+				return "tracestate";
 			case TRAILER:
 				return "trailer";
 			case TRANSFER_ENCODING:
@@ -692,6 +698,10 @@ public:
 				return SET_COOKIE;
 			case "Strict-Transport-Security"_casehash:
 				return STRICT_TRANSPORT_SECURITY;
+			case "Traceparent"_casehash:
+				return TRACEPARENT;
+			case "Tracestate"_casehash:
+				return TRACESTATE;
 			case "Trailer"_casehash:
 				return TRAILER;
 			case "Transfer-Encoding"_casehash:

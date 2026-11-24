@@ -160,6 +160,7 @@
 #include <dekaf2/http/server/klambdastream.h>
 #include <dekaf2/containers/associative/klockmap.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/logging/ktracecontext.h>
 #include <dekaf2/core/logging/klogrotate.h>
 #include <dekaf2/util/mail/kmail.h>
 #include <dekaf2/util/mail/kmailspool.h>

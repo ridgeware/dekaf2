@@ -1137,7 +1137,7 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 
 		if (m_Serializer->Matches(m_bEGrep, m_bInvertedGrep, m_sGrepExpression))
 		{
-			const auto& sSerialized = m_Serializer->Get(GetUSecMode());
+			const auto& sSerialized = m_Serializer->Get(GetUSecMode(), GetShowTraceID());
 
 			m_Logger->Write(iLevel, m_Serializer->IsMultiline(), sSerialized, m_Serializer->GetTime());
 

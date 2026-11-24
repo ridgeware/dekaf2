@@ -107,6 +107,10 @@ protected:
 	KStringView m_sFunctionName;
 	KStringView m_sMessage;
 	KStringView m_sBacktrace;
+	// the trace context of the thread - the views are valid until the line is serialized
+	KStringView m_sTraceID;
+	KStringView m_sSpanID;
+	KStringView m_sParentID;
 
 }; // KLogData
 
@@ -121,7 +125,9 @@ class DEKAF2_PUBLIC KLogSerializer : public KLogData
 public:
 //----------
 
-	const KString& Get(bool bHiRes = false);
+	/// @param bHiRes the format with microseconds
+	/// @param bShowTraceID show the start of the trace id in a text line of a thread with a trace context
+	const KString& Get(bool bHiRes = false, bool bShowTraceID = false);
 	virtual operator KStringView();
 	virtual void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage) override;
 	bool IsMultiline() const { return m_bIsMultiline; }
@@ -137,6 +143,7 @@ protected:
 
 	KString m_sBuffer;
 	bool m_bIsMultiline;
+	bool m_bShowTraceID { false };
 
 }; // KLogSerializer
 

@@ -41,6 +41,7 @@
 */
 
 #include <dekaf2/core/logging/bits/klogserializer.h>
+#include <dekaf2/core/logging/ktracecontext.h>
 
 #ifdef DEKAF2_WITH_KLOG
 
@@ -74,6 +75,12 @@ void KLogData::Set(int iLevel, KStringView sShortName, KStringView sPathName, KS
 	m_sMessage.TrimRight();
 	m_sBacktrace.clear();
 
+	const auto& Trace = KTraceContext::Current();
+
+	m_sTraceID      = Trace.GetTraceID();
+	m_sSpanID       = Trace.GetSpanID();
+	m_sParentID     = Trace.GetParentID();
+
 } // Set
 
 //---------------------------------------------------------------------------
@@ -102,11 +109,12 @@ KStringView KLogData::SanitizeFunctionName(KStringView sFunction)
 } // SanitizeFunctionName
 
 //---------------------------------------------------------------------------
-const KString& KLogSerializer::Get(bool bHiRes)
+const KString& KLogSerializer::Get(bool bHiRes, bool bShowTraceID)
 //---------------------------------------------------------------------------
 {
 	if (m_sBuffer.empty())
 	{
+		m_bShowTraceID = bShowTraceID;
 		Serialize(bHiRes);
 	}
 	return m_sBuffer;
@@ -287,11 +295,27 @@ void KLogTTYSerializer::PrintStatus(KStringRef& sAppendTo, bool bHiRes)
 	// | 11:34:48.123456 | 55717 | 0           | +9.0µs | 7.8ms | KHTTPClient::Parse(): HTTP-200 OK
 	// | 11:34:48.123457 | 55717 | wsreactor   | +123µs | 123ms | KHTTPClient::Parse(): HTTP-200 OK
 
+	// the start of the trace id, in lines of a thread with a trace context, and only if
+	// requested: 16 hex digits find the lines of a trace also in the logs of other services
+	KStringView sTraceID;
+
+	if (m_bShowTraceID)
+	{
+		sTraceID = m_sTraceID.substr(0, 16);
+	}
+
 	if (!bHiRes)
 	{
-		kFormatAppend(sAppendTo, "| {:3.3s} | {:5.5s} | {:5d} | {:11.11s} | {:%Y-%m-%d %H:%M:%S} | ",
+		kFormatAppend(sAppendTo, "| {:3.3s} | {:5.5s} | {:5d} | {:11.11s} | ",
 					   LevelAsString(), m_sShortName, m_Pid,
-					   m_sThreadName.empty() ? kFormat("{}", m_Tid) : m_sThreadName, m_Time);
+					   m_sThreadName.empty() ? kFormat("{}", m_Tid) : m_sThreadName);
+
+		if (!sTraceID.empty())
+		{
+			kFormatAppend(sAppendTo, "{} | ", sTraceID);
+		}
+
+		kFormatAppend(sAppendTo, "{:%Y-%m-%d %H:%M:%S} | ", m_Time);
 	}
 	else
 	{
@@ -326,14 +350,19 @@ void KLogTTYSerializer::PrintStatus(KStringRef& sAppendTo, bool bHiRes)
 		uint64_t iThread = m_Tid < s_iStartThread ? m_Tid + 65535 - s_iStartThread : m_Tid - s_iStartThread;
 #endif
 
-		kFormatAppend(sAppendTo, "|{:2}| {:%H:%M:%S}.{:06} | {:5d} | {:11.11s} | +{:>5.5s} | {:>5.5s} | ",
+		kFormatAppend(sAppendTo, "|{:2}| {:%H:%M:%S}.{:06} | {:5d} | {:11.11s} | ",
 					   m_iLevel,
 					   m_Time,
 					   m_Time.subseconds().microseconds().count(),
 					   m_Pid,
-					   m_sThreadName.empty() ? kFormat("{}", iThread) : m_sThreadName,
-					   thisTicks,
-					   totalTicks);
+					   m_sThreadName.empty() ? kFormat("{}", iThread) : m_sThreadName);
+
+		if (!sTraceID.empty())
+		{
+			kFormatAppend(sAppendTo, "{} | ", sTraceID);
+		}
+
+		kFormatAppend(sAppendTo, "+{:>5.5s} | {:>5.5s} | ", thisTicks, totalTicks);
 	}
 
 } // Serialize
@@ -411,6 +440,17 @@ KJSON KLogJSONSerializer::CreateObject() const
 	json["path_name"] = m_sPathName;
 	json["function_name"] = m_sFunctionName;
 	json["message"] = m_sMessage;
+
+	if (!m_sTraceID.empty())
+	{
+		json["trace_id"] = m_sTraceID;
+		json["span_id"]  = m_sSpanID;
+
+		if (!m_sParentID.empty())
+		{
+			json["parent_id"] = m_sParentID;
+		}
+	}
 
 	return json;
 

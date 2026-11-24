@@ -1801,6 +1801,7 @@ set(PUBLIC_HEADERS
 	source/core/logging/klog.h
 	source/core/logging/kredact.h
 	source/core/logging/klogrotate.h
+	source/core/logging/ktracecontext.h
 	source/core/strings/kcaseless.h
 	source/core/strings/kcasestring.h
 	source/core/strings/kcesu8.h
@@ -2114,6 +2115,7 @@ set (SOURCES
 	source/core/logging/klog.cpp
 	source/core/logging/kredact.cpp
 	source/core/logging/klogrotate.cpp
+	source/core/logging/ktracecontext.cpp
 	source/core/strings/bits/kfindsetofchars.cpp
 	source/core/strings/bits/kstring_view.cpp
 	source/core/strings/bits/kstringviewz.cpp

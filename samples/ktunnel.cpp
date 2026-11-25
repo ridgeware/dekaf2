@@ -88,8 +88,10 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/net/tcp/ktcpstream.h>  // CreateKTCPStream for the REPL 'check' command
 #include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kbackoff.h>
 #include <dekaf2/util/cli/kxterm.h>  // kPromptForPassword for -set-admin / -install
 #include <dekaf2/containers/associative/kassociative.h>
+#include <algorithm>
 #include <csignal> // SIGINT, SIGTERM
 #include <future>
 #include <thread>
@@ -2589,8 +2591,17 @@ void OutletHost::Run()
 	// (but as we are not a browser that doesn't mean any disadvantage)
 	StreamOptions.Unset(KStreamOptions::RequestHTTP2);
 
+	// the wait before the next connect try: a second after the first failure,
+	// doubling up to the connect timeout, each with a random share - the outlets
+	// of a relay that restarts then do not all return at the same moment
+	KBackoff Backoff(std::min(KDuration(chrono::seconds(1)), m_Config.ConnectTimeout), m_Config.ConnectTimeout);
+
 	while (!m_bQuit.load(std::memory_order_acquire))
 	{
+		// started when the tunnel is open
+		KStopTime Connected(KStopTime::Halted);
+		bool      bConnected { false };
+
 		try
 		{
 			// Peer login identity: the `-n <name>` CLI flag. The default
@@ -2674,14 +2685,15 @@ void OutletHost::Run()
 
 			m_Config.Message("control stream opened - now waiting for data streams");
 
+			Connected.clear();
+			bConnected = true;
+
 			Tunnel.Run();
 
 			if (m_bQuit.load(std::memory_order_acquire))
 			{
 				break;
 			}
-
-			m_Config.Message("lost connection - now sleeping for {} and retrying", m_Config.ConnectTimeout);
 		}
 		catch(const std::exception& ex)
 		{
@@ -2691,14 +2703,25 @@ void OutletHost::Run()
 			}
 
 			m_Config.Message("{}", ex.what());
-			m_Config.Message("could not connect - now sleeping for {} and retrying", m_Config.ConnectTimeout);
 		}
+
+		if (bConnected && Connected.elapsed() >= m_Config.ConnectTimeout)
+		{
+			// a tunnel that held for a while starts with short waits again - one
+			// that breaks right after its start counts as a failed try
+			Backoff.Reset();
+		}
+
+		auto Wait = Backoff.Next();
+
+		m_Config.Message("{} - now sleeping for {} and retrying",
+		                 bConnected ? "lost connection" : "could not connect", Wait);
 
 		// interruptible sleep until the next connect try — wait_for returns
 		// early when Shutdown() sets m_bQuit and notifies the CV
 		{
 			std::unique_lock<std::mutex> Lock(m_Mutex);
-			m_CV.wait_for(Lock, m_Config.ConnectTimeout.duration(), [this]()
+			m_CV.wait_for(Lock, Wait.duration(), [this]()
 			{
 				return m_bQuit.load(std::memory_order_acquire);
 			});
@@ -2830,8 +2853,15 @@ void InletHost::Run ()
 	StreamOptions.SetTimeout(m_Config.ConnectTimeout);
 	StreamOptions.Unset(KStreamOptions::RequestHTTP2);
 
+	// the wait before the next connect try, see OutletHost::Run()
+	KBackoff Backoff(std::min(KDuration(chrono::seconds(1)), m_Config.ConnectTimeout), m_Config.ConnectTimeout);
+
 	while (!m_bQuit.load(std::memory_order_acquire))
 	{
+		// started when the tunnel is open
+		KStopTime Connected(KStopTime::Halted);
+		bool      bConnected { false };
+
 		try
 		{
 			KURL ExposedHost;
@@ -2868,25 +2898,34 @@ void InletHost::Run ()
 
 			m_Config.Message("inlet connected - local ports are live");
 
+			Connected.clear();
+			bConnected = true;
+
 			Tunnel->Run();
 
 			if (m_bQuit.load(std::memory_order_acquire)) break;
-
-			m_Config.Message("lost connection - now sleeping for {} and retrying",
-			                 m_Config.ConnectTimeout);
 		}
 		catch (const std::exception& ex)
 		{
 			if (m_bQuit.load(std::memory_order_acquire)) break;
 
 			m_Config.Message("{}", ex.what());
-			m_Config.Message("could not connect - now sleeping for {} and retrying",
-			                 m_Config.ConnectTimeout);
 		}
+
+		if (bConnected && Connected.elapsed() >= m_Config.ConnectTimeout)
+		{
+			// see OutletHost::Run()
+			Backoff.Reset();
+		}
+
+		auto Wait = Backoff.Next();
+
+		m_Config.Message("{} - now sleeping for {} and retrying",
+		                 bConnected ? "lost connection" : "could not connect", Wait);
 
 		{
 			std::unique_lock<std::mutex> Lock(m_Mutex);
-			m_CV.wait_for(Lock, m_Config.ConnectTimeout.duration(), [this]()
+			m_CV.wait_for(Lock, Wait.duration(), [this]()
 			{
 				return m_bQuit.load(std::memory_order_acquire);
 			});

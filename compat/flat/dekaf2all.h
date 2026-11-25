@@ -256,6 +256,7 @@
 #include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kbackoff.h>
 #include <dekaf2/time/duration/ktimer.h>
 #include <dekaf2/time/series/ktimeseries.h>
 #include <dekaf2/net/tls/ktlscontext.h>

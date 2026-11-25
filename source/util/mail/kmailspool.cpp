@@ -42,6 +42,7 @@
 #include <dekaf2/util/mail/kmailspool.h>
 #include <dekaf2/util/mail/ksmtp.h>
 #include <dekaf2/util/id/kuuid.h>
+#include <dekaf2/time/duration/kbackoff.h>
 #include <dekaf2/data/json/kjson2.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/system/os/ksystem.h>
@@ -527,14 +528,12 @@ KString KMailSpool::FullPath(KStringView sFileName) const
 KDuration KMailSpool::Backoff(uint16_t iAttempts) const
 //-----------------------------------------------------------------------------
 {
-	KDuration Delay = m_Options.RetryInterval;
+	KBackoff::Options Options(m_Options.RetryInterval, m_Options.MaxRetryInterval);
 
-	while (--iAttempts && Delay < m_Options.MaxRetryInterval)
-	{
-		Delay *= 2;
-	}
+	// the exact times, as documented for the options of the spool
+	Options.dJitter = 0.0;
 
-	return std::min(Delay, m_Options.MaxRetryInterval);
+	return KBackoff(Options).GetWait(iAttempts);
 
 } // Backoff
 

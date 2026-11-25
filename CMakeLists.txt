@@ -1984,6 +1984,7 @@ set(PUBLIC_HEADERS
 	source/time/clock/kdate.h
 	source/time/clock/kjuliandate.h
 	source/time/clock/ktime.h
+	source/time/duration/kbackoff.h
 	source/time/duration/kduration.h
 	source/time/duration/kprof.h
 	source/time/duration/ktimer.h
@@ -2284,6 +2285,7 @@ set (SOURCES
 	source/time/clock/kdate.cpp
 	source/time/clock/kjuliandate.cpp
 	source/time/clock/ktime.cpp
+	source/time/duration/kbackoff.cpp
 	source/time/duration/kduration.cpp
 	source/time/duration/kprof.cpp
 	source/time/duration/ktimer.cpp

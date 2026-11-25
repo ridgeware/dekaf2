@@ -39,6 +39,7 @@ set (USOURCES
 	kacmemanager_tests.cpp
 	kargon2_tests.cpp
 	kawsauth_tests.cpp
+	kbackoff_tests.cpp
 	kbase64_tests.cpp
 	kbcrypt_tests.cpp
 	kbit_tests.cpp

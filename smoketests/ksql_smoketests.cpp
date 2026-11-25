@@ -1693,6 +1693,20 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 				CHECK ( db.GetCancelReason() == KSQL::CancelReason::None );
 			}
 
+			// a statement that is repeated after a lost connection is under the query
+			// timeout as well (MySQL only, PostgreSQL does not repeat a statement)
+			if (bIsMySQL)
+			{
+				// end the connection on the server, without a mark of the application
+				CHECK ( dbKiller.ExecSQL("kill {}", db.GetConnectionID()) );
+				db.SetQueryTimeout(std::chrono::milliseconds(100), KSQL::QueryType::Select);
+				KStopTime Timer;
+				CHECK_FALSE ( Sleep() );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::Timeout );
+				CHECK ( Timer.elapsed().seconds() < chrono::seconds(4) );
+				db.SetQueryTimeout(std::chrono::seconds(0));
+			}
+
 			db.SetThrow(bTOld);
 		}
 

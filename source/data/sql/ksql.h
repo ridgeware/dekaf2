@@ -1336,6 +1336,10 @@ private:
 	/// reason if its connection was killed on purpose - returns false
 	bool SetFetchError (KString sError, uint32_t iErrorNum);
 
+	/// puts the instance on the watch list of the query timeout, for a statement
+	/// @return false if the connection has no ID
+	bool BeginTimeoutWatch ();
+
 	/// removes the instance from the watch list of the query timeout
 	void EndTimeoutWatch ();
 

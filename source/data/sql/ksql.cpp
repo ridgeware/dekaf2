@@ -2291,6 +2291,8 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 	// cancel the statement if it runs longer than the query timeout - the code above
 	// this point must be safe for recursion, see QueryTimeoutGuard
 	QueryTimeoutGuard TimeoutGuard(*this, QueryType);
+	// true if this guard or one of the caller watches the statement
+	bool bWatched = (m_TimeoutWatch == TimeoutWatch::Statement);
 
 	m_SQLStmtStats.Collect(m_sLastSQL.str(), QueryType);
 
@@ -2600,6 +2602,14 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 				}
 			}
 			while (iRetriesLeft > 0 && !IsConnectionOpen());
+
+			if (bWatched && iRetriesLeft > 0 && m_TimeoutWatch == TimeoutWatch::None)
+			{
+				// the watch ended with the lost connection: watch the repeated statement
+				// on the new one, with the whole timeout. The guard that started the
+				// watch ends this one as well.
+				BeginTimeoutWatch();
+			}
 		}
 
 	} // retry loop
@@ -10199,29 +10209,15 @@ KSQL::QueryTimeoutGuard::QueryTimeoutGuard(KSQL& Instance, QueryType Type)
 		return;
 	}
 
-	// Make sure we have a connection ID. Querying it runs a statement through the
-	// same code, so the query timeout is disabled meanwhile - the code of the caller
-	// up to the construction of this guard must be safe for this recursion.
-	if (Instance.GetConnectionID(false) == 0)
+	// the code of the caller up to the construction of this guard must be safe for
+	// the recursion of BeginTimeoutWatch()
+	if (!Instance.BeginTimeoutWatch())
 	{
-		Instance.DisableQueryTimeout();
-		auto sBackupSQL = Instance.m_sLastSQL;
-		Instance.GetConnectionID();
-		Instance.m_sLastSQL = sBackupSQL;
-		Instance.EnableQueryTimeout();
-	}
-
-	if (Instance.GetConnectionID(false) == 0)
-	{
-		kDebug(2, "no connection ID for {}, cannot watch the query timeout", TxDBType(Instance.GetDBType()));
 		return;
 	}
 
 	kDebug(2, "'{}' query will timeout after {}ms", SerializeOneQueryType(Type), Instance.m_QueryTimeout.count());
 
-	s_TimedConnections.Add(Instance);
-
-	Instance.m_TimeoutWatch = TimeoutWatch::Statement;
 	m_pInstance = &Instance;
 
 } // QueryTimeoutGuard::ctor
@@ -10566,6 +10562,36 @@ bool KSQL::SetFetchError (KString sError, uint32_t iErrorNum)
 	return false;
 
 } // SetFetchError
+
+//-----------------------------------------------------------------------------
+bool KSQL::BeginTimeoutWatch ()
+//-----------------------------------------------------------------------------
+{
+	// Make sure we have a connection ID. Querying it runs a statement through the
+	// same code, so the query timeout is disabled meanwhile - the code of the caller
+	// up to this call must be safe for this recursion.
+	if (GetConnectionID(false) == 0)
+	{
+		DisableQueryTimeout();
+		auto sBackupSQL = m_sLastSQL;
+		GetConnectionID();
+		m_sLastSQL = sBackupSQL;
+		EnableQueryTimeout();
+	}
+
+	if (GetConnectionID(false) == 0)
+	{
+		kDebug(2, "no connection ID for {}, cannot watch the query timeout", TxDBType(GetDBType()));
+		return false;
+	}
+
+	s_TimedConnections.Add(*this);
+
+	m_TimeoutWatch = TimeoutWatch::Statement;
+
+	return true;
+
+} // BeginTimeoutWatch
 
 //-----------------------------------------------------------------------------
 void KSQL::EndTimeoutWatch ()

@@ -89,6 +89,10 @@ class KIOStreamSocket;
 /// the broker stays mute - a quiet broker costs a ping every few minutes,
 /// not a reconnect.
 ///
+/// **Reconnects** follow a lost connection or a failed connect after one second,
+/// then after two, four, and at most five seconds, each shortened by a random share
+/// of up to its half (see KBackoff).
+///
 /// **Subscriptions survive a reconnect**: they are remembered and re-sent
 /// after every successful connect. Subscribe() and Unsubscribe() while
 /// running take effect within the poll interval.

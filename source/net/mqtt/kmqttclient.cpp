@@ -44,6 +44,7 @@
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/net/tls/ktlsstream.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/time/duration/kbackoff.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/logging/klog.h>
 
@@ -57,8 +58,10 @@ namespace {
 constexpr KStringViewZ s_sProtocolName  { "MQTT" };
 constexpr uint8_t      s_iProtocolLevel { 4 };
 
-/// how long to wait before reconnecting after a lost connection
-constexpr auto         s_ReconnectDelay = chrono::seconds(5);
+/// how long to wait at most before reconnecting after a lost connection, and
+/// how long after the first failure - the wait doubles in between, see KBackoff
+constexpr auto         s_ReconnectDelay      = chrono::seconds(5);
+constexpr auto         s_FirstReconnectDelay = chrono::seconds(1);
 
 /// connect timeout, and the deadline for completing a started packet or
 /// answering a PINGREQ - the silence watchdog is a separate, longer clock
@@ -339,6 +342,10 @@ void KMQTTClient::HandlePacket(uint8_t iFirstByte, const KString& sBody)
 void KMQTTClient::Listen()
 //-----------------------------------------------------------------------------
 {
+	// the wait before the next connect grows with every failure, and has a random
+	// share, so that the clients of a broker that restarts do not return all at once
+	KBackoff Backoff(s_FirstReconnectDelay, s_ReconnectDelay);
+
 	while (!m_bStop)
 	{
 		m_Stream = OpenSession();
@@ -426,6 +433,8 @@ void KMQTTClient::Listen()
 
 				m_bConnected = true;
 
+				KStopTime SessionTime;
+
 				if (m_OnState) m_OnState(true);
 
 				// the silence watchdog: probe with a PINGREQ after the silence
@@ -484,15 +493,25 @@ void KMQTTClient::Listen()
 				if (m_OnState) m_OnState(false);
 
 				kDebug(1, "disconnected from {}", m_URL.Serialize());
+
+				if (SessionTime.elapsed() >= KDuration(s_ReconnectDelay))
+				{
+					// a session that held for a while starts with short waits again -
+					// one that breaks right after its start counts as a failure
+					Backoff.Reset();
+				}
 			}
 		}
 
 		m_Stream.reset();
 
-		// backoff before the next attempt, but stay responsive to Stop()
-		for (uint16_t iTenth = 0; iTenth < s_ReconnectDelay.count() * 10 && !m_bStop; ++iTenth)
+		// wait before the next attempt, but stay responsive to Stop()
+		auto      Wait = Backoff.Next();
+		KStopTime Waited;
+
+		while (!m_bStop && Waited.elapsed() < Wait)
 		{
-			kSleep(chrono::milliseconds(100));
+			kSleep(std::min(KDuration(chrono::milliseconds(100)), KDuration(Wait - Waited.elapsed())));
 		}
 	}
 

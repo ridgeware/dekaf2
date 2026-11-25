@@ -1693,12 +1693,40 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 				CHECK ( db.GetCancelReason() == KSQL::CancelReason::None );
 			}
 
-			// a statement that is repeated after a lost connection is under the query
-			// timeout as well (MySQL only, PostgreSQL does not repeat a statement)
-			if (bIsMySQL)
+			// ends the connection of db on the server, without a mark of the application -
+			// like an idle timeout or a restart of the server
+			auto Terminate = [&db, &dbKiller, bIsMySQL]()
 			{
-				// end the connection on the server, without a mark of the application
-				CHECK ( dbKiller.ExecSQL("kill {}", db.GetConnectionID()) );
+				auto iID = db.GetConnectionID();
+				return bIsMySQL ? dbKiller.ExecSQL("kill {}", iID)
+				                : dbKiller.ExecQuery("select pg_terminate_backend({})", iID);
+			};
+
+			// a lost connection: the statement is repeated on a new one
+			{
+				CHECK ( Terminate() );
+				CHECK ( db.SingleIntQuery("select 7") == 7 );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::None );
+
+				CHECK ( Terminate() );
+				CHECK ( (bIsMySQL ? db.ExecSQL("do 7") : db.ExecSQL("set application_name = 'smoketest'")) );
+				CHECK ( db.GetLastError().empty() );
+			}
+
+			// with retries disabled the statement fails, and the next one works
+			{
+				db.DisableRetries();
+				CHECK ( Terminate() );
+				CHECK ( db.SingleIntQuery("select 7") == -1 );
+				CHECK ( db.GetCancelReason() == KSQL::CancelReason::None );
+				CHECK ( db.SingleIntQuery("select 7") == 7 );
+				db.EnableRetries();
+			}
+
+			// a statement that is repeated after a lost connection is under the query
+			// timeout as well
+			{
+				CHECK ( Terminate() );
 				db.SetQueryTimeout(std::chrono::milliseconds(100), KSQL::QueryType::Select);
 				KStopTime Timer;
 				CHECK_FALSE ( Sleep() );

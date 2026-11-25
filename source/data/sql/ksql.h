@@ -188,6 +188,7 @@ typedef unsigned long* MYSQL_ROW_LENS; // this one is not a MYSQL type, but it i
 DEKAF2_NAMESPACE_BEGIN
 
 class KThreadPool;
+class KBackoff;
 
 /// @addtogroup data_sql
 /// @{
@@ -1911,6 +1912,13 @@ private:
 	/// opened again by the next statement
 	/// @return true if the statement can be repeated
 	bool  PreparedToRetry (uint32_t iErrorNum, KString* sError = nullptr, KDuration Wait = KDuration::zero(), bool bLastTry = false);
+	/// a statement failed: calls PreparedToRetry() until the connection is open again or
+	/// no tries are left. A reconnect that fails counts as a try.
+	/// @param iRetriesLeft the count of tries that are left, including the one that
+	/// failed - zero on return if the statement shall not be repeated
+	/// @param Backoff the times to wait before the reconnects
+	/// @return true if the statement shall be repeated
+	bool  PrepareNextTry  (int& iRetriesLeft, KBackoff& Backoff, uint32_t iErrorNum, KString* sError);
 
     #ifdef DEKAF2_HAS_ORACLE
 	bool  WasOCICallOK    (KStringView sContext, uint32_t iErrorNum, KStringRef& sError);

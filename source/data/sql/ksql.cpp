@@ -2590,20 +2590,8 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 		if (!bOK)
 		{
-			// a reconnect that fails counts as a try - it is repeated here after the
-			// next wait, and not right away by the code above
-			do
-			{
-				bool bLastTry = (--iRetriesLeft <= 0);
-
-				if (!PreparedToRetry(iErrorNum, &sError, bLastTry ? KDuration::zero() : Backoff.Next(), bLastTry))
-				{
-					iRetriesLeft = 0; // stop looping
-				}
-			}
-			while (iRetriesLeft > 0 && !IsConnectionOpen());
-
-			if (bWatched && iRetriesLeft > 0 && m_TimeoutWatch == TimeoutWatch::None)
+			if (PrepareNextTry(iRetriesLeft, Backoff, iErrorNum, &sError)
+				&& bWatched && m_TimeoutWatch == TimeoutWatch::None)
 			{
 				// the watch ended with the lost connection: watch the repeated statement
 				// on the new one, with the whole timeout. The guard that started the
@@ -2678,6 +2666,27 @@ void KSQL::LogPerformance (KDuration iMilliseconds, bool bIsQuery)
 } // LogPerformance
 
 //-----------------------------------------------------------------------------
+bool KSQL::PrepareNextTry (int& iRetriesLeft, KBackoff& Backoff, uint32_t iErrorNum, KString* sError)
+//-----------------------------------------------------------------------------
+{
+	// a reconnect that fails counts as a try - it is repeated here after the next
+	// wait, and not right away by the caller
+	do
+	{
+		bool bLastTry = (--iRetriesLeft <= 0);
+
+		if (!PreparedToRetry(iErrorNum, sError, bLastTry ? KDuration::zero() : Backoff.Next(), bLastTry))
+		{
+			iRetriesLeft = 0; // stop looping
+		}
+	}
+	while (iRetriesLeft > 0 && !IsConnectionOpen());
+
+	return iRetriesLeft > 0;
+
+} // PrepareNextTry
+
+//-----------------------------------------------------------------------------
 bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError, KDuration Wait, bool bLastTry)
 //-----------------------------------------------------------------------------
 {
@@ -2719,6 +2728,16 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError, KDuration Wait,
 					break;
 #endif
 				}
+				break;
+#endif
+
+#ifdef DEKAF2_HAS_POSTGRESQL
+			case DBT::POSTGRESQL:
+				// libpq has no error number for a lost connection, but marks the
+				// connection as bad
+				bConnectionLost = m_PostgreSQL
+				               && m_PostgreSQL->Connection
+				               && PQstatus(m_PostgreSQL->Connection) == CONNECTION_BAD;
 				break;
 #endif
 
@@ -3879,30 +3898,42 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 	case API::LIBPQ:
 	// - - - - - - - - - - - - - - - - -
 	{
-		if (!m_PostgreSQL || !m_PostgreSQL->Connection)
+		int      iTriesLeft = m_bDisableRetries ? 1 : NUM_RETRIES;
+		KBackoff RetryBackoff(GetRetryBackoff());
+
+		for (;;)
 		{
-			return SetError("POSTGRESQL: no connection");
-		}
+			if (!m_PostgreSQL || !m_PostgreSQL->Connection)
+			{
+				return SetError("POSTGRESQL: no connection");
+			}
 
-		kDebug (3, "PQexec() for SELECT...");
+			kDebug (3, "PQexec() for SELECT...");
 
-		{
-			// cancel the query if it runs longer than the query timeout
-			QueryTimeoutGuard TimeoutGuard(*this, GetQueryType(m_sLastSQL.str()));
+			{
+				// cancel the query if it runs longer than the query timeout
+				QueryTimeoutGuard TimeoutGuard(*this, GetQueryType(m_sLastSQL.str()));
 
-			m_PostgreSQL->ClearResult();
-			m_PostgreSQL->Result = PQexec(m_PostgreSQL->Connection, m_sLastSQL.data());
-		}
+				m_PostgreSQL->ClearResult();
+				m_PostgreSQL->Result = PQexec(m_PostgreSQL->Connection, m_sLastSQL.data());
+			}
 
-		auto iStatus = PQresultStatus(m_PostgreSQL->Result);
+			auto iStatus = PQresultStatus(m_PostgreSQL->Result);
 
-		if (iStatus != PGRES_TUPLES_OK)
-		{
+			if (iStatus == PGRES_TUPLES_OK)
+			{
+				break;
+			}
+
 			KString sError = kFormat("POSTGRESQL: {}", PQerrorMessage(m_PostgreSQL->Connection));
 			m_PostgreSQL->ClearResult();
-			// a query that was killed on purpose reports why, and gets a new connection
-			HandleCanceledConnection(&sError);
-			return SetError(std::move(sError));
+
+			// a query that was killed on purpose reports why, and gets a new connection -
+			// one that lost its connection is repeated on a new one
+			if (!PrepareNextTry(iTriesLeft, RetryBackoff, static_cast<uint32_t>(iStatus), &sError))
+			{
+				return SetError(std::move(sError));
+			}
 		}
 
 		m_PostgreSQL->iNumRows    = PQntuples(m_PostgreSQL->Result);

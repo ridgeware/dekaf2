@@ -197,9 +197,11 @@ public:
 	bool RefreshForUnknownKey(KUnixTime Now = KUnixTime::now()) const;
 
 	/// load the keys right now if there are none yet, e.g. because the provider was
-	/// unreachable at the start. No more often than the retry interval of three minutes,
-	/// counting the requests of Refresh() as well, and not while another thread asks the
-	/// provider. Blocks for the duration of the request. KJWT::Check() calls it for a
+	/// unreachable at the start. A request that brought no keys is followed by a wait:
+	/// at most five seconds after the first one, then twice as long after each further
+	/// one, up to three minutes, each shortened by a random share of up to its half (see
+	/// KBackoff). The requests of Refresh() count as well. Not while another thread asks
+	/// the provider. Blocks for the duration of the request. KJWT::Check() calls it for a
 	/// token. Safe to call from any thread
 	/// @return true if it asked the provider
 	bool RefreshForMissingKeys(KUnixTime Now = KUnixTime::now()) const;
@@ -233,6 +235,11 @@ private:
 		/// the last change of the keys - the previous ones stay in memory until the
 		/// next change, which therefore comes an hour later at the earliest
 		std::atomic<std::time_t> tLastChange     { 0 };
+		/// without keys: no further request before this time
+		std::atomic<std::time_t> tRetry          { 0 };
+		/// the count of requests in a row that left the provider without keys - only
+		/// used with the lock held
+		uint32_t                 iWithoutKeys    { 0 };
 	};
 
 	// the key cache - Load() changes it from the const RefreshForUnknownKey() as well,
@@ -246,9 +253,10 @@ private:
 	bool              m_bMustSupportScope {true};
 	KURL              m_URL;
 	KDuration         m_RefreshInterval {};
-	/// retry interval used while we have no usable keys yet (e.g. the IdP was
-	/// unreachable at startup), so we recover within minutes instead of waiting
-	/// for the full refresh interval
+	/// longest retry interval used while we have no usable keys yet (e.g. the IdP
+	/// was unreachable at startup), so we recover within minutes instead of waiting
+	/// for the full refresh interval. The first retries come after a few seconds,
+	/// see KBackoff
 	KDuration         m_RetryInterval { chrono::minutes(3) };
 
 }; // KOpenIDProvider

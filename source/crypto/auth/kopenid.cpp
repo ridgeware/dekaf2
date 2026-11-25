@@ -46,6 +46,8 @@
 #include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/crypto/rsa/krsasign.h>
 #include <dekaf2/crypto/ec/kecsign.h>
+#include <dekaf2/time/duration/kbackoff.h>
+#include <dekaf2/core/types/kscopeguard.h>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -55,6 +57,8 @@ static constexpr KDuration DefaultOpenIDTCPTimeout = chrono::seconds(30);
 // the shortest time between two requests for keys - and between two key changes,
 // which the lockless reading of the keys in KOpenIDProvider::Get() relies on
 static constexpr KDuration MinOpenIDRefreshInterval = chrono::hours(1);
+// the wait after the first request that brought no keys
+static constexpr KDuration FirstOpenIDRetryInterval = chrono::seconds(5);
 
 const KRSAKey KOpenIDKeys::s_EmptyKey;
 
@@ -355,6 +359,23 @@ void KOpenIDProvider::Load(KUnixTime Now) const
 
 	m_Request->tLastRequest.store(Now.to_time_t(), std::memory_order_relaxed);
 
+	// a request that leaves the provider without keys is followed by a wait that
+	// grows with every such request (a named lambda, because C++11 needs a type
+	// for KScopeGuard)
+	auto namedLambdaGuard = [this, Now]() noexcept
+	{
+		if (m_Keys->Keys.empty())
+		{
+			auto Wait = KBackoff(FirstOpenIDRetryInterval, m_RetryInterval).GetWait(++m_Request->iWithoutKeys);
+			m_Request->tRetry.store((Now + Wait).to_time_t(), std::memory_order_relaxed);
+		}
+		else
+		{
+			m_Request->iWithoutKeys = 0;
+		}
+	};
+	auto GuardRetry = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
+
 	if (m_URL.Protocol != url::KProtocol::HTTPS)
 	{
 		SetError(kFormat("provider URL does not use HTTPS, but has to: {}", m_URL.Serialize()));
@@ -463,13 +484,16 @@ void KOpenIDProvider::Refresh(KUnixTime Now)
 
 	// While we have no usable key set yet (e.g. the IdP was unreachable at
 	// startup) retry far more often than the normal refresh interval, so we
-	// recover within minutes instead of after a full day. Once we hold valid
-	// keys we use the long interval, which also preserves the lockless
-	// decaying-keys invariant (Load() spaces key changes >= one hour apart, and
-	// there are never live keys to decay while we are in the short-retry state).
-	const KDuration Interval = m_Keys->Keys.empty() ? m_RetryInterval : m_RefreshInterval;
+	// recover within minutes instead of after a full day - Load() sets the time
+	// of the next retry. Once we hold valid keys we use the long interval, which
+	// also preserves the lockless decaying-keys invariant (Load() spaces key
+	// changes >= one hour apart, and there are never live keys to decay while we
+	// are in the short-retry state).
+	auto tNext = m_Keys->Keys.empty()
+		? KUnixTime::from_time_t(m_Request->tRetry.load(std::memory_order_relaxed))
+		: KUnixTime::from_time_t(m_Request->tLastRequest.load(std::memory_order_relaxed)) + m_RefreshInterval;
 
-	if (Now < KUnixTime::from_time_t(m_Request->tLastRequest.load(std::memory_order_relaxed)) + Interval)
+	if (Now < tNext)
 	{
 		return;
 	}
@@ -506,7 +530,7 @@ bool KOpenIDProvider::LoadOnDemand(KUnixTime Now, bool bForUnknownKey) const
 
 		// without keys every request is an attempt to get them - no more often than
 		// Refresh() retries, and only while there are none
-		return WithinOf(m_Request->tLastRequest, m_RetryInterval) || !Get().Keys.empty();
+		return WithinOf(m_Request->tRetry, KDuration::zero()) || !Get().Keys.empty();
 	};
 
 	// the test without the lock keeps a flood of such tokens off the mutex

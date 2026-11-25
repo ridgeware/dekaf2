@@ -594,7 +594,7 @@ TEST_CASE("KJWT Check")
 		CHECK ( JWT.Error().contains("no matching key") );
 	}
 
-	SECTION("a provider without keys asks for them, at most once in three minutes")
+	SECTION("a provider without keys asks for them, after waits that grow up to three minutes")
 	{
 		// a provider whose requests fail at once: nothing listens on this port
 		KOpenIDProvider Provider(KURL("https://127.0.0.1:1"));
@@ -602,16 +602,32 @@ TEST_CASE("KJWT Check")
 
 		auto tStart = KUnixTime::now();
 
-		// the constructor asked just now
-		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart) );
-		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart + chrono::minutes(2)) );
-		CHECK       ( Provider.RefreshForMissingKeys(tStart + chrono::minutes(4)) );
-		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart + chrono::minutes(5)) );
+		// the constructor asked just now: the first wait is at most 5 seconds
+		CHECK       ( Provider.RefreshForMissingKeys(tStart + chrono::seconds( 6)) );
+		// the second one is between 5 and 10 seconds
+		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart + chrono::seconds(10)) );
+		CHECK       ( Provider.RefreshForMissingKeys(tStart + chrono::seconds(17)) );
+		// the third one between 10 and 20 seconds
+		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart + chrono::seconds(26)) );
 
-		// a request of Refresh() counts as well
-		Provider.Refresh(tStart + chrono::minutes(8));
-		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart + chrono::minutes(9)) );
-		CHECK       ( Provider.RefreshForMissingKeys(tStart + chrono::minutes(12)) );
+		// a request of Refresh() counts as well: the fourth wait is between 20 and 40 seconds
+		Provider.Refresh(tStart + chrono::seconds(38));
+		CHECK_FALSE ( Provider.RefreshForMissingKeys(tStart + chrono::seconds(57)) );
+		CHECK       ( Provider.RefreshForMissingKeys(tStart + chrono::seconds(79)) );
+
+		// the waits do not grow beyond three minutes
+		auto tNext = tStart + chrono::minutes(10);
+
+		for (int i = 0; i < 6; ++i)
+		{
+			CHECK ( Provider.RefreshForMissingKeys(tNext) );
+			tNext += chrono::minutes(4);
+		}
+
+		// and are then between 90 seconds and three minutes
+		auto tLast = tNext - chrono::minutes(4);
+		CHECK_FALSE ( Provider.RefreshForMissingKeys(tLast + chrono::seconds( 85)) );
+		CHECK       ( Provider.RefreshForMissingKeys(tLast + chrono::seconds(185)) );
 
 		// a provider with fixed keys has nobody to ask
 		auto Fixed = Issuer.Provider();

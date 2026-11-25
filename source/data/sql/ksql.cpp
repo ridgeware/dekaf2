@@ -63,6 +63,7 @@
 #include <dekaf2/core/format/kbar.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/time/duration/kbackoff.h>
 #include <dekaf2/crypto/encoding/khex.h>
 #include <dekaf2/data/csv/kcsv.h>
 #include <dekaf2/core/types/kfrozen.h>
@@ -2254,6 +2255,20 @@ std::vector<KStringViewZ> KSQL::SerializeQueryTypes(QueryType Query)
 } // SerializeQueryType
 
 //-----------------------------------------------------------------------------
+/// the times to wait before the retries of a statement that lost its connection
+static KBackoff::Options GetRetryBackoff ()
+//-----------------------------------------------------------------------------
+{
+	// the first retry has no delay, the second one of up to a second, doubled
+	// each time after that
+	KBackoff::Options Options(chrono::seconds(1), chrono::seconds(4));
+	Options.bImmediateFirst = true;
+
+	return Options;
+
+} // GetRetryBackoff
+
+//-----------------------------------------------------------------------------
 bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
@@ -2279,16 +2294,15 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	m_SQLStmtStats.Collect(m_sLastSQL.str(), QueryType);
 
-	m_iNumRowsAffected  = 0;
+	m_iNumRowsAffected     = 0;
 
-	bool    bOK          = false;
-	int     iRetriesLeft = m_bDisableRetries ? 1 : NUM_RETRIES;
-	int     iSleepFor    = 0;
+	bool      bOK          = false;
+	int       iRetriesLeft = m_bDisableRetries ? 1 : NUM_RETRIES;
+	KBackoff  Backoff(GetRetryBackoff());
 	// we delay error output until the end of the loop, therefore
 	// temporarily store the error here
-	int     iErrorNum    = -1;
-	KString sError;
-
+	int       iErrorNum    = -1;
+	KString   sError;
 	KStopTime Timer;
 
 	while (!bOK && iRetriesLeft)
@@ -2574,29 +2588,18 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 		if (!bOK)
 		{
-			if (!(iRetriesLeft--) || !PreparedToRetry(iErrorNum, &sError))
+			// a reconnect that fails counts as a try - it is repeated here after the
+			// next wait, and not right away by the code above
+			do
 			{
-				iRetriesLeft = 0; // stop looping
-			}
-			else
-			{
-				// the first retry should have no delay:
-				if (iSleepFor)
-				{
-					kDebug (GetDebugLevel(), "sleeping {} seconds...", iSleepFor);
-					std::this_thread::sleep_for(std::chrono::seconds(iSleepFor));
-				}
+				bool bLastTry = (--iRetriesLeft <= 0);
 
-				// increase iSleepFor in case we end up here again:
-				if (!iSleepFor)
+				if (!PreparedToRetry(iErrorNum, &sError, bLastTry ? KDuration::zero() : Backoff.Next(), bLastTry))
 				{
-					iSleepFor = 1;  // second retry should have a delay of one second
-				}
-				else
-				{
-					iSleepFor *= 2; // double it each time after that
+					iRetriesLeft = 0; // stop looping
 				}
 			}
+			while (iRetriesLeft > 0 && !IsConnectionOpen());
 		}
 
 	} // retry loop
@@ -2665,7 +2668,7 @@ void KSQL::LogPerformance (KDuration iMilliseconds, bool bIsQuery)
 } // LogPerformance
 
 //-----------------------------------------------------------------------------
-bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
+bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError, KDuration Wait, bool bLastTry)
 //-----------------------------------------------------------------------------
 {
 	// Note: this is called every time m_sLastError and m_iLastErrorNum have
@@ -2744,6 +2747,14 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 
 	if (bConnectionLost)
 	{
+		if (bLastTry)
+		{
+			// the statement is not repeated - the next one opens a new connection
+			CloseConnection ();
+
+			return (false);
+		}
+
 		if (IsFlag(F_IgnoreSQLErrors) || !bDisplayWarning)
 		{
 			kDebug (GetDebugLevel(), GetLastError());
@@ -2761,6 +2772,13 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 		}
 
 		CloseConnection ();
+
+		if (Wait > KDuration::zero())
+		{
+			kDebug (GetDebugLevel(), "waiting {} before the reconnect...", Wait);
+			kSleep (Wait);
+		}
+
 		OpenConnection (m_ConnectionTimeout);
 
 		if (IsConnectionOpen())
@@ -3319,6 +3337,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 	#if defined(DEKAF2_HAS_CTLIB)
 	uint32_t iRetriesLeft = NUM_RETRIES;
+	KBackoff Backoff(GetRetryBackoff());
 	#endif
 
 	ClearError ();
@@ -3751,7 +3770,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			if (ct_command (m_pCtCommand, CS_LANG_CMD, m_sLastSQL.data(), static_cast<CS_INT>(m_sLastSQL.size()), CS_UNUSED) != CS_SUCCEED)
 			{
 				ctlib_api_error ("KSQL>ExecQuery>ct_command");
-				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError))
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError, Backoff.Next()))
 				{
 					continue;
 				}
@@ -3763,7 +3782,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			if (ct_send(m_pCtCommand) != CS_SUCCEED)
 			{
 				ctlib_api_error ("KSQL>ExecQuery>ct_send");
-				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError))
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError, Backoff.Next()))
 				{
 					continue;
 				}
@@ -3772,7 +3791,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 			if (!ctlib_prepare_results ())
 			{
-				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError))
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError, Backoff.Next()))
 				{
 					continue;
 				}
@@ -3781,7 +3800,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 			if (ctlib_check_errors() != 0)
 			{
-				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError))
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum, &m_sCtLibLastError, Backoff.Next()))
 				{
 					continue;
 				}

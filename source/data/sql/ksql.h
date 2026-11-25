@@ -1902,7 +1902,11 @@ private:
 	void  InvalidateConnectHash () const { m_iConnectHash = 0; m_iServerKey = 0; }
 	void  FormatConnectSummary () const;
 	/// modifies sError if connection was lost due to a connection kill request, else retains old message
-	bool  PreparedToRetry (uint32_t iErrorNum, KString* sError = nullptr);
+	/// @param Wait time to wait before a lost connection is opened again
+	/// @param bLastTry the statement will not be repeated: a lost connection is closed, and
+	/// opened again by the next statement
+	/// @return true if the statement can be repeated
+	bool  PreparedToRetry (uint32_t iErrorNum, KString* sError = nullptr, KDuration Wait = KDuration::zero(), bool bLastTry = false);
 
     #ifdef DEKAF2_HAS_ORACLE
 	bool  WasOCICallOK    (KStringView sContext, uint32_t iErrorNum, KStringRef& sError);

@@ -1068,7 +1068,7 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 	{
 		if (sOption != UNKNOWN_ARG)
 		{
-			sOption.TrimLeft(OptionOrCommand.IsCommand() ? " \f\v\t\r\n\b" : " -\f\v\t\r\n\b");
+			sOption.TrimLeft(OptionOrCommand.IsCommand() ? " \f\v\t\r\n" : " -\f\v\t\r\n");
 
 			if (sOption.front() == '-')
 			{
@@ -2130,7 +2130,7 @@ KStringView KOptions::IsolateOptionNamesFromSuffix(KStringView sOptionName)
 //---------------------------------------------------------------------------
 {
 
-	auto iPos = sOptionName.find_first_of(" <>[]|:;=\t\r\n\b");
+	auto iPos = sOptionName.find_first_of(" <>[]|:;=\t\r\n");
 
 	if (iPos != npos)
 	{

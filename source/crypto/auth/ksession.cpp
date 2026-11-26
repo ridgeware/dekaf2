@@ -145,7 +145,9 @@ KString KSession::Login(KStringView sUsername,
 
 	if (!Auth)
 	{
-		SetError("KSession::Login: no authenticator configured");
+		// not noted with SetError(): the error state is shared by all threads and
+		// only written by the constructor
+		kDebug(1, "no authenticator configured");
 		return {};
 	}
 
@@ -198,7 +200,7 @@ KString KSession::MakeSession(KStringView sUsername, KStringView sClientIP,
 
 	if (!m_Store->Create(Rec))
 	{
-		SetError(kFormat("KSession: Store::Create failed: {}", m_Store->GetLastError()));
+		kDebug(1, "cannot create session for user '{}': {}", sUsername, m_Store->GetLastError());
 		return {};
 	}
 

@@ -89,6 +89,17 @@ private:
 	std::shared_ptr<std::vector<KString>> m_Seen;
 };
 
+// A memory store that cannot create sessions, as a database that is not available
+class FailingStore : public KSessionMemoryStore
+{
+public:
+
+	bool Create(const KSession::Record&) override
+	{
+		return false;
+	}
+};
+
 } // anonymous
 
 TEST_CASE("KSession")
@@ -106,7 +117,46 @@ TEST_CASE("KSession")
 
 		auto sToken = Session.Login("alice", "wonder");
 		CHECK ( sToken.empty() );
-		CHECK ( Session.HasError() ); // "no authenticator configured"
+		// the error state tells about the setup of the store only
+		CHECK_FALSE ( Session.HasError() );
+	}
+
+	SECTION("logins that fail in several threads at the same time")
+	{
+		KSession Session(std::make_unique<FailingStore>(), TestConfig());
+		REQUIRE_FALSE ( Session.HasError() );
+		Session.SetAuthenticator(TestAuthenticator);
+
+		std::atomic<int> iTokens { 0 };
+		std::vector<std::thread> Threads;
+
+		for (int i = 0; i < 8; ++i)
+		{
+			Threads.emplace_back([&Session, &iTokens]()
+			{
+				for (int iRound = 0; iRound < 200; ++iRound)
+				{
+					if (!Session.Login("alice", "wonder").empty())
+					{
+						++iTokens;
+					}
+
+					if (!Session.CreateTrustedSession("bob").empty())
+					{
+						++iTokens;
+					}
+				}
+			});
+		}
+
+		for (auto& Thread : Threads)
+		{
+			Thread.join();
+		}
+
+		CHECK ( iTokens == 0 );
+		CHECK ( Session.Count() == 0 );
+		CHECK_FALSE ( Session.HasError() );
 	}
 
 	SECTION("Login + Validate + Logout")

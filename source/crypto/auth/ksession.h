@@ -84,6 +84,10 @@ class KSQL;
 /// Thread safety: all public methods are thread-safe. The Store
 /// implementations provide their own mutex protection.
 ///
+/// Errors: HasError() and GetLastError() tell whether the store could be set
+/// up. They are set by the constructor only and do not change afterwards. A
+/// login that fails returns an empty token and writes its reason to the log.
+///
 /// Typical usage (ktunnel-style admin UI):
 ///
 /// @code

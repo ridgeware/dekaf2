@@ -258,12 +258,24 @@ private:
 		bool IsValid() const { return !sState.empty() && !sVerifier.empty(); }
 	};
 
+	/// The endpoints of the provider, from its discovery document. An object is not
+	/// changed after it was built: the threads share it, and a new discovery puts
+	/// another object in its place.
+	struct Endpoints
+	{
+		KString   sToken;
+		KString   sAuth;
+		KString   sEndSession;
+		KUnixTime Expiry;       ///< when the endpoints have to be loaded again
+	};
+
 	DEKAF2_PRIVATE KString    GenerateVerifier   ();
 	DEKAF2_PRIVATE KString    ComputeChallenge   (KStringView sVerifier);
 	DEKAF2_PRIVATE KString    GenerateRandom     (std::size_t iBytes = 16);
 	/// Load the endpoints of the provider, unless they are known and not expired.
-	/// Returns false without a request if the provider did not answer a moment ago.
-	DEKAF2_PRIVATE bool       EnsureDiscovery    ();
+	/// Returns null if they could not be loaded, without a request if the provider
+	/// did not answer a moment ago.
+	DEKAF2_PRIVATE std::shared_ptr<const Endpoints> EnsureDiscovery ();
 	/// POST to the token endpoint. Returns the token response, or an empty KJSON.
 	/// @param pbRejected set to true if the provider answered and refused the
 	/// request (an OAuth error like invalid_grant), to false if it gave no usable
@@ -319,10 +331,9 @@ private:
 	KUnorderedMap<KString, std::shared_future<void>>
 	                          m_Renewals;              ///< session tokens whose access token is being renewed
 	KCircuitBreaker           m_Breaker { MakeBreakerOptions(m_Config) }; ///< refuses the calls to a provider that did not answer a moment ago
-	KString                   m_sTokenEndpoint;
-	KString                   m_sAuthEndpoint;
-	KString                   m_sEndSessionEndpoint;
-	KUnixTime                 m_DiscoveryExpiry {};   ///< when the cached discovery/endpoints expire
+	std::mutex                m_EndpointsMutex;        ///< guards m_pEndpoints
+	std::shared_ptr<const Endpoints>
+	                          m_pEndpoints;            ///< the endpoints of the provider, null before the first discovery
 
 }; // KOpenIDClient
 

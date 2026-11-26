@@ -968,6 +968,52 @@ TEST_CASE("KOpenIDClient")
 		CHECK ( Mock.iRefreshes == 1 );
 	}
 
+	SECTION("concurrent requests while the endpoints of the provider are loaded")
+	{
+		// endpoints that expire at once: every request loads them again, while the
+		// other requests use them
+		KOpenIDClient::Config cfg10 = cfg;
+		cfg10.DiscoveryRefresh    = KDuration::zero();
+		cfg10.sSessionCookieName  = "session10";
+
+		KString sDB10 = kGenerateTempPath(".sqlite");
+		KOpenIDClient OIDC10(cfg10, sDB10);
+		KRESTRoutes AppRoutes10 = BuildAppRoutes(OIDC10);
+
+		std::vector<std::vector<KString>> Responses(8);
+		std::vector<std::thread> Threads;
+
+		for (std::size_t i = 0; i < Responses.size(); ++i)
+		{
+			Threads.emplace_back([&, i]()
+			{
+				for (int iRound = 0; iRound < 4; ++iRound)
+				{
+					Responses[i].push_back(Drive(AppRoutes10, "GET", "/auth/login",  ""));
+					Responses[i].push_back(Drive(AppRoutes10, "GET", "/auth/logout", ""));
+				}
+			});
+		}
+
+		for (auto& Thread : Threads)
+		{
+			Thread.join();
+		}
+
+		for (const auto& ThreadResponses : Responses)
+		{
+			for (const auto& sResponse : ThreadResponses)
+			{
+				// the login URL, or the redirect of the logout to the provider
+				bool bLogin  = ResponseBody(sResponse).starts_with(kFormat("{}/authorize?", Mock.sBase));
+				bool bLogout = sResponse.contains(kFormat("{}/logout?client_id=test-client&", Mock.sBase));
+				CHECK ( (bLogin || bLogout) );
+			}
+		}
+
+		kRemoveFile(sDB10);
+	}
+
 	SECTION("callback is rejected on id_token nonce mismatch")
 	{
 		CookieJar Cookies;

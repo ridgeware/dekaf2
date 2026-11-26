@@ -167,12 +167,16 @@ KString KOpenIDClient::GenerateRandom(std::size_t iBytes)
 } // GenerateRandom
 
 //-----------------------------------------------------------------------------
-bool KOpenIDClient::EnsureDiscovery()
+std::shared_ptr<const KOpenIDClient::Endpoints> KOpenIDClient::EnsureDiscovery()
 //-----------------------------------------------------------------------------
 {
-	if (!m_sTokenEndpoint.empty() && KUnixTime::now() < m_DiscoveryExpiry)
 	{
-		return true;
+		std::lock_guard<std::mutex> Lock(m_EndpointsMutex);
+
+		if (m_pEndpoints && KUnixTime::now() < m_pEndpoints->Expiry)
+		{
+			return m_pEndpoints;
+		}
 	}
 
 	// the provider did not answer a moment ago: do not make every request wait
@@ -182,7 +186,7 @@ bool KOpenIDClient::EnsureDiscovery()
 	if (!Call)
 	{
 		kDebug(2, "the provider did not answer a moment ago, no discovery request");
-		return false;
+		return {};
 	}
 
 	KString sDiscoveryURL = m_Config.sAuthority;
@@ -201,7 +205,7 @@ bool KOpenIDClient::EnsureDiscovery()
 	{
 		kDebug(1, "failed to load OIDC discovery from {}", sDiscoveryURL);
 		Call.Failure();
-		return false;
+		return {};
 	}
 
 	KJSON jMeta = kjson::Parse(sResponse);
@@ -209,23 +213,31 @@ bool KOpenIDClient::EnsureDiscovery()
 	{
 		kDebug(1, "failed to parse OIDC discovery from {}", sDiscoveryURL);
 		Call.Failure();
-		return false;
+		return {};
 	}
 
-	m_sTokenEndpoint      = kjson::GetStringRef(jMeta, "token_endpoint");
-	m_sAuthEndpoint       = kjson::GetStringRef(jMeta, "authorization_endpoint");
-	m_sEndSessionEndpoint = kjson::GetStringRef(jMeta, "end_session_endpoint");
+	// built aside, and visible to the other threads only as a whole
+	auto pEndpoints = std::make_shared<Endpoints>();
 
-	if (m_sTokenEndpoint.empty() || m_sAuthEndpoint.empty())
+	pEndpoints->sToken      = kjson::GetStringRef(jMeta, "token_endpoint");
+	pEndpoints->sAuth       = kjson::GetStringRef(jMeta, "authorization_endpoint");
+	pEndpoints->sEndSession = kjson::GetStringRef(jMeta, "end_session_endpoint");
+
+	if (pEndpoints->sToken.empty() || pEndpoints->sAuth.empty())
 	{
 		kDebug(1, "missing required endpoints in OIDC discovery document");
 		Call.Failure();
-		return false;
+		return {};
 	}
 
-	m_DiscoveryExpiry = KUnixTime::now() + m_Config.DiscoveryRefresh;
+	pEndpoints->Expiry = KUnixTime::now() + m_Config.DiscoveryRefresh;
 	Call.Success();
-	return true;
+
+	std::lock_guard<std::mutex> Lock(m_EndpointsMutex);
+
+	m_pEndpoints = std::move(pEndpoints);
+
+	return m_pEndpoints;
 
 } // EnsureDiscovery
 
@@ -238,7 +250,9 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected, bool bAlways)
 	// provider
 	if (pbRejected) *pbRejected = false;
 
-	if (!EnsureDiscovery())
+	auto pEndpoints = EnsureDiscovery();
+
+	if (!pEndpoints)
 	{
 		return {};
 	}
@@ -275,7 +289,7 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected, bool bAlways)
 	}
 
 	KWebClient Client;
-	auto sResponse = Client.HttpRequest(m_sTokenEndpoint, KHTTPMethod::POST, sBody,
+	auto sResponse = Client.HttpRequest(pEndpoints->sToken, KHTTPMethod::POST, sBody,
 	                                    KMIME(KMIME::WWW_FORM_URLENCODED)).TrimLeft();
 
 	if (sResponse.empty())
@@ -632,7 +646,9 @@ bool KOpenIDClient::IsLocalReturnTarget(KStringView sReturnTo)
 KURL KOpenIDClient::BuildLoginURL(KRESTServer& HTTP, KStringView sReturnTo)
 //-----------------------------------------------------------------------------
 {
-	if (!EnsureDiscovery())
+	auto pEndpoints = EnsureDiscovery();
+
+	if (!pEndpoints)
 	{
 		return {}; // empty KURL signals failure
 	}
@@ -659,7 +675,7 @@ KURL KOpenIDClient::BuildLoginURL(KRESTServer& HTTP, KStringView sReturnTo)
 
 	// assemble the authorization URL via KURL, so every query value is
 	// URL-encoded uniformly and the separators are handled for us
-	KURL URL(m_sAuthEndpoint);
+	KURL URL(pEndpoints->sAuth);
 	URL.Query->Set("response_type",         "code");
 	URL.Query->Set("client_id",             m_Config.sClientID);      // config members: copy
 	URL.Query->Set("scope",                 m_Config.sScope);
@@ -1000,7 +1016,9 @@ void KOpenIDClient::Logout(KRESTServer& HTTP)
 	}
 	ExpireSessionCookie(HTTP);
 
-	if (!EnsureDiscovery() || m_sEndSessionEndpoint.empty())
+	auto pEndpoints = EnsureDiscovery();
+
+	if (!pEndpoints || pEndpoints->sEndSession.empty())
 	{
 		Redirect(HTTP, m_Config.sPostLogoutURI.empty() ? "/" : m_Config.sPostLogoutURI);
 		return;
@@ -1012,7 +1030,7 @@ void KOpenIDClient::Logout(KRESTServer& HTTP)
 	// authorization ran out) the session is gone, and the user must still be able
 	// to sign out. So the client_id goes along always: without either, the provider
 	// cannot tell whose post_logout_redirect_uri this is, and has to refuse it.
-	KURL URL(m_sEndSessionEndpoint);
+	KURL URL(pEndpoints->sEndSession);
 	URL.Query->Set("client_id",                m_Config.sClientID);
 	URL.Query->Set("post_logout_redirect_uri", m_Config.sPostLogoutURI);
 	if (!sIDToken.empty())

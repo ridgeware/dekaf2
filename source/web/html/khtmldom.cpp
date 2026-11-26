@@ -58,7 +58,7 @@ DEKAF2_NAMESPACE_BEGIN
 namespace {
 
 // quote-required chars — matches the heap-DOM era KHTMLAttribute::s_NeedsQuotes.
-constexpr KStringView s_PodNeedsQuoteChars { " \f\v\t\r\n\b\"'=<>`" };
+constexpr KStringView s_PodNeedsQuoteChars { " \f\v\t\r\n\"'=<>`" };
 
 //-----------------------------------------------------------------------------
 template <typename Output>

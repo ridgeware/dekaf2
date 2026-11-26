@@ -861,7 +861,7 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 
 } // Parse
 
-KFindSetOfChars KHTMLAttribute::s_NeedsQuotes(" \f\v\t\r\n\b\"'=<>`");
+KFindSetOfChars KHTMLAttribute::s_NeedsQuotes(" \f\v\t\r\n\"'=<>`");
 
 //-----------------------------------------------------------------------------
 void KHTMLAttribute::Serialize(KStringRef& sOut) const

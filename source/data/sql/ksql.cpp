@@ -2786,6 +2786,9 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError, KDuration Wait,
 					break;
 
 				case CR_SERVER_LOST:
+				// on a TLS connection, MariaDB Connector/C 3.3 reports a connection that the
+				// server closed as "TLS/SSL error: unexpected eof while reading"
+				case CR_SSL_CONNECTION_ERROR:
 					bDisplayWarning = true;
 					bConnectionLost = true;
 					break;
@@ -2795,6 +2798,7 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError, KDuration Wait,
 					break;
 
 				case 2013:
+				case 2026:
 					bDisplayWarning = true;
 					bConnectionLost = true;
 					break;

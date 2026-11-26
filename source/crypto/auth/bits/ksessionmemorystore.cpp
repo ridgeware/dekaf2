@@ -57,13 +57,13 @@ bool KSessionMemoryStore::Initialize()
 bool KSessionMemoryStore::Create(const KSession::Record& Rec)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	if (Rec.sToken.empty())
 	{
 		m_sError = "empty token";
 		return false;
 	}
-
-	std::lock_guard<std::mutex> Lock(m_Mutex);
 
 	auto result = m_Sessions.emplace(Rec.sToken, Rec);
 
@@ -243,5 +243,15 @@ std::size_t KSessionMemoryStore::Count() const
 	return m_Sessions.size();
 
 } // Count
+
+//-----------------------------------------------------------------------------
+KString KSessionMemoryStore::GetLastError() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	return m_sError;
+
+} // GetLastError
 
 DEKAF2_NAMESPACE_END

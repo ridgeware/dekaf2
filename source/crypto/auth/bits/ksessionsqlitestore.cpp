@@ -67,6 +67,8 @@ KSessionSQLiteStore::KSessionSQLiteStore(KString sDatabase, KString sTableName)
 bool KSessionSQLiteStore::Initialize()
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 
 	if (!db.IsOpen())
@@ -127,6 +129,8 @@ bool KSessionSQLiteStore::Initialize()
 bool KSessionSQLiteStore::Create(const KSession::Record& Rec)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	if (Rec.sToken.empty())
 	{
 		m_sError = "empty token";
@@ -163,6 +167,8 @@ bool KSessionSQLiteStore::Create(const KSession::Record& Rec)
 bool KSessionSQLiteStore::Lookup(KStringView sToken, KSession::Record* pOut)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 
 	if (!db.IsOpen())
@@ -201,6 +207,8 @@ bool KSessionSQLiteStore::Lookup(KStringView sToken, KSession::Record* pOut)
 bool KSessionSQLiteStore::Touch(KStringView sToken, KUnixTime tLastSeen)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
@@ -227,6 +235,8 @@ bool KSessionSQLiteStore::Touch(KStringView sToken, KUnixTime tLastSeen)
 bool KSessionSQLiteStore::UpdateExtra(KStringView sToken, KStringView sExtra)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
@@ -253,6 +263,8 @@ bool KSessionSQLiteStore::UpdateExtra(KStringView sToken, KStringView sExtra)
 bool KSessionSQLiteStore::Erase(KStringView sToken)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
@@ -279,6 +291,8 @@ bool KSessionSQLiteStore::Erase(KStringView sToken)
 std::size_t KSessionSQLiteStore::EraseAllFor(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
@@ -305,6 +319,8 @@ std::size_t KSessionSQLiteStore::EraseAllFor(KStringView sUsername)
 std::size_t KSessionSQLiteStore::ListFor(KStringView sUsername, std::vector<KSession::Record>& Out)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 
 	if (!db.IsOpen())
@@ -343,6 +359,8 @@ std::size_t KSessionSQLiteStore::PurgeExpired(KUnixTime tOldestLastSeen,
                                               KUnixTime tOldestCreated)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	// A cutoff at epoch (to_time_t() == 0) means the corresponding timeout
 	// is disabled in the KSession config; skip that predicate.
 	const bool bCheckIdle = tOldestLastSeen.to_time_t() > 0;
@@ -395,6 +413,8 @@ std::size_t KSessionSQLiteStore::PurgeExpired(KUnixTime tOldestLastSeen,
 std::size_t KSessionSQLiteStore::Count() const
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 
 	if (!db.IsOpen())
@@ -406,6 +426,16 @@ std::size_t KSessionSQLiteStore::Count() const
 	return static_cast<std::size_t>(db.SingleIntQuery(kFormat("select count(*) from {}", m_sTableName)));
 
 } // Count
+
+//-----------------------------------------------------------------------------
+KString KSessionSQLiteStore::GetLastError() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	return m_sError;
+
+} // GetLastError
 
 // --------------------------------------------------------------------------
 // KSession convenience constructors that wrap a KSessionSQLiteStore.

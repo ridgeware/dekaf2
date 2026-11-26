@@ -1,10 +1,12 @@
 #include "catch.hpp"
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
+#include <dekaf2/crypto/auth/bits/ksessionsqlitestore.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/io/readwrite/kreader.h>
+#include <atomic>
 #include <thread>
 #include <chrono>
 #include <memory>
@@ -247,6 +249,57 @@ TEST_CASE("KSession")
 
 		CHECK ( Second.LogoutByID(List.front().sID) );
 		CHECK_FALSE ( Session.Validate(sToken) );
+	}
+
+	SECTION("the SQLite store is used by several threads")
+	{
+		KTempDir Tmp;
+		KSessionSQLiteStore Store(kFormat("{}/sessions.sqlite", Tmp.Name()));
+		REQUIRE ( Store.Initialize() );
+
+		KSession::Record Rec;
+		Rec.sToken    = "id-1";
+		Rec.sUsername = "alice";
+		REQUIRE ( Store.Create(Rec) );
+
+		// what a request does with its session: read it, and note that it was seen
+		std::atomic<int> iFailed { 0 };
+		std::vector<std::thread> Threads;
+
+		for (int i = 0; i < 8; ++i)
+		{
+			Threads.emplace_back([&Store, &iFailed]()
+			{
+				for (int iRound = 0; iRound < 25; ++iRound)
+				{
+					KSession::Record Out;
+
+					if (!Store.Lookup("id-1", &Out) || Out.sUsername != "alice")
+					{
+						++iFailed;
+					}
+
+					if (!Store.Touch("id-1", KUnixTime::now()))
+					{
+						++iFailed;
+					}
+
+					if (!Store.GetLastError().empty())
+					{
+						++iFailed;
+					}
+				}
+			});
+		}
+
+		for (auto& Thread : Threads)
+		{
+			Thread.join();
+		}
+
+		CHECK ( iFailed == 0 );
+		CHECK ( Store.GetLastError() == "" );
+		CHECK ( Store.Count() == 1 );
 	}
 #endif
 

@@ -46,6 +46,7 @@
 /// KSQLite-based storage backend for KSession.
 
 #include <dekaf2/crypto/auth/ksession.h>
+#include <mutex>
 
 #if DEKAF2_HAS_SQLITE3
 
@@ -55,6 +56,9 @@ DEKAF2_NAMESPACE_BEGIN
 /// SQLite storage backend for KSession. Persists sessions in a single
 /// table (default name "KSESSION_SESSIONS") that is created on first use
 /// if it does not exist.
+///
+/// Safe for concurrent use: every call opens its own connection, and the calls
+/// of one store run one after the other.
 class DEKAF2_PUBLIC KSessionSQLiteStore : public KSession::Store
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -80,15 +84,16 @@ public:
 	std::size_t       ListFor      (KStringView sUsername, std::vector<KSession::Record>& Out) override;
 	std::size_t       PurgeExpired (KUnixTime tOldestLastSeen, KUnixTime tOldestCreated) override;
 	std::size_t       Count        () const override;
-	KString           GetLastError () const override { return m_sError; }
+	KString           GetLastError () const override;
 
 //------
 private:
 //------
 
-	KString         m_sDatabase;
-	KString         m_sTableName;
-	mutable KString m_sError;
+	KString            m_sDatabase;
+	KString            m_sTableName;
+	mutable std::mutex m_Mutex;   ///< held by every call: guards m_sError, and keeps the connections of this store from overlapping
+	mutable KString    m_sError;
 
 }; // KSessionSQLiteStore
 

@@ -76,7 +76,7 @@ public:
 	std::size_t       ListFor      (KStringView sUsername, std::vector<KSession::Record>& Out) override;
 	std::size_t       PurgeExpired (KUnixTime tOldestLastSeen, KUnixTime tOldestCreated) override;
 	std::size_t       Count        () const override;
-	KString           GetLastError () const override { return m_sError; }
+	KString           GetLastError () const override;
 
 //------
 private:

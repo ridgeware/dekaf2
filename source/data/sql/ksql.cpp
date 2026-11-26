@@ -2082,13 +2082,84 @@ bool KSQL::IsReadOnlyViolation (QueryType QueryType)
 } // IsReadOnlyViolation
 
 //-----------------------------------------------------------------------------
+/// removes and returns the leading whitespace-delimited word of sQuery, advancing sQuery
+/// past it. Splits on ANY whitespace: splitting on ' ' alone misread a statement whose
+/// first newline came before its first space, e.g. "select\n\tcol from T", whose leading
+/// "word" was then "select\n" and matched no keyword at all.
+static KStringView PopKeyword(KStringView& sQuery)
+//-----------------------------------------------------------------------------
+{
+	sQuery.TrimLeft(detail::kASCIISpacesSet);
+
+	auto iEnd = sQuery.find_first_of(detail::kASCIISpacesSet);
+
+	auto sWord = sQuery.substr(0, iEnd);
+	sQuery.remove_prefix((iEnd == KStringView::npos) ? sQuery.size() : iEnd);
+
+	return sWord;
+
+} // PopKeyword
+
+//-----------------------------------------------------------------------------
+/// steps over MariaDB's per-statement options prefix, returning the statement they apply to.
+///
+///     SET STATEMENT max_statement_time=20 FOR SELECT ...
+///
+/// The type of that is the type of the SELECT. Reading only the first word made it an
+/// Action, and that cost twice over: ExecQuery refused a perfectly good query with "does not
+/// start with keyword 'select'", and -- the worse half -- IsReadOnlyViolation PERMITS an
+/// Action, so "SET STATEMENT max_statement_time=1 FOR UPDATE ..." ran happily on a connection
+/// opened F_ReadOnlyMode. Classifying by the statement after FOR closes both.
+///
+/// A plain SET (SET autocommit=1) is untouched and stays an Action. Anything that is not a
+/// well-formed SET STATEMENT ... FOR is returned unchanged, so a malformed one is still
+/// judged on its first word rather than silently treated as something else.
+static KStringView SkipStatementOptions(KStringView sQuery)
+//-----------------------------------------------------------------------------
+{
+	sQuery.TrimLeft(detail::kASCIISpacesSet);
+
+	auto sRest = sQuery;
+
+	if (PopKeyword(sRest).CaseHash() != "set"_casehash)
+	{
+		return sQuery;
+	}
+
+	if (PopKeyword(sRest).CaseHash() != "statement"_casehash)
+	{
+		return sQuery;   // a plain SET, which is an Action as it always was
+	}
+
+	// walk the option list to the FOR keyword. Whole words only: an option named for_xyz
+	// must not be mistaken for the separator.
+	for (;;)
+	{
+		auto sWord = PopKeyword(sRest);
+
+		if (sWord.empty())
+		{
+			return sQuery;   // ran off the end: no FOR, so this is not a statement prefix
+		}
+
+		if (sWord.CaseHash() == "for"_casehash)
+		{
+			sRest.TrimLeft(detail::kASCIISpacesSet);
+			return sRest;
+		}
+	}
+
+} // SkipStatementOptions
+
+//-----------------------------------------------------------------------------
 KSQL::QueryType KSQL::GetQueryType(KStringView sQuery, bool bAllowAny)
 //-----------------------------------------------------------------------------
 {
-	sQuery.TrimLeft();
-	sQuery.erase(sQuery.find(' '));
+	sQuery = SkipStatementOptions(sQuery);
 
-	switch (sQuery.CaseHash())
+	auto sKeyword = PopKeyword(sQuery);
+
+	switch (sKeyword.CaseHash())
 	{
 		case "select"_casehash:
 		case "table"_casehash:

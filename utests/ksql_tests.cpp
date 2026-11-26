@@ -324,6 +324,39 @@ TEST_CASE("KSQL")
 		CHECK ( KSQL::IsSelect("selec"_ksv  ) == false );
 		CHECK ( KSQL::IsSelect("      "_ksv ) == false );
 		CHECK ( KSQL::IsSelect(",    "_ksv  ) == false );
+
+		// a statement whose first newline comes before its first space: splitting on ' '
+		// alone made the leading word "select\n" and matched no keyword at all
+		CHECK ( KSQL::IsSelect("select\n\tcol from T"_ksv) == true );
+	}
+
+	SECTION("SET STATEMENT ... FOR")
+	{
+		// MariaDB's per-statement options. The type of the whole thing is the type of what
+		// follows FOR, so these are SELECTs and ExecQuery must accept them.
+		CHECK ( KSQL::IsSelect("set statement max_statement_time=20 for select * from T"_ksv) == true );
+		CHECK ( KSQL::IsSelect("SET STATEMENT max_statement_time=20 FOR SELECT 1"_ksv       ) == true );
+		CHECK ( KSQL::IsSelect("set statement max_statement_time=20 for\nselect 1"_ksv      ) == true );
+		CHECK ( KSQL::IsSelect("  set  statement  max_statement_time=5  for  select 1"_ksv  ) == true );
+		CHECK ( KSQL::IsSelect("set statement max_statement_time=1, sql_select_limit=10 for select 1"_ksv) == true );
+
+		// and the type survives, which is what keeps F_ReadOnlyMode honest: this used to
+		// classify as Action, and an Action is PERMITTED on a read-only connection
+		CHECK ( KSQL::GetQueryType("set statement max_statement_time=1 for update T set a=1"_ksv)
+		        == KSQL::QueryType::Update );
+		CHECK ( KSQL::GetQueryType("set statement max_statement_time=1 for delete from T"_ksv)
+		        == KSQL::QueryType::Delete );
+		CHECK ( KSQL::GetQueryType("set statement max_statement_time=1 for insert into T values(1)"_ksv)
+		        == KSQL::QueryType::Insert );
+
+		// a plain SET is still an Action, and a malformed prefix is still judged on its
+		// first word rather than quietly becoming something else
+		CHECK ( KSQL::GetQueryType("set autocommit=1"_ksv       ) == KSQL::QueryType::Action );
+		CHECK ( KSQL::GetQueryType("set statement max_statement_time=20"_ksv) == KSQL::QueryType::Action );
+		CHECK ( KSQL::IsSelect   ("set statement max_statement_time=20"_ksv) == false );
+
+		// an option whose NAME contains "for" is not the separator
+		CHECK ( KSQL::IsSelect("set statement for_bogus=1 for select 1"_ksv) == true );
 	}
 
 	SECTION("DoTranslations")

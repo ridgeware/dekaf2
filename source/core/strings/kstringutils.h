@@ -822,16 +822,25 @@ DEKAF2_PUBLIC
 String kGetWord(String& sInput)
 //-----------------------------------------------------------------------------
 {
-	typename String::size_type iPos = 0;
+	// iterators like the version for strings, which needs them
+	auto it    = sInput.begin();
+	auto itEnd = sInput.end();
+
 	// loop over all whitespace
-	while (iPos < sInput.size() && KASCII::kIsSpace(sInput[iPos])) ++iPos;
-	auto iStart = iPos;
+	while (it != itEnd && KASCII::kIsSpace(*it)) ++it;
+
+	auto itStart = it;
+
 	// collect all chars until next whitespace
-	while (iPos < sInput.size() && !KASCII::kIsSpace(sInput[iPos])) ++iPos;
+	while (it != itEnd && !KASCII::kIsSpace(*it)) ++it;
+
+	auto iStart = static_cast<typename String::size_type>(itStart - sInput.begin());
+	auto iEnd   = static_cast<typename String::size_type>(it      - sInput.begin());
+
 	// copy all leading non-whitespace
-	String sWord(sInput.data() + iStart, iPos - iStart);
+	String sWord(sInput.data() + iStart, iEnd - iStart);
 	// and erase all leading chars, whitespace or not
-	sInput.remove_prefix(iPos);
+	sInput.remove_prefix(iEnd);
 
 	return sWord;
 
@@ -848,16 +857,26 @@ DEKAF2_PUBLIC
 String kGetWord(String& sInput)
 //-----------------------------------------------------------------------------
 {
-	typename String::size_type iPos = 0;
+	// iterators instead of the bounds checked operator[]: on a non-const string the
+	// check of operator[] makes the compiler reload size and data for every char
+	auto it    = sInput.begin();
+	auto itEnd = sInput.end();
+
 	// loop over all whitespace
-	while (iPos < sInput.size() && KASCII::kIsSpace(sInput[iPos])) ++iPos;
-	auto iStart = iPos;
+	while (it != itEnd && KASCII::kIsSpace(*it)) ++it;
+
+	auto itStart = it;
+
 	// collect all chars until next whitespace
-	while (iPos < sInput.size() && !KASCII::kIsSpace(sInput[iPos])) ++iPos;
+	while (it != itEnd && !KASCII::kIsSpace(*it)) ++it;
+
+	auto iStart = static_cast<typename String::size_type>(itStart - sInput.begin());
+	auto iEnd   = static_cast<typename String::size_type>(it      - sInput.begin());
+
 	// copy all leading non-whitespace
-	String sWord(sInput.data() + iStart, iPos - iStart);
+	String sWord(sInput.data() + iStart, iEnd - iStart);
 	// and erase all leading chars, whitespace or not
-	sInput.erase(0, iPos);
+	sInput.erase(0, iEnd);
 
 	return sWord;
 

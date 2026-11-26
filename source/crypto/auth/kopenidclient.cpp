@@ -77,6 +77,19 @@ KSession::Config KOpenIDClient::MakeSessionConfig() const
 
 } // MakeSessionConfig
 
+//-----------------------------------------------------------------------------
+KCircuitBreaker::Options KOpenIDClient::MakeBreakerOptions(const Config& config)
+//-----------------------------------------------------------------------------
+{
+	// a fixed and exact time
+	KBackoff::Options OpenTime(config.RenewalRetry, config.RenewalRetry);
+	OpenTime.dFactor = 1.0;
+	OpenTime.dJitter = 0.0;
+
+	return KCircuitBreaker::Options(1, OpenTime);
+
+} // MakeBreakerOptions
+
 // All standalone constructors below own a private KSession and set no
 // authenticator: OIDC sessions are created by CreateSession() via
 // KSession::CreateTrustedSession(), which does not consult one (the identity is
@@ -162,6 +175,16 @@ bool KOpenIDClient::EnsureDiscovery()
 		return true;
 	}
 
+	// the provider did not answer a moment ago: do not make every request wait
+	// for its timeout again
+	auto Call = m_Breaker.Try();
+
+	if (!Call)
+	{
+		kDebug(2, "the provider did not answer a moment ago, no discovery request");
+		return false;
+	}
+
 	KString sDiscoveryURL = m_Config.sAuthority;
 	// KString::back() returns '\0' on an empty string (no UB) and pop_back() is
 	// a no-op when empty, so no explicit empty() guard is needed here
@@ -177,6 +200,7 @@ bool KOpenIDClient::EnsureDiscovery()
 	if (sResponse.empty())
 	{
 		kDebug(1, "failed to load OIDC discovery from {}", sDiscoveryURL);
+		Call.Failure();
 		return false;
 	}
 
@@ -184,6 +208,7 @@ bool KOpenIDClient::EnsureDiscovery()
 	if (!jMeta.is_object())
 	{
 		kDebug(1, "failed to parse OIDC discovery from {}", sDiscoveryURL);
+		Call.Failure();
 		return false;
 	}
 
@@ -194,16 +219,18 @@ bool KOpenIDClient::EnsureDiscovery()
 	if (m_sTokenEndpoint.empty() || m_sAuthEndpoint.empty())
 	{
 		kDebug(1, "missing required endpoints in OIDC discovery document");
+		Call.Failure();
 		return false;
 	}
 
 	m_DiscoveryExpiry = KUnixTime::now() + m_Config.DiscoveryRefresh;
+	Call.Success();
 	return true;
 
 } // EnsureDiscovery
 
 //-----------------------------------------------------------------------------
-KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected)
+KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected, bool bAlways)
 //-----------------------------------------------------------------------------
 {
 	// until the provider has refused the request itself, a failure is one that
@@ -213,6 +240,18 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected)
 
 	if (!EnsureDiscovery())
 	{
+		return {};
+	}
+
+	// The provider did not answer a moment ago: do not make every request of
+	// every session wait for its timeout again. Asked after the discovery, which
+	// asks for its own request: one call after the other, so that the probe of a
+	// provider that was down can be either of them.
+	auto Call = m_Breaker.Try();
+
+	if (!Call && !bAlways)
+	{
+		kDebug(2, "the provider did not answer a moment ago, no token request");
 		return {};
 	}
 
@@ -242,6 +281,7 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected)
 	if (sResponse.empty())
 	{
 		kDebug(1, "token endpoint returned no data");
+		Call.Failure();
 		return {};
 	}
 
@@ -250,6 +290,7 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected)
 		// the provider, or a gateway in front of it, is in trouble - whatever the
 		// body says, it is no answer to this request
 		kDebug(1, "token endpoint returned status {}", Client.GetStatusCode());
+		Call.Failure();
 		return {};
 	}
 
@@ -257,6 +298,7 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected)
 	if (!jResponse.is_object())
 	{
 		kDebug(1, "token response did not parse: {}", sResponse.substr(0, 200));
+		Call.Failure();
 		return {};
 	}
 
@@ -269,10 +311,21 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected)
 		// RFC 6749 5.2: the errors of the token endpoint are refusals (invalid_grant,
 		// invalid_client, ..), sent with 400 or 401. A 5xx, or one of the two errors
 		// that name a failure of the server, is not about this request
+		bool bRejected = sError != "server_error"
+		              && sError != "temporarily_unavailable";
+
+		if (bRejected)
+		{
+			Call.Success();
+		}
+		else
+		{
+			Call.Failure();
+		}
+
 		if (pbRejected)
 		{
-			*pbRejected = sError != "server_error"
-			           && sError != "temporarily_unavailable";
+			*pbRejected = bRejected;
 		}
 		return {};
 	}
@@ -281,9 +334,12 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams, bool* pbRejected)
 	{
 		// refused without an OAuth error object
 		kDebug(1, "token endpoint returned status {}", Client.GetStatusCode());
+		Call.Success();
 		if (pbRejected) *pbRejected = true;
 		return {};
 	}
+
+	Call.Success();
 
 	return jResponse;
 
@@ -654,7 +710,7 @@ void KOpenIDClient::HandleCallback(KRESTServer& HTTP)
 		{ "code"         , sCode                 },
 		{ "redirect_uri" , m_Config.sCallbackURI },
 		{ "code_verifier", Login.sVerifier       }
-	});
+	}, nullptr, true);
 
 	KString   sAccessToken  = kjson::GetStringRef(jTokens, "access_token");
 	KString   sRefreshToken = kjson::GetStringRef(jTokens, "refresh_token");
@@ -839,16 +895,6 @@ bool KOpenIDClient::RenewTokens(KRESTServer& HTTP, KStringView sToken, KSession:
 		return true;
 	}
 
-	{
-		// the provider did not answer a moment ago: do not make every request of
-		// every session wait for its timeout again
-		std::lock_guard<std::mutex> Lock(m_RenewalMutex);
-		if (KUnixTime::now() < m_tRenewalRetry)
-		{
-			return false;
-		}
-	}
-
 	KString sRefreshToken = kjson::GetStringRef(jTokens, "refresh_token");
 
 	// without a refresh_token there is nothing to renew with: sign in again
@@ -869,8 +915,6 @@ bool KOpenIDClient::RenewTokens(KRESTServer& HTTP, KStringView sToken, KSession:
 			// this request stays unauthorized, and a later one tries again. Clearing
 			// the session here would sign the user out for a hiccup.
 			kDebug(1, "access token expired and the provider did not answer the refresh, keeping session for user:{}", Record.sUsername);
-			std::lock_guard<std::mutex> Lock(m_RenewalMutex);
-			m_tRenewalRetry = KUnixTime::now() + m_Config.RenewalRetry;
 			return false;
 		}
 

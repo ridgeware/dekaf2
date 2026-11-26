@@ -129,6 +129,9 @@ struct MockIdP
 	KDuration RefreshDelay;              ///< time the token endpoint takes for a renewal
 	int     iRefreshStatus    { 0 };     ///< answer renewals with this HTTP status instead: 503 as a provider in trouble, 400 with invalid_grant
 	std::atomic<int> iRefreshes { 0 };   ///< count of renewals
+	int     iExchangeStatus   { 0 };     ///< answer code exchanges with this HTTP status instead
+	int     iDiscoveryStatus  { 0 };     ///< answer discovery requests with this HTTP status instead
+	std::atomic<int> iDiscoveries { 0 }; ///< count of discovery requests
 	std::mutex       UsedMutex;          ///< guards UsedRefreshTokens
 	std::set<KString> UsedRefreshTokens; ///< refresh tokens presented so far, with bRotateRefresh
 };
@@ -347,7 +350,19 @@ TEST_CASE("KOpenIDClient")
 
 	KRESTRoutes MockRoutes;
 	MockRoutes.AddRoute({ KHTTPMethod::GET, false, "/.well-known/openid-configuration",
-		[&Discovery](KRESTServer& http) { http.json.tx = Discovery; }});
+		[&Discovery, &Mock](KRESTServer& http)
+	{
+		++Mock.iDiscoveries;
+
+		if (Mock.iDiscoveryStatus)
+		{
+			http.SetStatus(Mock.iDiscoveryStatus);
+			http.json.tx = { { "message", "upstream not available" } };
+			return;
+		}
+
+		http.json.tx = Discovery;
+	}});
 	MockRoutes.AddRoute({ KHTTPMethod::GET, false, "/jwks",
 		[&JWKS](KRESTServer& http) { http.json.tx = JWKS; }});
 	MockRoutes.AddRoute({ KHTTPMethod::POST, false, "/token",
@@ -398,6 +413,12 @@ TEST_CASE("KOpenIDClient")
 			{
 				kSleep(Mock.RefreshDelay);
 			}
+		}
+		else if (Mock.iExchangeStatus)
+		{
+			http.SetStatus(Mock.iExchangeStatus);
+			http.json.tx = { { "message", "upstream not available" } };
+			return;
 		}
 
 		http.json.tx = {
@@ -705,6 +726,115 @@ TEST_CASE("KOpenIDClient")
 
 		Mock.iRefreshStatus = 0;
 		kRemoveFile(sDB4);
+	}
+
+	SECTION("a provider that does not answer the discovery is not asked again at once")
+	{
+		KOpenIDClient::Config cfg6 = cfg;
+		cfg6.RenewalRetry        = chrono::hours(1);
+		cfg6.sSessionCookieName  = "session6";
+
+		KString sDB6 = kGenerateTempPath(".sqlite");
+		KOpenIDClient OIDC6(cfg6, sDB6);
+		KRESTRoutes AppRoutes6 = BuildAppRoutes(OIDC6);
+
+		Mock.iDiscoveryStatus = 503;
+		int iBefore = Mock.iDiscoveries;
+
+		// no login URL without the endpoints of the provider
+		CHECK ( ResponseBody(Drive(AppRoutes6, "GET", "/auth/login", "")).empty() );
+		CHECK ( Mock.iDiscoveries == iBefore + 1 );
+
+		// not every login asks a provider that is down
+		CHECK ( ResponseBody(Drive(AppRoutes6, "GET", "/auth/login", "")).empty() );
+		CHECK ( Mock.iDiscoveries == iBefore + 1 );
+
+		// a logout neither: it ends at the post logout URI of the application
+		KString sLogout = Drive(AppRoutes6, "GET", "/auth/logout", "");
+		CHECK ( sLogout.contains("302") );
+		CHECK_FALSE ( sLogout.contains("client_id=") );
+		CHECK ( Mock.iDiscoveries == iBefore + 1 );
+
+		Mock.iDiscoveryStatus = 0;
+		kRemoveFile(sDB6);
+	}
+
+	SECTION("the discovery is asked again after Config::RenewalRetry")
+	{
+		KOpenIDClient::Config cfg7 = cfg;
+		cfg7.RenewalRetry        = KDuration::zero();
+		cfg7.sSessionCookieName  = "session7";
+
+		KString sDB7 = kGenerateTempPath(".sqlite");
+		KOpenIDClient OIDC7(cfg7, sDB7);
+		KRESTRoutes AppRoutes7 = BuildAppRoutes(OIDC7);
+
+		Mock.iDiscoveryStatus = 503;
+		CHECK ( ResponseBody(Drive(AppRoutes7, "GET", "/auth/login", "")).empty() );
+
+		// the provider is back
+		Mock.iDiscoveryStatus = 0;
+		CHECK_FALSE ( URLParam(ResponseBody(Drive(AppRoutes7, "GET", "/auth/login", "")), "state").empty() );
+
+		kRemoveFile(sDB7);
+	}
+
+	SECTION("a code exchange is sent also after the provider did not answer")
+	{
+		KOpenIDClient::Config cfg8 = cfg;
+		cfg8.ExpiryLeeway        = chrono::hours(2);
+		cfg8.RenewalRetry        = chrono::hours(1);
+		cfg8.sSessionCookieName  = "session8";
+
+		KString sDB8 = kGenerateTempPath(".sqlite");
+		KOpenIDClient OIDC8(cfg8, sDB8);
+		KRESTRoutes AppRoutes8 = BuildAppRoutes(OIDC8);
+
+		CookieJar Cookies;
+		Cookies.Apply(LoginCallback(AppRoutes8, Mock));
+		REQUIRE ( Cookies.Has("session8") );
+
+		// the renewal gets no answer, from now on renewals wait
+		Mock.iRefreshStatus = 503;
+		CHECK ( Drive(AppRoutes8, "GET", "/protected", Cookies.Header()).contains("ANON") );
+		Mock.iRefreshStatus = 0;
+
+		// a browser that comes back from the provider with a code has reached it,
+		// and the code is good only once: this login is not refused
+		CHECK_FALSE ( SetCookieOf(LoginCallback(AppRoutes8, Mock), "session8").empty() );
+
+		kRemoveFile(sDB8);
+	}
+
+	SECTION("a code exchange without an answer makes the renewals wait")
+	{
+		KOpenIDClient::Config cfg9 = cfg;
+		cfg9.ExpiryLeeway        = chrono::hours(2);
+		cfg9.RenewalRetry        = chrono::hours(1);
+		cfg9.sSessionCookieName  = "session9";
+
+		KString sDB9 = kGenerateTempPath(".sqlite");
+		KOpenIDClient OIDC9(cfg9, sDB9);
+		KRESTRoutes AppRoutes9 = BuildAppRoutes(OIDC9);
+
+		CookieJar Cookies;
+		Cookies.Apply(LoginCallback(AppRoutes9, Mock));
+		REQUIRE ( Cookies.Has("session9") );
+
+		// another login fails at the provider
+		Mock.iExchangeStatus = 503;
+		CHECK ( SetCookieOf(LoginCallback(AppRoutes9, Mock), "session9").empty() );
+		Mock.iExchangeStatus = 0;
+
+		// the renewal of the first session does not ask the provider, and keeps the session
+		int iBefore = Mock.iRefreshes;
+		KString sProtected = Drive(AppRoutes9, "GET", "/protected", Cookies.Header());
+		Cookies.Apply(sProtected);
+		CHECK ( sProtected.contains("ANON") );
+		CHECK ( Mock.iRefreshes == iBefore );
+		CHECK ( Cookies.Has("session9") );
+
+		kRemoveFile(sDB9);
 	}
 
 	SECTION("a refused refresh_token ends the session")

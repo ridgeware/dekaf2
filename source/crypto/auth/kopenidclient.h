@@ -55,6 +55,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/time/duration/kcircuitbreaker.h>
 #include <dekaf2/time/clock/ktime.h>      // KUnixTime
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/auth/kopenid.h>   // KOpenIDProviderList, KJWT
@@ -123,7 +124,7 @@ public:
 		KDuration AbsoluteTimeout    { chrono::hours(8)    };
 		KDuration DiscoveryRefresh   { chrono::hours(24)   }; ///< how long discovery + JWKS are cached
 		KDuration ExpiryLeeway       { chrono::seconds(10) }; ///< treat the access token as expired this long before its real expiry
-		KDuration RenewalRetry       { chrono::seconds(10) }; ///< after the provider did not answer a renewal, wait this long before the next try
+		KDuration RenewalRetry       { chrono::seconds(10) }; ///< after the provider did not answer, send it no renewal and no discovery request for this long
 		/// Assumed access-token lifetime when the token response omits "expires_in"
 		/// (RFC 6749 marks it OPTIONAL). Without a fallback a missing value would
 		/// collapse the expiry to "now", forcing a silent refresh — or, with no
@@ -200,7 +201,8 @@ public:
 	/// Build the OIDC authorization URL and set the PKCE/state cookie. Returns
 	/// the URL the browser should be redirected to as a KURL (call Serialize()
 	/// for the string form, e.g. when setting the Location header). Returns an
-	/// empty KURL (empty() == true) on discovery failure.
+	/// empty KURL (empty() == true) on discovery failure, also without a request
+	/// for Config::RenewalRetry after the provider did not answer.
 	/// @param sReturnTo where HandleCallback() sends the browser after the
 	/// login - a path on this server only (see IsLocalReturnTarget()), anything
 	/// else becomes "/". It typically comes from a query parameter, so an
@@ -259,13 +261,17 @@ private:
 	DEKAF2_PRIVATE KString    GenerateVerifier   ();
 	DEKAF2_PRIVATE KString    ComputeChallenge   (KStringView sVerifier);
 	DEKAF2_PRIVATE KString    GenerateRandom     (std::size_t iBytes = 16);
+	/// Load the endpoints of the provider, unless they are known and not expired.
+	/// Returns false without a request if the provider did not answer a moment ago.
 	DEKAF2_PRIVATE bool       EnsureDiscovery    ();
 	/// POST to the token endpoint. Returns the token response, or an empty KJSON.
 	/// @param pbRejected set to true if the provider answered and refused the
 	/// request (an OAuth error like invalid_grant), to false if it gave no usable
 	/// answer at all (not reachable, a gateway error, a server error) - in which
 	/// case the same request may succeed later
-	DEKAF2_PRIVATE KJSON      TokenRequest       (KJSON jParams, bool* pbRejected = nullptr);
+	/// @param bAlways send the request also if the provider did not answer a moment
+	/// ago. Without it such a request is not sent, and counts as not answered.
+	DEKAF2_PRIVATE KJSON      TokenRequest       (KJSON jParams, bool* pbRejected = nullptr, bool bAlways = false);
 	/// absolute access-token expiry from a token response's "expires_in"
 	/// (seconds); falls back to Config::DefaultAccessTTL when it is absent or
 	/// non-positive, so a missing expires_in does not collapse to "expires now".
@@ -299,6 +305,10 @@ private:
 	/// and KSQL constructors live in the ksqlite and ksql2 libraries and call it
 	/// across the shared-library boundary.
 	KSession::Config MakeSessionConfig() const;
+	/// The options of the circuit breaker for the provider: the first call without
+	/// an answer opens it, for Config::RenewalRetry. Not hidden: the SQLite and KSQL
+	/// constructors call it as well.
+	static KCircuitBreaker::Options MakeBreakerOptions(const Config& config);
 
 	Config                    m_Config;
 	std::shared_ptr<KSession> m_pSession;              ///< owned (standalone ctor) or shared (shared ctor)
@@ -308,7 +318,7 @@ private:
 	std::mutex                m_RenewalMutex;          ///< guards m_Renewals
 	KUnorderedMap<KString, std::shared_future<void>>
 	                          m_Renewals;              ///< session tokens whose access token is being renewed
-	KUnixTime                 m_tRenewalRetry;         ///< no renewal before this, after the provider did not answer (guarded by m_RenewalMutex)
+	KCircuitBreaker           m_Breaker { MakeBreakerOptions(m_Config) }; ///< refuses the calls to a provider that did not answer a moment ago
 	KString                   m_sTokenEndpoint;
 	KString                   m_sAuthEndpoint;
 	KString                   m_sEndSessionEndpoint;

@@ -2101,7 +2101,8 @@ static KStringView PopKeyword(KStringView& sQuery)
 } // PopKeyword
 
 //-----------------------------------------------------------------------------
-/// steps over MariaDB's per-statement options prefix, returning the statement they apply to.
+/// steps over MariaDB's per-statement options prefix, returning the case hash of the keyword
+/// of the statement they apply to.
 ///
 ///     SET STATEMENT max_statement_time=20 FOR SELECT ...
 ///
@@ -2112,40 +2113,36 @@ static KStringView PopKeyword(KStringView& sQuery)
 /// opened F_ReadOnlyMode. Classifying by the statement after FOR closes both.
 ///
 /// A plain SET (SET autocommit=1) is untouched and stays an Action. Anything that is not a
-/// well-formed SET STATEMENT ... FOR is returned unchanged, so a malformed one is still
+/// well-formed SET STATEMENT ... FOR keeps the hash of "set", so a malformed one is still
 /// judged on its first word rather than silently treated as something else.
-static KStringView SkipStatementOptions(KStringView sQuery)
+///
+/// @param sRest the query after its first word, which was "set"
+/// @return the case hash of the keyword after FOR, or the one of "set"
+static std::size_t SkipStatementOptions(KStringView sRest)
 //-----------------------------------------------------------------------------
 {
-	sQuery.TrimLeft(detail::kASCIISpacesSet);
+	auto sWord = PopKeyword(sRest);
 
-	auto sRest = sQuery;
-
-	if (PopKeyword(sRest).CaseHash() != "set"_casehash)
+	if (sWord.size() != 9 || sWord.CaseHash() != "statement"_casehash)
 	{
-		return sQuery;
-	}
-
-	if (PopKeyword(sRest).CaseHash() != "statement"_casehash)
-	{
-		return sQuery;   // a plain SET, which is an Action as it always was
+		return "set"_casehash;   // a plain SET, which is an Action as it always was
 	}
 
 	// walk the option list to the FOR keyword. Whole words only: an option named for_xyz
-	// must not be mistaken for the separator.
+	// must not be mistaken for the separator. The size check spares the hash of every
+	// option word.
 	for (;;)
 	{
-		auto sWord = PopKeyword(sRest);
+		sWord = PopKeyword(sRest);
 
 		if (sWord.empty())
 		{
-			return sQuery;   // ran off the end: no FOR, so this is not a statement prefix
+			return "set"_casehash;   // ran off the end: no FOR, so this is not a statement prefix
 		}
 
-		if (sWord.CaseHash() == "for"_casehash)
+		if (sWord.size() == 3 && sWord.CaseHash() == "for"_casehash)
 		{
-			sRest.TrimLeft(detail::kASCIISpacesSet);
-			return sRest;
+			return PopKeyword(sRest).CaseHash();
 		}
 	}
 
@@ -2155,11 +2152,15 @@ static KStringView SkipStatementOptions(KStringView sQuery)
 KSQL::QueryType KSQL::GetQueryType(KStringView sQuery, bool bAllowAny)
 //-----------------------------------------------------------------------------
 {
-	sQuery = SkipStatementOptions(sQuery);
+	// the first word is cut and hashed once: the common case only adds the comparison with "set"
+	auto iKeyword = PopKeyword(sQuery).CaseHash();
 
-	auto sKeyword = PopKeyword(sQuery);
+	if (iKeyword == "set"_casehash)
+	{
+		iKeyword = SkipStatementOptions(sQuery);
+	}
 
-	switch (sKeyword.CaseHash())
+	switch (iKeyword)
 	{
 		case "select"_casehash:
 		case "table"_casehash:

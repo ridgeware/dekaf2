@@ -2,6 +2,8 @@
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
 #include <dekaf2/crypto/auth/bits/ksessionsqlitestore.h>
+#include <dekaf2/crypto/auth/bits/ksessionksqlstore.h>
+#include <dekaf2/data/sql/ksql.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
@@ -300,6 +302,70 @@ TEST_CASE("KSession")
 		CHECK ( iFailed == 0 );
 		CHECK ( Store.GetLastError() == "" );
 		CHECK ( Store.Count() == 1 );
+	}
+
+	SECTION("the KSQL store is used by several threads")
+	{
+		KTempDir Tmp;
+		KSQL DB;
+		DB.SetDBType(KSQL::DBT::SQLITE3);
+		DB.SetDBName(kFormat("{}/sessions.sqlite", Tmp.Name()));
+		REQUIRE ( DB.OpenConnection() );
+
+		KSessionKSQLStore Store(DB);
+		REQUIRE ( Store.Initialize() );
+
+		// one session per thread
+		for (int i = 0; i < 8; ++i)
+		{
+			KSession::Record Rec;
+			Rec.sToken    = kFormat("id-{}", i);
+			Rec.sUsername = kFormat("user-{}", i);
+			REQUIRE ( Store.Create(Rec) );
+		}
+
+		// every thread has to get its own session, never that of another thread
+		std::atomic<int> iFailed { 0 };
+		std::vector<std::thread> Threads;
+
+		for (int i = 0; i < 8; ++i)
+		{
+			Threads.emplace_back([&Store, &iFailed, i]()
+			{
+				auto sToken    = kFormat("id-{}", i);
+				auto sUsername = kFormat("user-{}", i);
+
+				for (int iRound = 0; iRound < 25; ++iRound)
+				{
+					KSession::Record Out;
+
+					if (!Store.Lookup(sToken, &Out) || Out.sToken != sToken || Out.sUsername != sUsername)
+					{
+						++iFailed;
+					}
+
+					if (!Store.Touch(sToken, KUnixTime::now()))
+					{
+						++iFailed;
+					}
+
+					std::vector<KSession::Record> List;
+
+					if (Store.ListFor(sUsername, List) != 1 || List.size() != 1 || List.front().sToken != sToken)
+					{
+						++iFailed;
+					}
+				}
+			});
+		}
+
+		for (auto& Thread : Threads)
+		{
+			Thread.join();
+		}
+
+		CHECK ( iFailed == 0 );
+		CHECK ( Store.Count() == 8 );
 	}
 #endif
 

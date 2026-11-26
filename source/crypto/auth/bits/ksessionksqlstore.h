@@ -47,6 +47,7 @@
 /// PostgreSQL, SQLite3 and other databases through the KSQL abstraction.
 
 #include <dekaf2/crypto/auth/ksession.h>
+#include <mutex>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -54,9 +55,11 @@ class KSQL;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KSQL storage backend for KSession. The caller must keep the referenced
-/// KSQL instance alive for the lifetime of this object. Not safe for
-/// concurrent use across threads with the same KSQL — typically you would
-/// give KSession its own KSQL connection.
+/// KSQL instance alive for the lifetime of this object.
+///
+/// Safe for concurrent use: the calls of one store run one after the other.
+/// This does not cover other users of the same KSQL instance, which holds one
+/// result set at a time - give KSession its own KSQL connection.
 class DEKAF2_PUBLIC KSessionKSQLStore : public KSession::Store
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -86,8 +89,9 @@ public:
 private:
 //------
 
-	KSQL&   m_DB;
-	KString m_sTableName;
+	KSQL&              m_DB;
+	KString            m_sTableName;
+	mutable std::mutex m_Mutex;   ///< held by every call: the connection serves one statement at a time
 
 }; // KSessionKSQLStore
 

@@ -65,6 +65,8 @@ KSessionKSQLStore::KSessionKSQLStore(KSQL& db, KString sTableName)
 bool KSessionKSQLStore::Initialize()
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	// Column widths are chosen for portability across MySQL/MariaDB,
 	// PostgreSQL and SQLite. PostgreSQL does not enforce VARCHAR(n)
 	// length beyond the declaration; SQLite ignores it entirely;
@@ -101,6 +103,8 @@ bool KSessionKSQLStore::Initialize()
 bool KSessionKSQLStore::Create(const KSession::Record& Rec)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	if (Rec.sToken.empty())
 	{
 		return false;
@@ -127,6 +131,8 @@ bool KSessionKSQLStore::Create(const KSession::Record& Rec)
 bool KSessionKSQLStore::Lookup(KStringView sToken, KSession::Record* pOut)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	if (!m_DB.ExecQuery(
 		"select token, username, created_utc, last_seen_utc, client_ip, user_agent, extra "
 		"from {} where token='{}'",
@@ -159,6 +165,8 @@ bool KSessionKSQLStore::Lookup(KStringView sToken, KSession::Record* pOut)
 bool KSessionKSQLStore::Touch(KStringView sToken, KUnixTime tLastSeen)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	return m_DB.ExecSQL(
 		"update {} set last_seen_utc={} where token='{}'",
 		m_sTableName,
@@ -171,6 +179,8 @@ bool KSessionKSQLStore::Touch(KStringView sToken, KUnixTime tLastSeen)
 bool KSessionKSQLStore::UpdateExtra(KStringView sToken, KStringView sExtra)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	// KSQL::FormatSQL automatically escapes all string parameters, so the JSON
 	// payload in sExtra is injection-safe here.
 	return m_DB.ExecSQL(
@@ -185,6 +195,8 @@ bool KSessionKSQLStore::UpdateExtra(KStringView sToken, KStringView sExtra)
 bool KSessionKSQLStore::Erase(KStringView sToken)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	if (!m_DB.ExecSQL("delete from {} where token='{}'", m_sTableName, sToken))
 	{
 		return false;
@@ -198,6 +210,8 @@ bool KSessionKSQLStore::Erase(KStringView sToken)
 std::size_t KSessionKSQLStore::EraseAllFor(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	if (!m_DB.ExecSQL("delete from {} where username='{}'", m_sTableName, sUsername))
 	{
 		return 0;
@@ -211,6 +225,8 @@ std::size_t KSessionKSQLStore::EraseAllFor(KStringView sUsername)
 std::size_t KSessionKSQLStore::ListFor(KStringView sUsername, std::vector<KSession::Record>& Out)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	// KSQL::FormatSQL automatically escapes all string parameters, so the
 	// username is injection-safe interpolated into the '{}' placeholder.
 	if (!m_DB.ExecQuery(
@@ -253,6 +269,8 @@ std::size_t KSessionKSQLStore::PurgeExpired(KUnixTime tOldestLastSeen,
                                             KUnixTime tOldestCreated)
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	const bool bCheckIdle = tOldestLastSeen.to_time_t() > 0;
 	const bool bCheckAbs  = tOldestCreated.to_time_t()  > 0;
 
@@ -299,10 +317,10 @@ std::size_t KSessionKSQLStore::PurgeExpired(KUnixTime tOldestLastSeen,
 std::size_t KSessionKSQLStore::Count() const
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	// KSQL::SingleIntQuery is non-const, but logically Count() is a
-	// read-only observer, so we cast away const here. Callers are
-	// serialized through the same KSQL reference anyway (see note on
-	// thread safety in the header).
+	// read-only observer, so we cast away const here.
 	auto& db = const_cast<KSQL&>(m_DB);
 	auto iVal = db.SingleIntQuery("select count(*) from {}", m_sTableName);
 	return (iVal < 0) ? 0 : static_cast<std::size_t>(iVal);
@@ -313,6 +331,8 @@ std::size_t KSessionKSQLStore::Count() const
 KString KSessionKSQLStore::GetLastError() const
 //-----------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
 	return m_DB.GetLastError();
 
 } // GetLastError

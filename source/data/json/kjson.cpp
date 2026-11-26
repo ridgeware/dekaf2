@@ -578,7 +578,7 @@ KString ToJsonPointer(KStringView sSelector)
 	KString sPointer;
 	sPointer.reserve(sSelector.size());
 
-	static const KFindSetOfChars Trim(" \f\n\r\t\v\b]");
+	static const KFindSetOfChars Trim(" \f\n\r\t\v]");
 	static const KFindSetOfChars Dots(".[");
 
 	for (const auto& sElement : sSelector.Split(Dots, Trim))

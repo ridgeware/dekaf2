@@ -375,6 +375,30 @@ TEST_CASE("KRegex cache")
 	}
 }
 
+TEST_CASE("KRegex alternation")
+{
+	SECTION("a literal and its case insensitive variant as alternatives")
+	{
+		// single character alternatives are merged into one character class
+		CHECK ( KRegex::Matches("0a", "^(?:0a|0[aA])$") == true  );
+		CHECK ( KRegex::Matches("0A", "^(?:0a|0[aA])$") == true  );
+		CHECK ( KRegex::Matches("0a", "^(?:0A|0[aA])$") == true  );
+		CHECK ( KRegex::Matches("0A", "^(?:0A|0[aA])$") == true  );
+		CHECK ( KRegex::Matches("0a", "^(?:0[aA]|0A)$") == true  );
+		CHECK ( KRegex::Matches("0A", "^(?:0[aA]|0a)$") == true  );
+		CHECK ( KRegex::Matches("0b", "^(?:0a|0[aA])$") == false );
+
+		CHECK ( KRegex::Matches("yes", "^(?:y|(?i:y))es$") == true  );
+		CHECK ( KRegex::Matches("Yes", "^(?:y|(?i:y))es$") == true  );
+		CHECK ( KRegex::Matches("nes", "^(?:y|(?i:y))es$") == false );
+
+		CHECK ( KRegex::Matches("key=a", "key=(?:a|b|(?i:b))$") == true  );
+		CHECK ( KRegex::Matches("key=b", "key=(?:a|b|(?i:b))$") == true  );
+		CHECK ( KRegex::Matches("key=B", "key=(?:a|b|(?i:b))$") == true  );
+		CHECK ( KRegex::Matches("key=A", "key=(?:a|b|(?i:b))$") == false );
+	}
+}
+
 TEST_CASE("KRegex repetition")
 {
 	SECTION("a repeated empty assertion compiles like a single one")

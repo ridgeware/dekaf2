@@ -58,6 +58,11 @@ namespace {
 // size, zstd and brotli about a sixth faster.
 constexpr std::streamsize iDecompressorBufferSize = 16 * 1024;
 
+// The size of the buffer of the filter that limits the size of a body. With the
+// 128 bytes of boost::iostreams a body passes it in steps of that size, which
+// makes a sixth of the time to read a body that zstd decompresses.
+constexpr std::streamsize iLimiterBufferSize = 4 * 1024;
+
 } // end of anonymous namespace
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -205,7 +210,7 @@ bool KInHTTPFilter::SetupInputFilter()
 	if (m_iMaxBodySize > 0)
 	{
 		kDebug (3, "limiting decompressed input to {} bytes", m_iMaxBodySize);
-		m_Filter->push(KInputLimiter(m_iMaxBodySize, &m_bBodySizeLimitExceeded));
+		m_Filter->push(KInputLimiter(m_iMaxBodySize, &m_bBodySizeLimitExceeded), iLimiterBufferSize);
 	}
 
 	if (m_bAllowUncompression)

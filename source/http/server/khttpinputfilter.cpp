@@ -44,6 +44,7 @@
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/io/streams/kcountingstreambuf.h>
 #include <dekaf2/io/compression/bits/kiostreams_filters.h>
+#include <dekaf2/io/compression/bits/kimmediateinputfilter.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <iterator>
 
@@ -199,6 +200,9 @@ bool KInHTTPFilter::SetupInputFilter()
 
 	if (m_bAllowUncompression)
 	{
+		// Every decompressor is wrapped to hand on its output before it waits for more
+		// input, so that the lines of a compressed stream reach their reader when they
+		// arrive, see kimmediateinputfilter.h.
 		switch (KHTTPCompression::GetCompression())
 		{
 			case NONE:
@@ -208,40 +212,40 @@ bool KInHTTPFilter::SetupInputFilter()
 
 			case GZIP:
 				kDebug (3, "using {} {}compression", "gzip", "un");
-				m_Filter->push(boost::iostreams::gzip_decompressor());
+				m_Filter->push(iostreams::immediate_input_filter<iostreams::gzip_members_decompressor>());
 				break;
 
 			case ZLIB:
 				kDebug (3, "using {} {}compression", "zlib", "un");
-				m_Filter->push(boost::iostreams::zlib_decompressor());
+				m_Filter->push(iostreams::immediate_input_filter<boost::iostreams::zlib_decompressor>());
 				break;
 
 			case BZIP2:
 				kDebug (3, "using {} {}compression", "bzip2", "un");
-				m_Filter->push(boost::iostreams::bzip2_decompressor());
+				m_Filter->push(iostreams::immediate_input_filter<boost::iostreams::bzip2_decompressor>());
 				break;
 
 #ifdef DEKAF2_HAS_LIBZSTD
 			case ZSTD:
 				kDebug (3, "using {} {}compression", "zstd", "un");
-				m_Filter->push(dekaf2::iostreams::zstd_decompressor());
+				m_Filter->push(iostreams::immediate_input_filter<dekaf2::iostreams::zstd_decompressor>());
 				break;
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
 			case XZ: // lzma v2
 				kDebug (3, "using {} {}compression", "xz", "un");
-				m_Filter->push(lzmaiostreams::lzma_decompressor());
+				m_Filter->push(iostreams::immediate_input_filter<lzmaiostreams::lzma_decompressor>());
 				break;
 
 			case LZMA: // LZMA means v1, it should be supported by the lzma decompressor
 				kDebug (3, "using {} {}compression", "lzma", "un");
-				m_Filter->push(lzmaiostreams::lzma_decompressor());
+				m_Filter->push(iostreams::immediate_input_filter<lzmaiostreams::lzma_decompressor>());
 				break;
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
 			case BROTLI:
 				kDebug (3, "using {} {}compression", "brotli", "un");
-				m_Filter->push(dekaf2::iostreams::brotli_decompressor());
+				m_Filter->push(iostreams::immediate_input_filter<dekaf2::iostreams::brotli_decompressor>());
 				break;
 #endif
 		}

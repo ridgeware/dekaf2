@@ -269,15 +269,12 @@ private:
 /// Reads the events of an event stream from an input stream, e.g. from the body of
 /// a response that a KHTTPClient receives. Next() waits for the next complete event.
 ///
-/// A compressed response reaches its decompressor in pieces, and the decompressor
-/// hands on its output only in larger blocks: request the stream without compression.
 /// The read timeout of the stream ends the stream when the server sends nothing for
 /// that long - it has to be longer than the time between the comment lines that the
 /// server sends.
 ///
 /// @code
 /// KHTTPClient HTTP;
-/// HTTP.RequestCompression(false);
 /// HTTP.Connect(URL);
 /// HTTP.Resource(URL);
 /// HTTP.AddHeader(KHTTPHeader::ACCEPT, KMIME::EVENT_STREAM);

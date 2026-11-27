@@ -92,6 +92,7 @@ set (USOURCES
 	khttpcompression_tests.cpp
 	khttplog_tests.cpp
 	khttpserver_tests.cpp
+	kimmediateinputfilter_tests.cpp
 	kinpipe_tests.cpp
 	kinshell_tests.cpp
 	kiostreamsocket_tests.cpp

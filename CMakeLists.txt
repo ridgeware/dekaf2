@@ -1742,6 +1742,7 @@ set (BITS_HEADERS
 	source/crypto/hash/bits/kdigest.h
 	source/crypto/hash/bits/khash.h
 	source/io/compression/bits/kflushablefilter.h
+	source/io/compression/bits/kimmediateinputfilter.h
 	source/io/compression/bits/kiostreams_filters.h
 	source/net/tcp/bits/kasio.h
 	source/net/tcp/bits/kasiostream.h

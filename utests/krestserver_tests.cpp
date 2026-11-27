@@ -3367,6 +3367,58 @@ TEST_CASE("KRESTServer: NDJSON stream")
 		CHECK_FALSE ( bWaitedInVain );
 	}
 
+	SECTION("a client that asked for compression gets the lines while the route runs")
+	{
+		std::vector<KStringView> Compressors { "gzip", "deflate" };
+#ifdef DEKAF2_HAS_LIBZSTD
+		Compressors.push_back("zstd");
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+		Compressors.push_back("br");
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+		Compressors.push_back("xz");
+#endif
+
+		for (auto sCompressor : Compressors)
+		{
+			bClientHasFirst = false;
+			bWaitedInVain   = false;
+			bAllSent        = false;
+
+			KURL        URL(kFormat("http://{}/compressed", sEndPoint));
+			KHTTPClient HTTP;
+
+			HTTP.SetTimeout(chrono::seconds(5));
+			HTTP.RequestCompression(true, sCompressor);
+
+			REQUIRE ( HTTP.Connect(URL)  );
+			REQUIRE ( HTTP.Resource(URL) );
+			REQUIRE ( HTTP.SendRequest() );
+
+			INFO  ( sCompressor );
+			CHECK ( HTTP.Response.GetStatusCode() == 200 );
+			CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == sCompressor );
+
+			KNDJSONReader Reader(HTTP.Response.FilteredStream());
+			KJSON         Value;
+
+			REQUIRE ( Reader.Next(Value) );
+			CHECK   ( Value.dump() == R"({"line":1})" );
+
+			bClientHasFirst = true;
+
+			auto Rest = Reader.GetAll();
+
+			CHECK ( Reader.HasError() == false );
+			CHECK ( Reader.GetLine()  == 4     );
+			CHECK ( Rest.size()       == 3     );
+			// the route went on because the client had the first line
+			CHECK_FALSE ( bWaitedInVain );
+			CHECK ( bAllSent );
+		}
+	}
+
 	SECTION("a compressed stream is flushed after each line")
 	{
 		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));

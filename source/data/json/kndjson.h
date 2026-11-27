@@ -42,8 +42,8 @@
 #pragma once
 
 /// @file kndjson.h
-/// a parser and a stream reader for input with one JSON value per line (NDJSON,
-/// also named JSON Lines, media type application/x-ndjson)
+/// a parser, a stream reader and a stream writer for data with one JSON value per
+/// line (NDJSON, also named JSON Lines, media type application/x-ndjson)
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/errors/kerror.h>
@@ -54,6 +54,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 class KInStream;
+class KOutStream;
 
 /// @addtogroup data_json
 /// @{
@@ -329,6 +330,78 @@ private:
 	bool          m_bAtEnd { false };
 
 }; // KNDJSONReader
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Writes JSON values to an output stream, one value per line. A line is written
+/// in one piece: a value that cannot be written leaves nothing in the stream.
+///
+/// A value with a string that is no UTF-8 cannot be written as JSON: Write()
+/// returns false, and GetLastError() names the reason. On request the bytes that
+/// are no UTF-8 are replaced by U+FFFD instead.
+///
+/// @code
+/// KOutFile      File(sFilename);
+/// KNDJSONWriter Writer(File);
+///
+/// Writer.Write(Value);
+/// @endcode
+class DEKAF2_PUBLIC KNDJSONWriter : public KErrorBase
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	/// @param Stream the stream to write to
+	/// @param bFlushLines flush the stream after every line, for a reader that waits
+	/// for the lines at the other end of a connection
+	/// @param bReplaceInvalidUTF8 write U+FFFD for bytes of a string that are no UTF-8
+	explicit KNDJSONWriter(KOutStream& Stream,
+	                       bool        bFlushLines         = false,
+	                       bool        bReplaceInvalidUTF8 = false)
+	//-----------------------------------------------------------------------------
+	: m_Stream(Stream)
+	, m_bFlushLines(bFlushLines)
+	, m_bReplaceInvalidUTF8(bReplaceInvalidUTF8)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// @param Value the value to write as one line
+	/// @return false if the value cannot be written as JSON, of which nothing is written
+	/// then, or if the stream failed
+	bool Write(const KJSON& Value);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Writes every element of an array as one line, up to the first one that cannot
+	/// be written.
+	/// @param Values an array
+	/// @return false if Values is no array, or if an element could not be written
+	bool WriteAll(const KJSON& Values);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// @return the count of lines that were written
+	DEKAF2_NODISCARD
+	std::size_t GetLines() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_iLines;
+	}
+
+//------
+private:
+//------
+
+	KOutStream& m_Stream;
+	std::size_t m_iLines { 0 };
+	bool        m_bFlushLines;
+	bool        m_bReplaceInvalidUTF8;
+
+}; // KNDJSONWriter
 
 /// @}
 

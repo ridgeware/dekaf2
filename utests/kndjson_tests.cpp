@@ -3,8 +3,11 @@
 #include <dekaf2/data/json/kndjson.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/format/kformat.h>
+#include <ostream>
+#include <sstream>
 #include <vector>
 
 using namespace dekaf2;
@@ -40,6 +43,22 @@ KString Drain(KNDJSONReader& Reader)
 
 	return sValues;
 }
+
+/// a string buffer that counts how often it is flushed
+class CountingBuffer : public std::stringbuf
+{
+public:
+
+	int iFlushed { 0 };
+
+protected:
+
+	int sync() override
+	{
+		++iFlushed;
+		return std::stringbuf::sync();
+	}
+};
 
 } // end of anonymous namespace
 
@@ -518,5 +537,184 @@ TEST_CASE("KNDJSON")
 			CHECK ( Drain(Reader) == "1\n" );
 			CHECK ( Reader.GetLastError() == "line 2 is longer than 10 bytes" );
 		}
+	}
+
+	SECTION("the writer writes one value per line")
+	{
+		KString          sOut;
+		KOutStringStream Out(sOut);
+		KNDJSONWriter    Writer(Out);
+
+		KJSON Object;
+		Object["text"]   = "two\nlines";
+		Object["nested"] = KJSON::array({ 1, 2, KJSON::object({{ "deep", true }}) });
+
+		CHECK ( Writer.GetLines() == 0 );
+
+		CHECK ( Writer.Write(Object)          );
+		CHECK ( Writer.Write(KJSON(42))       );
+		CHECK ( Writer.Write(KJSON("text"))   );
+		CHECK ( Writer.Write(KJSON())         );
+		CHECK ( Writer.Write(KJSON::array())  );
+
+		Out.Flush();
+
+		CHECK ( sOut == "{\"nested\":[1,2,{\"deep\":true}],\"text\":\"two\\nlines\"}\n42\n\"text\"\nnull\n[]\n" );
+		CHECK ( Writer.GetLines() == 5     );
+		CHECK ( Writer.HasError() == false );
+
+		// and the parser reads the same values
+		auto Values = KNDJSONParser(sOut).GetAll();
+
+		REQUIRE ( Values.size() == 5 );
+		CHECK   ( Values[0] == Object );
+		CHECK   ( Values[3].is_null() );
+	}
+
+	SECTION("the writer writes the elements of an array")
+	{
+		KString          sOut;
+		KOutStringStream Out(sOut);
+		KNDJSONWriter    Writer(Out);
+
+		auto Values = KNDJSONParser("{\"a\":1}\n[1,2]\n\"text\"\nnull\n").GetAll();
+
+		CHECK ( Writer.WriteAll(Values) );
+
+		Out.Flush();
+
+		CHECK ( sOut == "{\"a\":1}\n[1,2]\n\"text\"\nnull\n" );
+		CHECK ( Writer.GetLines() == 4 );
+
+		// an array without elements has no lines
+		CHECK ( Writer.WriteAll(KJSON::array()) );
+		CHECK ( Writer.GetLines() == 4 );
+
+		// what is no array is not written
+		CHECK ( Writer.WriteAll(KJSON()) == false );
+		CHECK ( Writer.HasError() );
+		CHECK ( Writer.GetLastError() == "the values to write are no array" );
+		CHECK ( Writer.WriteAll(Values[0]) == false );
+
+		Out.Flush();
+
+		CHECK ( sOut == "{\"a\":1}\n[1,2]\n\"text\"\nnull\n" );
+		CHECK ( Writer.GetLines() == 4 );
+	}
+
+	SECTION("a value that is no UTF-8 leaves nothing in the stream")
+	{
+		KJSON Broken;
+		Broken["first"]  = "good";
+		Broken["second"] = KString("bad \xff byte");
+
+		{
+			KString          sOut;
+			KOutStringStream Out(sOut);
+			KNDJSONWriter    Writer(Out);
+
+			CHECK ( Writer.Write(KJSON(1)) );
+			CHECK ( Writer.Write(Broken) == false );
+			CHECK ( Writer.HasError() );
+			CHECK ( Writer.GetLastError().starts_with("cannot write line 2: ") );
+			CHECK ( Writer.GetLines() == 1 );
+
+			// the next value is written
+			CHECK ( Writer.Write(KJSON(3)) );
+
+			Out.Flush();
+
+			CHECK ( sOut == "1\n3\n" );
+			CHECK ( Writer.GetLines() == 2 );
+		}
+
+		{
+			// the elements of an array up to the first one that cannot be written
+			KString          sOut;
+			KOutStringStream Out(sOut);
+			KNDJSONWriter    Writer(Out);
+
+			KJSON Values = KJSON::array();
+			Values.push_back(1);
+			Values.push_back(Broken);
+			Values.push_back(3);
+
+			CHECK ( Writer.WriteAll(Values) == false );
+
+			Out.Flush();
+
+			CHECK ( sOut == "1\n" );
+		}
+
+		{
+			// on request the bytes are replaced
+			KString          sOut;
+			KOutStringStream Out(sOut);
+			KNDJSONWriter    Writer(Out, false, true);
+
+			CHECK ( Writer.Write(Broken) );
+
+			Out.Flush();
+
+			CHECK ( sOut == "{\"first\":\"good\",\"second\":\"bad \xef\xbf\xbd byte\"}\n" );
+			CHECK ( Writer.HasError() == false );
+		}
+
+		{
+			// on request an error throws
+			KString          sOut;
+			KOutStringStream Out(sOut);
+			KNDJSONWriter    Writer(Out);
+			Writer.SetThrowOnError(true);
+
+			CHECK_THROWS_AS ( Writer.Write(Broken), const KError& );
+
+			Out.Flush();
+
+			CHECK ( sOut.empty() );
+		}
+	}
+
+	SECTION("the writer flushes the lines on request")
+	{
+		{
+			CountingBuffer Buffer;
+			std::ostream   Stream(&Buffer);
+			KOutStream     Out(Stream);
+			KNDJSONWriter  Writer(Out, true);
+
+			CHECK ( Writer.Write(KJSON(1)) );
+			CHECK ( Buffer.iFlushed == 1 );
+			CHECK ( Writer.Write(KJSON(2)) );
+			CHECK ( Buffer.iFlushed == 2 );
+			CHECK ( Buffer.str() == "1\n2\n" );
+		}
+
+		{
+			CountingBuffer Buffer;
+			std::ostream   Stream(&Buffer);
+			KOutStream     Out(Stream);
+			KNDJSONWriter  Writer(Out);
+
+			CHECK ( Writer.Write(KJSON(1)) );
+			CHECK ( Writer.Write(KJSON(2)) );
+			CHECK ( Buffer.iFlushed == 0 );
+		}
+	}
+
+	SECTION("a stream that failed")
+	{
+		std::ostringstream Stream;
+		KOutStream         Out(Stream);
+		KNDJSONWriter      Writer(Out);
+
+		CHECK ( Writer.Write(KJSON(1)) );
+
+		Stream.setstate(std::ios_base::badbit);
+
+		CHECK ( Writer.Write(KJSON(2)) == false );
+		CHECK ( Writer.GetLastError() == "cannot write line 2 to the stream" );
+		CHECK ( Writer.GetLines() == 1 );
+		CHECK ( Stream.str() == "1\n" );
 	}
 }

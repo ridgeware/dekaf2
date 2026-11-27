@@ -45,6 +45,7 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/io/readwrite/kread.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 #ifndef DEKAF2_WRAPPED_KJSON
 	#include <dekaf2/core/types/kscopeguard.h>
 #endif
@@ -354,6 +355,77 @@ KJSON KNDJSONReader::GetAll()
 	return Values;
 
 } // KNDJSONReader::GetAll
+
+//-----------------------------------------------------------------------------
+bool KNDJSONWriter::Write(const KJSON& Value)
+//-----------------------------------------------------------------------------
+{
+	KString sLine;
+
+	{
+#ifndef DEKAF2_WRAPPED_KJSON
+		// a string that is no UTF-8 is an error of the data, not of the program
+		bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
+		KAtScopeEnd( KLog::getInstance().ShowStackOnJsonError(bResetFlag) );
+#endif
+
+		DEKAF2_TRY
+		{
+			// without indents the output has no line break, those of strings are escaped
+			sLine = Value.dump(-1, ' ', false, m_bReplaceInvalidUTF8 ? LJSON::error_handler_t::replace
+			                                                         : LJSON::error_handler_t::strict);
+		}
+
+		DEKAF2_CATCH (const LJSON::exception& Error)
+		{
+			return SetError(kFormat("cannot write line {}: {}", m_iLines + 1, kjson::kStripJSONExceptionMessage(Error.what())));
+		}
+	}
+
+	sLine += '\n';
+
+	// a write reaches the buffer of a stream also after the stream has failed
+	if (m_Stream.Good())
+	{
+		m_Stream.Write(sLine);
+
+		if (m_bFlushLines)
+		{
+			m_Stream.Flush();
+		}
+	}
+
+	if (!m_Stream.Good())
+	{
+		return SetError(kFormat("cannot write line {} to the stream", m_iLines + 1));
+	}
+
+	++m_iLines;
+
+	return true;
+
+} // KNDJSONWriter::Write
+
+//-----------------------------------------------------------------------------
+bool KNDJSONWriter::WriteAll(const KJSON& Values)
+//-----------------------------------------------------------------------------
+{
+	if (!Values.is_array())
+	{
+		return SetError("the values to write are no array");
+	}
+
+	for (const auto& Value : Values)
+	{
+		if (!Write(Value))
+		{
+			return false;
+		}
+	}
+
+	return true;
+
+} // KNDJSONWriter::WriteAll
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr std::size_t KNDJSONParser::DefaultMaxLineLength;

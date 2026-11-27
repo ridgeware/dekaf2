@@ -86,7 +86,7 @@ KCircuitBreaker::Options KOpenIDClient::MakeBreakerOptions(const Config& config)
 	OpenTime.dFactor = 1.0;
 	OpenTime.dJitter = 0.0;
 
-	return KCircuitBreaker::Options(1, OpenTime);
+	return KCircuitBreaker::Options(1, OpenTime, config.sAuthority);
 
 } // MakeBreakerOptions
 

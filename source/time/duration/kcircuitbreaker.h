@@ -46,6 +46,7 @@
 /// refuses calls to a service that keeps failing
 
 #include <dekaf2/core/init/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/time/duration/kbackoff.h>
 #include <atomic>
@@ -71,6 +72,9 @@ DEKAF2_NAMESPACE_BEGIN
 ///
 /// The caller decides what a failure is - a connection that could not be made, a
 /// timeout, a server error. An answer that refuses the request is none.
+///
+/// The breaker writes to the debug log when it opens and when it closes, with
+/// Options::sName to tell the breakers of a program apart.
 ///
 /// @code
 /// auto Call = Breaker.Try();
@@ -114,9 +118,11 @@ public:
 
 		/// @param iFailures the count of failed calls in a row that opens the breaker
 		/// @param OpenTime the time the breaker stays open
-		Options(uint32_t iFailures, KBackoff::Options OpenTime)
+		/// @param sName the name of the service, for the log
+		Options(uint32_t iFailures, KBackoff::Options OpenTime, KString sName = KString{})
 		: iFailures(iFailures)
 		, OpenTime(std::move(OpenTime))
+		, sName(std::move(sName))
 		{
 		}
 
@@ -125,6 +131,8 @@ public:
 		/// the time the breaker stays open: the initial time after it opened, a longer
 		/// one after every probe that failed. A factor of 1 keeps the time.
 		KBackoff::Options OpenTime  { chrono::seconds(5), chrono::minutes(1) };
+		/// the name of the service, for the log
+		KString           sName;
 
 	}; // Options
 
@@ -268,8 +276,9 @@ private:
 
 	/// opens the breaker
 	/// @param iOpened the count of times in a row it opened, this one included
+	/// @return the time it stays open
 	DEKAF2_PRIVATE
-	void Open(uint32_t iOpened, KSteadyTime Now);
+	KDuration Open(uint32_t iOpened, KSteadyTime Now);
 
 	Options               m_Options;
 	mutable std::mutex    m_Mutex;

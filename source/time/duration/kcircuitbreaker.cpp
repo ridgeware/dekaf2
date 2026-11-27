@@ -41,6 +41,7 @@
 
 
 #include <dekaf2/time/duration/kcircuitbreaker.h>
+#include <dekaf2/core/logging/klog.h>
 #include <limits>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -105,29 +106,34 @@ KCircuitBreaker::Call KCircuitBreaker::Try(KSteadyTime Now)
 		return Call(*this, iGeneration);
 	}
 
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-
-	switch (m_State.load())
 	{
-		case State::Closed:
-			return Call(*this, m_iGeneration.load());
+		std::lock_guard<std::mutex> Lock(m_Mutex);
 
-		case State::Open:
-			if (Now < m_OpenUntil)
-			{
+		switch (m_State.load())
+		{
+			case State::Closed:
+				return Call(*this, m_iGeneration.load());
+
+			case State::Open:
+				if (Now < m_OpenUntil)
+				{
+					break;
+				}
+
+				// the open time has passed, this call is the probe
+				SetState(State::HalfOpen);
+
+				return Call(*this, m_iGeneration.load());
+
+			case State::HalfOpen:
 				break;
-			}
-
-			// the open time has passed, this call is the probe
-			SetState(State::HalfOpen);
-
-			return Call(*this, m_iGeneration.load());
-
-		case State::HalfOpen:
-			break;
+		}
 	}
 
+	// the call is refused, the log is written without the lock
 	m_iRefused.fetch_add(1, std::memory_order_relaxed);
+
+	kDebug(3, "'{}' is open, call refused", m_Options.sName);
 
 	return Call();
 
@@ -152,59 +158,97 @@ void KCircuitBreaker::Report(uint32_t iGeneration, Result Outcome, KSteadyTime N
 		return;
 	}
 
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-
-	if (iGeneration != m_iGeneration.load())
+	// what this report changed, for the log that is written without the lock
+	enum class Change : uint8_t
 	{
-		return;
+		None,
+		Opened,
+		StaysOpen,
+		Closed
+	};
+
+	Change    Changed { Change::None };
+	uint32_t  iFailed { 0 };
+	KDuration OpenTime;
+
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		if (iGeneration != m_iGeneration.load())
+		{
+			return;
+		}
+
+		switch (m_State.load())
+		{
+			case State::Closed:
+				switch (Outcome)
+				{
+					case Result::Success:
+						m_iFailures.store(0);
+						break;
+
+					case Result::Failure:
+						iFailed = m_iFailures.fetch_add(1) + 1;
+
+						// a limit of zero opens with the first failure as well
+						if (iFailed >= m_Options.iFailures)
+						{
+							m_iOpenings.fetch_add(1, std::memory_order_relaxed);
+							OpenTime = Open(1, Now);
+							Changed  = Change::Opened;
+						}
+						break;
+
+					case Result::None:
+						break;
+				}
+				break;
+
+			case State::Open:
+				// no call has the generation of an open breaker
+				break;
+
+			case State::HalfOpen:
+				// only the probe has the generation of a half open breaker
+				switch (Outcome)
+				{
+					case Result::Success:
+						m_iOpened   = 0;
+						m_OpenUntil = KSteadyTime();
+						SetState(State::Closed);
+						Changed     = Change::Closed;
+						break;
+
+					case Result::Failure:
+						OpenTime = Open(m_iOpened < std::numeric_limits<uint32_t>::max() ? m_iOpened + 1 : m_iOpened, Now);
+						Changed  = Change::StaysOpen;
+						break;
+
+					case Result::None:
+						// the open time has passed already: the next call is the probe
+						SetState(State::Open);
+						break;
+				}
+				break;
+		}
 	}
 
-	switch (m_State.load())
+	switch (Changed)
 	{
-		case State::Closed:
-			switch (Outcome)
-			{
-				case Result::Success:
-					m_iFailures.store(0);
-					break;
-
-				case Result::Failure:
-					// a limit of zero opens with the first failure as well
-					if (m_iFailures.fetch_add(1) + 1 >= m_Options.iFailures)
-					{
-						m_iOpenings.fetch_add(1, std::memory_order_relaxed);
-						Open(1, Now);
-					}
-					break;
-
-				case Result::None:
-					break;
-			}
+		case Change::None:
 			break;
 
-		case State::Open:
-			// no call has the generation of an open breaker
+		case Change::Opened:
+			kDebug(1, "'{}' opens for {}, failed calls in a row: {}", m_Options.sName, OpenTime, iFailed);
 			break;
 
-		case State::HalfOpen:
-			// only the probe has the generation of a half open breaker
-			switch (Outcome)
-			{
-				case Result::Success:
-					m_iOpened   = 0;
-					m_OpenUntil = KSteadyTime();
-					SetState(State::Closed);
-					break;
+		case Change::StaysOpen:
+			kDebug(1, "'{}' stays open for {}, the probe failed", m_Options.sName, OpenTime);
+			break;
 
-				case Result::Failure:
-					Open(m_iOpened < std::numeric_limits<uint32_t>::max() ? m_iOpened + 1 : m_iOpened, Now);
-					break;
-
-				case Result::None:
-					// the open time has passed already: the next call is the probe
-					SetState(State::Open);
-					break;
-			}
+		case Change::Closed:
+			kDebug(1, "'{}' closes, the probe succeeded", m_Options.sName);
 			break;
 	}
 
@@ -222,15 +266,19 @@ void KCircuitBreaker::SetState(State NewState)
 } // SetState
 
 //-----------------------------------------------------------------------------
-void KCircuitBreaker::Open(uint32_t iOpened, KSteadyTime Now)
+KDuration KCircuitBreaker::Open(uint32_t iOpened, KSteadyTime Now)
 //-----------------------------------------------------------------------------
 {
+	auto OpenTime = KBackoff(m_Options.OpenTime).GetWait(iOpened);
+
 	m_iOpened    = iOpened;
 	m_OpenUntil  = Now;
-	m_OpenUntil += KBackoff(m_Options.OpenTime).GetWait(iOpened);
+	m_OpenUntil += OpenTime;
 	m_iFailures.store(0);
 
 	SetState(State::Open);
+
+	return OpenTime;
 
 } // Open
 
@@ -248,13 +296,17 @@ KSteadyTime KCircuitBreaker::GetOpenUntil() const
 void KCircuitBreaker::Reset()
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_Mutex);
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	m_iFailures.store(0);
-	m_iOpened   = 0;
-	m_OpenUntil = KSteadyTime();
+		m_iFailures.store(0);
+		m_iOpened   = 0;
+		m_OpenUntil = KSteadyTime();
 
-	SetState(State::Closed);
+		SetState(State::Closed);
+	}
+
+	kDebug(2, "'{}' is reset", m_Options.sName);
 
 } // Reset
 

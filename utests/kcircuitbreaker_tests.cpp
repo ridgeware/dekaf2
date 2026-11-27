@@ -56,7 +56,13 @@ TEST_CASE("KCircuitBreaker")
 		CHECK ( Breaker.GetOptions().OpenTime.Max     == chrono::minutes(1)  );
 		CHECK ( Breaker.GetOpenings()                 == 0                   );
 		CHECK ( Breaker.GetRefused()                  == 0                   );
+		CHECK ( Breaker.GetOptions().sName.empty() );
 		CHECK_FALSE ( Breaker.GetOpenUntil().ok() );
+
+		KCircuitBreaker Named(KCircuitBreaker::Options(3, KBackoff::Options(chrono::seconds(1), chrono::seconds(2)), "payments"));
+
+		CHECK ( Named.GetOptions().sName     == "payments" );
+		CHECK ( Named.GetOptions().iFailures == 3          );
 	}
 
 	SECTION("a closed breaker lets the calls pass")

@@ -761,6 +761,7 @@ TEST_CASE("KOpenIDClient")
 		CHECK ( OIDC6.GetCircuitBreaker().GetState()         == KCircuitBreaker::State::Open );
 		CHECK ( OIDC6.GetCircuitBreaker().GetOpenings()      == 1 );
 		CHECK ( OIDC6.GetCircuitBreaker().GetRefused()       == 2 );
+		CHECK ( OIDC6.GetCircuitBreaker().GetOptions().sName == cfg6.sAuthority );
 
 		Mock.iDiscoveryStatus = 0;
 		kRemoveFile(sDB6);

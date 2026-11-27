@@ -8,6 +8,7 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kcircuitbreaker.h>
 #include <atomic>
 #include <thread>
 
@@ -296,5 +297,95 @@ TEST_CASE("KMetricsCollectors")
 		KMetricsCollectors::RemovePool(Metrics, "database");
 
 		CHECK ( CountLines(Metrics.Serialize(), "pool_objects") == 0 );
+	}
+
+	SECTION("circuit breaker metrics")
+	{
+		KMetrics Metrics;
+
+		// opens after two failures, for 10 seconds
+		KBackoff::Options OpenTime(chrono::seconds(10), chrono::seconds(10));
+		OpenTime.dJitter = 0.0;
+
+		KCircuitBreaker Breaker(KCircuitBreaker::Options(2, OpenTime));
+		KSteadyTime     tStart = KSteadyTime::now();
+
+		CHECK ( KMetricsCollectors::AddCircuitBreaker(Metrics, "payments", Breaker) );
+		// the name is taken
+		CHECK ( KMetricsCollectors::AddCircuitBreaker(Metrics, "payments", Breaker) == false );
+
+		CHECK ( Metrics.Serialize() ==
+			"# HELP circuitbreaker_state state of the circuit breaker: 1 for the current state, 0 for the others\n"
+			"# TYPE circuitbreaker_state gauge\n"
+			"circuitbreaker_state{breaker=\"payments\",state=\"closed\"} 1\n"
+			"circuitbreaker_state{breaker=\"payments\",state=\"open\"} 0\n"
+			"circuitbreaker_state{breaker=\"payments\",state=\"half_open\"} 0\n"
+			"# HELP circuitbreaker_openings_total how often the circuit breaker opened\n"
+			"# TYPE circuitbreaker_openings_total counter\n"
+			"circuitbreaker_openings_total{breaker=\"payments\"} 0\n"
+			"# HELP circuitbreaker_refused_total calls that the circuit breaker refused\n"
+			"# TYPE circuitbreaker_refused_total counter\n"
+			"circuitbreaker_refused_total{breaker=\"payments\"} 0\n" );
+
+		// two failures open it
+		Breaker.Try(tStart).Failure(tStart);
+		Breaker.Try(tStart).Failure(tStart);
+
+		// three calls are refused during the open time
+		CHECK_FALSE ( Breaker.Try(tStart) );
+		CHECK_FALSE ( Breaker.Try(tStart) );
+		CHECK_FALSE ( Breaker.Try(tStart + chrono::seconds(9)) );
+
+		auto sText = Metrics.Serialize();
+
+		CHECK ( sText.contains("circuitbreaker_state{breaker=\"payments\",state=\"closed\"} 0\n")    );
+		CHECK ( sText.contains("circuitbreaker_state{breaker=\"payments\",state=\"open\"} 1\n")      );
+		CHECK ( sText.contains("circuitbreaker_state{breaker=\"payments\",state=\"half_open\"} 0\n") );
+		CHECK ( sText.contains("circuitbreaker_openings_total{breaker=\"payments\"} 1\n")            );
+		CHECK ( sText.contains("circuitbreaker_refused_total{breaker=\"payments\"} 3\n")             );
+
+		{
+			// the probe is under way
+			auto Probe = Breaker.Try(tStart + chrono::seconds(10));
+
+			REQUIRE ( Probe );
+
+			sText = Metrics.Serialize();
+
+			CHECK ( sText.contains("circuitbreaker_state{breaker=\"payments\",state=\"open\"} 0\n")      );
+			CHECK ( sText.contains("circuitbreaker_state{breaker=\"payments\",state=\"half_open\"} 1\n") );
+
+			Probe.Success();
+		}
+
+		sText = Metrics.Serialize();
+
+		CHECK ( sText.contains("circuitbreaker_state{breaker=\"payments\",state=\"closed\"} 1\n")    );
+		CHECK ( sText.contains("circuitbreaker_state{breaker=\"payments\",state=\"half_open\"} 0\n") );
+		// the counts stay
+		CHECK ( sText.contains("circuitbreaker_openings_total{breaker=\"payments\"} 1\n")            );
+		CHECK ( sText.contains("circuitbreaker_refused_total{breaker=\"payments\"} 3\n")             );
+
+		// a second breaker, and the first one removed
+		KCircuitBreaker Other;
+
+		CHECK ( KMetricsCollectors::AddCircuitBreaker(Metrics, "search", Other) );
+
+		KMetricsCollectors::RemoveCircuitBreaker(Metrics, "payments");
+
+		sText = Metrics.Serialize();
+
+		CHECK ( sText.contains("breaker=\"payments\"") == false );
+		CHECK ( CountLines(sText, "circuitbreaker_state{breaker=\"search\"")          == 3 );
+		CHECK ( CountLines(sText, "circuitbreaker_refused_total{breaker=\"search\"}") == 1 );
+
+		// removed breakers can be added again
+		CHECK ( KMetricsCollectors::AddCircuitBreaker(Metrics, "payments", Breaker) );
+
+		// before the breakers go
+		KMetricsCollectors::RemoveCircuitBreaker(Metrics, "payments");
+		KMetricsCollectors::RemoveCircuitBreaker(Metrics, "search");
+
+		CHECK ( CountLines(Metrics.Serialize(), "circuitbreaker_") == 0 );
 	}
 }

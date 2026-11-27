@@ -741,6 +741,8 @@ TEST_CASE("KOpenIDClient")
 		Mock.iDiscoveryStatus = 503;
 		int iBefore = Mock.iDiscoveries;
 
+		CHECK ( OIDC6.GetCircuitBreaker().GetState() == KCircuitBreaker::State::Closed );
+
 		// no login URL without the endpoints of the provider
 		CHECK ( ResponseBody(Drive(AppRoutes6, "GET", "/auth/login", "")).empty() );
 		CHECK ( Mock.iDiscoveries == iBefore + 1 );
@@ -754,6 +756,11 @@ TEST_CASE("KOpenIDClient")
 		CHECK ( sLogout.contains("302") );
 		CHECK_FALSE ( sLogout.contains("client_id=") );
 		CHECK ( Mock.iDiscoveries == iBefore + 1 );
+
+		// the application can read the breaker for the provider
+		CHECK ( OIDC6.GetCircuitBreaker().GetState()         == KCircuitBreaker::State::Open );
+		CHECK ( OIDC6.GetCircuitBreaker().GetOpenings()      == 1 );
+		CHECK ( OIDC6.GetCircuitBreaker().GetRefused()       == 2 );
 
 		Mock.iDiscoveryStatus = 0;
 		kRemoveFile(sDB6);

@@ -239,6 +239,10 @@ public:
 	/// KHTTPError for the redirect.
 	void    Logout         (KRESTServer& HTTP);
 
+	/// The circuit breaker for the provider, to read its state and its counts, for
+	/// example with KMetricsCollectors::AddCircuitBreaker().
+	const KCircuitBreaker& GetCircuitBreaker () const { return m_Breaker; }
+
 //----------
 private:
 //----------

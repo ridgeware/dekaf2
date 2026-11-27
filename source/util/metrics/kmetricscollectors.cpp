@@ -408,4 +408,49 @@ void KMetricsCollectors::RemovePool(KMetrics& Metrics, KStringView sName)
 	Metrics.RemoveCallback("pool_objects_max", { sName });
 }
 
+//-----------------------------------------------------------------------------
+bool KMetricsCollectors::AddCircuitBreaker(KMetrics& Metrics, KStringView sName, const KCircuitBreaker& Breaker)
+//-----------------------------------------------------------------------------
+{
+	KStringView sStateHelp { "state of the circuit breaker: 1 for the current state, 0 for the others" };
+
+	// the first metric tells whether the name is taken
+	if (!Metrics.AddCallback("circuitbreaker_state", sStateHelp, KMetrics::Type::Gauge,
+	                         [&Breaker]() { return Breaker.GetState() == KCircuitBreaker::State::Closed ? 1.0 : 0.0; },
+	                         { "breaker", "state" }, { sName, "closed" }))
+	{
+		return false;
+	}
+
+	Metrics.AddCallback("circuitbreaker_state", sStateHelp, KMetrics::Type::Gauge,
+	                    [&Breaker]() { return Breaker.GetState() == KCircuitBreaker::State::Open ? 1.0 : 0.0; },
+	                    { "breaker", "state" }, { sName, "open" });
+
+	Metrics.AddCallback("circuitbreaker_state", sStateHelp, KMetrics::Type::Gauge,
+	                    [&Breaker]() { return Breaker.GetState() == KCircuitBreaker::State::HalfOpen ? 1.0 : 0.0; },
+	                    { "breaker", "state" }, { sName, "half_open" });
+
+	Metrics.AddCallback("circuitbreaker_openings_total", "how often the circuit breaker opened", KMetrics::Type::Counter,
+	                    [&Breaker]() { return static_cast<double>(Breaker.GetOpenings()); },
+	                    { "breaker" }, { sName });
+
+	Metrics.AddCallback("circuitbreaker_refused_total", "calls that the circuit breaker refused", KMetrics::Type::Counter,
+	                    [&Breaker]() { return static_cast<double>(Breaker.GetRefused()); },
+	                    { "breaker" }, { sName });
+
+	return true;
+
+} // AddCircuitBreaker
+
+//-----------------------------------------------------------------------------
+void KMetricsCollectors::RemoveCircuitBreaker(KMetrics& Metrics, KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	Metrics.RemoveCallback("circuitbreaker_state"         , { sName, "closed"    });
+	Metrics.RemoveCallback("circuitbreaker_state"         , { sName, "open"      });
+	Metrics.RemoveCallback("circuitbreaker_state"         , { sName, "half_open" });
+	Metrics.RemoveCallback("circuitbreaker_openings_total", { sName });
+	Metrics.RemoveCallback("circuitbreaker_refused_total" , { sName });
+}
+
 DEKAF2_NAMESPACE_END

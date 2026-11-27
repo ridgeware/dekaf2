@@ -43,13 +43,14 @@
 #pragma once
 
 /// @file kmetricscollectors.h
-/// metrics of the process, the heap, thread pools and object pools for a KMetrics registry
+/// metrics of the process, the heap, thread pools, object pools and circuit breakers for a KMetrics registry
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/threading/execution/kthreadpool.h>
 #include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kcircuitbreaker.h>
 #include <dekaf2/util/metrics/kmetrics.h>
 #include <cstdint>
 #include <functional>
@@ -61,19 +62,21 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Adds metrics to a KMetrics registry whose values the registry asks for when
-/// it is read: of the process, of the heap, of thread pools and of object pools.
+/// it is read: of the process, of the heap, of thread pools, of object pools and
+/// of circuit breakers.
 ///
 /// @code
 /// KMetrics Metrics;
 ///
-/// KMetricsCollectors::AddProcess   (Metrics);
-/// KMetricsCollectors::AddHeap      (Metrics);
-/// KMetricsCollectors::AddThreadPool(Metrics, "workers", Workers);
-/// KMetricsCollectors::AddPool      (Metrics, "database", Connections);
+/// KMetricsCollectors::AddProcess       (Metrics);
+/// KMetricsCollectors::AddHeap          (Metrics);
+/// KMetricsCollectors::AddThreadPool    (Metrics, "workers", Workers);
+/// KMetricsCollectors::AddPool          (Metrics, "database", Connections);
+/// KMetricsCollectors::AddCircuitBreaker(Metrics, "payments", Breaker);
 /// @endcode
 ///
-/// A thread pool and an object pool have to live until they are removed again,
-/// or as long as the registry.
+/// A thread pool, an object pool and a circuit breaker have to live until they
+/// are removed again, or as long as the registry.
 class DEKAF2_PUBLIC KMetricsCollectors
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -166,6 +169,18 @@ public:
 
 	/// remove the metrics of an object pool
 	static void RemovePool (KMetrics& Metrics, KStringView sName);
+
+	/// Add the metrics of a circuit breaker, with its name as the label "breaker":
+	/// circuitbreaker_state with the label "state" (closed, open, half_open), which is 1 for
+	/// the current state and 0 for the others, circuitbreaker_openings_total and
+	/// circuitbreaker_refused_total.
+	/// @param sName the name of the breaker
+	/// @param Breaker the breaker
+	/// @return false if a breaker of this name was added already
+	static bool AddCircuitBreaker (KMetrics& Metrics, KStringView sName, const KCircuitBreaker& Breaker);
+
+	/// remove the metrics of a circuit breaker
+	static void RemoveCircuitBreaker (KMetrics& Metrics, KStringView sName);
 
 }; // KMetricsCollectors
 

@@ -50,6 +50,16 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+// The size of the buffer that a decompressor of the input chain writes into.
+// boost::iostreams gives a filter a buffer of 128 bytes, and the decompressor then
+// works in steps of that size: zlib decodes about three times as fast with this
+// size, zstd and brotli about a sixth faster.
+constexpr std::streamsize iDecompressorBufferSize = 16 * 1024;
+
+} // end of anonymous namespace
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// boost::iostreams multichar input filter that limits the number of bytes
 /// passing through. Designed to be pushed as the first filter in the chain,
@@ -212,40 +222,40 @@ bool KInHTTPFilter::SetupInputFilter()
 
 			case GZIP:
 				kDebug (3, "using {} {}compression", "gzip", "un");
-				m_Filter->push(iostreams::immediate_input_filter<iostreams::gzip_members_decompressor>());
+				m_Filter->push(iostreams::immediate_input_filter<iostreams::gzip_members_decompressor>(), iDecompressorBufferSize);
 				break;
 
 			case ZLIB:
 				kDebug (3, "using {} {}compression", "zlib", "un");
-				m_Filter->push(iostreams::immediate_input_filter<boost::iostreams::zlib_decompressor>());
+				m_Filter->push(iostreams::immediate_input_filter<boost::iostreams::zlib_decompressor>(), iDecompressorBufferSize);
 				break;
 
 			case BZIP2:
 				kDebug (3, "using {} {}compression", "bzip2", "un");
-				m_Filter->push(iostreams::immediate_input_filter<boost::iostreams::bzip2_decompressor>());
+				m_Filter->push(iostreams::immediate_input_filter<boost::iostreams::bzip2_decompressor>(), iDecompressorBufferSize);
 				break;
 
 #ifdef DEKAF2_HAS_LIBZSTD
 			case ZSTD:
 				kDebug (3, "using {} {}compression", "zstd", "un");
-				m_Filter->push(iostreams::immediate_input_filter<dekaf2::iostreams::zstd_decompressor>());
+				m_Filter->push(iostreams::immediate_input_filter<dekaf2::iostreams::zstd_decompressor>(), iDecompressorBufferSize);
 				break;
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
 			case XZ: // lzma v2
 				kDebug (3, "using {} {}compression", "xz", "un");
-				m_Filter->push(iostreams::immediate_input_filter<lzmaiostreams::lzma_decompressor>());
+				m_Filter->push(iostreams::immediate_input_filter<lzmaiostreams::lzma_decompressor>(), iDecompressorBufferSize);
 				break;
 
 			case LZMA: // LZMA means v1, it should be supported by the lzma decompressor
 				kDebug (3, "using {} {}compression", "lzma", "un");
-				m_Filter->push(iostreams::immediate_input_filter<lzmaiostreams::lzma_decompressor>());
+				m_Filter->push(iostreams::immediate_input_filter<lzmaiostreams::lzma_decompressor>(), iDecompressorBufferSize);
 				break;
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
 			case BROTLI:
 				kDebug (3, "using {} {}compression", "brotli", "un");
-				m_Filter->push(iostreams::immediate_input_filter<dekaf2::iostreams::brotli_decompressor>());
+				m_Filter->push(iostreams::immediate_input_filter<dekaf2::iostreams::brotli_decompressor>(), iDecompressorBufferSize);
 				break;
 #endif
 		}

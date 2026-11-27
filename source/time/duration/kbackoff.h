@@ -73,6 +73,8 @@ DEKAF2_NAMESPACE_BEGIN
 ///     WaitUnlessStopped(Backoff.Next());
 /// }
 /// @endcode
+///
+/// Next() and Reset() write to the debug log, GetWait() and GetMaxWait() do not.
 class DEKAF2_PUBLIC KBackoff
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -139,11 +141,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Forget the failed attempts, after an attempt that succeeded
-	void Reset()
+	void Reset();
 	//-----------------------------------------------------------------------------
-	{
-		m_iFailures = 0;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// @return the count of failed attempts since the construction or the last Reset()

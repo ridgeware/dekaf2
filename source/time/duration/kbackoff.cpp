@@ -41,6 +41,7 @@
 
 #include <dekaf2/time/duration/kbackoff.h>
 #include <dekaf2/crypto/random/krandom.h>
+#include <dekaf2/core/logging/klog.h>
 #include <cmath>
 #include <limits>
 
@@ -107,8 +108,27 @@ KDuration KBackoff::Next()
 		++m_iFailures;
 	}
 
-	return GetWait(m_iFailures);
+	auto Wait = GetWait(m_iFailures);
+
+	kDebug(2, "failed attempts in a row: {}, wait {} of up to {}", m_iFailures, Wait, GetMaxWait(m_iFailures));
+
+	return Wait;
 
 } // Next
+
+//-----------------------------------------------------------------------------
+void KBackoff::Reset()
+//-----------------------------------------------------------------------------
+{
+	// this is called after every attempt that succeeded, most of them without a
+	// failure before
+	if (m_iFailures)
+	{
+		kDebug(2, "reset after {} failed attempts", m_iFailures);
+
+		m_iFailures = 0;
+	}
+
+} // Reset
 
 DEKAF2_NAMESPACE_END

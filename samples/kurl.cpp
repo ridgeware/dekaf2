@@ -52,6 +52,7 @@
 	#include <dekaf2/net/quic/kquicconnection.h>
 #endif
 #include <dekaf2/data/xml/kxml.h>
+#include <dekaf2/data/json/kndjson.h>
 #include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/crypto/auth/kawsauth.h>
 #include <dekaf2/threading/execution/kparallel.h>
@@ -972,6 +973,27 @@ void kurl::ServerQuery ()
 					Out.ostream() << std::setw(1) << std::setfill('\t') << json;
 #endif
 					Out.Write('\n');
+					bPrinted = true;
+				}
+			}
+			else if (HTTP.Response.ContentType() == KMIME::NDJSON)
+			{
+				// one JSON value per line: each value is printed like a JSON response. The
+				// output is collected first, a response with a line that is no JSON is
+				// printed as it came.
+				KNDJSONParser Lines(sResponse);
+				KJSON         Value;
+				KString       sPretty;
+
+				while (Lines.Next(Value))
+				{
+					sPretty += Value.dump(1, '\t');
+					sPretty += '\n';
+				}
+
+				if (!Lines.HasError())
+				{
+					Out.Write(sPretty);
 					bPrinted = true;
 				}
 			}

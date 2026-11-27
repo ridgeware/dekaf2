@@ -374,3 +374,24 @@ TEST_CASE("KRegex cache")
 		KRegex::ClearCache();
 	}
 }
+
+TEST_CASE("KRegex repetition")
+{
+	SECTION("a repeated empty assertion compiles like a single one")
+	{
+		CHECK ( KRegex("(?:\\b){1000}x").Cost()     == KRegex("\\bx").Cost()          );
+		CHECK ( KRegex("(?:\\b){2,1000}x").Cost()   == KRegex("\\bx").Cost()          );
+		CHECK ( KRegex("a(?:\\b|\\B){500}b").Cost() == KRegex("a(?:\\b|\\B)b").Cost() );
+		CHECK ( KRegex("(?:^$){1000}").Cost()       == KRegex("^$").Cost()            );
+	}
+
+	SECTION("a repeated empty assertion matches like a single one")
+	{
+		CHECK ( KRegex::Matches("a x", "(?:\\b){1000}x")     == true  );
+		CHECK ( KRegex::Matches("ax" , "(?:\\b){1000}x")     == false );
+		CHECK ( KRegex::Matches("ab" , "a(?:\\b|\\B){500}b") == true  );
+		CHECK ( KRegex::Matches(""   , "(?:^$){1000}")       == true  );
+		CHECK ( KRegex::Matches("a"  , "(?:^$){1000}")       == false );
+		CHECK ( KRegex::Matches("a"  , "(?:^$){0,1000}a")    == true  );
+	}
+}

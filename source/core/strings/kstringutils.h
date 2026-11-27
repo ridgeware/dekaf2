@@ -823,16 +823,16 @@ String kGetWord(String& sInput)
 //-----------------------------------------------------------------------------
 {
 	// iterators like the version for strings, which needs them
-	auto it    = sInput.begin();
-	auto itEnd = sInput.end();
+	auto it = sInput.begin();
+	auto ie = sInput.end();
 
 	// loop over all whitespace
-	while (it != itEnd && KASCII::kIsSpace(*it)) ++it;
+	while (it != ie && KASCII::kIsSpace(*it)) ++it;
 
 	auto itStart = it;
 
 	// collect all chars until next whitespace
-	while (it != itEnd && !KASCII::kIsSpace(*it)) ++it;
+	while (it != ie && !KASCII::kIsSpace(*it)) ++it;
 
 	auto iStart = static_cast<typename String::size_type>(itStart - sInput.begin());
 	auto iEnd   = static_cast<typename String::size_type>(it      - sInput.begin());
@@ -859,16 +859,16 @@ String kGetWord(String& sInput)
 {
 	// iterators instead of the bounds checked operator[]: on a non-const string the
 	// check of operator[] makes the compiler reload size and data for every char
-	auto it    = sInput.begin();
-	auto itEnd = sInput.end();
+	auto it = sInput.begin();
+	auto ie = sInput.end();
 
 	// loop over all whitespace
-	while (it != itEnd && KASCII::kIsSpace(*it)) ++it;
+	while (it != ie && KASCII::kIsSpace(*it)) ++it;
 
 	auto itStart = it;
 
 	// collect all chars until next whitespace
-	while (it != itEnd && !KASCII::kIsSpace(*it)) ++it;
+	while (it != ie && !KASCII::kIsSpace(*it)) ++it;
 
 	auto iStart = static_cast<typename String::size_type>(itStart - sInput.begin());
 	auto iEnd   = static_cast<typename String::size_type>(it      - sInput.begin());

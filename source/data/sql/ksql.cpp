@@ -2082,25 +2082,6 @@ bool KSQL::IsReadOnlyViolation (QueryType QueryType)
 } // IsReadOnlyViolation
 
 //-----------------------------------------------------------------------------
-/// removes and returns the leading whitespace-delimited word of sQuery, advancing sQuery
-/// past it. Splits on ANY whitespace: splitting on ' ' alone misread a statement whose
-/// first newline came before its first space, e.g. "select\n\tcol from T", whose leading
-/// "word" was then "select\n" and matched no keyword at all.
-static KStringView PopKeyword(KStringView& sQuery)
-//-----------------------------------------------------------------------------
-{
-	sQuery.TrimLeft(detail::kASCIISpacesSet);
-
-	auto iEnd = sQuery.find_first_of(detail::kASCIISpacesSet);
-
-	auto sWord = sQuery.substr(0, iEnd);
-	sQuery.remove_prefix((iEnd == KStringView::npos) ? sQuery.size() : iEnd);
-
-	return sWord;
-
-} // PopKeyword
-
-//-----------------------------------------------------------------------------
 /// steps over MariaDB's per-statement options prefix, returning the case hash of the keyword
 /// of the statement they apply to.
 ///
@@ -2121,7 +2102,7 @@ static KStringView PopKeyword(KStringView& sQuery)
 static std::size_t SkipStatementOptions(KStringView sRest)
 //-----------------------------------------------------------------------------
 {
-	auto sWord = PopKeyword(sRest);
+	auto sWord = kGetWord(sRest);
 
 	if (sWord.size() != 9 || sWord.CaseHash() != "statement"_casehash)
 	{
@@ -2133,7 +2114,7 @@ static std::size_t SkipStatementOptions(KStringView sRest)
 	// option word.
 	for (;;)
 	{
-		sWord = PopKeyword(sRest);
+		sWord = kGetWord(sRest);
 
 		if (sWord.empty())
 		{
@@ -2142,7 +2123,7 @@ static std::size_t SkipStatementOptions(KStringView sRest)
 
 		if (sWord.size() == 3 && sWord.CaseHash() == "for"_casehash)
 		{
-			return PopKeyword(sRest).CaseHash();
+			return kGetWord(sRest).CaseHash();
 		}
 	}
 
@@ -2152,8 +2133,9 @@ static std::size_t SkipStatementOptions(KStringView sRest)
 KSQL::QueryType KSQL::GetQueryType(KStringView sQuery, bool bAllowAny)
 //-----------------------------------------------------------------------------
 {
-	// the first word is cut and hashed once: the common case only adds the comparison with "set"
-	auto iKeyword = PopKeyword(sQuery).CaseHash();
+	// the first word is cut and hashed once: the common case only adds the comparison with "set".
+	// kGetWord() splits on any whitespace, so "select\n\tcol from T" is a select as well.
+	auto iKeyword = kGetWord(sQuery).CaseHash();
 
 	if (iKeyword == "set"_casehash)
 	{

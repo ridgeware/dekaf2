@@ -681,6 +681,8 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "bin"_ksv  , BINARY     },
 		{ "br"_ksv   , BR         },
 		{ "json"_ksv , JSON       },
+		{ "ndjson"_ksv,NDJSON     },
+		{ "jsonl"_ksv, NDJSON     },
 		{ "jlf"_ksv  , JLIFF      },
 		{ "jliff"_ksv, JLIFF      },
 		{ "xml"_ksv  , XML        },
@@ -1840,6 +1842,7 @@ constexpr KStringViewZ KMIME::TEX;
 constexpr KStringViewZ KMIME::EVENT_STREAM;
 constexpr KStringViewZ KMIME::JSON;
 constexpr KStringViewZ KMIME::JSON_PATCH;
+constexpr KStringViewZ KMIME::NDJSON;
 constexpr KStringViewZ KMIME::JLIFF;
 constexpr KStringViewZ KMIME::XML;
 constexpr KStringViewZ KMIME::SWF;

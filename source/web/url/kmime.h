@@ -212,6 +212,7 @@ public:
 	static constexpr KStringViewZ BR                     = "application/brotli";
 	static constexpr KStringViewZ JSON                   = "application/json";
 	static constexpr KStringViewZ JSON_PATCH             = "application/json-patch+json";
+	static constexpr KStringViewZ NDJSON                 = "application/x-ndjson"; // one JSON value per line, also named JSON Lines
 	static constexpr KStringViewZ JLIFF                  = "application/x-xliff+json"; // made up for dekaf2
 	static constexpr KStringViewZ XML                    = "application/xml";
 	static constexpr KStringViewZ SWF                    = "application/x-shockwave-flash";

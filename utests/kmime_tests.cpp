@@ -104,6 +104,16 @@ TEST_CASE("KMIME")
 
 		CHECK( a.ByExtension("css") );
 		CHECK( a == KMIME::CSS );
+
+		// one JSON value per line has two names
+		CHECK( a.ByExtension("rows.ndjson") );
+		CHECK( a == KMIME::NDJSON );
+		CHECK( a == "application/x-ndjson" );
+
+		CHECK( a.ByExtension("rows.jsonl") );
+		CHECK( a == KMIME::NDJSON );
+
+		CHECK( a.IsCompressible() );
 	}
 
 	SECTION("compressors")

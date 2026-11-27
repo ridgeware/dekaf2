@@ -7,6 +7,7 @@
 #include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/io/streams/kinstringstream.h>
+#include <dekaf2/io/compression/kcompression.h>
 #include <dekaf2/io/readwrite/kread.h>
 #include <array>
 #include <sstream>
@@ -1078,4 +1079,87 @@ TEST_CASE("kReadSome from a stream")
 		Reader.close();
 	}
 #endif
+}
+
+TEST_CASE("a seek that fails leaves the read position")
+{
+	// every 8 bytes of the text hold their own offset
+	KString sPlain;
+
+	for (std::size_t i = 0; i < 20000; ++i)
+	{
+		sPlain += kFormat("{:07}\n", i * 8);
+	}
+
+	KString sCompressed;
+
+	{
+		KGZip Compressor(sCompressed);
+		Compressor.Write(sPlain);
+	}
+
+	// the offset that the next 8 bytes of the stream tell
+	auto NextOffset = [](KInStream& Stream) -> std::size_t
+	{
+		char Buffer[8];
+
+		if (Stream.Read(Buffer, sizeof(Buffer)) != sizeof(Buffer))
+		{
+			return KString::npos;
+		}
+
+		return KStringView(Buffer, 7).UInt64();
+	};
+
+	SECTION("a stream that decompresses cannot seek")
+	{
+		// with the read position at the start of what the stream has buffered, in its
+		// middle, and with a target inside and outside of it
+		for (std::size_t iRead : { std::size_t(0), std::size_t(512), std::size_t(8000) })
+		{
+			for (std::size_t iCount : { std::size_t(8), std::size_t(512), std::size_t(4096), std::size_t(100000) })
+			{
+				KUnGZip Stream(sCompressed);
+				KString sSkip;
+
+				REQUIRE ( Stream.Read(sSkip, iRead) == iRead );
+
+				INFO ( iRead  );
+				INFO ( iCount );
+
+				CHECK_FALSE ( kForward(Stream.istream(), iCount) );
+				CHECK ( NextOffset(Stream) == iRead );
+
+				CHECK_FALSE ( kRewind(Stream.istream(), std::min(iCount, iRead)) );
+				CHECK ( NextOffset(Stream) == iRead + 8 );
+
+				CHECK_FALSE ( kSetReadPosition(Stream.istream(), iCount) );
+				CHECK ( NextOffset(Stream) == iRead + 16 );
+
+				CHECK_FALSE ( kForward(Stream.istream()) );
+				CHECK ( NextOffset(Stream) == iRead + 24 );
+
+				CHECK_FALSE ( kGoToLine(Stream.istream(), 3, false) );
+				CHECK ( NextOffset(Stream) == iRead + 32 );
+
+				CHECK ( kGetSize(Stream.istream(), false) < 0 );
+				CHECK ( NextOffset(Stream) == iRead + 40 );
+			}
+		}
+	}
+
+	SECTION("a stream that can seek still does")
+	{
+		std::istringstream Source(std::string(sPlain.data(), sPlain.size()));
+		KInStream          Stream(Source);
+
+		CHECK ( kForward(Stream.istream(), 512) );
+		CHECK ( NextOffset(Stream) == 512 );
+
+		CHECK ( kRewind(Stream.istream(), 16) );
+		CHECK ( NextOffset(Stream) == 504 );
+
+		CHECK ( kSetReadPosition(Stream.istream(), 8000) );
+		CHECK ( NextOffset(Stream) == 8000 );
+	}
 }

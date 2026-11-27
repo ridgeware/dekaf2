@@ -53,6 +53,32 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+//-----------------------------------------------------------------------------
+/// A stream that cannot tell its read position cannot move it either. This has to
+/// be asked before a seek: a filter chain of boost::iostreams fails a seek only
+/// after it has moved the read position inside of its buffer, or has dropped what
+/// it had buffered.
+bool CanSeek(std::streambuf& streambuf)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY
+	{
+		return streambuf.pubseekoff(0, std::ios_base::cur, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	}
+
+	DEKAF2_CATCH (std::exception& e)
+	{
+		kDebug(3, e.what());
+	}
+
+	return false;
+
+} // CanSeek
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 std::size_t kRead(int fd, void* sBuffer, std::size_t iCount)
 //-----------------------------------------------------------------------------
@@ -471,7 +497,7 @@ bool kSetReadPosition(std::istream& Stream, std::size_t iPos)
 		return false;
 	}
 
-	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(static_cast<std::streambuf::off_type>(iPos), std::ios_base::beg, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	return Stream.rdbuf() && CanSeek(*Stream.rdbuf()) && Stream.rdbuf()->pubseekoff(static_cast<std::streambuf::off_type>(iPos), std::ios_base::beg, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
 	DEKAF2_LOG_EXCEPTION
 
 	return false;
@@ -483,7 +509,7 @@ bool kForward(std::istream& Stream)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(0, std::ios_base::end, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	return Stream.rdbuf() && CanSeek(*Stream.rdbuf()) && Stream.rdbuf()->pubseekoff(0, std::ios_base::end, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
 	DEKAF2_LOG_EXCEPTION
 
 	return false;
@@ -501,7 +527,7 @@ bool kForward(std::istream& Stream, std::size_t iCount)
 		return false;
 	}
 
-	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(static_cast<std::streambuf::off_type>(iCount), std::ios_base::cur, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	return Stream.rdbuf() && CanSeek(*Stream.rdbuf()) && Stream.rdbuf()->pubseekoff(static_cast<std::streambuf::off_type>(iCount), std::ios_base::cur, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
 	DEKAF2_LOG_EXCEPTION
 
 	return false;
@@ -520,7 +546,7 @@ bool kRewind(std::istream& Stream, std::size_t iCount)
 	}
 
 	auto iOffset = -static_cast<std::streambuf::off_type>(iCount);
-	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(iOffset, std::ios_base::cur, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	return Stream.rdbuf() && CanSeek(*Stream.rdbuf()) && Stream.rdbuf()->pubseekoff(iOffset, std::ios_base::cur, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
 	DEKAF2_LOG_EXCEPTION
 
 	return false;
@@ -653,6 +679,11 @@ bool kGoToLine(std::istream& Stream, std::size_t iLine, bool bFromEnd, char eol)
 	auto streambuf = Stream.rdbuf();
 
 	if (DEKAF2_UNLIKELY(!streambuf))
+	{
+		return false;
+	}
+
+	if (!CanSeek(*streambuf))
 	{
 		return false;
 	}

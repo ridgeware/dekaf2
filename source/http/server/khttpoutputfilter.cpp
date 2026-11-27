@@ -52,6 +52,12 @@ DEKAF2_NAMESPACE_BEGIN
 
 namespace {
 
+// The size of the buffer that a compressor of the output chain reads from.
+// boost::iostreams gives a filter a buffer of 128 bytes, and the compressor then
+// gets its input in steps of that size. With this size zstd and brotli compress a
+// few percent faster, for zlib it makes about one percent.
+constexpr std::streamsize iCompressorBufferSize = 4 * 1024;
+
 //-----------------------------------------------------------------------------
 // flushes a filter chain that starts with a compressor of the type Compressor
 template<class Compressor>
@@ -120,31 +126,31 @@ void KOutHTTPFilter::SetupOutputFilter()
 				boost::iostreams::zlib_params Params;
 				// makes zlib write the gzip format
 				Params.window_bits += 16;
-				m_Filter->push(dekaf2::iostreams::flushable_zlib_compressor(Params));
+				m_Filter->push(dekaf2::iostreams::flushable_zlib_compressor(Params), iCompressorBufferSize);
 				break;
 			}
 
 			case ZLIB:
 				kDebug(2, "using {} {}compression", "zlib", "");
-				m_Filter->push(dekaf2::iostreams::flushable_zlib_compressor());
+				m_Filter->push(dekaf2::iostreams::flushable_zlib_compressor(), iCompressorBufferSize);
 				break;
 
 			case BZIP2:
 				kDebug(2, "using {} {}compression", "bzip2", "");
-				m_Filter->push(boost::iostreams::bzip2_compressor());
+				m_Filter->push(boost::iostreams::bzip2_compressor(), iCompressorBufferSize);
 				break;
 
 #ifdef DEKAF2_HAS_LIBZSTD
 			case ZSTD:
 				kDebug(2, "using {} {}compression", "zstd", "");
-				m_Filter->push(dekaf2::iostreams::flushable_zstd_compressor());
+				m_Filter->push(dekaf2::iostreams::flushable_zstd_compressor(), iCompressorBufferSize);
 				break;
 
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
 			case XZ:
 				kDebug(2, "using {} {}compression", "xz", "");
-				m_Filter->push(dekaf2::iostreams::flushable_lzma_compressor());
+				m_Filter->push(dekaf2::iostreams::flushable_lzma_compressor(), iCompressorBufferSize);
 				break;
 
 			case LZMA:
@@ -154,7 +160,7 @@ void KOutHTTPFilter::SetupOutputFilter()
 #ifdef DEKAF2_HAS_LIBBROTLI
 			case BROTLI:
 				kDebug(2, "using {} {}compression", "brotli", "");
-				m_Filter->push(dekaf2::iostreams::flushable_brotli_compressor());
+				m_Filter->push(dekaf2::iostreams::flushable_brotli_compressor(), iCompressorBufferSize);
 				break;
 #endif
 		}

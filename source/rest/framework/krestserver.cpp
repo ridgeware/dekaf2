@@ -1883,13 +1883,43 @@ bool KRESTServer::MoveToEventServer(std::unique_ptr<KIOStreamSocket>& Stream)
 } // MoveToEventServer
 
 //-----------------------------------------------------------------------------
+bool KRESTServer::IsStreamGood()
+//-----------------------------------------------------------------------------
+{
+	return !IsDisconnected()
+	    && !m_bLostConnection
+	    &&  Request.Method != KHTTPMethod::HEAD
+	    && !(m_StopCheck && m_StopCheck());
+
+} // IsStreamGood
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::WriteToStream(KStringView sOut, bool bFlush)
+//-----------------------------------------------------------------------------
+{
+	if (!IsStreamGood())
+	{
+		return false;
+	}
+
+	// the filter chain buffers, a lost connection only shows after the flush
+	if (Response.Write(sOut) != sOut.size() ||
+	    (bFlush && (!Response.Flush() || !Response.UnfilteredStream().Good())))
+	{
+		kDebug(2, "write error, connection lost");
+		m_bLostConnection = true;
+		return false;
+	}
+
+	return true;
+
+} // WriteToStream
+
+//-----------------------------------------------------------------------------
 bool KRESTServer::EventWriter::Good() const
 //-----------------------------------------------------------------------------
 {
-	return !m_Server.IsDisconnected()
-	    && !m_Server.m_bLostConnection
-	    &&  m_Server.Request.Method != KHTTPMethod::HEAD
-	    && !(m_Server.m_StopCheck && m_Server.m_StopCheck());
+	return m_Server.IsStreamGood();
 
 } // EventWriter::Good
 
@@ -1908,17 +1938,7 @@ bool KRESTServer::EventWriter::Write(KStringView sOut)
 		return true;
 	}
 
-	auto& Response = m_Server.Response;
-
-	// the filter chain buffers, a lost connection only shows after the flush
-	if (Response.Write(sOut) != sOut.size() || !Response.Flush() || !Response.UnfilteredStream().Good())
-	{
-		kDebug(2, "write error, connection lost");
-		m_Server.m_bLostConnection = true;
-		return false;
-	}
-
-	return true;
+	return m_Server.WriteToStream(sOut, true);
 
 } // EventWriter::Write
 
@@ -1953,6 +1973,83 @@ const KString& KRESTServer::EventWriter::GetLastEventID() const
 	return m_Server.Request.Headers.Get(KHTTPHeader::LAST_EVENT_ID);
 
 } // EventWriter::GetLastEventID
+
+//-----------------------------------------------------------------------------
+KRESTServer::NDJSONWriter KRESTServer::NDJSONStream(bool bFlushLines, bool bAllowCompression)
+//-----------------------------------------------------------------------------
+{
+	Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::NDJSON);
+
+	if (bFlushLines && bAllowCompression &&
+	    KHTTPCompression::GetBestCompressor(Request.AcceptedCompressors(true)) == KHTTPCompression::BZIP2)
+	{
+		// bzip2 cannot be flushed, the lines would only arrive with the end of the stream
+		bAllowCompression = false;
+	}
+
+	// the framed body tells the client where the stream ends, and keeps the connection
+	Stream(bAllowCompression, true, true);
+
+	return NDJSONWriter(*this, bFlushLines);
+
+} // NDJSONStream
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::NDJSONWriter::Good() const
+//-----------------------------------------------------------------------------
+{
+	return m_Server.IsStreamGood();
+
+} // NDJSONWriter::Good
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::NDJSONWriter::Write(const KJSON& Value)
+//-----------------------------------------------------------------------------
+{
+	// without indents the output has no line break, those of strings are escaped
+	auto sLine = DumpJSON(Value, -1);
+	sLine += '\n';
+
+	if (!m_Server.WriteToStream(sLine, m_bFlushLines))
+	{
+		return false;
+	}
+
+	++m_iLines;
+
+	return true;
+
+} // NDJSONWriter::Write
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::NDJSONWriter::WriteAll(const KJSON& Values)
+//-----------------------------------------------------------------------------
+{
+	if (!Values.is_array())
+	{
+		kDebug(1, "the values to write are no array");
+		return false;
+	}
+
+	for (const auto& Value : Values)
+	{
+		if (!Write(Value))
+		{
+			return false;
+		}
+	}
+
+	return true;
+
+} // NDJSONWriter::WriteAll
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::NDJSONWriter::Flush()
+//-----------------------------------------------------------------------------
+{
+	return m_Server.WriteToStream(KStringView{}, true);
+
+} // NDJSONWriter::Flush
 
 //-----------------------------------------------------------------------------
 void KRESTServer::Output()

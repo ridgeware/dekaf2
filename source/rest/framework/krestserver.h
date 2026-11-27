@@ -786,6 +786,102 @@ public:
 	EventWriter EventStream(bool bAllowCompression = false);
 	//-----------------------------------------------------------------------------
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Sends JSON values to the client, one value per line (NDJSON), returned by
+	/// NDJSONStream(). A line is sent in one piece. Bytes of a string that are no
+	/// UTF-8 are sent as U+FFFD, as in every other JSON response.
+	class DEKAF2_PUBLIC NDJSONWriter
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		friend class KRESTServer;
+
+	//------
+	public:
+	//------
+
+		//-----------------------------------------------------------------------------
+		/// @param Value the value to send as one line
+		/// @return false if the line could not be sent, see Good()
+		bool Write(const KJSON& Value);
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// Sends every element of an array as one line
+		/// @param Values an array
+		/// @return false if Values is no array, or if a line could not be sent, see Good()
+		bool WriteAll(const KJSON& Values);
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// Send the lines that are still buffered - for a stream that does not send every
+		/// line at once
+		/// @return false if the lines could not be sent, see Good()
+		bool Flush();
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// @return false if the client left, if the server shuts down, or if the request is
+		/// a HEAD request, which gets no body. The route should return then.
+		DEKAF2_NODISCARD
+		bool Good() const;
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// @return the count of lines that were written
+		DEKAF2_NODISCARD
+		std::size_t GetLines() const
+		//-----------------------------------------------------------------------------
+		{
+			return m_iLines;
+		}
+
+	//------
+	private:
+	//------
+
+		//-----------------------------------------------------------------------------
+		NDJSONWriter(KRESTServer& Server, bool bFlushLines)
+		//-----------------------------------------------------------------------------
+		: m_Server(Server)
+		, m_bFlushLines(bFlushLines)
+		{
+		}
+
+		KRESTServer& m_Server;
+		std::size_t  m_iLines { 0 };
+		bool         m_bFlushLines;
+
+	}; // NDJSONWriter
+
+	//-----------------------------------------------------------------------------
+	/// Answer the request with JSON values, one value per line (NDJSON, media type
+	/// application/x-ndjson): writes the response headers, and leaves the response open for the
+	/// lines. The route sends them with the returned writer for as long as it runs, and occupies
+	/// its worker thread for that time. The stream ends when the route returns. A route that throws
+	/// after this ends the response without its end mark, so that the client sees that it is not
+	/// complete.
+	///
+	/// @code
+	/// Routes.AddRoute("/export").Get([](KRESTServer& HTTP)
+	/// {
+	///     auto Lines = HTTP.NDJSONStream();
+	///
+	///     KJSON Record;
+	///
+	///     while (Lines.Good() && NextRecord(Record))
+	///     {
+	///         Lines.Write(Record);
+	///     }
+	/// });
+	/// @endcode
+	/// @param bFlushLines send every line at once, for a client that waits for the lines. Without it
+	/// the lines are sent when the output buffer is full, or with NDJSONWriter::Flush().
+	/// @param bAllowCompression compress the stream if the client accepts it - with bFlushLines only
+	/// with a compression that can be flushed after every line
+	/// @return the writer for the lines
+	NDJSONWriter NDJSONStream(bool bFlushLines = false, bool bAllowCompression = false);
+	//-----------------------------------------------------------------------------
+
 	//-----------------------------------------------------------------------------
 	/// Answer the request with an event stream (server-sent events) that the event server of KREST
 	/// sends: writes the response headers, and after the route returned the connection leaves the
@@ -1073,6 +1169,22 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// write headers, called by Stream() and Output()
 	void WriteHeaders();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// for the writers of a stream
+	/// @return false if the client left, if the server shuts down, or if the request is
+	/// a HEAD request, which gets no body
+	DEKAF2_NODISCARD
+	bool IsStreamGood();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// for the writers of a stream: write to the response
+	/// @param sOut the output
+	/// @param bFlush send the output at once, which also tells whether the client left
+	/// @return false if the stream is not good, or if the connection was lost
+	bool WriteToStream(KStringView sOut, bool bFlush);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

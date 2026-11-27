@@ -18,6 +18,7 @@
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
 #include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/data/json/kndjson.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/net/tcp/ktcpstream.h>
@@ -3084,6 +3085,459 @@ TEST_CASE("KRESTServer: event stream")
 		// no body, the second response follows the headers of the first
 		CHECK ( sResponse.contains("\r\n\r\nHTTP/1.1 200 ") );
 		CHECK ( sResponse.contains("\"hello\"") );
+	}
+}
+
+TEST_CASE("KRESTServer: NDJSON stream")
+{
+	// A route sends lines with the writer of NDJSONStream(). Where the lines are sent at
+	// once the first line has to reach the client while the route runs: the route continues
+	// only when the client has it.
+	std::atomic<bool>        bClientHasFirst { false };
+	std::atomic<bool>        bWaitedInVain   { false };
+	std::atomic<bool>        bAllSent        { false };
+	std::atomic<bool>        bGoodAtStart    { false };
+	std::atomic<bool>        bWriterEnded    { false };
+	std::atomic<bool>        bRouteEnded     { false };
+	std::atomic<std::size_t> iLines          { 0 };
+
+	auto WaitForClient = [&]()
+	{
+		for (std::size_t i = 0; i < 500 && !bClientHasFirst; ++i)
+		{
+			kSleep(chrono::milliseconds(10));
+		}
+
+		bWaitedInVain = !bClientHasFirst;
+	};
+
+	// the lines that follow the first one
+	auto MakeRest = []() -> KJSON
+	{
+		KJSON Broken;
+		Broken["text"] = KString("bad \xff byte");
+
+		KJSON Rest = KJSON::array();
+		Rest.push_back(2);
+		Rest.push_back("two\nlines");
+		Rest.push_back(Broken);
+
+		return Rest;
+	};
+
+	KStringView sExpected { "{\"line\":1}\n2\n\"two\\nlines\"\n{\"text\":\"bad \xef\xbf\xbd byte\"}\n" };
+
+	auto SendLines = [&](KRESTServer::NDJSONWriter Lines)
+	{
+		KJSON First;
+		First["line"] = 1;
+
+		bool bSent = Lines.Write(First);
+
+		WaitForClient();
+
+		bSent = Lines.WriteAll(MakeRest()) && bSent;
+		// what is no array sends nothing
+		bSent = !Lines.WriteAll(KJSON()) && bSent;
+
+		iLines   = Lines.GetLines();
+		bAllSent = bSent;
+	};
+
+	KRESTRoutes Routes;
+
+	Routes.AddRoute("/lines").Get([&](KRESTServer& HTTP)
+	{
+		SendLines(HTTP.NDJSONStream(true));
+	});
+
+	Routes.AddRoute("/compressed").Get([&](KRESTServer& HTTP)
+	{
+		SendLines(HTTP.NDJSONStream(true, true));
+	});
+
+	// does not send every line at once
+	Routes.AddRoute("/buffered").Get([&](KRESTServer& HTTP)
+	{
+		auto Lines = HTTP.NDJSONStream(false, true);
+
+		KJSON First;
+		First["line"] = 1;
+
+		bool bSent = Lines.Write(First);
+		bSent      = Lines.WriteAll(MakeRest()) && bSent;
+
+		iLines   = Lines.GetLines();
+		bAllSent = bSent;
+	});
+
+	// sends the first line with Flush()
+	Routes.AddRoute("/flushed").Get([&](KRESTServer& HTTP)
+	{
+		auto Lines = HTTP.NDJSONStream();
+
+		KJSON First;
+		First["line"] = 1;
+
+		bool bSent = Lines.Write(First);
+		bSent      = Lines.Flush() && bSent;
+
+		WaitForClient();
+
+		bSent = Lines.WriteAll(MakeRest()) && bSent;
+
+		iLines   = Lines.GetLines();
+		bAllSent = bSent;
+	});
+
+	// sends until the writer tells to end, for ten seconds at most
+	Routes.AddRoute("/endless").Get([&](KRESTServer& HTTP)
+	{
+		auto Lines = HTTP.NDJSONStream(true);
+
+		bGoodAtStart = Lines.Good();
+
+		for (std::size_t i = 0; i < 1000 && Lines.Good(); ++i)
+		{
+			Lines.Write(KJSON(i));
+			kSleep(chrono::milliseconds(10));
+		}
+
+		bWriterEnded = !Lines.Good();
+		bRouteEnded  = true;
+	});
+
+	// fails after the first line
+	Routes.AddRoute("/throws").Get([&](KRESTServer& HTTP)
+	{
+		auto Lines = HTTP.NDJSONStream(true);
+
+		Lines.Write(KJSON(1));
+
+		throw KHTTPError { KHTTPError::H5xx_ERROR, "failed after the first line" };
+	});
+
+	Routes.AddRoute("/json").Get([](KRESTServer& HTTP)
+	{
+		HTTP.json.tx["hello"] = "world";
+	});
+
+	KREST::Options Options;
+
+	Options.Type                 = KREST::HTTP;
+	Options.iPort                = 0;
+	Options.sBindAddress         = "127.0.0.1";
+	Options.Timeout              = chrono::seconds(2);
+	Options.bBlocking            = false;
+	Options.bCreateEphemeralCert = false;
+
+	auto Server = std::make_unique<KREST>();
+	REQUIRE ( Server->Execute(Options, Routes) );
+
+	auto sEndPoint = kFormat("127.0.0.1:{}", Server->GetPort());
+
+	// reads the header of a response, with one LF after each line
+	auto ReadHeader = [](KTCPStream& Stream) -> KString
+	{
+		KString sHeader;
+		KString sLine;
+
+		while (Stream.ReadLine(sLine) && !sLine.empty())
+		{
+			sHeader += sLine;
+			sHeader += '\n';
+		}
+
+		return sHeader;
+	};
+
+	// appends the next chunk of a chunked body to sBody, returns false after the last chunk
+	auto ReadChunk = [](KTCPStream& Stream, KString& sBody) -> bool
+	{
+		KString sLine;
+
+		if (!Stream.ReadLine(sLine))
+		{
+			return false;
+		}
+
+		auto iSize = sLine.UInt64(true);
+
+		if (!iSize || Stream.Read(sBody, iSize) != iSize)
+		{
+			// the empty line after the last chunk
+			Stream.ReadLine(sLine);
+			return false;
+		}
+
+		// the line break after the chunk
+		Stream.ReadLine(sLine);
+
+		return true;
+	};
+
+	// reads a chunked body to its end, and tells when the first line is there
+	auto ReadLines = [&](KTCPStream& Stream) -> KString
+	{
+		KString sLines;
+
+		for (bool bMore = true; bMore;)
+		{
+			bMore = ReadChunk(Stream, sLines);
+
+			if (sLines.contains('\n'))
+			{
+				bClientHasFirst = true;
+			}
+		}
+
+		return sLines;
+	};
+
+	auto WaitForRouteEnd = [&]()
+	{
+		for (std::size_t i = 0; i < 1500 && !bRouteEnded; ++i)
+		{
+			kSleep(chrono::milliseconds(10));
+		}
+	};
+
+	KStringView sLastRequest { "GET /json HTTP/1.1\r\nHost: a\r\nConnection: close\r\n\r\n" };
+
+	SECTION("the lines arrive while the route runs, and the next request gets its response")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write(kFormat("GET /lines HTTP/1.1\r\nHost: a\r\n\r\n{}", sLastRequest)).Flush();
+
+		auto sHeader = ReadHeader(Stream);
+
+		INFO  ( sHeader );
+		CHECK ( sHeader.starts_with("HTTP/1.1 200 ") );
+		CHECK ( sHeader.contains("content-type: application/x-ndjson\n") );
+		CHECK ( sHeader.contains("transfer-encoding: chunked\n") );
+		CHECK ( sHeader.contains("connection: keep-alive\n") );
+		CHECK_FALSE ( sHeader.contains("content-encoding") );
+
+		auto sLines = ReadLines(Stream);
+
+		CHECK_FALSE ( bWaitedInVain );
+		CHECK ( bAllSent );
+		CHECK ( iLines == 4 );
+		CHECK ( sLines == sExpected );
+
+		KString sRest;
+		Stream.ReadRemaining(sRest);
+
+		CHECK ( sRest.starts_with("HTTP/1.1 200 ") );
+		CHECK ( sRest.contains("\"hello\"") );
+	}
+
+	SECTION("a client reads the lines with KHTTPClient and KNDJSONReader")
+	{
+		KURL        URL(kFormat("http://{}/lines", sEndPoint));
+		KHTTPClient HTTP;
+
+		HTTP.SetTimeout(chrono::seconds(5));
+		HTTP.RequestCompression(false);
+
+		REQUIRE ( HTTP.Connect(URL)  );
+		REQUIRE ( HTTP.Resource(URL) );
+		REQUIRE ( HTTP.SendRequest() );
+
+		CHECK ( HTTP.Response.GetStatusCode() == 200 );
+		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::NDJSON );
+
+		KNDJSONReader Reader(HTTP.Response.FilteredStream());
+		KJSON         Value;
+
+		REQUIRE ( Reader.Next(Value) );
+		CHECK   ( Value.dump() == R"({"line":1})" );
+
+		bClientHasFirst = true;
+
+		auto Rest = Reader.GetAll();
+
+		CHECK ( Reader.HasError() == false );
+		CHECK ( Reader.GetLine()  == 4     );
+		REQUIRE ( Rest.size() == 3 );
+		CHECK ( Rest[0] == 2 );
+		CHECK ( Rest[1] == "two\nlines" );
+		CHECK_FALSE ( bWaitedInVain );
+	}
+
+	SECTION("a compressed stream is flushed after each line")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write("GET /compressed HTTP/1.1\r\nHost: a\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n").Flush();
+
+		auto sHeader = ReadHeader(Stream);
+
+		INFO  ( sHeader );
+		CHECK ( sHeader.contains("content-type: application/x-ndjson\n") );
+		CHECK ( sHeader.contains("content-encoding: gzip\n") );
+		CHECK ( sHeader.contains("transfer-encoding: chunked\n") );
+
+		KString sCompressed;
+
+		while (ReadChunk(Stream, sCompressed))
+		{
+			// the header of the gzip format has 10 bytes, what follows is the first line
+			if (sCompressed.size() > 10)
+			{
+				bClientHasFirst = true;
+			}
+		}
+
+		CHECK_FALSE ( bWaitedInVain );
+		CHECK ( bAllSent );
+
+		KString     sLines;
+		KUnCompress UnCompress(sCompressed, KUnCompressIStream::GZIP);
+		UnCompress.ReadRemaining(sLines);
+
+		CHECK ( sLines == sExpected );
+	}
+
+	SECTION("a compression that cannot be flushed is not used for lines that are sent at once")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write("GET /compressed HTTP/1.1\r\nHost: a\r\nAccept-Encoding: bzip2\r\nConnection: close\r\n\r\n").Flush();
+
+		auto sHeader = ReadHeader(Stream);
+
+		INFO  ( sHeader );
+		CHECK ( sHeader.contains("content-type: application/x-ndjson\n") );
+		CHECK_FALSE ( sHeader.contains("content-encoding") );
+
+		auto sLines = ReadLines(Stream);
+
+		CHECK_FALSE ( bWaitedInVain );
+		CHECK ( bAllSent );
+		CHECK ( sLines == sExpected );
+	}
+
+	SECTION("lines that are not sent at once arrive with the end of the route")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write(kFormat("GET /buffered HTTP/1.1\r\nHost: a\r\nAccept-Encoding: gzip\r\n\r\n{}", sLastRequest)).Flush();
+
+		auto sHeader = ReadHeader(Stream);
+
+		INFO  ( sHeader );
+		CHECK ( sHeader.contains("content-type: application/x-ndjson\n") );
+		CHECK ( sHeader.contains("content-encoding: gzip\n") );
+		CHECK ( sHeader.contains("transfer-encoding: chunked\n") );
+
+		KString sCompressed;
+
+		while (ReadChunk(Stream, sCompressed)) {}
+
+		KString     sLines;
+		KUnCompress UnCompress(sCompressed, KUnCompressIStream::GZIP);
+		UnCompress.ReadRemaining(sLines);
+
+		CHECK ( bAllSent );
+		CHECK ( iLines == 4 );
+		CHECK ( sLines == sExpected );
+
+		KString sRest;
+		Stream.ReadRemaining(sRest);
+
+		CHECK ( sRest.starts_with("HTTP/1.1 200 ") );
+		CHECK ( sRest.contains("\"hello\"") );
+	}
+
+	SECTION("Flush() sends the lines that are buffered")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write("GET /flushed HTTP/1.1\r\nHost: a\r\nConnection: close\r\n\r\n").Flush();
+
+		auto sHeader = ReadHeader(Stream);
+
+		INFO  ( sHeader );
+		CHECK ( sHeader.contains("content-type: application/x-ndjson\n") );
+
+		auto sLines = ReadLines(Stream);
+
+		CHECK_FALSE ( bWaitedInVain );
+		CHECK ( bAllSent );
+		CHECK ( iLines == 4 );
+		CHECK ( sLines == sExpected );
+	}
+
+	SECTION("the writer tells when the client left")
+	{
+		{
+			KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+			REQUIRE ( Stream.is_open() );
+
+			Stream.Write("GET /endless HTTP/1.1\r\nHost: a\r\n\r\n").Flush();
+
+			auto sHeader = ReadHeader(Stream);
+			CHECK ( sHeader.contains("content-type: application/x-ndjson\n") );
+
+			KString sBody;
+			CHECK ( ReadChunk(Stream, sBody) );
+			CHECK ( sBody.starts_with("0\n") );
+		}
+
+		WaitForRouteEnd();
+
+		CHECK ( bRouteEnded  );
+		CHECK ( bGoodAtStart );
+		CHECK ( bWriterEnded );
+	}
+
+	SECTION("a HEAD request gets the headers, and the writer is not good")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write(kFormat("HEAD /endless HTTP/1.1\r\nHost: a\r\n\r\n{}", sLastRequest)).Flush();
+
+		KString sResponse;
+		Stream.ReadRemaining(sResponse);
+
+		INFO  ( sResponse );
+		CHECK ( bRouteEnded );
+		CHECK_FALSE ( bGoodAtStart );
+		CHECK ( sResponse.contains("content-type: application/x-ndjson\r\n") );
+		// no body, the second response follows the headers of the first
+		CHECK ( sResponse.contains("\r\n\r\nHTTP/1.1 200 ") );
+		CHECK ( sResponse.contains("\"hello\"") );
+	}
+
+	SECTION("a route that throws ends the response without its last chunk")
+	{
+		KTCPStream Stream(KTCPEndPoint(sEndPoint), KStreamOptions(chrono::seconds(10)));
+		REQUIRE ( Stream.is_open() );
+
+		Stream.Write(kFormat("GET /throws HTTP/1.1\r\nHost: a\r\n\r\n{}", sLastRequest)).Flush();
+
+		auto sHeader = ReadHeader(Stream);
+
+		INFO  ( sHeader );
+		CHECK ( sHeader.starts_with("HTTP/1.1 200 ") );
+		CHECK ( sHeader.contains("transfer-encoding: chunked\n") );
+
+		KString sRest;
+		Stream.ReadRemaining(sRest);
+
+		// the chunk with the first line, and nothing after it: neither the last chunk
+		// nor the response to the second request
+		CHECK ( sRest.ends_with("\r\n1\n\r\n") );
+		CHECK ( sRest.size() < 12 );
+		CHECK_FALSE ( sRest.contains("HTTP/1.1") );
 	}
 }
 

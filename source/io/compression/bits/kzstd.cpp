@@ -75,6 +75,7 @@ zstd_base::zstd_base()
 	, in_(new ZSTD_inBuffer)
 	, out_(new ZSTD_outBuffer)
 	, eof_(false)
+	, held_(false)
     { }
 
 zstd_base::~zstd_base()
@@ -137,11 +138,28 @@ int zstd_base::inflate(int action)
     ZSTD_DStream *s = static_cast<ZSTD_DStream *>(dstream_);
     ZSTD_inBuffer *in = static_cast<ZSTD_inBuffer *>(in_);
     ZSTD_outBuffer *out = static_cast<ZSTD_outBuffer *>(out_);
+    size_t result;
+    if (held_ && in->size > 0)
+    {
+        // the decompressor has this byte, see below
+        in->pos = 1;
+    }
     // need loop since iostream code cannot handle short reads
     do {
-        size_t result = ZSTD_decompressStream(s, out, in);
+        result = ZSTD_decompressStream(s, out, in);
         zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(result);
     } while (in->pos < in->size && out->pos < out->size);
+    // The decompressor takes the input of a whole block, and writes its output as
+    // there is room. The symmetric_filter calls again only while it has input: with
+    // all input taken, the rest of the output would stay in the decompressor until
+    // further input arrives - on a connection that stays open that is the next
+    // message of the sender. So the last byte is reported as not taken as long as
+    // the output is full and the frame is not complete.
+    held_ = result != 0 && in->size > 0 && in->pos == in->size && out->pos == out->size;
+    if (held_)
+    {
+        --in->pos;
+    }
     return action == zstd::finish && in->size == 0 && out->pos == 0 ? zstd::stream_end : zstd::okay;
 }
 
@@ -154,6 +172,7 @@ void zstd_base::reset(bool compress, bool realloc)
         memset(in, 0, sizeof(*in));
         memset(out, 0, sizeof(*out));
         eof_ = false;
+        held_ = false;
 
 		if (compress)
 		{
@@ -193,6 +212,7 @@ void zstd_base::do_init
     memset(in, 0, sizeof(*in));
     memset(out, 0, sizeof(*out));
     eof_ = false;
+    held_ = false;
 
 	if (compress)
 	{

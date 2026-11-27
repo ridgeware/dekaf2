@@ -72,6 +72,7 @@ brotli_base::brotli_base()
 	, EncoderState_(0)
 	, total_out_(0)
 	, level(brotli::default_compression)
+	, held_(false)
     { }
 
 brotli_base::~brotli_base()
@@ -132,13 +133,38 @@ int brotli_base::deflate(int action)
 
 int brotli_base::inflate(int action)
 {
+	BrotliDecoderState* state = static_cast<BrotliDecoderState*>(DecoderState_);
+
+	// the input of this call, with a byte that the decoder has already
+	bool had_input = stream_.avail_in != 0;
+
+	if (held_ && had_input)
+	{
+		// the decoder has this byte, see below
+		++stream_.next_in;
+		--stream_.avail_in;
+	}
+
     // need loop since iostream code cannot handle short reads
     do {
 
-		BrotliDecoderResult result = BrotliDecoderDecompressStream(static_cast<BrotliDecoderState*>(DecoderState_), &stream_.avail_in, &stream_.next_in, &stream_.avail_out, &stream_.next_out, &total_out_);
+		BrotliDecoderResult result = BrotliDecoderDecompressStream(state, &stream_.avail_in, &stream_.next_in, &stream_.avail_out, &stream_.next_out, &total_out_);
         brotli_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(result);
 
     } while (stream_.avail_in && stream_.avail_out);
+
+	// The decoder may have taken all input while it has more output than there is
+	// room for. The symmetric_filter calls again only while it has input: the rest of
+	// the output would stay in the decoder until further input arrives - on a
+	// connection that stays open that is the next message of the sender. So the last
+	// byte is reported as not taken as long as the decoder has output left.
+	held_ = had_input && stream_.avail_in == 0 && BrotliDecoderHasMoreOutput(state) == BROTLI_TRUE;
+
+	if (held_)
+	{
+		--stream_.next_in;
+		++stream_.avail_in;
+	}
 
     return (action == brotli::finish &&
 			stream_.avail_in == 0 &&
@@ -152,6 +178,7 @@ void brotli_base::reset(bool compress, bool realloc)
     {
 		stream_.clear();
 		total_out_ = 0;
+		held_ = false;
 
 		if (compress)
 		{

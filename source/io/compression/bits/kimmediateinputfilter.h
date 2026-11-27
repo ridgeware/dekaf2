@@ -114,10 +114,11 @@ std::streamsize read_some(Source& src, char* s, std::streamsize n)
 /// that the other side sends only later, while output is ready: a line of a stream
 /// reaches its reader only when the stream ends.
 ///
-/// The wrapped filter gets a source that waits for input once per call, and after
-/// that hands on only what the next stage of the chain has buffered. Asked again
-/// in the same call it reports that it would have to wait, which makes the filter
-/// return its output. The data that passes is the same as without this filter.
+/// The wrapped filter gets a source that hands on only what the next stage of the
+/// chain has buffered, and else reports that it would have to wait, which makes
+/// the filter return its output. Only if the filter has no output without waiting
+/// the source waits for input, once. The data that passes is the same as without
+/// this filter.
 ///
 /// The wrapped filter has to take that report at every read. The gzip decompressor
 /// of boost::iostreams does not, see gzip_members_decompressor.
@@ -151,20 +152,23 @@ public:
 	std::streamsize read(Source& src, char* s, std::streamsize n)
 	//-----------------------------------------------------------------------------
 	{
+		// First without waiting: the filter may hold input of an earlier call, and the
+		// next stage may have input buffered.
 		feeder<Source> Feeder(src);
 
 		for (;;)
 		{
 			auto iRead = m_Filter.read(Feeder, s, n);
 
-			if (iRead != 0 || !Feeder.had_input())
+			if (iRead != 0 || Feeder.may_wait())
 			{
-				// output, the end of the input, or a filter that did not ask for input
+				// output, the end of the input, or a filter that did not ask for the
+				// input it was allowed to wait for
 				return iRead;
 			}
 
-			// this piece of the input gave no output: wait for the next piece
-			Feeder.next_piece();
+			// no output without waiting: wait for the next piece of the input
+			Feeder.allow_wait();
 		}
 
 	} // read
@@ -207,10 +211,10 @@ private:
 		std::streamsize read(char* s, std::streamsize n)
 		//-----------------------------------------------------------------------------
 		{
-			if (m_bHadInput && m_Source.in_avail() <= 0)
+			if (!m_bMayWait && m_Source.in_avail() <= 0)
 			{
-				// the filter had input in this call, and more would have to be waited
-				// for: 0 tells it so, and it returns its output
+				// input would have to be waited for: 0 tells the filter so, and it
+				// returns its output
 				return 0;
 			}
 
@@ -218,7 +222,8 @@ private:
 
 			if (iRead > 0)
 			{
-				m_bHadInput = true;
+				// the filter has input now, it shall work with that
+				m_bMayWait = false;
 			}
 
 			return iRead;
@@ -226,19 +231,19 @@ private:
 		} // read
 
 		//-----------------------------------------------------------------------------
-		/// @return true if the filter got input since the last call of next_piece()
-		bool had_input() const
+		/// @return true if the next read may wait for input
+		bool may_wait() const
 		//-----------------------------------------------------------------------------
 		{
-			return m_bHadInput;
+			return m_bMayWait;
 		}
 
 		//-----------------------------------------------------------------------------
-		/// let the next read wait for input again
-		void next_piece()
+		/// let the next read wait for input
+		void allow_wait()
 		//-----------------------------------------------------------------------------
 		{
-			m_bHadInput = false;
+			m_bMayWait = true;
 		}
 
 	//------
@@ -246,7 +251,7 @@ private:
 	//------
 
 		Source& m_Source;
-		bool    m_bHadInput { false };
+		bool    m_bMayWait { false };
 
 	}; // feeder
 

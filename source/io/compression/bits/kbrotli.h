@@ -182,6 +182,7 @@ private:
 	void* EncoderState_;
 	size_t total_out_;
 	uint32_t level;
+	bool held_;         // the decompressor has the first byte of the input already
 };
 
 //

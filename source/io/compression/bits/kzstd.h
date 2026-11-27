@@ -182,6 +182,7 @@ private:
 
 	static bool   bHasMultiThreading;
     bool          eof_;
+    bool          held_;            // the decompressor has the first byte of the input already
 	uint16_t      level_;
 	uint16_t      iMultiThreading_;
 };

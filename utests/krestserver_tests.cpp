@@ -3156,6 +3156,27 @@ TEST_CASE("KRESTServer: NDJSON stream")
 		SendLines(HTTP.NDJSONStream(true, true));
 	});
 
+	// one line that is larger than the buffers of the client, then the wait for the client
+	Routes.AddRoute("/large").Get([&](KRESTServer& HTTP)
+	{
+		auto Lines = HTTP.NDJSONStream(true, true);
+
+		KString sLarge;
+
+		for (std::size_t i = 0; i < 300 * 1024; ++i)
+		{
+			sLarge += static_cast<char>('a' + (i * i / 7) % 26);
+		}
+
+		bool bSent = Lines.Write(KJSON(sLarge));
+
+		WaitForClient();
+
+		bSent    = Lines.Write(KJSON(2)) && bSent;
+		iLines   = Lines.GetLines();
+		bAllSent = bSent;
+	});
+
 	// does not send every line at once
 	Routes.AddRoute("/buffered").Get([&](KRESTServer& HTTP)
 	{
@@ -3414,6 +3435,56 @@ TEST_CASE("KRESTServer: NDJSON stream")
 			CHECK ( Reader.GetLine()  == 4     );
 			CHECK ( Rest.size()       == 3     );
 			// the route went on because the client had the first line
+			CHECK_FALSE ( bWaitedInVain );
+			CHECK ( bAllSent );
+		}
+	}
+
+	SECTION("a client that asked for compression gets a large line in full while the route runs")
+	{
+		std::vector<KStringView> Compressors { "gzip", "deflate" };
+#ifdef DEKAF2_HAS_LIBZSTD
+		Compressors.push_back("zstd");
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+		Compressors.push_back("br");
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+		Compressors.push_back("xz");
+#endif
+
+		for (auto sCompressor : Compressors)
+		{
+			bClientHasFirst = false;
+			bWaitedInVain   = false;
+			bAllSent        = false;
+
+			KURL        URL(kFormat("http://{}/large", sEndPoint));
+			KHTTPClient HTTP;
+
+			HTTP.SetTimeout(chrono::seconds(5));
+			HTTP.RequestCompression(true, sCompressor);
+
+			REQUIRE ( HTTP.Connect(URL)  );
+			REQUIRE ( HTTP.Resource(URL) );
+			REQUIRE ( HTTP.SendRequest() );
+
+			INFO  ( sCompressor );
+			CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == sCompressor );
+
+			KNDJSONReader Reader(HTTP.Response.FilteredStream());
+			KJSON         Value;
+
+			// the line is complete only with its last byte
+			REQUIRE ( Reader.Next(Value) );
+			CHECK   ( Value.String().size() == 300 * 1024 );
+
+			bClientHasFirst = true;
+
+			auto Rest = Reader.GetAll();
+
+			CHECK ( Reader.HasError() == false );
+			CHECK ( Rest.size()       == 1     );
 			CHECK_FALSE ( bWaitedInVain );
 			CHECK ( bAllSent );
 		}

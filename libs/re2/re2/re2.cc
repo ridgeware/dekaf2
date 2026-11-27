@@ -36,6 +36,18 @@
 
 namespace re2 {
 
+// dekaf2 change: upstream replaced the <ctype.h> calls in this file with
+// absl::ascii_isdigit() and absl::ascii_isspace() (commit 09de536). The
+// <ctype.h> functions have undefined behavior for negative arguments, which
+// a byte above 0x7F is on platforms with a signed char.
+static inline bool ascii_isdigit(int c) {
+  return '0' <= c && c <= '9';
+}
+
+static inline bool ascii_isspace(int c) {
+  return c == ' ' || ('\t' <= c && c <= '\r');
+}
+
 // Maximum number of args we can set
 static const int kMaxArgs = 16;
 static const int kVecSize = 1+kMaxArgs;
@@ -965,7 +977,7 @@ bool RE2::CheckRewriteString(const StringPiece& rewrite,
     if (c == '\\') {
       continue;
     }
-    if (!isdigit(c)) {
+    if (!ascii_isdigit(c)) {
       *error = "Rewrite schema error: "
                "'\\' must be followed by a digit or '\\'.";
       return false;
@@ -995,7 +1007,7 @@ int RE2::MaxSubmatch(const StringPiece& rewrite) {
     if (*s == '\\') {
       s++;
       int c = (s < end) ? *s : -1;
-      if (isdigit(c)) {
+      if (ascii_isdigit(c)) {
         int n = (c - '0');
         if (n > max)
           max = n;
@@ -1019,7 +1031,7 @@ bool RE2::Rewrite(std::string* out,
     }
     s++;
     int c = (s < end) ? *s : -1;
-    if (isdigit(c)) {
+    if (ascii_isdigit(c)) {
       int n = (c - '0');
       if (n >= veclen) {
         if (options_.log_errors()) {
@@ -1100,13 +1112,13 @@ static const char* TerminateNumber(char* buf, size_t nbuf, const char* str,
                                    size_t* np, bool accept_spaces) {
   size_t n = *np;
   if (n == 0) return "";
-  if (n > 0 && isspace(*str)) {
+  if (n > 0 && ascii_isspace(*str)) {
     // We are less forgiving than the strtoxxx() routines and do not
     // allow leading spaces. We do allow leading spaces for floats.
     if (!accept_spaces) {
       return "";
     }
-    while (n > 0 && isspace(*str)) {
+    while (n > 0 && ascii_isspace(*str)) {
       n--;
       str++;
     }

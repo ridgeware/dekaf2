@@ -117,6 +117,7 @@ set (USOURCES
 	kmpsearch_tests.cpp
 	kmqtt_tests.cpp
 	kmru_tests.cpp
+	kndjson_tests.cpp
 	knetworkinterface_tests.cpp
 	kngram_tests.cpp
 	koptions_tests.cpp

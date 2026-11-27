@@ -156,6 +156,7 @@
 #include <dekaf2/core/strings/kjoin.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/data/json/kjson2.h>
+#include <dekaf2/data/json/kndjson.h>
 #include <dekaf2/time/clock/kjuliandate.h>
 #include <dekaf2/http/server/klambdastream.h>
 #include <dekaf2/containers/associative/klockmap.h>

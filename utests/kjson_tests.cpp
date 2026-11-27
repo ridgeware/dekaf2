@@ -778,3 +778,28 @@ TEST_CASE("kjson::Parse nesting depth")
 		CHECK ( sError.contains("nesting depth") );
 	}
 }
+
+TEST_CASE("kjson::Parse after the value")
+{
+	using namespace dekaf2;
+
+	SECTION("white space after the value is no error")
+	{
+		LJSON   json;
+		KString sError;
+
+		CHECK ( kjson::Parse(json, "{\"a\":1} \t\r\n\n  \n", sError) );
+		CHECK ( sError.empty() );
+		CHECK ( json.dump() == R"({"a":1})" );
+	}
+
+	SECTION("a second value is an error, also in a line of its own")
+	{
+		LJSON   json;
+		KString sError;
+
+		// input with one value per line is read by KNDJSONParser
+		CHECK ( kjson::Parse(json, "{\"a\":1}\n{\"a\":2}\n", sError) == false );
+		CHECK ( sError.empty() == false );
+	}
+}

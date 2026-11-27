@@ -1870,6 +1870,7 @@ set(PUBLIC_HEADERS
 	source/data/json/kconfig.h
 	source/data/json/kjson.h
 	source/data/json/kjson2.h
+	source/data/json/kndjson.h
 	source/data/sql/krow.h
 	source/data/template/koutputtemplate.h
 	source/data/template/kreplacer.h
@@ -2175,6 +2176,7 @@ set (SOURCES
 	source/data/json/kconfig.cpp
 	source/data/json/kjson.cpp
 	source/data/json/kjson2.cpp
+	source/data/json/kndjson.cpp
 	source/data/sql/krow.cpp
 	source/data/template/koutputtemplate.cpp
 	source/data/template/kreplacer.cpp

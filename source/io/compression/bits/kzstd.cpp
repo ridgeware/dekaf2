@@ -75,6 +75,7 @@ zstd_base::zstd_base()
 	, in_(new ZSTD_inBuffer)
 	, out_(new ZSTD_outBuffer)
 	, eof_(false)
+	, incomplete_(false)
 	, held_(false)
     { }
 
@@ -146,8 +147,19 @@ int zstd_base::inflate(int action)
     }
     // need loop since iostream code cannot handle short reads
     do {
+        size_t before = in->pos;
         result = ZSTD_decompressStream(s, out, in);
         zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(result);
+        if (result == 0)
+        {
+            // a frame is complete, and all of its output is written
+            incomplete_ = false;
+        }
+        else if (in->pos > before)
+        {
+            // this was input of a frame that is not complete yet
+            incomplete_ = true;
+        }
     } while (in->pos < in->size && out->pos < out->size);
     // The decompressor takes the input of a whole block, and writes its output as
     // there is room. The symmetric_filter calls again only while it has input: with
@@ -160,7 +172,16 @@ int zstd_base::inflate(int action)
     {
         --in->pos;
     }
-    return action == zstd::finish && in->size == 0 && out->pos == 0 ? zstd::stream_end : zstd::okay;
+    if (action == zstd::finish && in->size == 0 && out->pos == 0)
+    {
+        if (incomplete_)
+        {
+            // the input was cut off
+            boost::throw_exception(BOOST_IOSTREAMS_FAILURE("zstd input ends inside of a frame"));
+        }
+        return zstd::stream_end;
+    }
+    return zstd::okay;
 }
 
 void zstd_base::reset(bool compress, bool realloc)
@@ -172,6 +193,7 @@ void zstd_base::reset(bool compress, bool realloc)
         memset(in, 0, sizeof(*in));
         memset(out, 0, sizeof(*out));
         eof_ = false;
+        incomplete_ = false;
         held_ = false;
 
 		if (compress)
@@ -212,6 +234,7 @@ void zstd_base::do_init
     memset(in, 0, sizeof(*in));
     memset(out, 0, sizeof(*out));
     eof_ = false;
+    incomplete_ = false;
     held_ = false;
 
 	if (compress)

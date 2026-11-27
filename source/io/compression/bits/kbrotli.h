@@ -182,6 +182,7 @@ private:
 	void* EncoderState_;
 	size_t total_out_;
 	uint32_t level;
+	bool incomplete_;   // the decompressor had input, and has not seen the end of the stream
 	bool held_;         // the decompressor has the first byte of the input already
 };
 

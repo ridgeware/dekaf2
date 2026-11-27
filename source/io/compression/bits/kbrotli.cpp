@@ -72,6 +72,7 @@ brotli_base::brotli_base()
 	, EncoderState_(0)
 	, total_out_(0)
 	, level(brotli::default_compression)
+	, incomplete_(false)
 	, held_(false)
     { }
 
@@ -134,6 +135,7 @@ int brotli_base::deflate(int action)
 int brotli_base::inflate(int action)
 {
 	BrotliDecoderState* state = static_cast<BrotliDecoderState*>(DecoderState_);
+	BrotliDecoderResult result;
 
 	// the input of this call, with a byte that the decoder has already
 	bool had_input = stream_.avail_in != 0;
@@ -148,8 +150,33 @@ int brotli_base::inflate(int action)
     // need loop since iostream code cannot handle short reads
     do {
 
-		BrotliDecoderResult result = BrotliDecoderDecompressStream(state, &stream_.avail_in, &stream_.next_in, &stream_.avail_out, &stream_.next_out, &total_out_);
-        brotli_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(result);
+		size_t avail_in = stream_.avail_in;
+
+		result = BrotliDecoderDecompressStream(state, &stream_.avail_in, &stream_.next_in, &stream_.avail_out, &stream_.next_out, &total_out_);
+
+		if (result == BROTLI_DECODER_RESULT_ERROR)
+		{
+			// The result is no error code, and never negative: the decoder keeps the
+			// code. Without this the loop would not end, the decoder takes no more
+			// input after an error.
+			boost::throw_exception(brotli_error(BrotliDecoderGetErrorCode(state)));
+		}
+
+		if (result == BROTLI_DECODER_RESULT_SUCCESS)
+		{
+			incomplete_ = false;
+
+			if (stream_.avail_in)
+			{
+				// the decoder takes no input after the end of the stream either
+				boost::throw_exception(BOOST_IOSTREAMS_FAILURE("data after the end of the brotli stream"));
+			}
+		}
+		else if (stream_.avail_in < avail_in)
+		{
+			// this was input of a stream that has not ended yet
+			incomplete_ = true;
+		}
 
     } while (stream_.avail_in && stream_.avail_out);
 
@@ -166,10 +193,20 @@ int brotli_base::inflate(int action)
 		++stream_.avail_in;
 	}
 
-    return (action == brotli::finish &&
-			stream_.avail_in == 0 &&
-			stream_.next_out == stream_.out_base)
-				? brotli::stream_end : brotli::okay;
+    if (action == brotli::finish &&
+		stream_.avail_in == 0 &&
+		stream_.next_out == stream_.out_base)
+	{
+		if (incomplete_)
+		{
+			// the input was cut off
+			boost::throw_exception(BOOST_IOSTREAMS_FAILURE("brotli input ends inside of a stream"));
+		}
+
+		return brotli::stream_end;
+	}
+
+    return brotli::okay;
 }
 
 void brotli_base::reset(bool compress, bool realloc)
@@ -178,6 +215,7 @@ void brotli_base::reset(bool compress, bool realloc)
     {
 		stream_.clear();
 		total_out_ = 0;
+		incomplete_ = false;
 		held_ = false;
 
 		if (compress)

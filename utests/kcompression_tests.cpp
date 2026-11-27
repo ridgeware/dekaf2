@@ -5,9 +5,76 @@
 #include <iostream>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
+#include <dekaf2/io/compression/bits/kiostreams_filters.h>
 #include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/io/readwrite/kread.h>
 
 using namespace dekaf2;
+
+namespace {
+
+struct Decompressed
+{
+	KString sData;
+	bool    bFailed { false }; ///< the decompressor threw
+};
+
+//-----------------------------------------------------------------------------
+/// decompresses through the filter of boost::iostreams, as a reader of a stream does
+template<class Filter>
+Decompressed Decompress(const KString& sCompressed)
+//-----------------------------------------------------------------------------
+{
+	Decompressed   Result;
+	KIStringStream Source(sCompressed);
+
+	boost::iostreams::filtering_istream Chain;
+	Chain.push(Filter());
+	Chain.push(Source);
+
+	char Buffer[512];
+
+	try
+	{
+		for (;;)
+		{
+			auto iRead = kReadSome(Chain, Buffer, sizeof(Buffer));
+
+			if (!iRead)
+			{
+				break;
+			}
+
+			Result.sData.append(Buffer, iRead);
+		}
+	}
+	catch (const std::exception&)
+	{
+		Result.bFailed = true;
+	}
+
+	return Result;
+
+} // Decompress
+
+//-----------------------------------------------------------------------------
+KString MakeText(std::size_t iSize)
+//-----------------------------------------------------------------------------
+{
+	KString sText;
+
+	sText.reserve(iSize);
+
+	for (std::size_t i = 0; i < iSize; ++i)
+	{
+		sText += static_cast<char>('a' + (i * 7919 + i / 5) % 26);
+	}
+
+	return sText;
+
+} // MakeText
+
+} // end of anonymous namespace
 
 TEST_CASE("KCompression") {
 
@@ -263,3 +330,129 @@ TEST_CASE("KCompression") {
 	}
 }
 
+#ifdef DEKAF2_HAS_LIBZSTD
+TEST_CASE("KCompression: zstd input that is not complete")
+{
+	using Filter = dekaf2::iostreams::zstd_decompressor;
+
+	auto    sPlain = MakeText(20000);
+	KString sCompressed;
+
+	{
+		KZSTD Compressor(sCompressed);
+		Compressor.Write(sPlain);
+	}
+
+	REQUIRE ( sCompressed.size() > 20 );
+
+	SECTION("the whole input")
+	{
+		auto Result = Decompress<Filter>(sCompressed);
+
+		CHECK ( Result.bFailed == false );
+		CHECK ( Result.sData   == sPlain );
+	}
+
+	SECTION("input that is cut off is an error")
+	{
+		// the last byte is of the checksum
+		for (std::size_t iCut : { std::size_t(1), std::size_t(10), sCompressed.size() / 2, sCompressed.size() - 1 })
+		{
+			auto Result = Decompress<Filter>(sCompressed.substr(0, iCut));
+
+			INFO  ( iCut );
+			CHECK ( Result.bFailed );
+			CHECK ( sPlain.starts_with(Result.sData) );
+		}
+	}
+
+	SECTION("frames one after the other, and no input at all, are none")
+	{
+		auto Twice = Decompress<Filter>(sCompressed + sCompressed);
+
+		CHECK ( Twice.bFailed == false );
+		CHECK ( Twice.sData   == sPlain + sPlain );
+
+		auto None = Decompress<Filter>(KString{});
+
+		CHECK ( None.bFailed == false );
+		CHECK ( None.sData.empty() );
+	}
+
+	SECTION("the second of two frames is cut off")
+	{
+		auto Result = Decompress<Filter>(sCompressed + sCompressed.substr(0, sCompressed.size() / 2));
+
+		CHECK ( Result.bFailed );
+		CHECK ( (sPlain + sPlain).starts_with(Result.sData) );
+	}
+}
+#endif
+
+#ifdef DEKAF2_HAS_LIBBROTLI
+TEST_CASE("KCompression: brotli input that is not complete or damaged")
+{
+	using Filter = dekaf2::iostreams::brotli_decompressor;
+
+	auto    sPlain = MakeText(20000);
+	KString sCompressed;
+
+	{
+		KBrotli Compressor(sCompressed);
+		Compressor.Write(sPlain);
+	}
+
+	REQUIRE ( sCompressed.size() > 20 );
+
+	SECTION("the whole input")
+	{
+		auto Result = Decompress<Filter>(sCompressed);
+
+		CHECK ( Result.bFailed == false );
+		CHECK ( Result.sData   == sPlain );
+	}
+
+	SECTION("input that is cut off is an error")
+	{
+		for (std::size_t iCut : { std::size_t(1), std::size_t(10), sCompressed.size() / 2, sCompressed.size() - 1 })
+		{
+			auto Result = Decompress<Filter>(sCompressed.substr(0, iCut));
+
+			INFO  ( iCut );
+			CHECK ( Result.bFailed );
+			CHECK ( sPlain.starts_with(Result.sData) );
+		}
+	}
+
+	SECTION("input that the decoder refuses is an error")
+	{
+		// the decoder takes no more input after an error: this did not return
+		KString sDamaged = sCompressed;
+		sDamaged[0] = static_cast<char>(sDamaged[0] ^ 0x55);
+
+		auto Result = Decompress<Filter>(sDamaged);
+
+		CHECK ( Result.bFailed );
+	}
+
+	SECTION("data after the end of the stream is an error")
+	{
+		// the decoder takes no input after the end of the stream: this did not return either
+		auto Trailing = Decompress<Filter>(sCompressed + "trailing bytes");
+
+		CHECK ( Trailing.bFailed );
+
+		auto Twice = Decompress<Filter>(sCompressed + sCompressed);
+
+		CHECK ( Twice.bFailed );
+	}
+
+	SECTION("no input at all is none")
+	{
+		auto None = Decompress<Filter>(KString{});
+
+		CHECK ( None.bFailed == false );
+		CHECK ( None.sData.empty() );
+	}
+}
+#endif

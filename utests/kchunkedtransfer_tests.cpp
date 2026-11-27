@@ -6,7 +6,10 @@
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/io/streams/kfdstream.h>
 #include <dekaf2/io/compression/kcompression.h>
+#include <dekaf2/io/compression/bits/kimmediateinputfilter.h>
+#include <dekaf2/io/readwrite/kread.h>
 #include <dekaf2/core/format/kformat.h>
+#include <boost/iostreams/filtering_stream.hpp>
 #include <zlib.h>
 #ifdef DEKAF2_HAS_LIBLZMA
 	#include <lzma.h>
@@ -126,6 +129,43 @@ KString UnXZOpenStream(KStringView sInput)
 }
 #endif
 
+// decompress what a stream holds so far with a decompressor of dekaf2, as KInHTTPFilter
+// does for a receiver: it hands on what it could read, and then refuses the end of
+// a stream that is not complete
+template<class Filter>
+KString ReadOpenStream(KStringView sInput)
+{
+	KString         sOutput;
+	KInStringStream Source(sInput);
+
+	boost::iostreams::filtering_istream Chain;
+	Chain.push(dekaf2::iostreams::immediate_input_filter<Filter>());
+	Chain.push(Source.istream());
+
+	char Buffer[4096];
+
+	try
+	{
+		for (;;)
+		{
+			auto iRead = kReadSome(Chain, Buffer, sizeof(Buffer));
+
+			if (!iRead)
+			{
+				break;
+			}
+
+			sOutput.append(Buffer, iRead);
+		}
+	}
+	catch (const std::exception&)
+	{
+		// the stream is not complete
+	}
+
+	return sOutput;
+}
+
 // decompress what a compressed stream holds so far - the stream may still be open
 KString UncompressOpenStream(KStringView sInput, KUnCompressIStream::COMPRESSION Compression)
 {
@@ -140,8 +180,17 @@ KString UncompressOpenStream(KStringView sInput, KUnCompressIStream::COMPRESSION
 			return UnXZOpenStream(sInput);
 #endif
 
+#ifdef DEKAF2_HAS_LIBZSTD
+		case KUnCompressIStream::ZSTD:
+			return ReadOpenStream<dekaf2::iostreams::zstd_decompressor>(sInput);
+#endif
+
+#ifdef DEKAF2_HAS_LIBBROTLI
+		case KUnCompressIStream::BROTLI:
+			return ReadOpenStream<dekaf2::iostreams::brotli_decompressor>(sInput);
+#endif
+
 		default:
-			// the decompressors of zstd and brotli read an open stream
 			return Uncompress(sInput, Compression);
 	}
 }
